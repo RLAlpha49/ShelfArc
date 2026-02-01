@@ -1,4 +1,7 @@
 /.next
 /node_modules
+/.env
 /.env.local
 /next-env.d.ts
+/TODO.md
+/*.tsbuildinfo
