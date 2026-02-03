@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { VolumeDialog } from "@/components/library/volume-dialog"
+import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { VolumeCard } from "@/components/library/volume-card"
 import { EmptyState } from "@/components/empty-state"
 import { useLibrary } from "@/lib/hooks/use-library"
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Volume, VolumeInsert } from "@/lib/types/database"
+import type { BookSearchResult } from "@/lib/books/search"
 
 export default function SeriesDetailPage() {
   const params = useParams()
@@ -38,10 +39,12 @@ export default function SeriesDetailPage() {
     createVolume,
     editVolume,
     removeVolume,
+    addVolumeFromSearchResult,
     isLoading
   } = useLibrary()
   const { selectedSeries, setSelectedSeries } = useLibraryStore()
 
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [volumeDialogOpen, setVolumeDialogOpen] = useState(false)
   const [editingVolume, setEditingVolume] = useState<Volume | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -112,8 +115,26 @@ export default function SeriesDetailPage() {
 
   const openAddDialog = useCallback(() => {
     setEditingVolume(null)
+    setSearchDialogOpen(true)
+  }, [])
+
+  const openManualDialog = useCallback(() => {
+    setSearchDialogOpen(false)
+    setEditingVolume(null)
     setVolumeDialogOpen(true)
   }, [])
+
+  const handleSearchSelect = useCallback(
+    async (result: BookSearchResult) => {
+      try {
+        await addVolumeFromSearchResult(seriesId, result)
+        toast.success("Volume added successfully")
+      } catch {
+        toast.error("Failed to add volume")
+      }
+    },
+    [addVolumeFromSearchResult, seriesId]
+  )
 
   if (isLoading && !currentSeries) {
     return (
@@ -183,13 +204,13 @@ export default function SeriesDetailPage() {
         <div className="lg:col-span-1">
           <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-lg">
             {currentSeries.cover_image_url ? (
-              <Image
+              <img
                 src={currentSeries.cover_image_url}
                 alt={currentSeries.title}
-                fill
-                className="object-cover"
-                sizes="(min-width: 1024px) 25vw, 100vw"
-                priority
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
               />
             ) : (
               <div className="flex h-full items-center justify-center">
@@ -359,6 +380,15 @@ export default function SeriesDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Add/Edit Volume Dialog */}
+      <BookSearchDialog
+        open={searchDialogOpen}
+        onOpenChange={setSearchDialogOpen}
+        onSelectResult={handleSearchSelect}
+        onAddManual={openManualDialog}
+        context="volume"
+      />
 
       {/* Add/Edit Volume Dialog */}
       <VolumeDialog

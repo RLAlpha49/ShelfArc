@@ -21,6 +21,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import type {
+  SeriesWithVolumes,
   Volume,
   VolumeInsert,
   OwnershipStatus,
@@ -32,6 +33,11 @@ interface VolumeDialogProps {
   readonly onOpenChange: (open: boolean) => void
   readonly volume: Volume | null
   readonly nextVolumeNumber: number
+  readonly seriesOptions?: SeriesWithVolumes[]
+  readonly selectedSeriesId?: string | null
+  readonly onSeriesChange?: (seriesId: string | null) => void
+  readonly onCreateSeries?: () => void
+  readonly allowNoSeries?: boolean
   readonly onSubmit: (
     data: Omit<VolumeInsert, "user_id" | "series_id">
   ) => Promise<void>
@@ -57,11 +63,19 @@ export function VolumeDialog({
   onOpenChange,
   volume,
   nextVolumeNumber,
+  seriesOptions,
+  selectedSeriesId,
+  onSeriesChange,
+  onCreateSeries,
+  allowNoSeries = false,
   onSubmit
 }: VolumeDialogProps) {
   const isEditing = !!volume
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState(defaultFormData)
+
+  const showSeriesSelect = !!seriesOptions
+  const seriesValue = selectedSeriesId ?? (allowNoSeries ? "unassigned" : "")
 
   useEffect(() => {
     if (volume) {
@@ -87,7 +101,7 @@ export function VolumeDialog({
     }
   }, [volume, nextVolumeNumber])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
     try {
@@ -143,6 +157,51 @@ export function VolumeDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {showSeriesSelect && (
+            <div className="space-y-2">
+              <Label htmlFor="series_id">Series</Label>
+              <Select
+                value={seriesValue}
+                onValueChange={(value) => {
+                  if (!onSeriesChange) return
+                  if (value === "unassigned") {
+                    onSeriesChange(null)
+                    return
+                  }
+                  onSeriesChange(value)
+                }}
+              >
+                <SelectTrigger id="series_id">
+                  <SelectValue placeholder="Select a series" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allowNoSeries && (
+                    <SelectItem value="unassigned">
+                      No series (unassigned)
+                    </SelectItem>
+                  )}
+                  {seriesOptions?.map((series) => (
+                    <SelectItem key={series.id} value={series.id}>
+                      {series.title}
+                      {series.author ? ` • ${series.author}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {onCreateSeries && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="px-0"
+                  onClick={onCreateSeries}
+                >
+                  Create new series
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="volume_number">Volume Number *</Label>

@@ -105,7 +105,7 @@ export interface Database {
       volumes: {
         Row: {
           id: string
-          series_id: string
+          series_id: string | null
           user_id: string
           volume_number: number
           title: string | null
@@ -129,7 +129,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          series_id: string
+          series_id?: string | null
           user_id: string
           volume_number: number
           title?: string | null
@@ -153,7 +153,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          series_id?: string
+          series_id?: string | null
           user_id?: string
           volume_number?: number
           title?: string | null

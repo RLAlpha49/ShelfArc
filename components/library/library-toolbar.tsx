@@ -21,11 +21,14 @@ import { useLibraryStore } from "@/lib/store/library-store"
 import type { TitleType, OwnershipStatus } from "@/lib/types/database"
 
 interface LibraryToolbarProps {
+  readonly onAddBook: () => void
   readonly onAddSeries: () => void
 }
 
-export function LibraryToolbar({ onAddSeries }: LibraryToolbarProps) {
+export function LibraryToolbar({ onAddBook, onAddSeries }: LibraryToolbarProps) {
   const {
+    collectionView,
+    setCollectionView,
     viewMode,
     setViewMode,
     setSortField,
@@ -34,6 +37,8 @@ export function LibraryToolbar({ onAddSeries }: LibraryToolbarProps) {
     setFilters,
     resetFilters
   } = useLibraryStore()
+
+  const searchPlaceholder = "Search by title, author, or ISBN..."
 
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -53,7 +58,7 @@ export function LibraryToolbar({ onAddSeries }: LibraryToolbarProps) {
           <path d="m21 21-4.3-4.3" />
         </svg>
         <Input
-          placeholder="Search series..."
+          placeholder={searchPlaceholder}
           value={filters.search}
           onChange={(e) => setFilters({ search: e.target.value })}
           className="pl-9"
@@ -166,6 +171,30 @@ export function LibraryToolbar({ onAddSeries }: LibraryToolbarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Collection View */}
+        <div className="flex items-center rounded-md border">
+          <button
+            className={`px-3 py-2 text-sm transition-colors ${
+              collectionView === "series" ? "bg-accent" : "hover:bg-accent/50"
+            }`}
+            onClick={() => setCollectionView("series")}
+            aria-label="Series view"
+            type="button"
+          >
+            Series
+          </button>
+          <button
+            className={`px-3 py-2 text-sm transition-colors ${
+              collectionView === "volumes" ? "bg-accent" : "hover:bg-accent/50"
+            }`}
+            onClick={() => setCollectionView("volumes")}
+            aria-label="Volumes view"
+            type="button"
+          >
+            Volumes
+          </button>
+        </div>
+
         {/* View Toggle */}
         <div className="flex items-center rounded-md border">
           <button
@@ -224,8 +253,8 @@ export function LibraryToolbar({ onAddSeries }: LibraryToolbarProps) {
           </Button>
         )}
 
-        {/* Add Series Button */}
-        <Button onClick={onAddSeries}>
+        {/* Add Book Button */}
+        <Button onClick={onAddBook}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -238,6 +267,24 @@ export function LibraryToolbar({ onAddSeries }: LibraryToolbarProps) {
           >
             <path d="M5 12h14" />
             <path d="M12 5v14" />
+          </svg>
+          Add Book
+        </Button>
+
+        {/* Add Series Button */}
+        <Button variant="outline" onClick={onAddSeries}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mr-2 h-4 w-4"
+          >
+            <rect width="20" height="14" x="2" y="5" rx="2" />
+            <path d="M6 9h12" />
           </svg>
           Add Series
         </Button>

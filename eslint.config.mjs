@@ -12,7 +12,23 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts"
-  ])
+  ]),
+  {
+    rules: {
+      "@next/next/no-img-element": "off",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/image",
+              message: "Use the native <img> element instead of next/image."
+            }
+          ]
+        }
+      ]
+    }
+  }
 ])
 
 export default eslintConfig

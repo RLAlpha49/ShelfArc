@@ -4,7 +4,7 @@
 
 1. **Always** Activate: `mcp_oraios_serena_activate_project "ShelfArc"`.
 2. **Always** set mode based on task size/complexity (use `mcp_oraios_serena_switch_modes` with appropriate mode array from Modes section). Example: `mcp_oraios_serena_switch_modes(["planning", "editing"])`
-3. Use Serena exploration tools for discovery: `get_symbols_overview`, `find_symbol`, `search_for_pattern`, `list_dir`.
+3. Use Serena exploration tools for discovery: `get_symbols_overview`, `find_symbol`, `search_for_pattern`, `list_dir`. This does not require switching to plan agent.
 4. Prefer symbolic tools over reading files unless necessary.
 5. Follow these workflow checkpoints:
 
@@ -142,6 +142,8 @@ Use this for **both** Implementation and Janitor subagents.
   ```
 
 ## Exploration Tools (Code Discovery)
+
+Using exploration tools does not require switching to the Plan agent. Any code exploration can be done directly within the current agent mode.
 
 - **`get_symbols_overview`**: High-level view of top-level symbols in a file
 - **`find_symbol`**: Locate specific symbol by name path with optional depth

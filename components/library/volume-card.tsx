@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,12 +45,12 @@ export function VolumeCard({ volume, onEdit, onDelete }: VolumeCardProps) {
         {/* Cover Image */}
         <div className="bg-muted relative aspect-3/4">
           {volume.cover_image_url ? (
-            <Image
+            <img
               src={volume.cover_image_url}
               alt={`Volume ${volume.volume_number}`}
-              fill
-              className="object-cover"
-              sizes="(min-width: 1024px) 16vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="flex h-full items-center justify-center">

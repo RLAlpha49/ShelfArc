@@ -12,6 +12,7 @@ import type {
 export type SortField = "title" | "created_at" | "updated_at" | "author"
 export type SortOrder = "asc" | "desc"
 export type ViewMode = "grid" | "list"
+export type CollectionView = "series" | "volumes"
 
 interface FilterState {
   search: string
@@ -24,9 +25,11 @@ interface FilterState {
 interface LibraryState {
   // Data
   series: SeriesWithVolumes[]
+  unassignedVolumes: Volume[]
   selectedSeries: SeriesWithVolumes | null
 
   // UI State
+  collectionView: CollectionView
   viewMode: ViewMode
   sortField: SortField
   sortOrder: SortOrder
@@ -35,6 +38,7 @@ interface LibraryState {
 
   // Actions
   setSeries: (series: SeriesWithVolumes[]) => void
+  setUnassignedVolumes: (volumes: Volume[]) => void
   addSeries: (series: SeriesWithVolumes) => void
   updateSeries: (id: string, updates: Partial<Series>) => void
   deleteSeries: (id: string) => void
@@ -47,7 +51,12 @@ interface LibraryState {
   ) => void
   deleteVolume: (seriesId: string, volumeId: string) => void
 
+  addUnassignedVolume: (volume: Volume) => void
+  updateUnassignedVolume: (volumeId: string, updates: Partial<Volume>) => void
+  deleteUnassignedVolume: (volumeId: string) => void
+
   setSelectedSeries: (series: SeriesWithVolumes | null) => void
+  setCollectionView: (view: CollectionView) => void
   setViewMode: (mode: ViewMode) => void
   setSortField: (field: SortField) => void
   setSortOrder: (order: SortOrder) => void
@@ -69,7 +78,9 @@ export const useLibraryStore = create<LibraryState>()(
     (set) => ({
       // Initial state
       series: [],
+      unassignedVolumes: [],
       selectedSeries: null,
+      collectionView: "series",
       viewMode: "grid",
       sortField: "title",
       sortOrder: "asc",
@@ -78,6 +89,7 @@ export const useLibraryStore = create<LibraryState>()(
 
       // Actions
       setSeries: (series) => set({ series }),
+      setUnassignedVolumes: (volumes) => set({ unassignedVolumes: volumes }),
 
       addSeries: (newSeries) =>
         set((state) => ({ series: [...state.series, newSeries] })),
@@ -155,7 +167,27 @@ export const useLibraryStore = create<LibraryState>()(
               : state.selectedSeries
         })),
 
+      addUnassignedVolume: (volume) =>
+        set((state) => ({
+          unassignedVolumes: [...state.unassignedVolumes, volume]
+        })),
+
+      updateUnassignedVolume: (volumeId, updates) =>
+        set((state) => ({
+          unassignedVolumes: state.unassignedVolumes.map((volume) =>
+            volume.id === volumeId ? { ...volume, ...updates } : volume
+          )
+        })),
+
+      deleteUnassignedVolume: (volumeId) =>
+        set((state) => ({
+          unassignedVolumes: state.unassignedVolumes.filter(
+            (volume) => volume.id !== volumeId
+          )
+        })),
+
       setSelectedSeries: (series) => set({ selectedSeries: series }),
+      setCollectionView: (view) => set({ collectionView: view }),
       setViewMode: (mode) => set({ viewMode: mode }),
       setSortField: (field) => set({ sortField: field }),
       setSortOrder: (order) => set({ sortOrder: order }),
@@ -167,6 +199,7 @@ export const useLibraryStore = create<LibraryState>()(
     {
       name: "shelfarc-library",
       partialize: (state) => ({
+        collectionView: state.collectionView,
         viewMode: state.viewMode,
         sortField: state.sortField,
         sortOrder: state.sortOrder

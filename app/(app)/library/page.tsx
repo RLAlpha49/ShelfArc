@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 import { SeriesCard } from "@/components/library/series-card"
 import { SeriesDialog } from "@/components/library/series-dialog"
+import { VolumeDialog } from "@/components/library/volume-dialog"
+import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { LibraryToolbar } from "@/components/library/library-toolbar"
+import { VolumeCard } from "@/components/library/volume-card"
 import { EmptyState } from "@/components/empty-state"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
@@ -21,7 +23,8 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Series, SeriesWithVolumes } from "@/lib/types/database"
+import type { Series, SeriesWithVolumes, Volume } from "@/lib/types/database"
+import type { BookSearchResult } from "@/lib/books/search"
 
 function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
   const items = Array.from({ length: 12 }, (_, i) => `skeleton-${i}`)
@@ -69,12 +72,12 @@ function SeriesListItem({
     >
       <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
         {series.cover_image_url ? (
-          <Image
+          <img
             src={series.cover_image_url}
             alt={series.title}
-            fill
-            className="object-cover"
-            sizes="48px"
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
@@ -104,33 +107,160 @@ function SeriesListItem({
   )
 }
 
+type VolumeWithSeries = {
+  volume: Volume
+  series: SeriesWithVolumes
+}
+
+function VolumeGridItem({
+  item,
+  onClick
+}: {
+  readonly item: VolumeWithSeries
+  readonly onClick: () => void
+}) {
+  const coverUrl = item.volume.cover_image_url || item.series.cover_image_url
+
+  return (
+    <button type="button" className="group text-left" onClick={onClick}>
+      <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-md">
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt={item.series.title}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <span className="text-muted-foreground/30 text-3xl font-bold">
+              {item.volume.volume_number}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="mt-2 space-y-1">
+        <p className="line-clamp-1 font-medium">{item.series.title}</p>
+        <p className="text-muted-foreground line-clamp-2 text-xs">
+          Vol. {item.volume.volume_number}
+          {item.volume.title ? ` • ${item.volume.title}` : ""}
+        </p>
+      </div>
+    </button>
+  )
+}
+
+function VolumeListItem({
+  item,
+  onClick
+}: {
+  readonly item: VolumeWithSeries
+  readonly onClick: () => void
+}) {
+  const coverUrl = item.volume.cover_image_url || item.series.cover_image_url
+
+  return (
+    <button
+      type="button"
+      className="hover:bg-accent/50 flex w-full cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-colors"
+      onClick={onClick}
+    >
+      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt={item.series.title}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <span className="text-muted-foreground/50 text-sm font-semibold">
+              {item.volume.volume_number}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate font-medium">{item.series.title}</h3>
+        <p className="text-muted-foreground truncate text-sm">
+          Vol. {item.volume.volume_number}
+          {item.volume.title ? ` • ${item.volume.title}` : ""}
+        </p>
+        {item.series.author && (
+          <p className="text-muted-foreground truncate text-xs">
+            {item.series.author}
+          </p>
+        )}
+      </div>
+      <div className="text-muted-foreground text-xs capitalize">
+        {item.volume.ownership_status}
+      </div>
+    </button>
+  )
+}
+
 export default function LibraryPage() {
   const router = useRouter()
   const {
+    series,
     filteredSeries,
+    filteredVolumes,
+    filteredUnassignedVolumes,
     isLoading,
     fetchSeries,
     createSeries,
     editSeries,
-    removeSeries
+    removeSeries,
+    createVolume,
+    editVolume,
+    removeVolume,
+    addBookFromSearchResult
   } = useLibrary()
 
-  const { viewMode, setSelectedSeries } = useLibraryStore()
+  const { viewMode, setSelectedSeries, collectionView } = useLibraryStore()
 
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
   const [editingSeries, setEditingSeries] = useState<Series | null>(null)
+  const [volumeDialogOpen, setVolumeDialogOpen] = useState(false)
+  const [editingVolume, setEditingVolume] = useState<Volume | null>(null)
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null)
+  const [pendingSeriesSelection, setPendingSeriesSelection] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingSeries, setDeletingSeries] =
     useState<SeriesWithVolumes | null>(null)
+  const [deleteVolumeDialogOpen, setDeleteVolumeDialogOpen] = useState(false)
+  const [deletingVolume, setDeletingVolume] = useState<Volume | null>(null)
 
   useEffect(() => {
     fetchSeries()
   }, [fetchSeries])
 
+  const getNextVolumeNumber = useCallback(
+    (seriesId: string | null) => {
+      if (!seriesId) return 1
+      const targetSeries = series.find((item) => item.id === seriesId)
+      if (!targetSeries) return 1
+      const maxVolume = targetSeries.volumes.reduce(
+        (max, volume) => Math.max(max, volume.volume_number),
+        0
+      )
+      return maxVolume + 1
+    },
+    [series]
+  )
+
   const handleAddSeries = async (data: Parameters<typeof createSeries>[0]) => {
     try {
-      await createSeries(data)
+      const createdSeries = await createSeries(data)
       toast.success("Series added successfully")
+      if (pendingSeriesSelection) {
+        setSelectedSeriesId(createdSeries.id)
+        setPendingSeriesSelection(false)
+      }
     } catch {
       toast.error("Failed to add series")
     }
@@ -159,6 +289,48 @@ export default function LibraryPage() {
     }
   }
 
+  const handleAddVolume = async (
+    data: Parameters<typeof createVolume>[1]
+  ) => {
+    try {
+      await createVolume(selectedSeriesId ?? null, data)
+      toast.success("Book added successfully")
+    } catch {
+      toast.error("Failed to add book")
+    }
+  }
+
+  const handleEditVolume = async (
+    data: Parameters<typeof createVolume>[1]
+  ) => {
+    if (!editingVolume) return
+    const currentSeriesId = editingVolume.series_id ?? null
+    const nextSeriesId = selectedSeriesId ?? null
+
+    try {
+      await editVolume(currentSeriesId, editingVolume.id, {
+        ...data,
+        series_id: nextSeriesId
+      })
+      toast.success("Book updated successfully")
+      setEditingVolume(null)
+    } catch {
+      toast.error("Failed to update book")
+    }
+  }
+
+  const handleDeleteVolume = async () => {
+    if (!deletingVolume) return
+    try {
+      await removeVolume(deletingVolume.series_id ?? null, deletingVolume.id)
+      toast.success("Book deleted successfully")
+      setDeletingVolume(null)
+      setDeleteVolumeDialogOpen(false)
+    } catch {
+      toast.error("Failed to delete book")
+    }
+  }
+
   const openEditDialog = useCallback((series: SeriesWithVolumes) => {
     setEditingSeries(series)
     setSeriesDialogOpen(true)
@@ -167,6 +339,17 @@ export default function LibraryPage() {
   const openDeleteDialog = useCallback((series: SeriesWithVolumes) => {
     setDeletingSeries(series)
     setDeleteDialogOpen(true)
+  }, [])
+
+  const openEditVolumeDialog = useCallback((volume: Volume) => {
+    setEditingVolume(volume)
+    setSelectedSeriesId(volume.series_id ?? null)
+    setVolumeDialogOpen(true)
+  }, [])
+
+  const openDeleteVolumeDialog = useCallback((volume: Volume) => {
+    setDeletingVolume(volume)
+    setDeleteVolumeDialogOpen(true)
   }, [])
 
   const handleSeriesClick = useCallback(
@@ -179,15 +362,129 @@ export default function LibraryPage() {
 
   const openAddDialog = useCallback(() => {
     setEditingSeries(null)
+    setSearchDialogOpen(true)
+  }, [])
+
+  const openAddSeriesDialog = useCallback(() => {
+    setEditingSeries(null)
+    setPendingSeriesSelection(false)
     setSeriesDialogOpen(true)
   }, [])
+
+  const openManualDialog = useCallback(() => {
+    setSearchDialogOpen(false)
+    setEditingVolume(null)
+    setSelectedSeriesId(null)
+    setPendingSeriesSelection(false)
+    setVolumeDialogOpen(true)
+  }, [])
+
+  const openSeriesDialogFromVolume = useCallback(() => {
+    setEditingSeries(null)
+    setPendingSeriesSelection(true)
+    setSeriesDialogOpen(true)
+  }, [])
+
+  const handleSearchSelect = useCallback(
+    async (result: BookSearchResult) => {
+      try {
+        await addBookFromSearchResult(result)
+        toast.success("Book added successfully")
+      } catch {
+        toast.error("Failed to add book")
+      }
+    },
+    [addBookFromSearchResult]
+  )
+
+  const renderUnassignedSection = () => {
+    if (filteredUnassignedVolumes.length === 0) return null
+
+    return (
+      <div className="mt-8 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Unassigned Books</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {filteredUnassignedVolumes.map((volume) => (
+            <VolumeCard
+              key={volume.id}
+              volume={volume}
+              onEdit={() => openEditVolumeDialog(volume)}
+              onDelete={() => openDeleteVolumeDialog(volume)}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   const renderContent = () => {
     if (isLoading) {
       return <LoadingSkeleton viewMode={viewMode} />
     }
 
-    if (filteredSeries.length === 0) {
+    if (collectionView === "volumes") {
+      const hasAssignedVolumes = filteredVolumes.length > 0
+      const hasUnassignedVolumes = filteredUnassignedVolumes.length > 0
+
+      if (!hasAssignedVolumes && !hasUnassignedVolumes) {
+        return (
+          <EmptyState
+            icon={
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-muted-foreground h-8 w-8"
+              >
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
+            }
+            title="No volumes found"
+            description="Search for a book to add your first volume"
+            action={{
+              label: "Add Book",
+              onClick: openAddDialog
+            }}
+          />
+        )
+      }
+
+      return (
+        <div className="space-y-8">
+          {hasAssignedVolumes &&
+            (viewMode === "grid" ? (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                {filteredVolumes.map((item) => (
+                  <VolumeGridItem
+                    key={item.volume.id}
+                    item={item}
+                    onClick={() => handleSeriesClick(item.series)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredVolumes.map((item) => (
+                  <VolumeListItem
+                    key={item.volume.id}
+                    item={item}
+                    onClick={() => handleSeriesClick(item.series)}
+                  />
+                ))}
+              </div>
+            ))}
+          {renderUnassignedSection()}
+        </div>
+      )
+    }
+
+    if (filteredSeries.length === 0 && filteredUnassignedVolumes.length === 0) {
       return (
         <EmptyState
           icon={
@@ -207,7 +504,7 @@ export default function LibraryPage() {
           title="No series found"
           description="Start building your collection by adding your first series"
           action={{
-            label: "Add Series",
+            label: "Add Book",
             onClick: openAddDialog
           }}
         />
@@ -216,29 +513,35 @@ export default function LibraryPage() {
 
     if (viewMode === "grid") {
       return (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {filteredSeries.map((series) => (
-            <SeriesCard
-              key={series.id}
-              series={series}
-              onEdit={() => openEditDialog(series)}
-              onDelete={() => openDeleteDialog(series)}
-              onClick={() => handleSeriesClick(series)}
-            />
-          ))}
+        <div className="space-y-8">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {filteredSeries.map((series) => (
+              <SeriesCard
+                key={series.id}
+                series={series}
+                onEdit={() => openEditDialog(series)}
+                onDelete={() => openDeleteDialog(series)}
+                onClick={() => handleSeriesClick(series)}
+              />
+            ))}
+          </div>
+          {renderUnassignedSection()}
         </div>
       )
     }
 
     return (
-      <div className="space-y-2">
-        {filteredSeries.map((series) => (
-          <SeriesListItem
-            key={series.id}
-            series={series}
-            onClick={() => handleSeriesClick(series)}
-          />
-        ))}
+      <div className="space-y-8">
+        <div className="space-y-2">
+          {filteredSeries.map((series) => (
+            <SeriesListItem
+              key={series.id}
+              series={series}
+              onClick={() => handleSeriesClick(series)}
+            />
+          ))}
+        </div>
+        {renderUnassignedSection()}
       </div>
     )
   }
@@ -252,19 +555,74 @@ export default function LibraryPage() {
         </p>
       </div>
 
-      <LibraryToolbar onAddSeries={openAddDialog} />
+      <LibraryToolbar onAddBook={openAddDialog} onAddSeries={openAddSeriesDialog} />
 
       <div className="mt-6">{renderContent()}</div>
+
+      <BookSearchDialog
+        open={searchDialogOpen}
+        onOpenChange={setSearchDialogOpen}
+        onSelectResult={handleSearchSelect}
+        onAddManual={openManualDialog}
+        context="series"
+      />
+
+      <VolumeDialog
+        open={volumeDialogOpen}
+        onOpenChange={(open) => {
+          setVolumeDialogOpen(open)
+          if (!open) {
+            setEditingVolume(null)
+            setSelectedSeriesId(null)
+            setPendingSeriesSelection(false)
+          }
+        }}
+        volume={editingVolume}
+        nextVolumeNumber={getNextVolumeNumber(selectedSeriesId)}
+        onSubmit={editingVolume ? handleEditVolume : handleAddVolume}
+        seriesOptions={series}
+        selectedSeriesId={selectedSeriesId}
+        onSeriesChange={setSelectedSeriesId}
+        onCreateSeries={openSeriesDialogFromVolume}
+        allowNoSeries
+      />
 
       <SeriesDialog
         open={seriesDialogOpen}
         onOpenChange={(open) => {
           setSeriesDialogOpen(open)
-          if (!open) setEditingSeries(null)
+          if (!open) {
+            setEditingSeries(null)
+            setPendingSeriesSelection(false)
+          }
         }}
         series={editingSeries}
         onSubmit={editingSeries ? handleEditSeries : handleAddSeries}
       />
+
+      <AlertDialog
+        open={deleteVolumeDialogOpen}
+        onOpenChange={setDeleteVolumeDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Book</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this book? This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteVolume}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

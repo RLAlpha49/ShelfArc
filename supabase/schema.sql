@@ -41,7 +41,7 @@ CREATE TABLE series (
 -- Volumes table (individual books/volumes)
 CREATE TABLE volumes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  series_id UUID NOT NULL REFERENCES series(id) ON DELETE CASCADE,
+  series_id UUID REFERENCES series(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   volume_number INTEGER NOT NULL,
   title TEXT,

@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -90,12 +89,12 @@ export function SeriesCard({
 
       <div className="bg-muted relative aspect-2/3">
         {series.cover_image_url ? (
-          <Image
+          <img
             src={series.cover_image_url}
             alt={series.title}
-            fill
-            className="object-cover"
-            sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, 50vw"
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="flex h-full items-center justify-center">
