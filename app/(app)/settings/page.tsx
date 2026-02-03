@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   Card,
@@ -15,15 +15,54 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
+import { uploadImage } from "@/lib/uploads/upload-image"
+import {
+  extractStoragePath,
+  resolveImageUrl
+} from "@/lib/uploads/resolve-image-url"
 import type { Profile } from "@/lib/types/database"
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024
+const MAX_AVATAR_DIMENSION = 512
+
+const loadImageDimensions = (file: File) =>
+  new Promise<{ url: string; width: number; height: number }>(
+    (resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file)
+      const image = new Image()
+      image.onload = () =>
+        resolve({
+          url: objectUrl,
+          width: image.naturalWidth,
+          height: image.naturalHeight
+        })
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl)
+        reject(new Error("Unable to read image"))
+      }
+      image.src = objectUrl
+    }
+  )
+
+const preloadImage = (src: string) =>
+  new Promise<void>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve()
+    image.onerror = () => reject(new Error("Image failed to load"))
+    image.src = src
+  })
 
 export default function SettingsPage() {
   const supabase = createClient()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [displayName, setDisplayName] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("")
+  const [avatarPreviewError, setAvatarPreviewError] = useState(false)
+  const previewUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
     async function loadProfile() {
@@ -50,6 +89,22 @@ export default function SettingsPage() {
     loadProfile()
   }, [supabase])
 
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
+      }
+    }
+  }, [])
+
+  const setPreviewUrl = (url: string | null) => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+    }
+    previewUrlRef.current = url
+    setAvatarPreviewUrl(url ?? "")
+  }
+
   const handleSaveProfile = async () => {
     if (!profile) return
 
@@ -60,14 +115,63 @@ export default function SettingsPage() {
           eq: (field: string, value: string) => Promise<{ error: Error | null }>
         }
       }
+      const nextProfileValues = {
+        display_name: displayName || null,
+        avatar_url: avatarUrl || null
+      }
+      const previousProfileValues = {
+        display_name: profile.display_name || null,
+        avatar_url: profile.avatar_url || null
+      }
       const { error } = await profilesTable
-        .update({
-          display_name: displayName || null,
-          avatar_url: avatarUrl || null
-        })
+        .update(nextProfileValues)
         .eq("id", profile.id)
 
       if (error) throw error
+
+      const { error: authError } = await supabase.auth.updateUser({
+        data: nextProfileValues
+      })
+
+      if (authError) {
+        const { error: rollbackError } = await profilesTable
+          .update(previousProfileValues)
+          .eq("id", profile.id)
+        if (rollbackError) {
+          setProfile({
+            ...profile,
+            display_name: nextProfileValues.display_name,
+            avatar_url: nextProfileValues.avatar_url
+          })
+          setDisplayName(nextProfileValues.display_name ?? "")
+          setAvatarUrl(nextProfileValues.avatar_url ?? "")
+          console.error("Failed to rollback profile update", {
+            authError,
+            rollbackError,
+            userId: profile.id,
+            nextProfileValues
+          })
+        } else {
+          setProfile({
+            ...profile,
+            display_name: previousProfileValues.display_name,
+            avatar_url: previousProfileValues.avatar_url
+          })
+          setDisplayName(previousProfileValues.display_name ?? "")
+          setAvatarUrl(previousProfileValues.avatar_url ?? "")
+        }
+        console.error("Failed to update auth metadata", {
+          authError,
+          userId: profile.id
+        })
+        toast.error("Failed to update profile")
+        return
+      }
+      setProfile({
+        ...profile,
+        display_name: nextProfileValues.display_name,
+        avatar_url: nextProfileValues.avatar_url
+      })
       toast.success("Profile updated successfully")
     } catch {
       toast.error("Failed to update profile")
@@ -75,6 +179,72 @@ export default function SettingsPage() {
       setIsSaving(false)
     }
   }
+
+  const handleAvatarFileChange = async (file: File) => {
+    if (!file) return
+    if (file.size <= 0 || file.size > MAX_AVATAR_BYTES) {
+      toast.error("Avatar must be smaller than 2MB")
+      setPreviewUrl(null)
+      return
+    }
+
+    let previewUrl: string
+    try {
+      const { url, width, height } = await loadImageDimensions(file)
+      if (width > MAX_AVATAR_DIMENSION || height > MAX_AVATAR_DIMENSION) {
+        URL.revokeObjectURL(url)
+        toast.error("Avatar must be 512x512 or smaller")
+        setPreviewUrl(null)
+        return
+      }
+      previewUrl = url
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to read image"
+      toast.error(message)
+      setPreviewUrl(null)
+      return
+    }
+
+    setPreviewUrl(previewUrl)
+    setIsUploadingAvatar(true)
+    try {
+      const replacePath = extractStoragePath(avatarUrl)
+      const url = await uploadImage(file, "avatar", {
+        replacePath: replacePath ?? undefined
+      })
+      setAvatarUrl(url)
+      const resolvedUrl = resolveImageUrl(url)
+      if (resolvedUrl) {
+        void preloadImage(resolvedUrl)
+          .then(() => {
+            if (previewUrlRef.current === previewUrl) {
+              setPreviewUrl(null)
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to load uploaded avatar", {
+              error,
+              url: resolvedUrl
+            })
+          })
+      }
+      toast.success("Avatar uploaded")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed"
+      toast.error(message)
+      setPreviewUrl(null)
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
+  const resolvedAvatarUrl = resolveImageUrl(avatarUrl)
+  const avatarPreview = avatarPreviewUrl || resolvedAvatarUrl
+
+  useEffect(() => {
+    setAvatarPreviewError(false)
+  }, [avatarPreview])
 
   if (isLoading) {
     return (
@@ -131,7 +301,61 @@ export default function SettingsPage() {
             />
           </div>
 
-          <Button onClick={handleSaveProfile} disabled={isSaving}>
+          <div className="space-y-2">
+            <Label htmlFor="avatarUpload">Upload Avatar</Label>
+            <Input
+              id="avatarUpload"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  void handleAvatarFileChange(file)
+                }
+                e.currentTarget.value = ""
+              }}
+            />
+            <div className="flex items-center gap-2">
+              {avatarUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setAvatarUrl("")
+                    setPreviewUrl(null)
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+              {isUploadingAvatar && (
+                <span className="text-muted-foreground text-xs">
+                  Uploading...
+                </span>
+              )}
+            </div>
+            {avatarPreview && !avatarPreviewError && (
+              <div className="flex items-center gap-3">
+                <img
+                  src={avatarPreview}
+                  alt="Avatar preview"
+                  className="h-14 w-14 rounded-full object-cover"
+                  onError={() => setAvatarPreviewError(true)}
+                  onLoad={() => setAvatarPreviewError(false)}
+                />
+                <span className="text-muted-foreground text-xs">Preview</span>
+              </div>
+            )}
+            <p className="text-muted-foreground text-xs">
+              Square images work best. Uploads are compressed to WebP.
+            </p>
+          </div>
+
+          <Button
+            onClick={handleSaveProfile}
+            disabled={isSaving || isUploadingAvatar}
+          >
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </CardContent>

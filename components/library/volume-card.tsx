@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
+import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 import type { Volume } from "@/lib/types/database"
 
 interface VolumeCardProps {
@@ -38,15 +39,16 @@ export function VolumeCard({ volume, onEdit, onDelete }: VolumeCardProps) {
     volume.page_count && volume.current_page
       ? Math.round((volume.current_page / volume.page_count) * 100)
       : null
+  const coverUrl = resolveImageUrl(volume.cover_image_url)
 
   return (
     <Card className="group relative overflow-hidden">
       <CardContent className="p-0">
         {/* Cover Image */}
         <div className="bg-muted relative aspect-3/4">
-          {volume.cover_image_url ? (
+          {coverUrl ? (
             <img
-              src={volume.cover_image_url}
+              src={coverUrl}
               alt={`Volume ${volume.volume_number}`}
               className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"

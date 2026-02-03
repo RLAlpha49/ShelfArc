@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -25,24 +25,28 @@ interface BookSearchDialogProps {
   readonly context: SearchContext
 }
 
-const contextCopy: Record<SearchContext, { title: string; description: string }>
-  = {
-    series: {
-      title: "Search books to add",
-      description:
-        "Search by title, author, or ISBN. Selecting a result will create a series if needed and add the volume."
-    },
-    volume: {
-      title: "Search volumes to add",
-      description:
-        "Search by title, author, or ISBN. Selecting a result will add a volume to this series."
-    }
+const contextCopy: Record<
+  SearchContext,
+  { title: string; description: string }
+> = {
+  series: {
+    title: "Search books to add",
+    description:
+      "Search by title, author, or ISBN. Selecting a result will create a series if needed and add the volume."
+  },
+  volume: {
+    title: "Search volumes to add",
+    description:
+      "Search by title, author, or ISBN. Selecting a result will add a volume to this series."
   }
+}
 
 const sourceLabels: Record<BookSearchResult["source"], string> = {
   google_books: "Google Books",
   open_library: "Open Library"
 }
+
+const SEARCH_PLACEHOLDER = "Search by title, author, or ISBN..."
 
 export function BookSearchDialog({
   open,
@@ -58,11 +62,6 @@ export function BookSearchDialog({
   const [error, setError] = useState<string | null>(null)
   const [sourceUsed, setSourceUsed] = useState<string | null>(null)
   const [selectingId, setSelectingId] = useState<string | null>(null)
-
-  const placeholder = useMemo(
-    () => "Search by title, author, or ISBN...",
-    []
-  )
 
   const manualLabel =
     context === "volume" ? "Add volume manually" : "Add book manually"
@@ -99,9 +98,9 @@ export function BookSearchDialog({
     setIsLoading(true)
     setError(null)
 
-    fetch(`/api/books/search?q=${encodeURIComponent(debouncedQuery)}`,
-      { signal: controller.signal }
-    )
+    fetch(`/api/books/search?q=${encodeURIComponent(debouncedQuery)}`, {
+      signal: controller.signal
+    })
       .then(async (response) => {
         const data = (await response.json()) as {
           results?: BookSearchResult[]
@@ -145,35 +144,43 @@ export function BookSearchDialog({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-hidden">
         <DialogHeader>
           <DialogTitle>{contextCopy[context].title}</DialogTitle>
-          <DialogDescription>{contextCopy[context].description}</DialogDescription>
+          <DialogDescription>
+            {contextCopy[context].description}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <Input
-            placeholder={placeholder}
+            placeholder={SEARCH_PLACEHOLDER}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
 
           {sourceUsed && results.length > 0 && (
             <p className="text-muted-foreground text-xs">
-              Source: {sourceUsed === "google_books" ? "Google Books" : "Open Library"}
+              Source:{" "}
+              {sourceUsed === "google_books" ? "Google Books" : "Open Library"}
             </p>
           )}
 
           <ScrollArea className="max-h-[50vh] pr-2">
             <div className="space-y-3">
               {isLoading && (
-                <div className="text-muted-foreground text-sm">Searching...</div>
+                <div className="text-muted-foreground text-sm">
+                  Searching...
+                </div>
               )}
               {!isLoading && error && (
                 <div className="text-destructive text-sm">{error}</div>
               )}
-              {!isLoading && !error && results.length === 0 && debouncedQuery && (
-                <div className="text-muted-foreground text-sm">
-                  No results found. Try a different query.
-                </div>
-              )}
+              {!isLoading &&
+                !error &&
+                results.length === 0 &&
+                debouncedQuery && (
+                  <div className="text-muted-foreground text-sm">
+                    No results found. Try a different query.
+                  </div>
+                )}
 
               {results.map((result) => (
                 <button
@@ -200,7 +207,9 @@ export function BookSearchDialog({
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="line-clamp-1 font-medium">{result.title}</h3>
+                      <h3 className="line-clamp-1 font-medium">
+                        {result.title}
+                      </h3>
                       <Badge variant="secondary" className="text-[10px]">
                         {sourceLabels[result.source]}
                       </Badge>
@@ -229,7 +238,11 @@ export function BookSearchDialog({
           <Button variant="outline" type="button" onClick={onAddManual}>
             {manualLabel}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+          >
             Close
           </Button>
         </DialogFooter>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -9,7 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import type { SeriesWithVolumes } from "@/lib/types/database"
+import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
+import type { SeriesWithVolumes, TitleType } from "@/lib/types/database"
 
 interface SeriesCardProps {
   readonly series: SeriesWithVolumes
@@ -18,25 +20,37 @@ interface SeriesCardProps {
   readonly onClick: () => void
 }
 
+const TYPE_COLORS: Record<TitleType, string> = {
+  light_novel: "bg-blue-500/10 text-blue-500",
+  manga: "bg-purple-500/10 text-purple-500",
+  other: "bg-gray-500/10 text-gray-500"
+}
+
 export function SeriesCard({
   series,
   onEdit,
   onDelete,
   onClick
 }: SeriesCardProps) {
-  const ownedVolumes = series.volumes.filter(
-    (v) => v.ownership_status === "owned"
-  ).length
-  const totalVolumes = series.total_volumes || series.volumes.length
-  const readVolumes = series.volumes.filter(
-    (v) => v.reading_status === "completed"
-  ).length
+  const { ownedVolumes, readVolumes } = useMemo(
+    () =>
+      series.volumes.reduce(
+        (acc, volume) => {
+          if (volume.ownership_status === "owned") {
+            acc.ownedVolumes += 1
+          }
+          if (volume.reading_status === "completed") {
+            acc.readVolumes += 1
+          }
+          return acc
+        },
+        { ownedVolumes: 0, readVolumes: 0 }
+      ),
+    [series.volumes]
+  )
 
-  const typeColors = {
-    light_novel: "bg-blue-500/10 text-blue-500",
-    manga: "bg-purple-500/10 text-purple-500",
-    other: "bg-gray-500/10 text-gray-500"
-  }
+  const totalVolumes = series.total_volumes || series.volumes.length
+  const coverUrl = resolveImageUrl(series.cover_image_url)
 
   return (
     <Card
@@ -88,9 +102,9 @@ export function SeriesCard({
       </div>
 
       <div className="bg-muted relative aspect-2/3">
-        {series.cover_image_url ? (
+        {coverUrl ? (
           <img
-            src={series.cover_image_url}
+            src={coverUrl}
             alt={series.title}
             className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
@@ -128,7 +142,10 @@ export function SeriesCard({
         )}
 
         <div className="mt-2 flex flex-wrap gap-1">
-          <Badge variant="secondary" className={typeColors[series.type]}>
+          <Badge
+            variant="secondary"
+            className={TYPE_COLORS[series.type] ?? TYPE_COLORS.other}
+          >
             {series.type === "light_novel" && "LN"}
             {series.type === "manga" && "Manga"}
             {series.type === "other" && "Other"}

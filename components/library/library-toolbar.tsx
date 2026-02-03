@@ -25,7 +25,10 @@ interface LibraryToolbarProps {
   readonly onAddSeries: () => void
 }
 
-export function LibraryToolbar({ onAddBook, onAddSeries }: LibraryToolbarProps) {
+export function LibraryToolbar({
+  onAddBook,
+  onAddSeries
+}: LibraryToolbarProps) {
   const {
     collectionView,
     setCollectionView,

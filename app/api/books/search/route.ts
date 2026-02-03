@@ -36,9 +36,7 @@ const fetchGoogleBooks = async (
   return normalizeGoogleBooksItems(data.items ?? [])
 }
 
-const fetchOpenLibrary = async (
-  query: string
-): Promise<BookSearchResult[]> => {
+const fetchOpenLibrary = async (query: string): Promise<BookSearchResult[]> => {
   const url = new URL(OPEN_LIBRARY_URL)
   if (isIsbnQuery(query)) {
     url.searchParams.set("isbn", normalizeIsbn(query))

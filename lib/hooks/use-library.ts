@@ -82,14 +82,17 @@ export function useLibrary() {
     [normalizeSeriesTitle, normalizeText, series]
   )
 
-  const getNextVolumeNumber = useCallback((targetSeries?: SeriesWithVolumes) => {
-    if (!targetSeries) return 1
-    const maxVolume = targetSeries.volumes.reduce(
-      (max, volume) => Math.max(max, volume.volume_number),
-      0
-    )
-    return maxVolume + 1
-  }, [])
+  const getNextVolumeNumber = useCallback(
+    (targetSeries?: SeriesWithVolumes) => {
+      if (!targetSeries) return 1
+      const maxVolume = targetSeries.volumes.reduce(
+        (max, volume) => Math.max(max, volume.volume_number),
+        0
+      )
+      return maxVolume + 1
+    },
+    []
+  )
 
   // Fetch all series with volumes
   const fetchSeries = useCallback(async () => {
@@ -136,7 +139,14 @@ export function useLibrary() {
     } finally {
       setIsLoading(false)
     }
-  }, [supabase, setSeries, setUnassignedVolumes, setIsLoading, sortField, sortOrder])
+  }, [
+    supabase,
+    setSeries,
+    setUnassignedVolumes,
+    setIsLoading,
+    sortField,
+    sortOrder
+  ])
 
   // Create new series
   const createSeries = useCallback(
@@ -446,10 +456,13 @@ export function useLibrary() {
         }
       }
 
-      if (filters.type !== "all" && seriesItem.type !== filters.type) return false
+      if (filters.type !== "all" && seriesItem.type !== filters.type)
+        return false
 
       if (filters.tags.length > 0) {
-        const hasTags = filters.tags.every((tag) => seriesItem.tags.includes(tag))
+        const hasTags = filters.tags.every((tag) =>
+          seriesItem.tags.includes(tag)
+        )
         if (!hasTags) return false
       }
 
@@ -507,7 +520,9 @@ export function useLibrary() {
   const sortedVolumes = useMemo(() => {
     const multiplier = sortOrder === "asc" ? 1 : -1
     const compareStrings = (a?: string | null, b?: string | null) => {
-      return (a ?? "").localeCompare(b ?? "", undefined, { sensitivity: "base" })
+      return (a ?? "").localeCompare(b ?? "", undefined, {
+        sensitivity: "base"
+      })
     }
 
     return [...filteredVolumes].sort((a, b) => {

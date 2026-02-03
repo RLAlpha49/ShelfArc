@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { logout } from "@/app/auth/actions"
 import { cn } from "@/lib/utils"
+import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 
 interface HeaderProps {
   readonly user?: {
@@ -26,6 +27,7 @@ interface HeaderProps {
 
 export function Header({ user }: HeaderProps) {
   const pathname = usePathname()
+  const avatarUrl = resolveImageUrl(user?.user_metadata?.avatar_url)
 
   const navItems = [
     { href: "/library", label: "Library" },
@@ -80,7 +82,7 @@ export function Header({ user }: HeaderProps) {
               <DropdownMenuTrigger className="focus:outline-none">
                 <Avatar className="h-8 w-8 cursor-pointer">
                   <AvatarImage
-                    src={user.user_metadata?.avatar_url}
+                    src={avatarUrl}
                     alt={user.user_metadata?.display_name || "User"}
                   />
                   <AvatarFallback>

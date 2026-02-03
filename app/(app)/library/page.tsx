@@ -11,6 +11,7 @@ import { VolumeCard } from "@/components/library/volume-card"
 import { EmptyState } from "@/components/empty-state"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -63,6 +64,7 @@ function SeriesListItem({
     (v) => v.ownership_status === "owned"
   ).length
   const totalCount = series.total_volumes || series.volumes.length
+  const coverUrl = resolveImageUrl(series.cover_image_url)
 
   return (
     <button
@@ -71,9 +73,9 @@ function SeriesListItem({
       onClick={onClick}
     >
       <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
-        {series.cover_image_url ? (
+        {coverUrl ? (
           <img
-            src={series.cover_image_url}
+            src={coverUrl}
             alt={series.title}
             className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
@@ -119,7 +121,9 @@ function VolumeGridItem({
   readonly item: VolumeWithSeries
   readonly onClick: () => void
 }) {
-  const coverUrl = item.volume.cover_image_url || item.series.cover_image_url
+  const coverUrl = resolveImageUrl(
+    item.volume.cover_image_url || item.series.cover_image_url
+  )
 
   return (
     <button type="button" className="group text-left" onClick={onClick}>
@@ -158,7 +162,9 @@ function VolumeListItem({
   readonly item: VolumeWithSeries
   readonly onClick: () => void
 }) {
-  const coverUrl = item.volume.cover_image_url || item.series.cover_image_url
+  const coverUrl = resolveImageUrl(
+    item.volume.cover_image_url || item.series.cover_image_url
+  )
 
   return (
     <button
@@ -289,9 +295,7 @@ export default function LibraryPage() {
     }
   }
 
-  const handleAddVolume = async (
-    data: Parameters<typeof createVolume>[1]
-  ) => {
+  const handleAddVolume = async (data: Parameters<typeof createVolume>[1]) => {
     try {
       await createVolume(selectedSeriesId ?? null, data)
       toast.success("Book added successfully")
@@ -300,9 +304,7 @@ export default function LibraryPage() {
     }
   }
 
-  const handleEditVolume = async (
-    data: Parameters<typeof createVolume>[1]
-  ) => {
+  const handleEditVolume = async (data: Parameters<typeof createVolume>[1]) => {
     if (!editingVolume) return
     const currentSeriesId = editingVolume.series_id ?? null
     const nextSeriesId = selectedSeriesId ?? null
@@ -555,7 +557,10 @@ export default function LibraryPage() {
         </p>
       </div>
 
-      <LibraryToolbar onAddBook={openAddDialog} onAddSeries={openAddSeriesDialog} />
+      <LibraryToolbar
+        onAddBook={openAddDialog}
+        onAddSeries={openAddSeriesDialog}
+      />
 
       <div className="mt-6">{renderContent()}</div>
 

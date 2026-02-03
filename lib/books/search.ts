@@ -50,20 +50,20 @@ export const normalizeGoogleBooksItems = (
     if (!title) return []
 
     const authors = (volumeInfo?.authors as string[] | undefined) ?? []
-    const coverUrl =
-      (volumeInfo?.imageLinks as { thumbnail?: string; smallThumbnail?: string })
-        ?.thumbnail ||
-      (volumeInfo?.imageLinks as { thumbnail?: string; smallThumbnail?: string })
-        ?.smallThumbnail ||
-      null
+    const imageLinks = volumeInfo?.imageLinks as {
+      thumbnail?: string
+      smallThumbnail?: string
+    }
+    const coverUrl = imageLinks?.thumbnail || imageLinks?.smallThumbnail || null
 
     return [
       {
-        id: ((item as { id?: string })?.id ?? `google-${index}`),
+        id: (item as { id?: string })?.id ?? `google-${index}`,
         title,
         authors,
         publisher: (volumeInfo?.publisher as string | undefined) ?? null,
-        publishedDate: (volumeInfo?.publishedDate as string | undefined) ?? null,
+        publishedDate:
+          (volumeInfo?.publishedDate as string | undefined) ?? null,
         description: (volumeInfo?.description as string | undefined) ?? null,
         isbn:
           pickIsbnFromIdentifiers(
@@ -94,20 +94,16 @@ export const normalizeOpenLibraryDocs = (
     const coverUrl = coverId
       ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
       : null
+    const firstPublishYear = (doc as { first_publish_year?: number })
+      ?.first_publish_year
 
     return [
       {
-        id: ((doc as { key?: string })?.key ?? isbn ?? `open-${index}`),
+        id: (doc as { key?: string })?.key ?? isbn ?? `open-${index}`,
         title,
         authors: (doc as { author_name?: string[] })?.author_name ?? [],
-        publisher:
-          (doc as { publisher?: string[] })?.publisher?.[0] ?? null,
-        publishedDate: (doc as { first_publish_year?: number })
-          ?.first_publish_year
-          ? String(
-              (doc as { first_publish_year?: number }).first_publish_year
-            )
-          : null,
+        publisher: (doc as { publisher?: string[] })?.publisher?.[0] ?? null,
+        publishedDate: firstPublishYear ? String(firstPublishYear) : null,
         description: null,
         isbn,
         coverUrl,

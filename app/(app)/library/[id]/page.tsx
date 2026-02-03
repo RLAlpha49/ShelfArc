@@ -13,6 +13,7 @@ import { VolumeCard } from "@/components/library/volume-card"
 import { EmptyState } from "@/components/empty-state"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -184,6 +185,8 @@ export default function SeriesDetailPage() {
     other: "bg-gray-500/10 text-gray-500"
   }
 
+  const coverUrl = resolveImageUrl(currentSeries.cover_image_url)
+
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Breadcrumb */}
@@ -203,9 +206,9 @@ export default function SeriesDetailPage() {
         {/* Cover Image */}
         <div className="lg:col-span-1">
           <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-lg">
-            {currentSeries.cover_image_url ? (
+            {coverUrl ? (
               <img
-                src={currentSeries.cover_image_url}
+                src={coverUrl}
                 alt={currentSeries.title}
                 className="absolute inset-0 h-full w-full object-cover"
                 loading="eager"
