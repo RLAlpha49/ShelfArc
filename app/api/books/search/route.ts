@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   isIsbnQuery,
   normalizeGoogleBooksItems,
-  normalizeIsbn,
   normalizeOpenLibraryDocs,
   type BookSearchResult
 } from "@/lib/books/search"
+import { normalizeIsbn } from "@/lib/books/isbn"
 
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 const OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"

@@ -1,3 +1,5 @@
+import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
+
 export type BookSearchSource = "google_books" | "open_library"
 
 export interface BookSearchResult {
@@ -15,12 +17,8 @@ export interface BookSearchResult {
 
 const ensureHttps = (url: string) => url.replace(/^http:/, "https:")
 
-export const normalizeIsbn = (value: string) =>
-  value.replaceAll(/[^0-9X]/gi, "")
-
 export const isIsbnQuery = (query: string) => {
-  const normalized = normalizeIsbn(query)
-  return normalized.length === 10 || normalized.length === 13
+  return isValidIsbn(query)
 }
 
 const pickIsbnFromIdentifiers = (
@@ -51,10 +49,21 @@ export const normalizeGoogleBooksItems = (
 
     const authors = (volumeInfo?.authors as string[] | undefined) ?? []
     const imageLinks = volumeInfo?.imageLinks as {
+      extraLarge?: string
+      large?: string
+      medium?: string
+      small?: string
       thumbnail?: string
       smallThumbnail?: string
     }
-    const coverUrl = imageLinks?.thumbnail || imageLinks?.smallThumbnail || null
+    const coverUrl =
+      imageLinks?.extraLarge ||
+      imageLinks?.large ||
+      imageLinks?.medium ||
+      imageLinks?.small ||
+      imageLinks?.thumbnail ||
+      imageLinks?.smallThumbnail ||
+      null
 
     return [
       {

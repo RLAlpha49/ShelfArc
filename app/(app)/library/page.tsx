@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { SeriesCard } from "@/components/library/series-card"
 import { SeriesDialog } from "@/components/library/series-dialog"
@@ -8,10 +8,10 @@ import { VolumeDialog } from "@/components/library/volume-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { LibraryToolbar } from "@/components/library/library-toolbar"
 import { VolumeCard } from "@/components/library/volume-card"
+import { CoverImage } from "@/components/library/cover-image"
 import { EmptyState } from "@/components/empty-state"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
-import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -64,7 +64,17 @@ function SeriesListItem({
     (v) => v.ownership_status === "owned"
   ).length
   const totalCount = series.total_volumes || series.volumes.length
-  const coverUrl = resolveImageUrl(series.cover_image_url)
+  const { primaryIsbn, volumeFallbackUrl } = useMemo(() => {
+    const primaryVolume = series.volumes.find((volume) => volume.isbn)
+    const fallbackVolume = series.volumes.find(
+      (volume) => volume.cover_image_url
+    )
+
+    return {
+      primaryIsbn: primaryVolume?.isbn ?? null,
+      volumeFallbackUrl: fallbackVolume?.cover_image_url ?? null
+    }
+  }, [series.volumes])
 
   return (
     <button
@@ -73,28 +83,29 @@ function SeriesListItem({
       onClick={onClick}
     >
       <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={series.title}
-            className="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="text-muted-foreground/50 h-6 w-6"
-            >
-              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-            </svg>
-          </div>
-        )}
+        <CoverImage
+          isbn={primaryIsbn}
+          coverImageUrl={series.cover_image_url}
+          fallbackCoverImageUrl={volumeFallbackUrl}
+          alt={series.title}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="text-muted-foreground/50 h-6 w-6"
+              >
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
+            </div>
+          }
+        />
       </div>
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-medium">{series.title}</h3>
@@ -121,28 +132,32 @@ function VolumeGridItem({
   readonly item: VolumeWithSeries
   readonly onClick: () => void
 }) {
-  const coverUrl = resolveImageUrl(
-    item.volume.cover_image_url || item.series.cover_image_url
-  )
+  const volumeLabel = `Volume ${item.volume.volume_number}`
+  const volumeDescriptor = item.volume.title
+    ? `${volumeLabel} • ${item.volume.title}`
+    : volumeLabel
+  const coverAlt = `${item.series.title} — ${volumeDescriptor}`
 
   return (
     <button type="button" className="group text-left" onClick={onClick}>
       <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-md">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={item.series.title}
-            className="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <span className="text-muted-foreground/30 text-3xl font-bold">
-              {item.volume.volume_number}
-            </span>
-          </div>
-        )}
+        <CoverImage
+          isbn={item.volume.isbn}
+          coverImageUrl={item.volume.cover_image_url}
+          fallbackCoverImageUrl={item.series.cover_image_url}
+          alt={coverAlt}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          fallback={
+            <div className="flex h-full items-center justify-center">
+              <span className="text-muted-foreground/30 text-3xl font-bold">
+                {item.volume.volume_number}
+              </span>
+              <span className="sr-only">{coverAlt}</span>
+            </div>
+          }
+        />
       </div>
       <div className="mt-2 space-y-1">
         <p className="line-clamp-1 font-medium">{item.series.title}</p>
@@ -162,9 +177,11 @@ function VolumeListItem({
   readonly item: VolumeWithSeries
   readonly onClick: () => void
 }) {
-  const coverUrl = resolveImageUrl(
-    item.volume.cover_image_url || item.series.cover_image_url
-  )
+  const volumeLabel = `Volume ${item.volume.volume_number}`
+  const volumeDescriptor = item.volume.title
+    ? `${volumeLabel} • ${item.volume.title}`
+    : volumeLabel
+  const coverAlt = `${item.series.title} — ${volumeDescriptor}`
 
   return (
     <button
@@ -173,21 +190,23 @@ function VolumeListItem({
       onClick={onClick}
     >
       <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={item.series.title}
-            className="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <span className="text-muted-foreground/50 text-sm font-semibold">
-              {item.volume.volume_number}
-            </span>
-          </div>
-        )}
+        <CoverImage
+          isbn={item.volume.isbn}
+          coverImageUrl={item.volume.cover_image_url}
+          fallbackCoverImageUrl={item.series.cover_image_url}
+          alt={coverAlt}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <span className="text-muted-foreground/50 text-sm font-semibold">
+                {item.volume.volume_number}
+              </span>
+              <span className="sr-only">{coverAlt}</span>
+            </div>
+          }
+        />
       </div>
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-medium">{item.series.title}</h3>
@@ -226,7 +245,8 @@ export default function LibraryPage() {
     addBookFromSearchResult
   } = useLibrary()
 
-  const { viewMode, setSelectedSeries, collectionView } = useLibraryStore()
+  const { viewMode, setSelectedSeries, collectionView, deleteSeriesVolumes } =
+    useLibraryStore()
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
@@ -635,8 +655,11 @@ export default function LibraryPage() {
             <AlertDialogTitle>Delete Series</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &quot;{deletingSeries?.title}
-              &quot;? This will also delete all volumes associated with this
-              series. This action cannot be undone.
+              &quot;?{" "}
+              {deleteSeriesVolumes
+                ? "This will also delete all volumes associated with this series."
+                : "The volumes will be kept and moved to Unassigned Books."}{" "}
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

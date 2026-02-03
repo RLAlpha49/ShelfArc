@@ -34,6 +34,7 @@ interface LibraryState {
   sortField: SortField
   sortOrder: SortOrder
   filters: FilterState
+  deleteSeriesVolumes: boolean
   isLoading: boolean
 
   // Actions
@@ -62,6 +63,7 @@ interface LibraryState {
   setSortOrder: (order: SortOrder) => void
   setFilters: (filters: Partial<FilterState>) => void
   resetFilters: () => void
+  setDeleteSeriesVolumes: (value: boolean) => void
   setIsLoading: (loading: boolean) => void
 }
 
@@ -85,6 +87,7 @@ export const useLibraryStore = create<LibraryState>()(
       sortField: "title",
       sortOrder: "asc",
       filters: defaultFilters,
+      deleteSeriesVolumes: false,
       isLoading: false,
 
       // Actions
@@ -194,6 +197,7 @@ export const useLibraryStore = create<LibraryState>()(
       setFilters: (filters) =>
         set((state) => ({ filters: { ...state.filters, ...filters } })),
       resetFilters: () => set({ filters: defaultFilters }),
+      setDeleteSeriesVolumes: (value) => set({ deleteSeriesVolumes: value }),
       setIsLoading: (loading) => set({ isLoading: loading })
     }),
     {
@@ -202,7 +206,8 @@ export const useLibraryStore = create<LibraryState>()(
         collectionView: state.collectionView,
         viewMode: state.viewMode,
         sortField: state.sortField,
-        sortOrder: state.sortOrder
+        sortOrder: state.sortOrder,
+        deleteSeriesVolumes: state.deleteSeriesVolumes
       })
     }
   )

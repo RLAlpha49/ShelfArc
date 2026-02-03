@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { BookSearchResult } from "@/lib/books/search"
+import { CoverImage } from "@/components/library/cover-image"
 
 type SearchContext = "series" | "volume"
 
@@ -191,19 +192,19 @@ export function BookSearchDialog({
                   disabled={selectingId === result.id}
                 >
                   <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded">
-                    {result.coverUrl ? (
-                      <img
-                        src={result.coverUrl}
-                        alt={result.title}
-                        className="absolute inset-0 h-full w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <div className="text-muted-foreground/60 flex h-full w-full items-center justify-center text-xs">
-                        No cover
-                      </div>
-                    )}
+                    <CoverImage
+                      isbn={result.isbn}
+                      coverImageUrl={result.coverUrl}
+                      alt={result.title}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                      fallback={
+                        <div className="text-muted-foreground/60 flex h-full w-full items-center justify-center text-xs">
+                          No cover
+                        </div>
+                      }
+                    />
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">

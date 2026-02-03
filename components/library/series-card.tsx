@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
+import { CoverImage } from "@/components/library/cover-image"
 import type { SeriesWithVolumes, TitleType } from "@/lib/types/database"
 
 interface SeriesCardProps {
@@ -32,7 +32,7 @@ export function SeriesCard({
   onDelete,
   onClick
 }: SeriesCardProps) {
-  const { ownedVolumes, readVolumes } = useMemo(
+  const { ownedVolumes, readVolumes, primaryIsbn } = useMemo(
     () =>
       series.volumes.reduce(
         (acc, volume) => {
@@ -42,15 +42,17 @@ export function SeriesCard({
           if (volume.reading_status === "completed") {
             acc.readVolumes += 1
           }
+          if (!acc.primaryIsbn && volume.isbn) {
+            acc.primaryIsbn = volume.isbn
+          }
           return acc
         },
-        { ownedVolumes: 0, readVolumes: 0 }
+        { ownedVolumes: 0, readVolumes: 0, primaryIsbn: null as string | null }
       ),
     [series.volumes]
   )
 
   const totalVolumes = series.total_volumes || series.volumes.length
-  const coverUrl = resolveImageUrl(series.cover_image_url)
 
   return (
     <Card
@@ -102,30 +104,30 @@ export function SeriesCard({
       </div>
 
       <div className="bg-muted relative aspect-2/3">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={series.title}
-            className="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-muted-foreground/50 h-12 w-12"
-            >
-              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-            </svg>
-          </div>
-        )}
+        <CoverImage
+          isbn={primaryIsbn}
+          coverImageUrl={series.cover_image_url}
+          alt={series.title}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          fallback={
+            <div className="flex h-full items-center justify-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-muted-foreground/50 h-12 w-12"
+              >
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
+            </div>
+          }
+        />
       </div>
 
       <CardContent className="p-3">

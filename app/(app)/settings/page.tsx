@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useLibraryStore } from "@/lib/store/library-store"
 import {
   Card,
   CardContent,
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { uploadImage } from "@/lib/uploads/upload-image"
 import {
@@ -63,6 +65,7 @@ export default function SettingsPage() {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("")
   const [avatarPreviewError, setAvatarPreviewError] = useState(false)
   const previewUrlRef = useRef<string | null>(null)
+  const { deleteSeriesVolumes, setDeleteSeriesVolumes } = useLibraryStore()
 
   useEffect(() => {
     async function loadProfile() {
@@ -380,6 +383,23 @@ export default function SettingsPage() {
             <div className="text-muted-foreground text-sm">
               Use the theme toggle in the header
             </div>
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="delete-series-volumes" className="font-medium">
+                Delete volumes with series
+              </Label>
+              <p className="text-muted-foreground text-sm">
+                When enabled, deleting a series also deletes its volumes.
+                Otherwise, volumes become unassigned.
+              </p>
+            </div>
+            <Switch
+              id="delete-series-volumes"
+              checked={deleteSeriesVolumes}
+              onCheckedChange={setDeleteSeriesVolumes}
+            />
           </div>
         </CardContent>
       </Card>

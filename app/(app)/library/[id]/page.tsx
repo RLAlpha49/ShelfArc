@@ -11,9 +11,9 @@ import { VolumeDialog } from "@/components/library/volume-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { VolumeCard } from "@/components/library/volume-card"
 import { EmptyState } from "@/components/empty-state"
+import { CoverImage } from "@/components/library/cover-image"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
-import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -185,7 +185,15 @@ export default function SeriesDetailPage() {
     other: "bg-gray-500/10 text-gray-500"
   }
 
-  const coverUrl = resolveImageUrl(currentSeries.cover_image_url)
+  const primaryVolume = currentSeries.volumes.reduce<Volume | null>(
+    (best, volume) => {
+      if (!volume.isbn) return best
+      if (!best || volume.volume_number < best.volume_number) return volume
+      return best
+    },
+    null
+  )
+  const primaryIsbn = primaryVolume?.isbn ?? null
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -206,29 +214,29 @@ export default function SeriesDetailPage() {
         {/* Cover Image */}
         <div className="lg:col-span-1">
           <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-lg">
-            {coverUrl ? (
-              <img
-                src={coverUrl}
-                alt={currentSeries.title}
-                className="absolute inset-0 h-full w-full object-cover"
-                loading="eager"
-                decoding="async"
-                fetchPriority="high"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  className="text-muted-foreground/50 h-16 w-16"
-                >
-                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-                </svg>
-              </div>
-            )}
+            <CoverImage
+              isbn={primaryIsbn}
+              coverImageUrl={currentSeries.cover_image_url}
+              alt={currentSeries.title}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+              fallback={
+                <div className="flex h-full items-center justify-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="text-muted-foreground/50 h-16 w-16"
+                  >
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                  </svg>
+                </div>
+              }
+            />
           </div>
         </div>
 

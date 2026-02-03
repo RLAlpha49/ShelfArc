@@ -37,7 +37,8 @@ export function useLibrary() {
     isLoading,
     filters,
     sortField,
-    sortOrder
+    sortOrder,
+    deleteSeriesVolumes
   } = useLibraryStore()
 
   const normalizeText = useCallback((value?: string | null) => {
@@ -216,14 +217,52 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
+        const targetSeries = series.find((item) => item.id === id)
+        const volumesToUpdate = targetSeries?.volumes ?? []
+
+        if (deleteSeriesVolumes) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: volumeError } = await (supabase as any)
+            .from("volumes")
+            .delete()
+            .eq("series_id", id)
+            .eq("user_id", user.id)
+
+          if (volumeError) throw volumeError
+        } else if (volumesToUpdate.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: volumeError } = await (supabase as any)
+            .from("volumes")
+            .update({ series_id: null })
+            .eq("series_id", id)
+            .eq("user_id", user.id)
+
+          if (volumeError) throw volumeError
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
+        const { error: seriesError } = await (supabase as any)
           .from("series")
           .delete()
           .eq("id", id)
           .eq("user_id", user.id)
 
-        if (error) throw error
+        if (seriesError) throw seriesError
+
+        if (!deleteSeriesVolumes && volumesToUpdate.length > 0) {
+          const detachedVolumes = volumesToUpdate.map((volume) => ({
+            ...volume,
+            series_id: null
+          }))
+          const existingIds = new Set(
+            unassignedVolumes.map((volume) => volume.id)
+          )
+          const nextUnassigned = [
+            ...unassignedVolumes,
+            ...detachedVolumes.filter((volume) => !existingIds.has(volume.id))
+          ]
+          setUnassignedVolumes(nextUnassigned)
+        }
 
         deleteSeries(id)
       } catch (error) {
@@ -231,7 +270,14 @@ export function useLibrary() {
         throw error
       }
     },
-    [supabase, deleteSeries]
+    [
+      supabase,
+      series,
+      unassignedVolumes,
+      deleteSeriesVolumes,
+      setUnassignedVolumes,
+      deleteSeries
+    ]
   )
 
   // Create new volume

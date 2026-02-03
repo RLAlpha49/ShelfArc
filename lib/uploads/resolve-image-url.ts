@@ -1,4 +1,7 @@
+import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
+
 const STORAGE_PREFIX = "storage:"
+const OPEN_LIBRARY_COVERS = "/api/covers/open-library"
 
 export function extractStoragePath(value?: string | null): string | null {
   if (!value) return null
@@ -59,4 +62,37 @@ export function resolveImageUrl(value?: string | null): string | undefined {
     : trimmed
 
   return `/api/storage/file?path=${encodeURIComponent(path)}`
+}
+
+export function buildOpenLibraryCoverUrl(
+  isbn?: string | null,
+  size: "S" | "M" | "L" = "L"
+): string | null {
+  if (!isbn || !isValidIsbn(isbn)) return null
+  const normalized = normalizeIsbn(isbn)
+  return `${OPEN_LIBRARY_COVERS}?isbn=${encodeURIComponent(
+    normalized
+  )}&size=${size}`
+}
+
+export function getCoverCandidates({
+  isbn,
+  coverImageUrl,
+  fallbackCoverImageUrl
+}: {
+  isbn?: string | null
+  coverImageUrl?: string | null
+  fallbackCoverImageUrl?: string | null
+}): string[] {
+  const candidates: string[] = []
+  const openLibraryUrl = buildOpenLibraryCoverUrl(isbn)
+  if (openLibraryUrl) candidates.push(openLibraryUrl)
+
+  const primary = resolveImageUrl(coverImageUrl)
+  if (primary) candidates.push(primary)
+
+  const fallback = resolveImageUrl(fallbackCoverImageUrl)
+  if (fallback && fallback !== primary) candidates.push(fallback)
+
+  return Array.from(new Set(candidates))
 }

@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
+import { CoverImage } from "@/components/library/cover-image"
 import type { Volume } from "@/lib/types/database"
 
 interface VolumeCardProps {
@@ -39,28 +39,27 @@ export function VolumeCard({ volume, onEdit, onDelete }: VolumeCardProps) {
     volume.page_count && volume.current_page
       ? Math.round((volume.current_page / volume.page_count) * 100)
       : null
-  const coverUrl = resolveImageUrl(volume.cover_image_url)
 
   return (
     <Card className="group relative overflow-hidden">
       <CardContent className="p-0">
         {/* Cover Image */}
         <div className="bg-muted relative aspect-3/4">
-          {coverUrl ? (
-            <img
-              src={coverUrl}
-              alt={`Volume ${volume.volume_number}`}
-              className="absolute inset-0 h-full w-full object-cover"
-              loading="lazy"
-              decoding="async"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <span className="text-muted-foreground/30 text-3xl font-bold">
-                {volume.volume_number}
-              </span>
-            </div>
-          )}
+          <CoverImage
+            isbn={volume.isbn}
+            coverImageUrl={volume.cover_image_url}
+            alt={`Volume ${volume.volume_number}`}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <span className="text-muted-foreground/30 text-3xl font-bold">
+                  {volume.volume_number}
+                </span>
+              </div>
+            }
+          />
 
           {/* Hover Overlay */}
           <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
