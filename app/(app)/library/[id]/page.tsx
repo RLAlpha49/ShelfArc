@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Volume, VolumeInsert } from "@/lib/types/database"
-import type { BookSearchResult } from "@/lib/books/search"
+import { normalizeBookKey, type BookSearchResult } from "@/lib/books/search"
+import { normalizeIsbn } from "@/lib/books/isbn"
 
 export default function SeriesDetailPage() {
   const params = useParams()
@@ -41,6 +42,7 @@ export default function SeriesDetailPage() {
     editVolume,
     removeVolume,
     addVolumeFromSearchResult,
+    addVolumesFromSearchResults,
     isLoading
   } = useLibrary()
   const { selectedSeries, setSelectedSeries } = useLibraryStore()
@@ -55,6 +57,25 @@ export default function SeriesDetailPage() {
     selectedSeries?.id === seriesId
       ? selectedSeries
       : series.find((s) => s.id === seriesId)
+
+  const existingIsbns = useMemo(() => {
+    if (!currentSeries) return []
+    const normalized = currentSeries.volumes
+      .map((volume) => volume.isbn)
+      .filter((isbn): isbn is string => Boolean(isbn))
+      .map((isbn) => normalizeIsbn(isbn))
+      .filter((isbn) => isbn.length > 0)
+    return Array.from(new Set(normalized))
+  }, [currentSeries])
+
+  const existingBookKeys = useMemo(() => {
+    if (!currentSeries) return []
+    const author = currentSeries.author ?? null
+    const keys = currentSeries.volumes
+      .map((volume) => normalizeBookKey(volume.title, author))
+      .filter((key): key is string => Boolean(key))
+    return Array.from(new Set(keys))
+  }, [currentSeries])
 
   useEffect(() => {
     if (series.length === 0) {
@@ -135,6 +156,27 @@ export default function SeriesDetailPage() {
       }
     },
     [addVolumeFromSearchResult, seriesId]
+  )
+
+  const handleSearchSelectMany = useCallback(
+    async (results: BookSearchResult[]) => {
+      const { successCount, failureCount } = await addVolumesFromSearchResults(
+        seriesId,
+        results
+      )
+
+      if (successCount > 0) {
+        toast.success(
+          `${successCount} volume${successCount === 1 ? "" : "s"} added`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume${failureCount === 1 ? "" : "s"} failed to add`
+        )
+      }
+    },
+    [addVolumesFromSearchResults, seriesId]
   )
 
   if (isLoading && !currentSeries) {
@@ -397,8 +439,11 @@ export default function SeriesDetailPage() {
         open={searchDialogOpen}
         onOpenChange={setSearchDialogOpen}
         onSelectResult={handleSearchSelect}
+        onSelectResults={handleSearchSelectMany}
         onAddManual={openManualDialog}
         context="volume"
+        existingIsbns={existingIsbns}
+        existingBookKeys={existingBookKeys}
       />
 
       {/* Add/Edit Volume Dialog */}

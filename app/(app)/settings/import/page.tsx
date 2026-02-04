@@ -134,6 +134,7 @@ export default function ImportPage() {
             user_id: user.id,
             volume_number: v.volume_number,
             title: v.title,
+            description: v.description,
             isbn: v.isbn,
             cover_image_url: v.cover_image_url,
             ownership_status: v.ownership_status,

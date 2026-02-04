@@ -12,6 +12,40 @@ import type {
   VolumeInsert
 } from "@/lib/types/database"
 
+type VolumeDateFields = {
+  publish_date?: string | null
+  purchase_date?: string | null
+}
+
+const VOLUME_TOKEN_PATTERN =
+  /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*(\d+(?:\.\d+)?)\b/i
+const VOLUME_TOKEN_GLOBAL =
+  /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
+
+const normalizeDateInput = (value?: string | null) => {
+  if (!value) return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (/^\d{4}$/.test(trimmed)) return `${trimmed}-01-01`
+  if (/^\d{4}-\d{2}$/.test(trimmed)) return `${trimmed}-01`
+  return trimmed
+}
+
+const normalizeVolumeDates = <T extends VolumeDateFields>(data: T) => {
+  const next = { ...data }
+  if (data.publish_date === undefined) {
+    // no-op
+  } else {
+    next.publish_date = normalizeDateInput(data.publish_date)
+  }
+  if (data.purchase_date === undefined) {
+    // no-op
+  } else {
+    next.purchase_date = normalizeDateInput(data.purchase_date)
+  }
+  return next
+}
+
 export interface VolumeWithSeries {
   volume: Volume
   series: SeriesWithVolumes
@@ -41,6 +75,44 @@ export function useLibrary() {
     deleteSeriesVolumes
   } = useLibraryStore()
 
+  const fetchGoogleVolumeDetails = useCallback(async (volumeId: string) => {
+    const response = await fetch(
+      `/api/books/volume/${encodeURIComponent(volumeId)}`
+    )
+    const data = (await response.json()) as {
+      result?: BookSearchResult
+      error?: string
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error ?? "Google Books volume lookup failed")
+    }
+
+    if (!data.result) {
+      throw new Error("Google Books volume lookup failed")
+    }
+
+    return data.result
+  }, [])
+
+  const resolveSearchResultDetails = useCallback(
+    async (result: BookSearchResult) => {
+      if (result.source !== "google_books") return result
+      const volumeId = result.id?.trim() ?? ""
+      if (!volumeId || volumeId.startsWith("google-")) {
+        return result
+      }
+
+      try {
+        return await fetchGoogleVolumeDetails(volumeId)
+      } catch (error) {
+        console.warn("Google Books volume lookup failed", error)
+        return result
+      }
+    },
+    [fetchGoogleVolumeDetails]
+  )
+
   const normalizeText = useCallback((value?: string | null) => {
     return (value ?? "")
       .normalize("NFKD")
@@ -55,7 +127,7 @@ export function useLibrary() {
       const base = normalizeText(value)
       return base
         .replaceAll(/\(.*?\)/g, " ")
-        .replaceAll(/\b(vol(?:ume)?|book|part|no\.?|#)\s*\d+\b/g, " ")
+        .replaceAll(VOLUME_TOKEN_GLOBAL, " ")
         .replaceAll(
           /\b(omnibus|collector'?s|special|edition|deluxe|complete|box\s*set|boxset)\b/g,
           " "
@@ -65,6 +137,41 @@ export function useLibrary() {
         .trim()
     },
     [normalizeText]
+  )
+
+  const extractVolumeNumber = useCallback((title?: string | null) => {
+    if (!title) return null
+    const match = title.match(VOLUME_TOKEN_PATTERN)
+    if (!match) return null
+    const parsed = Number.parseFloat(match[1])
+    return Number.isFinite(parsed) ? parsed : null
+  }, [])
+
+  const stripVolumeFromTitle = useCallback((title: string) => {
+    const withoutVolume = title.replaceAll(VOLUME_TOKEN_GLOBAL, " ")
+    const trimmed = withoutVolume
+      .replaceAll(/\s*[-–—:,]\s*$/g, "")
+      .replaceAll(/\s+/g, " ")
+      .trim()
+    return trimmed || title.trim()
+  }, [])
+
+  const deriveSeriesTitle = useCallback(
+    (result: BookSearchResult) => {
+      const base = (result.seriesTitle ?? result.title ?? "").trim()
+      if (!base) return result.title
+      return stripVolumeFromTitle(base)
+    },
+    [stripVolumeFromTitle]
+  )
+
+  const buildSeriesKey = useCallback(
+    (title: string, author?: string | null) => {
+      const normalizedTitle = normalizeSeriesTitle(title)
+      const normalizedAuthor = normalizeText(author ?? "")
+      return `${normalizedTitle}|${normalizedAuthor}`
+    },
+    [normalizeSeriesTitle, normalizeText]
   )
 
   const findMatchingSeries = useCallback(
@@ -91,6 +198,19 @@ export function useLibrary() {
         0
       )
       return maxVolume + 1
+    },
+    []
+  )
+
+  const bumpNextVolumeNumberForSeries = useCallback(
+    (
+      nextVolumeBySeries: Map<string, number>,
+      seriesId: string,
+      usedNumber: number
+    ) => {
+      const current = nextVolumeBySeries.get(seriesId)
+      const next = Math.max(current ?? usedNumber + 1, usedNumber + 1)
+      nextVolumeBySeries.set(seriesId, next)
     },
     []
   )
@@ -208,6 +328,33 @@ export function useLibrary() {
     [supabase, updateSeries]
   )
 
+  const autoFillSeriesFromVolume = useCallback(
+    async (
+      targetSeries: SeriesWithVolumes,
+      volumeNumber: number,
+      resolvedResult: BookSearchResult
+    ) => {
+      if (volumeNumber !== 1) return
+
+      const updates: Partial<Series> = {}
+      const nextDescription = resolvedResult.description?.trim() ?? ""
+      const nextCoverUrl = resolvedResult.coverUrl?.trim() ?? ""
+
+      if (!targetSeries.description?.trim() && nextDescription) {
+        updates.description = resolvedResult.description
+      }
+
+      if (!targetSeries.cover_image_url?.trim() && nextCoverUrl) {
+        updates.cover_image_url = resolvedResult.coverUrl
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await editSeries(targetSeries.id, updates)
+      }
+    },
+    [editSeries]
+  )
+
   // Delete series
   const removeSeries = useCallback(
     async (id: string) => {
@@ -292,10 +439,16 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
+        const payload = {
+          ...normalizeVolumeDates(data),
+          series_id: seriesId,
+          user_id: user.id
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: newVolume, error } = await (supabase as any)
           .from("volumes")
-          .insert({ ...data, series_id: seriesId, user_id: user.id })
+          .insert(payload)
           .select()
           .single()
 
@@ -333,7 +486,7 @@ export function useLibrary() {
           throw new Error("Series not found")
         }
         const updatePayload = {
-          ...data,
+          ...normalizeVolumeDates(data),
           series_id: nextSeriesId
         }
 
@@ -600,55 +753,214 @@ export function useLibrary() {
     })
   }, [filteredVolumes, sortField, sortOrder])
 
+  const addBooksFromSearchResults = useCallback(
+    async (
+      results: BookSearchResult[],
+      options?: { throwOnError?: boolean }
+    ) => {
+      const seriesCache = new Map<string, SeriesWithVolumes>()
+      const nextVolumeBySeries = new Map<string, number>()
+      let successCount = 0
+      let failureCount = 0
+      let lastSeries: SeriesWithVolumes | null = null
+
+      const getNextVolumeNumberForSeries = (
+        targetSeries: SeriesWithVolumes
+      ) => {
+        const cached = nextVolumeBySeries.get(targetSeries.id)
+        if (cached !== undefined) return cached
+        const next = getNextVolumeNumber(targetSeries)
+        nextVolumeBySeries.set(targetSeries.id, next)
+        return next
+      }
+
+      for (const result of results) {
+        try {
+          const resolvedResult = await resolveSearchResultDetails(result)
+          const seriesTitle = deriveSeriesTitle(resolvedResult)
+          const author = resolvedResult.authors[0] ?? null
+          const seriesKey = buildSeriesKey(seriesTitle, author)
+          const parsedVolumeNumber = extractVolumeNumber(resolvedResult.title)
+          const initialVolumeNumber = parsedVolumeNumber ?? 1
+          let targetSeries = seriesCache.get(seriesKey)
+
+          if (!targetSeries) {
+            targetSeries = findMatchingSeries(seriesTitle, author)
+          }
+
+          if (!targetSeries) {
+            targetSeries = await createSeries({
+              title: seriesTitle,
+              author: author || null,
+              description:
+                initialVolumeNumber === 1
+                  ? resolvedResult.description || null
+                  : null,
+              publisher: resolvedResult.publisher || null,
+              cover_image_url:
+                initialVolumeNumber === 1
+                  ? resolvedResult.coverUrl || null
+                  : null,
+              type: "other",
+              tags: []
+            })
+          }
+
+          seriesCache.set(seriesKey, targetSeries)
+
+          const volumeNumber =
+            parsedVolumeNumber ?? getNextVolumeNumberForSeries(targetSeries)
+
+          await createVolume(targetSeries.id, {
+            volume_number: volumeNumber,
+            title: resolvedResult.title || null,
+            isbn: resolvedResult.isbn || null,
+            cover_image_url: resolvedResult.coverUrl || null,
+            publish_date: resolvedResult.publishedDate || null,
+            page_count: resolvedResult.pageCount ?? null,
+            description: resolvedResult.description || null,
+            ownership_status: "owned",
+            reading_status: "unread"
+          })
+
+          await autoFillSeriesFromVolume(
+            targetSeries,
+            volumeNumber,
+            resolvedResult
+          )
+
+          bumpNextVolumeNumberForSeries(
+            nextVolumeBySeries,
+            targetSeries.id,
+            volumeNumber
+          )
+          lastSeries = targetSeries
+          successCount += 1
+        } catch (error) {
+          console.error("Error adding book from search:", error)
+          failureCount += 1
+          if (options?.throwOnError) {
+            throw error
+          }
+        }
+      }
+
+      return { successCount, failureCount, lastSeries }
+    },
+    [
+      autoFillSeriesFromVolume,
+      bumpNextVolumeNumberForSeries,
+      buildSeriesKey,
+      createSeries,
+      createVolume,
+      deriveSeriesTitle,
+      extractVolumeNumber,
+      findMatchingSeries,
+      getNextVolumeNumber,
+      resolveSearchResultDetails
+    ]
+  )
+
   const addBookFromSearchResult = useCallback(
     async (result: BookSearchResult) => {
-      const seriesTitle = result.seriesTitle ?? result.title
-      if (!seriesTitle) throw new Error("Missing title")
-
-      const author = result.authors[0] ?? null
-      let targetSeries = findMatchingSeries(seriesTitle, author)
-      targetSeries ??= await createSeries({
-        title: seriesTitle,
-        author: author || null,
-        description: result.description || null,
-        publisher: result.publisher || null,
-        cover_image_url: result.coverUrl || null,
-        type: "other",
-        tags: []
-      })
-
-      const volumeNumber = getNextVolumeNumber(targetSeries)
-      await createVolume(targetSeries.id, {
-        volume_number: volumeNumber,
-        title: result.title || null,
-        isbn: result.isbn || null,
-        cover_image_url: result.coverUrl || null,
-        publish_date: result.publishedDate || null,
-        ownership_status: "owned",
-        reading_status: "unread"
-      })
-
-      return targetSeries
+      const { failureCount, lastSeries } = await addBooksFromSearchResults(
+        [result],
+        { throwOnError: true }
+      )
+      if (failureCount > 0 || !lastSeries) {
+        throw new Error("Failed to add book")
+      }
+      return lastSeries
     },
-    [createSeries, createVolume, findMatchingSeries, getNextVolumeNumber]
+    [addBooksFromSearchResults]
+  )
+
+  const addVolumesFromSearchResults = useCallback(
+    async (
+      seriesId: string,
+      results: BookSearchResult[],
+      options?: { throwOnError?: boolean }
+    ) => {
+      const targetSeries = series.find((item) => item.id === seriesId)
+      if (!targetSeries) throw new Error("Series not found")
+
+      const nextVolumeBySeries = new Map<string, number>()
+      let successCount = 0
+      let failureCount = 0
+
+      const getNextVolumeNumberForSeries = () => {
+        const cached = nextVolumeBySeries.get(seriesId)
+        if (cached !== undefined) return cached
+        const next = getNextVolumeNumber(targetSeries)
+        nextVolumeBySeries.set(seriesId, next)
+        return next
+      }
+
+      for (const result of results) {
+        try {
+          const resolvedResult = await resolveSearchResultDetails(result)
+          const parsedVolumeNumber = extractVolumeNumber(resolvedResult.title)
+          const volumeNumber =
+            parsedVolumeNumber ?? getNextVolumeNumberForSeries()
+
+          await createVolume(seriesId, {
+            volume_number: volumeNumber,
+            title: resolvedResult.title || null,
+            isbn: resolvedResult.isbn || null,
+            cover_image_url: resolvedResult.coverUrl || null,
+            publish_date: resolvedResult.publishedDate || null,
+            page_count: resolvedResult.pageCount ?? null,
+            description: resolvedResult.description || null,
+            ownership_status: "owned",
+            reading_status: "unread"
+          })
+
+          await autoFillSeriesFromVolume(
+            targetSeries,
+            volumeNumber,
+            resolvedResult
+          )
+
+          bumpNextVolumeNumberForSeries(
+            nextVolumeBySeries,
+            seriesId,
+            volumeNumber
+          )
+          successCount += 1
+        } catch (error) {
+          console.error("Error adding volume from search:", error)
+          failureCount += 1
+          if (options?.throwOnError) {
+            throw error
+          }
+        }
+      }
+
+      return { successCount, failureCount }
+    },
+    [
+      autoFillSeriesFromVolume,
+      bumpNextVolumeNumberForSeries,
+      createVolume,
+      extractVolumeNumber,
+      getNextVolumeNumber,
+      resolveSearchResultDetails,
+      series
+    ]
   )
 
   const addVolumeFromSearchResult = useCallback(
     async (seriesId: string, result: BookSearchResult) => {
-      const targetSeries = series.find((item) => item.id === seriesId)
-      const volumeNumber = getNextVolumeNumber(targetSeries)
-
-      await createVolume(seriesId, {
-        volume_number: volumeNumber,
-        title: result.title || null,
-        isbn: result.isbn || null,
-        cover_image_url: result.coverUrl || null,
-        publish_date: result.publishedDate || null,
-        ownership_status: "owned",
-        reading_status: "unread"
-      })
+      const { failureCount } = await addVolumesFromSearchResults(
+        seriesId,
+        [result],
+        { throwOnError: true }
+      )
+      if (failureCount > 0) {
+        throw new Error("Failed to add volume")
+      }
     },
-    [createVolume, getNextVolumeNumber, series]
+    [addVolumesFromSearchResults]
   )
 
   return {
@@ -666,6 +978,8 @@ export function useLibrary() {
     editVolume,
     removeVolume,
     addBookFromSearchResult,
-    addVolumeFromSearchResult
+    addBooksFromSearchResults,
+    addVolumeFromSearchResult,
+    addVolumesFromSearchResults
   }
 }

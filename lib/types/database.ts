@@ -109,6 +109,7 @@ export interface Database {
           user_id: string
           volume_number: number
           title: string | null
+          description: string | null
           isbn: string | null
           cover_image_url: string | null
           edition: string | null
@@ -133,6 +134,7 @@ export interface Database {
           user_id: string
           volume_number: number
           title?: string | null
+          description?: string | null
           isbn?: string | null
           cover_image_url?: string | null
           edition?: string | null
@@ -157,6 +159,7 @@ export interface Database {
           user_id?: string
           volume_number?: number
           title?: string | null
+          description?: string | null
           isbn?: string | null
           cover_image_url?: string | null
           edition?: string | null

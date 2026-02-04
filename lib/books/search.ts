@@ -8,11 +8,32 @@ export interface BookSearchResult {
   authors: string[]
   publisher: string | null
   publishedDate: string | null
+  pageCount: number | null
   description: string | null
   isbn: string | null
   coverUrl: string | null
   seriesTitle: string | null
   source: BookSearchSource
+}
+
+const normalizeBookText = (value?: string | null) => {
+  return (value ?? "")
+    .normalize("NFKD")
+    .replaceAll(/[\u0300-\u036f]/g, "")
+    .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .toLowerCase()
+    .replaceAll(/\s+/g, " ")
+}
+
+export const normalizeBookKey = (
+  title?: string | null,
+  author?: string | null
+) => {
+  const normalizedTitle = normalizeBookText(title)
+  if (!normalizedTitle) return null
+  const normalizedAuthor = normalizeBookText(author)
+  return `${normalizedTitle}|${normalizedAuthor}`
 }
 
 const ensureHttps = (url: string) => url.replace(/^http:/, "https:")
@@ -56,6 +77,23 @@ export const normalizeGoogleBooksItems = (
       thumbnail?: string
       smallThumbnail?: string
     }
+    const rawPageCount = volumeInfo?.pageCount
+    const pageCount =
+      typeof rawPageCount === "number" && Number.isFinite(rawPageCount)
+        ? rawPageCount
+        : null
+    const isbn =
+      pickIsbnFromIdentifiers(
+        volumeInfo?.industryIdentifiers as Array<{
+          type?: string
+          identifier?: string
+        }>
+      ) ?? null
+    const normalizedIsbn =
+      isbn && isValidIsbn(isbn) ? normalizeIsbn(isbn) : null
+    const openLibraryCoverUrl = normalizedIsbn
+      ? `https://covers.openlibrary.org/b/isbn/${normalizedIsbn}-L.jpg`
+      : null
     const coverUrl =
       imageLinks?.extraLarge ||
       imageLinks?.large ||
@@ -63,6 +101,7 @@ export const normalizeGoogleBooksItems = (
       imageLinks?.small ||
       imageLinks?.thumbnail ||
       imageLinks?.smallThumbnail ||
+      openLibraryCoverUrl ||
       null
 
     return [
@@ -73,14 +112,9 @@ export const normalizeGoogleBooksItems = (
         publisher: (volumeInfo?.publisher as string | undefined) ?? null,
         publishedDate:
           (volumeInfo?.publishedDate as string | undefined) ?? null,
+        pageCount,
         description: (volumeInfo?.description as string | undefined) ?? null,
-        isbn:
-          pickIsbnFromIdentifiers(
-            volumeInfo?.industryIdentifiers as Array<{
-              type?: string
-              identifier?: string
-            }>
-          ) ?? null,
+        isbn,
         coverUrl: coverUrl ? ensureHttps(coverUrl) : null,
         seriesTitle: Array.isArray(volumeInfo?.series)
           ? ((volumeInfo?.series as string[])[0] ?? null)
@@ -113,6 +147,7 @@ export const normalizeOpenLibraryDocs = (
         authors: (doc as { author_name?: string[] })?.author_name ?? [],
         publisher: (doc as { publisher?: string[] })?.publisher?.[0] ?? null,
         publishedDate: firstPublishYear ? String(firstPublishYear) : null,
+        pageCount: null,
         description: null,
         isbn,
         coverUrl,

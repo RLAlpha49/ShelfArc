@@ -1,6 +1,26 @@
 -- ShelfArc Database Schema
 -- Run this in your Supabase SQL Editor
 
+-- WARNING: This script drops and recreates objects. Data will be lost.
+
+-- Clean up auth trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Drop tables (policies, indexes, and triggers are dropped automatically)
+DROP TABLE IF EXISTS volumes CASCADE;
+DROP TABLE IF EXISTS series CASCADE;
+DROP TABLE IF EXISTS tags CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+
+-- Drop functions (after tables to remove trigger dependencies)
+DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS update_updated_at_column();
+
+-- Drop custom types
+DROP TYPE IF EXISTS title_type CASCADE;
+DROP TYPE IF EXISTS ownership_status CASCADE;
+DROP TYPE IF EXISTS reading_status CASCADE;
+
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -45,6 +65,7 @@ CREATE TABLE volumes (
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   volume_number INTEGER NOT NULL,
   title TEXT,
+  description TEXT,
   isbn TEXT,
   cover_image_url TEXT,
   edition TEXT, -- 'first_edition', 'collectors', 'omnibus', etc.
@@ -100,66 +121,70 @@ ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
 -- RLS Policies for profiles
 CREATE POLICY "Users can view their own profile"
   ON profiles FOR SELECT
-  USING (auth.uid() = id);
+  USING ((select auth.uid()) = id);
 
 CREATE POLICY "Users can update their own profile"
   ON profiles FOR UPDATE
-  USING (auth.uid() = id);
+  USING ((select auth.uid()) = id);
 
 -- RLS Policies for series
 CREATE POLICY "Users can view their own series"
   ON series FOR SELECT
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert their own series"
   ON series FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update their own series"
   ON series FOR UPDATE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete their own series"
   ON series FOR DELETE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- RLS Policies for volumes
 CREATE POLICY "Users can view their own volumes"
   ON volumes FOR SELECT
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert their own volumes"
   ON volumes FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update their own volumes"
   ON volumes FOR UPDATE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete their own volumes"
   ON volumes FOR DELETE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- RLS Policies for tags
 CREATE POLICY "Users can view their own tags"
   ON tags FOR SELECT
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert their own tags"
   ON tags FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update their own tags"
   ON tags FOR UPDATE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete their own tags"
   ON tags FOR DELETE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- Function to automatically create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, display_name)
   VALUES (
@@ -169,7 +194,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Trigger to call function on new user signup
 CREATE TRIGGER on_auth_user_created
@@ -178,12 +203,14 @@ CREATE TRIGGER on_auth_user_created
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Triggers for updated_at
 CREATE TRIGGER update_profiles_updated_at

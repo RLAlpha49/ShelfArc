@@ -85,14 +85,20 @@ export function getCoverCandidates({
   fallbackCoverImageUrl?: string | null
 }): string[] {
   const candidates: string[] = []
-  const openLibraryUrl = buildOpenLibraryCoverUrl(isbn)
-  if (openLibraryUrl) candidates.push(openLibraryUrl)
-
   const primary = resolveImageUrl(coverImageUrl)
   if (primary) candidates.push(primary)
 
   const fallback = resolveImageUrl(fallbackCoverImageUrl)
   if (fallback && fallback !== primary) candidates.push(fallback)
+
+  const openLibraryUrl = buildOpenLibraryCoverUrl(isbn)
+  if (
+    openLibraryUrl &&
+    openLibraryUrl !== primary &&
+    openLibraryUrl !== fallback
+  ) {
+    candidates.push(openLibraryUrl)
+  }
 
   return Array.from(new Set(candidates))
 }

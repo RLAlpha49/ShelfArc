@@ -52,6 +52,7 @@ export default function ExportPage() {
             "Publisher",
             "Volume Number",
             "Volume Title",
+            "Volume Description",
             "ISBN",
             "Ownership Status",
             "Reading Status",
@@ -86,6 +87,7 @@ export default function ExportPage() {
                 "",
                 "",
                 "",
+                "",
                 ""
               ]
                 .map((v) => `"${String(v).replaceAll('"', '""')}"`)
@@ -102,6 +104,7 @@ export default function ExportPage() {
                   s.publisher || "",
                   v.volume_number,
                   v.title || "",
+                  v.description || "",
                   v.isbn || "",
                   v.ownership_status,
                   v.reading_status,
@@ -132,7 +135,7 @@ export default function ExportPage() {
       a.download = filename
       document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
+      a.remove()
       URL.revokeObjectURL(url)
 
       toast.success(`Exported ${series.length} series successfully`)

@@ -52,6 +52,7 @@ interface VolumeDialogProps {
 const defaultFormData = {
   volume_number: 1,
   title: "",
+  description: "",
   isbn: "",
   cover_image_url: "",
   ownership_status: "owned" as OwnershipStatus,
@@ -103,6 +104,7 @@ export function VolumeDialog({
       setFormData({
         volume_number: volume.volume_number,
         title: volume.title || "",
+        description: volume.description || "",
         isbn: volume.isbn || "",
         cover_image_url: volume.cover_image_url || "",
         ownership_status: volume.ownership_status,
@@ -150,6 +152,7 @@ export function VolumeDialog({
       await onSubmit({
         volume_number: formData.volume_number,
         title: formData.title || null,
+        description: formData.description || null,
         isbn: formData.isbn || null,
         cover_image_url: formData.cover_image_url || null,
         ownership_status: formData.ownership_status,
@@ -536,6 +539,17 @@ export function VolumeDialog({
                 </p>
               </div>
             </aside>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Short summary or synopsis..."
+              rows={4}
+              value={formData.description}
+              onChange={(e) => updateField("description", e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">

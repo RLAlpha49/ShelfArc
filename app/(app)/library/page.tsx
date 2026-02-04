@@ -25,7 +25,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Series, SeriesWithVolumes, Volume } from "@/lib/types/database"
-import type { BookSearchResult } from "@/lib/books/search"
+import { normalizeBookKey, type BookSearchResult } from "@/lib/books/search"
+import { normalizeIsbn } from "@/lib/books/isbn"
 
 function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
   const items = Array.from({ length: 12 }, (_, i) => `skeleton-${i}`)
@@ -231,6 +232,7 @@ export default function LibraryPage() {
   const router = useRouter()
   const {
     series,
+    unassignedVolumes,
     filteredSeries,
     filteredVolumes,
     filteredUnassignedVolumes,
@@ -242,7 +244,8 @@ export default function LibraryPage() {
     createVolume,
     editVolume,
     removeVolume,
-    addBookFromSearchResult
+    addBookFromSearchResult,
+    addBooksFromSearchResults
   } = useLibrary()
 
   const { viewMode, setSelectedSeries, collectionView, deleteSeriesVolumes } =
@@ -264,6 +267,38 @@ export default function LibraryPage() {
   useEffect(() => {
     fetchSeries()
   }, [fetchSeries])
+
+  const existingEntries = useMemo(() => {
+    const assigned = series.flatMap((seriesItem) =>
+      seriesItem.volumes.map((volume) => ({
+        title: volume.title ?? null,
+        isbn: volume.isbn ?? null,
+        author: seriesItem.author ?? null
+      }))
+    )
+    const unassigned = unassignedVolumes.map((volume) => ({
+      title: volume.title ?? null,
+      isbn: volume.isbn ?? null,
+      author: null
+    }))
+    return [...assigned, ...unassigned]
+  }, [series, unassignedVolumes])
+
+  const existingIsbns = useMemo(() => {
+    const normalized = existingEntries
+      .map((item) => item.isbn)
+      .filter((isbn): isbn is string => Boolean(isbn))
+      .map((isbn) => normalizeIsbn(isbn))
+      .filter((isbn) => isbn.length > 0)
+    return Array.from(new Set(normalized))
+  }, [existingEntries])
+
+  const existingBookKeys = useMemo(() => {
+    const keys = existingEntries
+      .map((item) => normalizeBookKey(item.title, item.author))
+      .filter((key): key is string => Boolean(key))
+    return Array.from(new Set(keys))
+  }, [existingEntries])
 
   const getNextVolumeNumber = useCallback(
     (seriesId: string | null) => {
@@ -417,6 +452,25 @@ export default function LibraryPage() {
       }
     },
     [addBookFromSearchResult]
+  )
+
+  const handleSearchSelectMany = useCallback(
+    async (results: BookSearchResult[]) => {
+      const { successCount, failureCount } =
+        await addBooksFromSearchResults(results)
+
+      if (successCount > 0) {
+        toast.success(
+          `${successCount} book${successCount === 1 ? "" : "s"} added`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} book${failureCount === 1 ? "" : "s"} failed to add`
+        )
+      }
+    },
+    [addBooksFromSearchResults]
   )
 
   const renderUnassignedSection = () => {
@@ -588,8 +642,11 @@ export default function LibraryPage() {
         open={searchDialogOpen}
         onOpenChange={setSearchDialogOpen}
         onSelectResult={handleSearchSelect}
+        onSelectResults={handleSearchSelectMany}
         onAddManual={openManualDialog}
         context="series"
+        existingIsbns={existingIsbns}
+        existingBookKeys={existingBookKeys}
       />
 
       <VolumeDialog
