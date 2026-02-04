@@ -151,7 +151,7 @@ export default function DashboardPage() {
                 {recentSeries.map((s) => (
                   <li key={s.id}>
                     <Link
-                      href={`/library/${s.id}`}
+                      href={`/library/series/${s.id}`}
                       className="hover:bg-muted/50 -m-2 flex items-center justify-between rounded-lg p-2 transition-colors"
                     >
                       <div>

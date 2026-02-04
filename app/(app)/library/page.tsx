@@ -14,6 +14,13 @@ import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { toast } from "sonner"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -85,7 +92,7 @@ function SeriesListItem({
   return (
     <button
       type="button"
-      className="hover:bg-accent/50 flex w-full cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-colors"
+      className="group hover:bg-accent/50 flex w-full cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-colors"
       onClick={onClick}
     >
       <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
@@ -112,6 +119,7 @@ function SeriesListItem({
             </div>
           }
         />
+        <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-medium">{series.title}</h3>
@@ -133,10 +141,14 @@ type VolumeWithSeries = {
 
 function VolumeGridItem({
   item,
-  onClick
+  onClick,
+  onEdit,
+  onDelete
 }: {
   readonly item: VolumeWithSeries
   readonly onClick: () => void
+  readonly onEdit: () => void
+  readonly onDelete: () => void
 }) {
   const volumeLabel = `Volume ${item.volume.volume_number}`
   const volumeDescriptor = item.volume.title
@@ -145,7 +157,21 @@ function VolumeGridItem({
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
 
   return (
-    <button type="button" className="group text-left" onClick={onClick}>
+    <div
+      role="button"
+      tabIndex={0}
+      className="group relative cursor-pointer text-left transition-shadow hover:shadow-lg"
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) {
+          return
+        }
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onClick()
+        }
+      }}
+    >
       <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-md">
         <CoverImage
           isbn={item.volume.isbn}
@@ -164,6 +190,48 @@ function VolumeGridItem({
             </div>
           }
         />
+        <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex h-8 w-8 items-center justify-center rounded-md"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-4 w-4"
+              >
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="12" cy="5" r="1" />
+                <circle cx="12" cy="19" r="1" />
+              </svg>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onEdit()
+                }}
+              >
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onDelete()
+                }}
+                className="text-destructive"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <div className="mt-2 space-y-1">
         <p className="line-clamp-1 font-medium">{item.series.title}</p>
@@ -172,16 +240,20 @@ function VolumeGridItem({
           {item.volume.title ? ` • ${item.volume.title}` : ""}
         </p>
       </div>
-    </button>
+    </div>
   )
 }
 
 function VolumeListItem({
   item,
-  onClick
+  onClick,
+  onEdit,
+  onDelete
 }: {
   readonly item: VolumeWithSeries
   readonly onClick: () => void
+  readonly onEdit: () => void
+  readonly onDelete: () => void
 }) {
   const volumeLabel = `Volume ${item.volume.volume_number}`
   const volumeDescriptor = item.volume.title
@@ -190,10 +262,31 @@ function VolumeListItem({
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
 
   return (
-    <button
-      type="button"
-      className="hover:bg-accent/50 flex w-full cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-colors"
+    <div
+      role="button"
+      tabIndex={0}
+      className="group hover:bg-accent/50 relative flex w-full cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-colors"
       onClick={onClick}
+      onKeyDown={(event) => {
+        const target = event.target as HTMLElement
+
+        if (target !== event.currentTarget) {
+          if (
+            target.closest(
+              'button, a, input, textarea, select, [role="button"]'
+            )
+          ) {
+            return
+          }
+
+          return
+        }
+
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onClick()
+        }
+      }}
     >
       <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
         <CoverImage
@@ -213,6 +306,7 @@ function VolumeListItem({
             </div>
           }
         />
+        <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-medium">{item.series.title}</h3>
@@ -229,7 +323,48 @@ function VolumeListItem({
       <div className="text-muted-foreground text-xs capitalize">
         {item.volume.ownership_status}
       </div>
-    </button>
+      <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex h-8 w-8 items-center justify-center rounded-md"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="h-4 w-4"
+            >
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={(event) => {
+                event.stopPropagation()
+                onEdit()
+              }}
+            >
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(event) => {
+                event.stopPropagation()
+                onDelete()
+              }}
+              className="text-destructive"
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
   )
 }
 
@@ -417,9 +552,16 @@ export default function LibraryPage() {
   const handleSeriesClick = useCallback(
     (series: SeriesWithVolumes) => {
       setSelectedSeries(series)
-      router.push(`/library/${series.id}`)
+      router.push(`/library/series/${series.id}`)
     },
     [setSelectedSeries, router]
+  )
+
+  const handleVolumeClick = useCallback(
+    (volumeId: string) => {
+      router.push(`/library/volume/${volumeId}`)
+    },
+    [router]
   )
 
   const openAddDialog = useCallback(() => {
@@ -467,8 +609,10 @@ export default function LibraryPage() {
       results: BookSearchResult[],
       options?: { ownershipStatus?: OwnershipStatus }
     ) => {
-      const { successCount, failureCount } =
-        await addBooksFromSearchResults(results, options)
+      const { successCount, failureCount } = await addBooksFromSearchResults(
+        results,
+        options
+      )
 
       if (successCount > 0) {
         toast.success(
@@ -497,6 +641,7 @@ export default function LibraryPage() {
             <VolumeCard
               key={volume.id}
               volume={volume}
+              onClick={() => handleVolumeClick(volume.id)}
               onEdit={() => openEditVolumeDialog(volume)}
               onDelete={() => openDeleteVolumeDialog(volume)}
             />
@@ -551,7 +696,9 @@ export default function LibraryPage() {
                   <VolumeGridItem
                     key={item.volume.id}
                     item={item}
-                    onClick={() => handleSeriesClick(item.series)}
+                    onClick={() => handleVolumeClick(item.volume.id)}
+                    onEdit={() => openEditVolumeDialog(item.volume)}
+                    onDelete={() => openDeleteVolumeDialog(item.volume)}
                   />
                 ))}
               </div>
@@ -561,7 +708,9 @@ export default function LibraryPage() {
                   <VolumeListItem
                     key={item.volume.id}
                     item={item}
-                    onClick={() => handleSeriesClick(item.series)}
+                    onClick={() => handleVolumeClick(item.volume.id)}
+                    onEdit={() => openEditVolumeDialog(item.volume)}
+                    onDelete={() => openDeleteVolumeDialog(item.volume)}
                   />
                 ))}
               </div>

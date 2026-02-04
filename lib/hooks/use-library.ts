@@ -482,7 +482,11 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
-        const nextSeriesId = data.series_id ?? seriesId
+        const hasSeriesId = Object.prototype.hasOwnProperty.call(
+          data,
+          "series_id"
+        )
+        const nextSeriesId = hasSeriesId ? (data.series_id ?? null) : seriesId
         if (nextSeriesId && !series.some((item) => item.id === nextSeriesId)) {
           throw new Error("Series not found")
         }

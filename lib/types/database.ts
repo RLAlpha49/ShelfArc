@@ -7,12 +7,8 @@ export type Json =
   | Json[]
 
 export type TitleType = "light_novel" | "manga" | "other"
-export type OwnershipStatus =
-  | "owned"
-  | "wishlist"
-  | "reading"
-  | "dropped"
-  | "completed"
+export type OwnershipStatus = "owned" | "wishlist"
+
 export type ReadingStatus =
   | "unread"
   | "reading"

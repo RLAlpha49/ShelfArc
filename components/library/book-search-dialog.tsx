@@ -440,7 +440,10 @@ export function BookSearchDialog({
                     setOwnershipStatus(value as OwnershipStatus)
                   }
                 >
-                  <SelectTrigger id="ownership_status" className="h-9 w-[160px]">
+                  <SelectTrigger
+                    id="ownership_status"
+                    className="h-9 w-[160px]"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

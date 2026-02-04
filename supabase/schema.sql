@@ -26,7 +26,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create custom types
 CREATE TYPE title_type AS ENUM ('light_novel', 'manga', 'other');
-CREATE TYPE ownership_status AS ENUM ('owned', 'wishlist', 'reading', 'dropped', 'completed');
+CREATE TYPE ownership_status AS ENUM ('owned', 'wishlist');
 CREATE TYPE reading_status AS ENUM ('unread', 'reading', 'completed', 'on_hold', 'dropped');
 
 -- Profiles table (extends Supabase auth.users)

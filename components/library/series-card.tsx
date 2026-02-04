@@ -128,6 +128,7 @@ export function SeriesCard({
             </div>
           }
         />
+        <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
 
       <CardContent className="p-3">

@@ -2,7 +2,6 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,17 +13,20 @@ import type { Volume } from "@/lib/types/database"
 
 interface VolumeCardProps {
   readonly volume: Volume
+  readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
 }
 
-export function VolumeCard({ volume, onEdit, onDelete }: VolumeCardProps) {
+export function VolumeCard({
+  volume,
+  onClick,
+  onEdit,
+  onDelete
+}: VolumeCardProps) {
   const ownershipColors: Record<string, string> = {
     owned: "bg-green-500/10 text-green-500",
-    wishlist: "bg-yellow-500/10 text-yellow-500",
-    reading: "bg-blue-500/10 text-blue-500",
-    completed: "bg-purple-500/10 text-purple-500",
-    dropped: "bg-red-500/10 text-red-500"
+    wishlist: "bg-yellow-500/10 text-yellow-500"
   }
 
   const readingColors: Record<string, string> = {
@@ -41,7 +43,10 @@ export function VolumeCard({ volume, onEdit, onDelete }: VolumeCardProps) {
       : null
 
   return (
-    <Card className="group relative overflow-hidden">
+    <Card
+      className="group relative cursor-pointer overflow-hidden transition-shadow hover:shadow-lg"
+      onClick={onClick}
+    >
       <CardContent className="p-0">
         {/* Cover Image */}
         <div className="bg-muted relative aspect-3/4">
@@ -62,19 +67,15 @@ export function VolumeCard({ volume, onEdit, onDelete }: VolumeCardProps) {
           />
 
           {/* Hover Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
-            <Button size="sm" variant="secondary" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button size="sm" variant="destructive" onClick={onDelete}>
-              Delete
-            </Button>
-          </div>
+          <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
 
           {/* Menu Button */}
           <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
             <DropdownMenu>
-              <DropdownMenuTrigger className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex h-8 w-8 items-center justify-center rounded-md">
+              <DropdownMenuTrigger
+                className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex h-8 w-8 items-center justify-center rounded-md"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -89,9 +90,19 @@ export function VolumeCard({ volume, onEdit, onDelete }: VolumeCardProps) {
                 </svg>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={onDelete}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onEdit()
+                  }}
+                >
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDelete()
+                  }}
                   className="text-destructive"
                 >
                   Delete
@@ -129,7 +140,7 @@ export function VolumeCard({ volume, onEdit, onDelete }: VolumeCardProps) {
           <div className="flex flex-wrap gap-1">
             <Badge
               variant="secondary"
-              className={`text-xs ${ownershipColors[volume.ownership_status]}`}
+              className={`text-xs ${ownershipColors[volume.ownership_status] ?? "bg-gray-500/10 text-gray-500"}`}
             >
               {volume.ownership_status}
             </Badge>

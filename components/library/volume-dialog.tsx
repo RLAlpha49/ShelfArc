@@ -65,6 +65,19 @@ const defaultFormData = {
   purchase_price: ""
 }
 
+const isValidOwnershipStatus = (
+  status: string | null | undefined
+): status is OwnershipStatus => status === "owned" || status === "wishlist"
+
+const isValidReadingStatus = (
+  status: string | null | undefined
+): status is ReadingStatus =>
+  status === "unread" ||
+  status === "reading" ||
+  status === "completed" ||
+  status === "on_hold" ||
+  status === "dropped"
+
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 
 export function VolumeDialog({
@@ -91,6 +104,14 @@ export function VolumeDialog({
 
   const showSeriesSelect = !!seriesOptions
   const seriesValue = selectedSeriesId ?? (allowNoSeries ? "unassigned" : "")
+  const buildSeriesLabel = (series: SeriesWithVolumes) =>
+    series.author ? `${series.title} • ${series.author}` : series.title
+  const selectedSeriesOption =
+    seriesOptions?.find((series) => series.id === selectedSeriesId) ?? null
+  const selectedSeriesLabel = selectedSeriesOption
+    ? buildSeriesLabel(selectedSeriesOption)
+    : null
+  const showUnknownSeries = Boolean(selectedSeriesId && !selectedSeriesOption)
 
   useEffect(() => {
     if (!open) return
@@ -101,14 +122,20 @@ export function VolumeDialog({
     setCoverPreviewUrl(null)
     setCoverPreviewError(false)
     if (volume) {
+      const ownershipStatus = isValidOwnershipStatus(volume.ownership_status)
+        ? volume.ownership_status
+        : "owned"
+      const readingStatus = isValidReadingStatus(volume.reading_status)
+        ? volume.reading_status
+        : "unread"
       setFormData({
         volume_number: volume.volume_number,
         title: volume.title || "",
         description: volume.description || "",
         isbn: volume.isbn || "",
         cover_image_url: volume.cover_image_url || "",
-        ownership_status: volume.ownership_status,
-        reading_status: volume.reading_status,
+        ownership_status: ownershipStatus,
+        reading_status: readingStatus,
         current_page: volume.current_page?.toString() || "",
         page_count: volume.page_count?.toString() || "",
         rating: volume.rating?.toString() || "",
@@ -273,10 +300,14 @@ export function VolumeDialog({
                         No series (unassigned)
                       </SelectItem>
                     )}
+                    {showUnknownSeries && selectedSeriesId && (
+                      <SelectItem value={selectedSeriesId}>
+                        {selectedSeriesLabel ?? "Unknown series"}
+                      </SelectItem>
+                    )}
                     {seriesOptions?.map((series) => (
                       <SelectItem key={series.id} value={series.id}>
-                        {series.title}
-                        {series.author ? ` • ${series.author}` : ""}
+                        {buildSeriesLabel(series)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -367,9 +398,6 @@ export function VolumeDialog({
                       <SelectContent>
                         <SelectItem value="owned">Owned</SelectItem>
                         <SelectItem value="wishlist">Wishlist</SelectItem>
-                        <SelectItem value="reading">Reading</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="dropped">Dropped</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

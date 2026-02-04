@@ -18,7 +18,11 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { useLibraryStore } from "@/lib/store/library-store"
-import type { TitleType, OwnershipStatus } from "@/lib/types/database"
+import type {
+  TitleType,
+  OwnershipStatus,
+  ReadingStatus
+} from "@/lib/types/database"
 
 interface LibraryToolbarProps {
   readonly onAddBook: () => void
@@ -102,9 +106,27 @@ export function LibraryToolbar({
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="owned">Owned</SelectItem>
             <SelectItem value="wishlist">Wishlist</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Reading Status Filter */}
+        <Select
+          value={filters.readingStatus}
+          onValueChange={(value) => {
+            if (value)
+              setFilters({ readingStatus: value as ReadingStatus | "all" })
+          }}
+        >
+          <SelectTrigger className="w-32.5">
+            <SelectValue placeholder="Reading" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Reading</SelectItem>
+            <SelectItem value="unread">Unread</SelectItem>
             <SelectItem value="reading">Reading</SelectItem>
-            <SelectItem value="dropped">Dropped</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="on_hold">On Hold</SelectItem>
+            <SelectItem value="dropped">Dropped</SelectItem>
           </SelectContent>
         </Select>
 
