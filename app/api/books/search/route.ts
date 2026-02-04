@@ -10,8 +10,10 @@ import { normalizeIsbn } from "@/lib/books/isbn"
 
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 const OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"
-const DEFAULT_LIMIT = 20
-const MAX_LIMIT = 40
+const DEFAULT_LIMIT = 40
+const MAX_LIMIT = 50
+const GOOGLE_BOOKS_MAX_LIMIT = 20
+const FETCH_TIMEOUT_MS = 10000
 
 const buildGoogleQuery = (query: string) => {
   if (isIsbnQuery(query)) {
@@ -20,28 +22,96 @@ const buildGoogleQuery = (query: string) => {
   return query
 }
 
+const fetchWithTimeout = async (
+  url: string,
+  options: RequestInit,
+  timeoutMs: number,
+  contextLabel: string
+): Promise<Response> => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`${contextLabel} request timed out after ${timeoutMs}ms`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 const fetchGoogleBooks = async (
   query: string,
   apiKey: string,
   page: number,
   limit: number
-): Promise<BookSearchResult[]> => {
-  const url = new URL(GOOGLE_BOOKS_URL)
+): Promise<{ items: BookSearchResult[]; warning?: string }> => {
   const safeLimit = Math.min(Math.max(limit, 1), MAX_LIMIT)
   const startIndex = Math.max(page - 1, 0) * safeLimit
-  url.searchParams.set("q", buildGoogleQuery(query))
-  url.searchParams.set("maxResults", String(safeLimit))
-  url.searchParams.set("startIndex", String(startIndex))
-  url.searchParams.set("printType", "books")
-  url.searchParams.set("key", apiKey)
+  const results: BookSearchResult[] = []
 
-  const response = await fetch(url.toString(), { cache: "no-store" })
-  if (!response.ok) {
-    throw new Error("Google Books search failed")
+  for (let offset = 0; offset < safeLimit; offset += GOOGLE_BOOKS_MAX_LIMIT) {
+    const batchSize = Math.min(GOOGLE_BOOKS_MAX_LIMIT, safeLimit - offset)
+    const url = new URL(GOOGLE_BOOKS_URL)
+    url.searchParams.set("q", buildGoogleQuery(query))
+    url.searchParams.set("maxResults", String(batchSize))
+    url.searchParams.set("startIndex", String(startIndex + offset))
+    url.searchParams.set("printType", "books")
+    url.searchParams.set("key", apiKey)
+
+    let response: Response
+    try {
+      response = await fetchWithTimeout(
+        url.toString(),
+        { cache: "no-store" },
+        FETCH_TIMEOUT_MS,
+        "Google Books"
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      console.warn("Google Books batch failed", {
+        retrieved: results.length,
+        error: message
+      })
+      return {
+        items: results.slice(0, safeLimit),
+        warning: `Partial results: ${results.length} items; failed to fetch batch: ${message}`
+      }
+    }
+    if (!response.ok) {
+      let errorDetails: string | undefined
+      try {
+        const errorBody = (await response.json()) as unknown
+        errorDetails = JSON.stringify(errorBody)
+      } catch {
+        errorDetails = undefined
+      }
+
+      console.warn("Google Books batch failed", {
+        status: response.status,
+        statusText: response.statusText,
+        retrieved: results.length,
+        errorDetails
+      })
+
+      return {
+        items: results.slice(0, safeLimit),
+        warning: `Partial results: ${results.length} items; failed to fetch batch: ${response.status}`
+      }
+    }
+
+    const data = (await response.json()) as { items?: unknown[] }
+    const batch = normalizeGoogleBooksItems(data.items ?? [])
+    results.push(...batch)
+    if (batch.length < batchSize) {
+      break
+    }
   }
 
-  const data = (await response.json()) as { items?: unknown[] }
-  return normalizeGoogleBooksItems(data.items ?? [])
+  return { items: results.slice(0, safeLimit) }
 }
 
 const fetchOpenLibrary = async (
@@ -58,7 +128,12 @@ const fetchOpenLibrary = async (
   url.searchParams.set("limit", String(limit))
   url.searchParams.set("page", String(page))
 
-  const response = await fetch(url.toString(), { cache: "no-store" })
+  const response = await fetchWithTimeout(
+    url.toString(),
+    { cache: "no-store" },
+    FETCH_TIMEOUT_MS,
+    "Open Library"
+  )
   if (!response.ok) {
     throw new Error("Open Library search failed")
   }
@@ -106,17 +181,18 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const results: BookSearchResult[] = await fetchGoogleBooks(
+      const { items, warning } = await fetchGoogleBooks(
         query,
         googleApiKey,
         page,
         limit
       )
       return NextResponse.json({
-        results,
+        results: items,
         sourceUsed: "google_books",
         page,
-        limit
+        limit,
+        ...(warning ? { warning } : {})
       })
     } catch (error) {
       console.error("Google Books search failed", error)

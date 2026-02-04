@@ -5,8 +5,10 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import {
   Dialog,
   DialogContent,
@@ -73,7 +75,17 @@ const sourceCopy: Record<BookSearchSource, { label: string; hint: string }> = {
 
 const SEARCH_PLACEHOLDER = "Search by title, author, or ISBN..."
 const SKELETON_ROWS = ["primary", "secondary", "tertiary"]
-const RESULTS_PAGE_SIZE = 20
+const RESULTS_PAGE_SIZE = 50
+
+const dedupeResults = (items: BookSearchResult[]) => {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = `${item.source}:${item.id}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
 
 export function BookSearchDialog({
   open,
@@ -99,6 +111,8 @@ export function BookSearchDialog({
   const [hasMore, setHasMore] = useState(false)
   const [queryKey, setQueryKey] = useState("")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null)
+  const [showJumpToTop, setShowJumpToTop] = useState(false)
 
   const manualLabel =
     context === "volume" ? "Add volume manually" : "Add book manually"
@@ -118,13 +132,14 @@ export function BookSearchDialog({
       setQueryKey("")
       setSelectedIds(new Set())
       setIsBulkAdding(false)
+      setShowJumpToTop(false)
     }
   }, [open])
 
   useEffect(() => {
     const handle = setTimeout(() => {
       setDebouncedQuery(query.trim())
-    }, 400)
+    }, 800)
 
     return () => clearTimeout(handle)
   }, [query])
@@ -182,9 +197,13 @@ export function BookSearchDialog({
         }
 
         const incomingResults = data.results ?? []
-        setResults((prev) =>
-          isFirstPage ? incomingResults : [...prev, ...incomingResults]
-        )
+        const dedupedIncoming = dedupeResults(incomingResults)
+        setResults((prev) => {
+          const merged = isFirstPage
+            ? dedupedIncoming
+            : [...prev, ...dedupedIncoming]
+          return dedupeResults(merged)
+        })
         setSourceUsed(data.sourceUsed ?? source)
         setHasMore(incomingResults.length === RESULTS_PAGE_SIZE)
       })
@@ -207,6 +226,12 @@ export function BookSearchDialog({
 
     return () => controller.abort()
   }, [debouncedQuery, open, page, queryKey, source])
+
+  useEffect(() => {
+    if (!open || !queryKey || page !== 1) return
+    scrollViewportRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+    setShowJumpToTop(false)
+  }, [open, page, queryKey])
 
   const handleSelect = useCallback(
     async (result: BookSearchResult) => {
@@ -254,6 +279,16 @@ export function BookSearchDialog({
       }
     })
   }, [deferredResults, existingBookKeySet, existingIsbnSet, selectedIds])
+
+  const rowVirtualizer = useVirtualizer({
+    count: decoratedResults.length,
+    getScrollElement: () => scrollViewportRef.current,
+    estimateSize: () => 120,
+    overscan: 6,
+    getItemKey: (index) => decoratedResults[index]?.result.id ?? index
+  })
+
+  const virtualRows = rowVirtualizer.getVirtualItems()
 
   const selectedResults = useMemo(() => {
     return results.filter((result) => selectedIds.has(result.id))
@@ -314,14 +349,22 @@ export function BookSearchDialog({
   const activeSourceLabel = sourceCopy[sourceUsed ?? source].label
   const isQueryReady = debouncedQuery.length >= 2
   const selectedCount = selectedIds.size
-  let statusLabel: string | null = null
-  if (isLoading) {
-    statusLabel = "Searching..."
-  } else if (isLoadingMore) {
-    statusLabel = "Loading more..."
-  }
   const showEmptyState =
     isQueryReady && !isLoading && !error && results.length === 0
+
+  useEffect(() => {
+    const viewport = scrollViewportRef.current
+    if (!viewport) return
+    const updateScrollState = () => {
+      setShowJumpToTop(viewport.scrollTop > 320)
+    }
+    const handleScroll = () => updateScrollState()
+    updateScrollState()
+    viewport.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      viewport.removeEventListener("scroll", handleScroll)
+    }
+  }, [open, queryKey])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -348,18 +391,6 @@ export function BookSearchDialog({
                   Tip: search by title, author, or ISBN.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{selectedSource.label}</Badge>
-                {statusLabel && <Badge variant="outline">{statusLabel}</Badge>}
-                {selectedCount > 0 && (
-                  <Badge variant="outline">Selected {selectedCount}</Badge>
-                )}
-                {!isLoading && results.length > 0 && (
-                  <Badge variant="outline">
-                    {results.length} result{results.length === 1 ? "" : "s"}
-                  </Badge>
-                )}
-              </div>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -379,14 +410,15 @@ export function BookSearchDialog({
                   </TabsList>
                 </Tabs>
               </div>
-              <p className="text-muted-foreground text-[11px]">
-                {selectedSource.hint}
-              </p>
             </div>
           </div>
         </DialogHeader>
 
-        <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
+        <ScrollArea
+          className="min-h-0 flex-1 overflow-y-auto"
+          viewportRef={scrollViewportRef}
+          viewportClassName="scroll-smooth"
+        >
           <div className="space-y-4 px-6 py-4">
             {!isQueryReady && (
               <div className="text-muted-foreground text-sm">
@@ -432,95 +464,128 @@ export function BookSearchDialog({
               </div>
             )}
 
-            {decoratedResults.map(({ result, isAlreadyAdded, isSelected }) => (
-              <div
-                key={result.id}
-                className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${
-                  isSelected
-                    ? "border-primary/40 bg-accent/30"
-                    : "border-border/70"
-                } ${isAlreadyAdded ? "opacity-70" : "hover:border-primary/30 hover:bg-accent/40"}`}
-              >
-                <Button
-                  type="button"
-                  variant={isSelected ? "default" : "outline"}
-                  size="icon-sm"
-                  aria-pressed={isSelected}
-                  className="shrink-0"
-                  disabled={isAlreadyAdded || isBulkAdding}
-                  onClick={() => toggleSelected(result.id)}
+            {decoratedResults.length > 0 && (
+              <div className="relative w-full">
+                <div
+                  className="relative w-full"
+                  style={{ height: rowVirtualizer.getTotalSize() }}
                 >
-                  <span className="text-[10px] font-semibold">
-                    {isSelected ? "✓" : ""}
-                  </span>
-                  <span className="sr-only">
-                    {isSelected ? "Deselect" : "Select"} book
-                  </span>
-                </Button>
+                  {virtualRows.map((virtualRow) => {
+                    const item = decoratedResults[virtualRow.index]
+                    if (!item) return null
+                    const { result, isAlreadyAdded, isSelected } = item
 
-                <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-md">
-                  <CoverImage
-                    isbn={result.isbn}
-                    coverImageUrl={result.coverUrl}
-                    alt={result.title}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    fallback={
-                      <div className="text-muted-foreground/60 flex h-full w-full items-center justify-center text-xs">
-                        No cover
+                    return (
+                      <div
+                        key={result.id}
+                        ref={rowVirtualizer.measureElement}
+                        data-index={virtualRow.index}
+                        className="absolute top-0 left-0 w-full pb-4"
+                        style={{
+                          transform: `translateY(${virtualRow.start}px)`
+                        }}
+                      >
+                        <div
+                          className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${
+                            isSelected
+                              ? "border-primary/40 bg-accent/30"
+                              : "border-border/70"
+                          } ${isAlreadyAdded ? "opacity-70" : "hover:border-primary/30 hover:bg-accent/40"}`}
+                        >
+                          <Button
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            size="icon-sm"
+                            aria-pressed={isSelected}
+                            className="shrink-0"
+                            disabled={isAlreadyAdded || isBulkAdding}
+                            onClick={() => toggleSelected(result.id)}
+                          >
+                            <span className="text-[10px] font-semibold">
+                              {isSelected ? "✓" : ""}
+                            </span>
+                            <span className="sr-only">
+                              {isSelected ? "Deselect" : "Select"} book
+                            </span>
+                          </Button>
+
+                          <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-md">
+                            <CoverImage
+                              isbn={result.isbn}
+                              coverImageUrl={result.coverUrl}
+                              alt={result.title}
+                              className="absolute inset-0 h-full w-full object-cover"
+                              loading="lazy"
+                              decoding="async"
+                              fallback={
+                                <div className="text-muted-foreground/60 flex h-full w-full items-center justify-center text-xs">
+                                  No cover
+                                </div>
+                              }
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="line-clamp-1 text-sm font-semibold">
+                                {result.title}
+                              </h3>
+                              {isAlreadyAdded && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px]"
+                                >
+                                  Added
+                                </Badge>
+                              )}
+                              {selectingId === result.id && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px]"
+                                >
+                                  Adding...
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-muted-foreground line-clamp-1 text-sm">
+                              {result.authors.length > 0
+                                ? result.authors.join(", ")
+                                : "Unknown author"}
+                            </p>
+                            <div className="text-muted-foreground text-xs">
+                              {result.isbn && <span>ISBN {result.isbn}</span>}
+                              {result.publishedDate && (
+                                <span
+                                  className={result.isbn ? "ml-2" : undefined}
+                                >
+                                  {result.publishedDate}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-2">
+                            {!isAlreadyAdded && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                disabled={
+                                  selectingId === result.id || isBulkAdding
+                                }
+                                onClick={() => handleSelect(result)}
+                              >
+                                {selectingId === result.id
+                                  ? "Adding..."
+                                  : "Add"}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    }
-                  />
-                </div>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="line-clamp-1 text-sm font-semibold">
-                      {result.title}
-                    </h3>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {sourceCopy[result.source].label}
-                    </Badge>
-                    {isAlreadyAdded && (
-                      <Badge variant="outline" className="text-[10px]">
-                        Added
-                      </Badge>
-                    )}
-                    {selectingId === result.id && (
-                      <Badge variant="outline" className="text-[10px]">
-                        Adding...
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-muted-foreground line-clamp-1 text-sm">
-                    {result.authors.length > 0
-                      ? result.authors.join(", ")
-                      : "Unknown author"}
-                  </p>
-                  <div className="text-muted-foreground text-xs">
-                    {result.isbn && <span>ISBN {result.isbn}</span>}
-                    {result.publishedDate && (
-                      <span className={result.isbn ? "ml-2" : undefined}>
-                        {result.publishedDate}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  {!isAlreadyAdded && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      disabled={selectingId === result.id || isBulkAdding}
-                      onClick={() => handleSelect(result)}
-                    >
-                      {selectingId === result.id ? "Adding..." : "Add"}
-                    </Button>
-                  )}
+                    )
+                  })}
                 </div>
               </div>
-            ))}
+            )}
 
             {!isLoading && !error && results.length > 0 && hasMore && (
               <div className="flex justify-center pt-2">
@@ -530,7 +595,30 @@ export function BookSearchDialog({
                   onClick={() => setPage((prev) => prev + 1)}
                   disabled={isLoadingMore}
                 >
-                  {isLoadingMore ? "Loading more..." : "Show more"}
+                  {isLoadingMore ? "Loading more..." : "Load more"}
+                </Button>
+              </div>
+            )}
+            {isLoadingMore && (
+              <div className="text-muted-foreground text-center text-xs">
+                Loading more...
+              </div>
+            )}
+            {showJumpToTop && (
+              <div className="pointer-events-none sticky bottom-3 flex justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="pointer-events-auto shadow-sm"
+                  onClick={() =>
+                    scrollViewportRef.current?.scrollTo({
+                      top: 0,
+                      behavior: "smooth"
+                    })
+                  }
+                >
+                  Jump to top
                 </Button>
               </div>
             )}
