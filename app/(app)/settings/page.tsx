@@ -13,6 +13,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
@@ -23,9 +30,42 @@ import {
   resolveImageUrl
 } from "@/lib/uploads/resolve-image-url"
 import type { Profile } from "@/lib/types/database"
+import type {
+  AmazonDomain,
+  CurrencyCode,
+  PriceSource
+} from "@/lib/store/library-store"
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const MAX_AVATAR_DIMENSION = 1024
+
+const amazonDomainOptions: Array<{ value: AmazonDomain; label: string }> = [
+  { value: "amazon.com", label: "amazon.com (US)" },
+  { value: "amazon.co.uk", label: "amazon.co.uk (UK)" },
+  { value: "amazon.ca", label: "amazon.ca (Canada)" },
+  { value: "amazon.de", label: "amazon.de (Germany)" },
+  { value: "amazon.co.jp", label: "amazon.co.jp (Japan)" }
+]
+
+const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
+  { value: "USD", label: "USD ($)" },
+  { value: "GBP", label: "GBP (£)" },
+  { value: "EUR", label: "EUR (€)" },
+  { value: "CAD", label: "CAD ($)" },
+  { value: "JPY", label: "JPY (¥)" }
+]
+
+const priceSourceOptions: Array<{ value: PriceSource; label: string }> = [
+  { value: "amazon", label: "Amazon" }
+]
+
+const isValidOption = <T extends string>(
+  value: string | null | undefined,
+  options: Array<{ value: T }>
+): value is T =>
+  value !== null &&
+  value !== undefined &&
+  options.some((option) => option.value === value)
 
 const loadImageDimensions = (file: File) =>
   new Promise<{ url: string; width: number; height: number }>(
@@ -65,7 +105,16 @@ export default function SettingsPage() {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("")
   const [avatarPreviewError, setAvatarPreviewError] = useState(false)
   const previewUrlRef = useRef<string | null>(null)
-  const { deleteSeriesVolumes, setDeleteSeriesVolumes } = useLibraryStore()
+  const {
+    deleteSeriesVolumes,
+    setDeleteSeriesVolumes,
+    priceSource,
+    amazonDomain,
+    priceDisplayCurrency,
+    setPriceSource,
+    setAmazonDomain,
+    setPriceDisplayCurrency
+  } = useLibraryStore()
 
   useEffect(() => {
     async function loadProfile() {
@@ -400,6 +449,92 @@ export default function SettingsPage() {
               checked={deleteSeriesVolumes}
               onCheckedChange={setDeleteSeriesVolumes}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator className="my-6" />
+
+      {/* Pricing */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Pricing</CardTitle>
+          <CardDescription>
+            Configure where prices are fetched from and how they are displayed
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="price-source">Default price source</Label>
+            <Select
+              value={priceSource}
+              onValueChange={(value) => {
+                if (isValidOption(value, priceSourceOptions)) {
+                  setPriceSource(value)
+                }
+              }}
+            >
+              <SelectTrigger id="price-source">
+                <SelectValue placeholder="Choose a source" />
+              </SelectTrigger>
+              <SelectContent>
+                {priceSourceOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Used when fetching prices for volumes. More sources will be added
+              later.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="amazon-domain">Amazon domain</Label>
+            <Select
+              value={amazonDomain}
+              onValueChange={(value) => setAmazonDomain(value as AmazonDomain)}
+            >
+              <SelectTrigger id="amazon-domain">
+                <SelectValue placeholder="Select a domain" />
+              </SelectTrigger>
+              <SelectContent>
+                {amazonDomainOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Used for Amazon price lookups.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="display-currency">Display currency</Label>
+            <Select
+              value={priceDisplayCurrency}
+              onValueChange={(value) =>
+                setPriceDisplayCurrency(value as CurrencyCode)
+              }
+            >
+              <SelectTrigger id="display-currency">
+                <SelectValue placeholder="Choose currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {currencyOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Controls how prices are formatted across the app.
+            </p>
           </div>
         </CardContent>
       </Card>

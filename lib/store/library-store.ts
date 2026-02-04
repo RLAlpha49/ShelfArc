@@ -13,6 +13,15 @@ export type SortField = "title" | "created_at" | "updated_at" | "author"
 export type SortOrder = "asc" | "desc"
 export type ViewMode = "grid" | "list"
 export type CollectionView = "series" | "volumes"
+export type PriceSource = "amazon"
+export type CurrencyCode = "USD" | "GBP" | "EUR" | "CAD" | "JPY"
+export const DEFAULT_CURRENCY_CODE: CurrencyCode = "USD"
+export type AmazonDomain =
+  | "amazon.com"
+  | "amazon.co.uk"
+  | "amazon.ca"
+  | "amazon.de"
+  | "amazon.co.jp"
 
 interface FilterState {
   search: string
@@ -35,6 +44,9 @@ interface LibraryState {
   sortOrder: SortOrder
   filters: FilterState
   deleteSeriesVolumes: boolean
+  priceSource: PriceSource
+  amazonDomain: AmazonDomain
+  priceDisplayCurrency: CurrencyCode
   isLoading: boolean
 
   // Actions
@@ -64,6 +76,9 @@ interface LibraryState {
   setFilters: (filters: Partial<FilterState>) => void
   resetFilters: () => void
   setDeleteSeriesVolumes: (value: boolean) => void
+  setPriceSource: (value: PriceSource) => void
+  setAmazonDomain: (value: AmazonDomain) => void
+  setPriceDisplayCurrency: (value: CurrencyCode) => void
   setIsLoading: (loading: boolean) => void
 }
 
@@ -88,6 +103,9 @@ export const useLibraryStore = create<LibraryState>()(
       sortOrder: "asc",
       filters: defaultFilters,
       deleteSeriesVolumes: false,
+      priceSource: "amazon",
+      amazonDomain: "amazon.com",
+      priceDisplayCurrency: "USD",
       isLoading: false,
 
       // Actions
@@ -198,6 +216,9 @@ export const useLibraryStore = create<LibraryState>()(
         set((state) => ({ filters: { ...state.filters, ...filters } })),
       resetFilters: () => set({ filters: defaultFilters }),
       setDeleteSeriesVolumes: (value) => set({ deleteSeriesVolumes: value }),
+      setPriceSource: (value) => set({ priceSource: value }),
+      setAmazonDomain: (value) => set({ amazonDomain: value }),
+      setPriceDisplayCurrency: (value) => set({ priceDisplayCurrency: value }),
       setIsLoading: (loading) => set({ isLoading: loading })
     }),
     {
@@ -207,7 +228,10 @@ export const useLibraryStore = create<LibraryState>()(
         viewMode: state.viewMode,
         sortField: state.sortField,
         sortOrder: state.sortOrder,
-        deleteSeriesVolumes: state.deleteSeriesVolumes
+        deleteSeriesVolumes: state.deleteSeriesVolumes,
+        priceSource: state.priceSource,
+        amazonDomain: state.amazonDomain,
+        priceDisplayCurrency: state.priceDisplayCurrency
       })
     }
   )

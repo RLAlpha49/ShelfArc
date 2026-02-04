@@ -11,6 +11,10 @@ import { CoverImage } from "@/components/library/cover-image"
 import { VolumeDialog } from "@/components/library/volume-dialog"
 import { EmptyState } from "@/components/empty-state"
 import { useLibrary } from "@/lib/hooks/use-library"
+import {
+  DEFAULT_CURRENCY_CODE,
+  useLibraryStore
+} from "@/lib/store/library-store"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -42,8 +46,6 @@ const formatReadingStatus = (status: string) => {
   if (!normalized) return normalized
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
-
-const DEFAULT_CURRENCY_CODE = "USD"
 
 export const ownershipColors: Record<string, string> = {
   owned: "bg-green-500/10 text-green-500",
@@ -80,6 +82,9 @@ export default function VolumeDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const priceDisplayCurrency = useLibraryStore(
+    (state) => state.priceDisplayCurrency
+  )
 
   useEffect(() => {
     if (series.length === 0 && unassignedVolumes.length === 0) {
@@ -143,24 +148,26 @@ export default function VolumeDetailPage() {
     setSelectedSeriesId(currentVolume.series_id ?? null)
   }, [currentVolume])
 
-  const currencyCode =
-    currentVolume && "currency" in currentVolume
-      ? (currentVolume as Volume & { currency?: string }).currency ??
-        DEFAULT_CURRENCY_CODE
-      : DEFAULT_CURRENCY_CODE
-
-  const priceFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat(undefined, {
+  const priceFormatter = useMemo(() => {
+    const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
+    try {
+      return new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: currencyCode
-      }),
-    [currencyCode]
-  )
+        currency
+      })
+    } catch {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: DEFAULT_CURRENCY_CODE
+      })
+    }
+  }, [priceDisplayCurrency])
 
   const progressPercent =
     currentVolume?.page_count && currentVolume.current_page
-      ? Math.round((currentVolume.current_page / currentVolume.page_count) * 100)
+      ? Math.round(
+          (currentVolume.current_page / currentVolume.page_count) * 100
+        )
       : null
 
   if (isLoading && !currentVolume) {
@@ -234,7 +241,9 @@ export default function VolumeDetailPage() {
         <div className="space-y-1">
           <h1 className="text-3xl font-bold">{heading}</h1>
           {currentVolume.isbn && (
-            <p className="text-muted-foreground text-sm">ISBN {currentVolume.isbn}</p>
+            <p className="text-muted-foreground text-sm">
+              ISBN {currentVolume.isbn}
+            </p>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -305,25 +314,28 @@ export default function VolumeDetailPage() {
                 <div className="text-2xl font-bold">
                   {currentVolume.current_page ?? "—"}
                 </div>
-                <div className="text-muted-foreground text-sm">Current Page</div>
+                <div className="text-muted-foreground text-sm">
+                  Current Page
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {progressPercent !== null && currentVolume.reading_status === "reading" && (
-            <div className="space-y-2">
-              <div className="text-muted-foreground flex items-center justify-between text-sm">
-                <span>Reading progress</span>
-                <span>{progressPercent}%</span>
+          {progressPercent !== null &&
+            currentVolume.reading_status === "reading" && (
+              <div className="space-y-2">
+                <div className="text-muted-foreground flex items-center justify-between text-sm">
+                  <span>Reading progress</span>
+                  <span>{progressPercent}%</span>
+                </div>
+                <div className="bg-muted h-2 overflow-hidden rounded-full">
+                  <div
+                    className="bg-primary h-full rounded-full transition-all"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
               </div>
-              <div className="bg-muted h-2 overflow-hidden rounded-full">
-                <div
-                  className="bg-primary h-full rounded-full transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-          )}
+            )}
 
           {(currentVolume.purchase_date || currentVolume.purchase_price) && (
             <div className="text-muted-foreground text-sm">
@@ -331,7 +343,9 @@ export default function VolumeDetailPage() {
                 <p>Purchased on {currentVolume.purchase_date}</p>
               )}
               {currentVolume.purchase_price && (
-                <p>Price {priceFormatter.format(currentVolume.purchase_price)}</p>
+                <p>
+                  Price {priceFormatter.format(currentVolume.purchase_price)}
+                </p>
               )}
             </div>
           )}
@@ -376,8 +390,8 @@ export default function VolumeDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Volume</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete Volume {currentVolume.volume_number}?{" "}
-              This action cannot be undone.
+              Are you sure you want to delete Volume{" "}
+              {currentVolume.volume_number}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -26,6 +26,7 @@ import {
   extractStoragePath,
   resolveImageUrl
 } from "@/lib/uploads/resolve-image-url"
+import { useLibraryStore } from "@/lib/store/library-store"
 import type {
   SeriesWithVolumes,
   Volume,
@@ -95,12 +96,16 @@ export function VolumeDialog({
   const isEditing = !!volume
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
+  const [isFetchingPrice, setIsFetchingPrice] = useState(false)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [coverPreviewError, setCoverPreviewError] = useState(false)
   const previewUrlRef = useRef<string | null>(null)
   const isMountedRef = useRef(true)
   const uploadAbortRef = useRef<AbortController | null>(null)
+  const priceAbortRef = useRef<AbortController | null>(null)
   const [formData, setFormData] = useState(defaultFormData)
+  const priceSource = useLibraryStore((state) => state.priceSource)
+  const amazonDomain = useLibraryStore((state) => state.amazonDomain)
 
   const showSeriesSelect = !!seriesOptions
   const seriesValue = selectedSeriesId ?? (allowNoSeries ? "unassigned" : "")
@@ -157,6 +162,10 @@ export function VolumeDialog({
       if (uploadAbortRef.current) {
         uploadAbortRef.current.abort()
         uploadAbortRef.current = null
+      }
+      if (priceAbortRef.current) {
+        priceAbortRef.current.abort()
+        priceAbortRef.current = null
       }
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current)
@@ -249,6 +258,100 @@ export function VolumeDialog({
           setPreviewUrl(null)
         }
         uploadAbortRef.current = null
+      }
+    }
+  }
+
+  const getFormatHint = () => {
+    if (selectedSeriesOption?.type === "light_novel") return "Light Novel"
+    if (selectedSeriesOption?.type === "manga") return "Manga"
+    return ""
+  }
+
+  const buildPriceParams = () => {
+    const seriesTitle = selectedSeriesOption?.title?.trim() ?? ""
+    const volumeTitle = formData.title.trim()
+    const queryTitle = seriesTitle || volumeTitle
+    if (!queryTitle) {
+      return {
+        error: "Add a series title or volume title before fetching price."
+      }
+    }
+
+    const params = new URLSearchParams()
+    params.set("title", queryTitle)
+    params.set("volume", String(formData.volume_number))
+    const formatHint = getFormatHint()
+    if (formatHint) params.set("format", formatHint)
+    params.set("binding", "Paperback")
+    return { params }
+  }
+
+  const parsePriceFromResult = (result?: {
+    priceText?: string
+    priceValue?: number
+  }) => {
+    const priceValue = result?.priceValue
+    if (typeof priceValue === "number" && Number.isFinite(priceValue)) {
+      return priceValue.toString()
+    }
+    const priceText = result?.priceText ?? ""
+    const match = /\d+(?:\.\d+)?/.exec(priceText)
+    return match ? match[0] : ""
+  }
+
+  const handleFetchAmazonPrice = async () => {
+    if (priceSource !== "amazon") {
+      toast.error("This price source is not supported yet.")
+      return
+    }
+    const buildResult = buildPriceParams()
+    if ("error" in buildResult) {
+      toast.error(buildResult.error)
+      return
+    }
+
+    if (priceAbortRef.current) {
+      priceAbortRef.current.abort()
+    }
+
+    const controller = new AbortController()
+    priceAbortRef.current = controller
+    setIsFetchingPrice(true)
+
+    try {
+      buildResult.params.set("domain", amazonDomain)
+      const response = await fetch(`/api/books/price?${buildResult.params}`, {
+        signal: controller.signal
+      })
+      const data = (await response.json()) as {
+        result?: { priceText?: string; priceValue?: number }
+        error?: string
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Price lookup failed")
+      }
+
+      const parsedPrice = parsePriceFromResult(data.result)
+
+      if (!parsedPrice) {
+        throw new Error("Price not found")
+      }
+
+      updateField("purchase_price", parsedPrice)
+      toast.success(`Price found: ${data.result?.priceText || parsedPrice}`)
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return
+      const message =
+        error instanceof Error ? error.message : "Price lookup failed"
+      toast.error(message)
+    } finally {
+      if (isMountedRef.current) {
+        if (priceAbortRef.current === controller) {
+          priceAbortRef.current = null
+        }
+        setIsFetchingPrice(false)
       }
     }
   }
@@ -479,6 +582,24 @@ export function VolumeDialog({
                         updateField("purchase_price", e.target.value)
                       }
                     />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleFetchAmazonPrice}
+                        disabled={
+                          isFetchingPrice || isSubmitting || isUploadingCover
+                        }
+                      >
+                        {isFetchingPrice
+                          ? "Checking Amazon..."
+                          : "Fetch Amazon price"}
+                      </Button>
+                      <span className="text-muted-foreground text-xs">
+                        Uses the top Amazon search result (beta)
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

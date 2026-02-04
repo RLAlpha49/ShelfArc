@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import Link from "next/link"
 import {
   Card,
@@ -11,10 +11,14 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useLibrary } from "@/lib/hooks/use-library"
+import { useLibraryStore } from "@/lib/store/library-store"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function DashboardPage() {
   const { series, fetchSeries, isLoading } = useLibrary()
+  const priceDisplayCurrency = useLibraryStore(
+    (state) => state.priceDisplayCurrency
+  )
 
   useEffect(() => {
     if (series.length === 0) {
@@ -49,6 +53,20 @@ export default function DashboardPage() {
       acc + s.volumes.reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
     0
   )
+
+  const priceFormatter = useMemo(() => {
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: priceDisplayCurrency
+      })
+    } catch {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD"
+      })
+    }
+  }, [priceDisplayCurrency])
 
   // Get recently added series
   const recentSeries = [...series]
@@ -122,9 +140,13 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="p-4">
             <div className="text-muted-foreground text-sm">Total Spent</div>
-            <div className="text-3xl font-bold">${totalSpent.toFixed(2)}</div>
+            <div className="text-3xl font-bold">
+              {priceFormatter.format(totalSpent)}
+            </div>
             <div className="text-muted-foreground mt-1 text-xs">
-              ${ownedVolumes > 0 ? (totalSpent / ownedVolumes).toFixed(2) : "0"}
+              {priceFormatter.format(
+                ownedVolumes > 0 ? totalSpent / ownedVolumes : 0
+              )}
               /vol avg
             </div>
           </CardContent>
