@@ -9,7 +9,8 @@ import type {
   SeriesWithVolumes,
   SeriesInsert,
   Volume,
-  VolumeInsert
+  VolumeInsert,
+  OwnershipStatus
 } from "@/lib/types/database"
 
 type VolumeDateFields = {
@@ -756,7 +757,7 @@ export function useLibrary() {
   const addBooksFromSearchResults = useCallback(
     async (
       results: BookSearchResult[],
-      options?: { throwOnError?: boolean }
+      options?: { throwOnError?: boolean; ownershipStatus?: OwnershipStatus }
     ) => {
       const seriesCache = new Map<string, SeriesWithVolumes>()
       const nextVolumeBySeries = new Map<string, number>()
@@ -819,7 +820,7 @@ export function useLibrary() {
             publish_date: resolvedResult.publishedDate || null,
             page_count: resolvedResult.pageCount ?? null,
             description: resolvedResult.description || null,
-            ownership_status: "owned",
+            ownership_status: options?.ownershipStatus ?? "owned",
             reading_status: "unread"
           })
 
@@ -862,10 +863,13 @@ export function useLibrary() {
   )
 
   const addBookFromSearchResult = useCallback(
-    async (result: BookSearchResult) => {
+    async (
+      result: BookSearchResult,
+      options?: { ownershipStatus?: OwnershipStatus }
+    ) => {
       const { failureCount, lastSeries } = await addBooksFromSearchResults(
         [result],
-        { throwOnError: true }
+        { ...options, throwOnError: true }
       )
       if (failureCount > 0 || !lastSeries) {
         throw new Error("Failed to add book")
@@ -879,7 +883,7 @@ export function useLibrary() {
     async (
       seriesId: string,
       results: BookSearchResult[],
-      options?: { throwOnError?: boolean }
+      options?: { throwOnError?: boolean; ownershipStatus?: OwnershipStatus }
     ) => {
       const targetSeries = series.find((item) => item.id === seriesId)
       if (!targetSeries) throw new Error("Series not found")
@@ -911,7 +915,7 @@ export function useLibrary() {
             publish_date: resolvedResult.publishedDate || null,
             page_count: resolvedResult.pageCount ?? null,
             description: resolvedResult.description || null,
-            ownership_status: "owned",
+            ownership_status: options?.ownershipStatus ?? "owned",
             reading_status: "unread"
           })
 
@@ -950,11 +954,15 @@ export function useLibrary() {
   )
 
   const addVolumeFromSearchResult = useCallback(
-    async (seriesId: string, result: BookSearchResult) => {
+    async (
+      seriesId: string,
+      result: BookSearchResult,
+      options?: { ownershipStatus?: OwnershipStatus }
+    ) => {
       const { failureCount } = await addVolumesFromSearchResults(
         seriesId,
         [result],
-        { throwOnError: true }
+        { ...options, throwOnError: true }
       )
       if (failureCount > 0) {
         throw new Error("Failed to add volume")

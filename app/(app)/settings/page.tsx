@@ -25,7 +25,7 @@ import {
 import type { Profile } from "@/lib/types/database"
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
-const MAX_AVATAR_DIMENSION = 512
+const MAX_AVATAR_DIMENSION = 1024
 
 const loadImageDimensions = (file: File) =>
   new Promise<{ url: string; width: number; height: number }>(

@@ -24,21 +24,34 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import {
   normalizeBookKey,
   type BookSearchResult,
   type BookSearchSource
 } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
+import type { OwnershipStatus } from "@/lib/types/database"
 
 type SearchContext = "series" | "volume"
 
 interface BookSearchDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
-  readonly onSelectResult: (result: BookSearchResult) => Promise<void> | void
+  readonly onSelectResult: (
+    result: BookSearchResult,
+    options?: { ownershipStatus?: OwnershipStatus }
+  ) => Promise<void> | void
   readonly onSelectResults?: (
-    results: BookSearchResult[]
+    results: BookSearchResult[],
+    options?: { ownershipStatus?: OwnershipStatus }
   ) => Promise<void> | void
   readonly onAddManual: () => void
   readonly context: SearchContext
@@ -111,6 +124,8 @@ export function BookSearchDialog({
   const [hasMore, setHasMore] = useState(false)
   const [queryKey, setQueryKey] = useState("")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [ownershipStatus, setOwnershipStatus] =
+    useState<OwnershipStatus>("owned")
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
   const [showJumpToTop, setShowJumpToTop] = useState(false)
 
@@ -133,6 +148,7 @@ export function BookSearchDialog({
       setSelectedIds(new Set())
       setIsBulkAdding(false)
       setShowJumpToTop(false)
+      setOwnershipStatus("owned")
     }
   }, [open])
 
@@ -237,13 +253,13 @@ export function BookSearchDialog({
     async (result: BookSearchResult) => {
       setSelectingId(result.id)
       try {
-        await onSelectResult(result)
+        await onSelectResult(result, { ownershipStatus })
         onOpenChange(false)
       } finally {
         setSelectingId(null)
       }
     },
-    [onOpenChange, onSelectResult]
+    [onOpenChange, onSelectResult, ownershipStatus]
   )
 
   const existingIsbnSet = useMemo(() => {
@@ -327,10 +343,10 @@ export function BookSearchDialog({
     setIsBulkAdding(true)
     try {
       if (onSelectResults) {
-        await onSelectResults(resultsToAdd)
+        await onSelectResults(resultsToAdd, { ownershipStatus })
       } else {
         for (const result of resultsToAdd) {
-          await onSelectResult(result)
+          await onSelectResult(result, { ownershipStatus })
         }
       }
       setSelectedIds(new Set())
@@ -342,6 +358,7 @@ export function BookSearchDialog({
     existingIsbnSet,
     onSelectResult,
     onSelectResults,
+    ownershipStatus,
     selectedResults
   ])
 
@@ -409,6 +426,28 @@ export function BookSearchDialog({
                     <TabsTrigger value="open_library">Open Library</TabsTrigger>
                   </TabsList>
                 </Tabs>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="ownership_status"
+                  className="text-muted-foreground text-xs font-medium"
+                >
+                  Add as
+                </Label>
+                <Select
+                  value={ownershipStatus}
+                  onValueChange={(value) =>
+                    setOwnershipStatus(value as OwnershipStatus)
+                  }
+                >
+                  <SelectTrigger id="ownership_status" className="h-9 w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="owned">Owned</SelectItem>
+                    <SelectItem value="wishlist">Wishlist</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

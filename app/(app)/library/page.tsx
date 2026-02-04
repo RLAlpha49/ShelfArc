@@ -24,7 +24,12 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Series, SeriesWithVolumes, Volume } from "@/lib/types/database"
+import type {
+  Series,
+  SeriesWithVolumes,
+  Volume,
+  OwnershipStatus
+} from "@/lib/types/database"
 import { normalizeBookKey, type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
@@ -443,9 +448,12 @@ export default function LibraryPage() {
   }, [])
 
   const handleSearchSelect = useCallback(
-    async (result: BookSearchResult) => {
+    async (
+      result: BookSearchResult,
+      options?: { ownershipStatus?: OwnershipStatus }
+    ) => {
       try {
-        await addBookFromSearchResult(result)
+        await addBookFromSearchResult(result, options)
         toast.success("Book added successfully")
       } catch {
         toast.error("Failed to add book")
@@ -455,9 +463,12 @@ export default function LibraryPage() {
   )
 
   const handleSearchSelectMany = useCallback(
-    async (results: BookSearchResult[]) => {
+    async (
+      results: BookSearchResult[],
+      options?: { ownershipStatus?: OwnershipStatus }
+    ) => {
       const { successCount, failureCount } =
-        await addBooksFromSearchResults(results)
+        await addBooksFromSearchResults(results, options)
 
       if (successCount > 0) {
         toast.success(
