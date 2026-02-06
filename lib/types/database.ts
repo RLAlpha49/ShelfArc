@@ -16,6 +16,8 @@ export type ReadingStatus =
   | "on_hold"
   | "dropped"
 
+export type BookOrientation = "vertical" | "horizontal"
+
 export interface Database {
   public: {
     Tables: {
@@ -44,6 +46,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       series: {
         Row: {
@@ -97,6 +100,14 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "series_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       volumes: {
         Row: {
@@ -174,6 +185,20 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "volumes_series_id_fkey"
+            columns: ["series_id"]
+            referencedRelation: "series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volumes_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       tags: {
         Row: {
@@ -197,6 +222,118 @@ export interface Database {
           color?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "tags_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      bookshelves: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          description: string | null
+          row_count: number
+          row_height: number
+          row_width: number
+          shelf_color: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          description?: string | null
+          row_count?: number
+          row_height?: number
+          row_width?: number
+          shelf_color?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          description?: string | null
+          row_count?: number
+          row_height?: number
+          row_width?: number
+          shelf_color?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookshelves_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      shelf_items: {
+        Row: {
+          id: string
+          bookshelf_id: string
+          volume_id: string
+          user_id: string
+          row_index: number
+          position_x: number
+          orientation: BookOrientation
+          z_index: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          bookshelf_id: string
+          volume_id: string
+          user_id: string
+          row_index: number
+          position_x: number
+          orientation?: BookOrientation
+          z_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          bookshelf_id?: string
+          volume_id?: string
+          user_id?: string
+          row_index?: number
+          position_x?: number
+          orientation?: BookOrientation
+          z_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shelf_items_bookshelf_id_fkey"
+            columns: ["bookshelf_id"]
+            referencedRelation: "bookshelves"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shelf_items_volume_id_fkey"
+            columns: ["volume_id"]
+            referencedRelation: "volumes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shelf_items_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
@@ -209,6 +346,7 @@ export interface Database {
       title_type: TitleType
       ownership_status: OwnershipStatus
       reading_status: ReadingStatus
+      book_orientation: BookOrientation
     }
   }
 }
@@ -222,6 +360,38 @@ export type Tag = Database["public"]["Tables"]["tags"]["Row"]
 export type SeriesInsert = Database["public"]["Tables"]["series"]["Insert"]
 export type VolumeInsert = Database["public"]["Tables"]["volumes"]["Insert"]
 
+export type Bookshelf = Database["public"]["Tables"]["bookshelves"]["Row"]
+export type BookshelfInsert =
+  Database["public"]["Tables"]["bookshelves"]["Insert"]
+export type BookshelfUpdate =
+  Database["public"]["Tables"]["bookshelves"]["Update"]
+
+export type ShelfItem = Database["public"]["Tables"]["shelf_items"]["Row"]
+export type ShelfItemInsert =
+  Database["public"]["Tables"]["shelf_items"]["Insert"]
+export type ShelfItemUpdate =
+  Database["public"]["Tables"]["shelf_items"]["Update"]
+
 export type SeriesWithVolumes = Series & {
   volumes: Volume[]
+}
+
+// Bookshelf with items and populated volume data
+export type ShelfItemWithVolume = ShelfItem & {
+  volume: Volume & { series: Series | null }
+}
+
+export type BookshelfWithItems = Bookshelf & {
+  items: ShelfItemWithVolume[]
+}
+
+// For detecting adjacent series groups on shelf
+export type SeriesGroup = {
+  seriesId: string | null
+  startX: number
+  endX: number
+  rowIndex: number
+  minZ: number
+  maxZ: number
+  items: ShelfItemWithVolume[]
 }

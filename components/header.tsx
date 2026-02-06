@@ -31,6 +31,7 @@ export function Header({ user }: HeaderProps) {
 
   const navItems = [
     { href: "/library", label: "Library" },
+    { href: "/bookshelf", label: "Bookshelf" },
     { href: "/dashboard", label: "Dashboard" }
   ]
 
