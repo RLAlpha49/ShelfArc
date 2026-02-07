@@ -1,15 +1,25 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Playfair_Display, Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap"
+})
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap"
+})
 
 export const metadata: Metadata = {
-  title: "ShelfArc - Track Your Light Novel & Manga Collection",
+  title: "ShelfArc — Your Personal Library, Beautifully Organized",
   description:
-    "A web app for tracking light novel and manga ownership and reading progress"
+    "Track, organize, and celebrate your light novel and manga collection with a beautifully crafted personal library manager."
 }
 
 export default function RootLayout({
@@ -18,7 +28,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${playfair.variable} ${plusJakarta.variable}`}
+      suppressHydrationWarning
+    >
       <body className="bg-background min-h-screen font-sans antialiased">
         <ThemeProvider
           attribute="class"

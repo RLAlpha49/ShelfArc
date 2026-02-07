@@ -28,7 +28,7 @@ export function ThemeToggle() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="focus-visible:ring-ring hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
+      <DropdownMenuTrigger className="focus-visible:ring-ring hover:bg-primary/10 inline-flex h-9 w-9 items-center justify-center rounded-xl text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"

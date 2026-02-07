@@ -288,18 +288,20 @@ export default function BookshelfPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-96 w-full" />
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <Skeleton className="h-10 w-full rounded-2xl" />
+        <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div>
-        <h1 className="text-2xl font-bold">Bookshelf</h1>
-        <p className="text-muted-foreground">
+        <h1 className="font-display text-3xl font-bold tracking-tight">
+          Bookshelf
+        </h1>
+        <p className="text-muted-foreground mt-1">
           Organize your books on virtual bookshelves
         </p>
       </div>

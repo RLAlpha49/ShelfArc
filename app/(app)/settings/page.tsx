@@ -300,21 +300,23 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto max-w-2xl px-4 py-6">
-        <Skeleton className="mb-6 h-8 w-32" />
-        <Skeleton className="h-64" />
+      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+        <Skeleton className="mb-8 h-10 w-32 rounded-xl" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-6">
-      <h1 className="mb-6 text-2xl font-bold">Settings</h1>
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+      <h1 className="font-display mb-8 text-3xl font-bold tracking-tight">
+        Settings
+      </h1>
 
       {/* Profile Settings */}
-      <Card className="mb-6">
+      <Card className="border-primary/10 mb-6 rounded-2xl">
         <CardHeader>
-          <CardTitle>Profile</CardTitle>
+          <CardTitle className="font-display">Profile</CardTitle>
           <CardDescription>Manage your account information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -416,9 +418,9 @@ export default function SettingsPage() {
       <Separator className="my-6" />
 
       {/* Preferences */}
-      <Card className="mb-6">
+      <Card className="border-primary/10 mb-6 rounded-2xl">
         <CardHeader>
-          <CardTitle>Preferences</CardTitle>
+          <CardTitle className="font-display">Preferences</CardTitle>
           <CardDescription>Customize your experience</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -456,9 +458,9 @@ export default function SettingsPage() {
       <Separator className="my-6" />
 
       {/* Pricing */}
-      <Card className="mb-6">
+      <Card className="border-primary/10 mb-6 rounded-2xl">
         <CardHeader>
-          <CardTitle>Pricing</CardTitle>
+          <CardTitle className="font-display">Pricing</CardTitle>
           <CardDescription>
             Configure where prices are fetched from and how they are displayed
           </CardDescription>
@@ -542,16 +544,16 @@ export default function SettingsPage() {
       <Separator className="my-6" />
 
       {/* Data Management */}
-      <Card>
+      <Card className="border-primary/10 rounded-2xl">
         <CardHeader>
-          <CardTitle>Data Management</CardTitle>
+          <CardTitle className="font-display">Data Management</CardTitle>
           <CardDescription>Export or import your library data</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row">
             <a
               href="/settings/export"
-              className="border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium"
+              className="border-primary/15 bg-background hover:bg-primary/5 inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -569,7 +571,7 @@ export default function SettingsPage() {
             </a>
             <a
               href="/settings/import"
-              className="border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium"
+              className="border-primary/15 bg-background hover:bg-primary/5 inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

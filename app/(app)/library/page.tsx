@@ -92,10 +92,10 @@ function SeriesListItem({
   return (
     <button
       type="button"
-      className="group hover:bg-accent/50 flex w-full cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-colors"
+      className="group hover:bg-primary/5 border-primary/10 hover:shadow-primary/5 flex w-full cursor-pointer items-center gap-4 rounded-2xl border p-4 text-left transition-all hover:shadow-md"
       onClick={onClick}
     >
-      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
+      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-lg">
         <CoverImage
           isbn={primaryIsbn}
           coverImageUrl={series.cover_image_url}
@@ -105,14 +105,14 @@ function SeriesListItem({
           loading="lazy"
           decoding="async"
           fallback={
-            <div className="flex h-full w-full items-center justify-center">
+            <div className="from-primary/5 to-copper/5 flex h-full w-full items-center justify-center bg-linear-to-br">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
-                className="text-muted-foreground/50 h-6 w-6"
+                className="text-primary/30 h-6 w-6"
               >
                 <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
               </svg>
@@ -122,7 +122,7 @@ function SeriesListItem({
         <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate font-medium">{series.title}</h3>
+        <h3 className="font-display truncate font-medium">{series.title}</h3>
         <p className="text-muted-foreground truncate text-sm">
           {series.author || "Unknown Author"}
         </p>
@@ -265,7 +265,7 @@ function VolumeListItem({
     <div
       role="button"
       tabIndex={0}
-      className="group hover:bg-accent/50 relative flex w-full cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-colors"
+      className="group hover:bg-primary/5 border-primary/10 hover:shadow-primary/5 relative flex w-full cursor-pointer items-center gap-4 rounded-2xl border p-4 text-left transition-all hover:shadow-md"
       onClick={onClick}
       onKeyDown={(event) => {
         const target = event.target as HTMLElement
@@ -783,10 +783,12 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="mb-2 text-2xl font-bold">My Library</h1>
-        <p className="text-muted-foreground">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="font-display text-3xl font-bold tracking-tight">
+          My Library
+        </h1>
+        <p className="text-muted-foreground mt-1">
           Manage your light novel and manga collection
         </p>
       </div>

@@ -14,7 +14,11 @@ export default async function LibraryLayout({
   return (
     <div className="relative flex min-h-screen flex-col">
       <Header user={user} />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1">
+        <div className="bg-warm-gradient noise-overlay relative min-h-[calc(100vh-4rem)]">
+          <div className="relative z-10">{children}</div>
+        </div>
+      </main>
     </div>
   )
 }

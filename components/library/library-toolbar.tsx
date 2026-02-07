@@ -68,7 +68,7 @@ export function LibraryToolbar({
           placeholder={searchPlaceholder}
           value={filters.search}
           onChange={(e) => setFilters({ search: e.target.value })}
-          className="pl-9"
+          className="border-primary/15 focus-visible:ring-primary/30 rounded-xl pl-9"
         />
       </div>
 
@@ -80,10 +80,10 @@ export function LibraryToolbar({
             if (value) setFilters({ type: value as TitleType | "all" })
           }}
         >
-          <SelectTrigger className="w-32.5">
+          <SelectTrigger className="border-primary/15 w-32.5 rounded-xl">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl">
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="manga">Manga</SelectItem>
             <SelectItem value="light_novel">Light Novel</SelectItem>
@@ -99,10 +99,10 @@ export function LibraryToolbar({
               setFilters({ ownershipStatus: value as OwnershipStatus | "all" })
           }}
         >
-          <SelectTrigger className="w-32.5">
+          <SelectTrigger className="border-primary/15 w-32.5 rounded-xl">
             <SelectValue placeholder="Ownership" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl">
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="owned">Owned</SelectItem>
             <SelectItem value="wishlist">Wishlist</SelectItem>
@@ -117,10 +117,10 @@ export function LibraryToolbar({
               setFilters({ readingStatus: value as ReadingStatus | "all" })
           }}
         >
-          <SelectTrigger className="w-32.5">
+          <SelectTrigger className="border-primary/15 w-32.5 rounded-xl">
             <SelectValue placeholder="Reading" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl">
             <SelectItem value="all">All Reading</SelectItem>
             <SelectItem value="unread">Unread</SelectItem>
             <SelectItem value="reading">Reading</SelectItem>
@@ -132,7 +132,7 @@ export function LibraryToolbar({
 
         {/* Sort */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
+          <DropdownMenuTrigger className="focus-visible:ring-ring bg-background hover:bg-primary/5 border-primary/15 inline-flex h-9 items-center justify-center rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -150,7 +150,7 @@ export function LibraryToolbar({
             </svg>
             Sort
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="rounded-xl">
             <DropdownMenuLabel>Sort by</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -197,10 +197,12 @@ export function LibraryToolbar({
         </DropdownMenu>
 
         {/* Collection View */}
-        <div className="flex items-center rounded-md border">
+        <div className="border-primary/15 flex items-center overflow-hidden rounded-xl border">
           <button
             className={`px-3 py-2 text-sm transition-colors ${
-              collectionView === "series" ? "bg-accent" : "hover:bg-accent/50"
+              collectionView === "series"
+                ? "bg-primary/10 text-primary font-medium"
+                : "hover:bg-primary/5"
             }`}
             onClick={() => setCollectionView("series")}
             aria-label="Series view"
@@ -210,7 +212,9 @@ export function LibraryToolbar({
           </button>
           <button
             className={`px-3 py-2 text-sm transition-colors ${
-              collectionView === "volumes" ? "bg-accent" : "hover:bg-accent/50"
+              collectionView === "volumes"
+                ? "bg-primary/10 text-primary font-medium"
+                : "hover:bg-primary/5"
             }`}
             onClick={() => setCollectionView("volumes")}
             aria-label="Volumes view"
@@ -221,11 +225,12 @@ export function LibraryToolbar({
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center rounded-md border">
+        <div className="border-primary/15 flex items-center overflow-hidden rounded-xl border">
           <button
-            className={`p-2 transition-colors ${viewMode === "grid" ? "bg-accent" : "hover:bg-accent/50"}`}
+            className={`p-2 transition-colors ${viewMode === "grid" ? "bg-primary/10 text-primary" : "hover:bg-primary/5"}`}
             onClick={() => setViewMode("grid")}
             aria-label="Grid view"
+            type="button"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -244,9 +249,10 @@ export function LibraryToolbar({
             </svg>
           </button>
           <button
-            className={`p-2 transition-colors ${viewMode === "list" ? "bg-accent" : "hover:bg-accent/50"}`}
+            className={`p-2 transition-colors ${viewMode === "list" ? "bg-primary/10 text-primary" : "hover:bg-primary/5"}`}
             onClick={() => setViewMode("list")}
             aria-label="List view"
+            type="button"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -273,13 +279,18 @@ export function LibraryToolbar({
           filters.type !== "all" ||
           filters.ownershipStatus !== "all" ||
           filters.readingStatus !== "all") && (
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resetFilters}
+            className="text-muted-foreground hover:text-foreground rounded-xl"
+          >
             Clear filters
           </Button>
         )}
 
         {/* Add Book Button */}
-        <Button onClick={onAddBook}>
+        <Button onClick={onAddBook} className="rounded-xl">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -297,7 +308,11 @@ export function LibraryToolbar({
         </Button>
 
         {/* Add Series Button */}
-        <Button variant="outline" onClick={onAddSeries}>
+        <Button
+          variant="outline"
+          onClick={onAddSeries}
+          className="border-primary/20 hover:bg-primary/5 rounded-xl"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"

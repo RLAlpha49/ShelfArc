@@ -18,25 +18,25 @@ interface VolumeCardProps {
   readonly onDelete: () => void
 }
 
+const OWNERSHIP_COLORS: Record<string, string> = {
+  owned: "bg-green-500/10 text-green-600 dark:text-green-400",
+  wishlist: "bg-gold/10 text-gold"
+}
+
+const READING_COLORS: Record<string, string> = {
+  unread: "bg-muted text-muted-foreground",
+  reading: "bg-primary/10 text-primary",
+  completed: "bg-green-500/10 text-green-600 dark:text-green-400",
+  on_hold: "bg-gold/10 text-gold",
+  dropped: "bg-destructive/10 text-destructive"
+}
+
 export function VolumeCard({
   volume,
   onClick,
   onEdit,
   onDelete
 }: VolumeCardProps) {
-  const ownershipColors: Record<string, string> = {
-    owned: "bg-green-500/10 text-green-500",
-    wishlist: "bg-yellow-500/10 text-yellow-500"
-  }
-
-  const readingColors: Record<string, string> = {
-    unread: "bg-gray-500/10 text-gray-500",
-    reading: "bg-blue-500/10 text-blue-500",
-    completed: "bg-green-500/10 text-green-500",
-    on_hold: "bg-yellow-500/10 text-yellow-500",
-    dropped: "bg-red-500/10 text-red-500"
-  }
-
   const progressPercent =
     volume.page_count && volume.current_page
       ? Math.round((volume.current_page / volume.page_count) * 100)
@@ -44,7 +44,7 @@ export function VolumeCard({
 
   return (
     <Card
-      className="group relative cursor-pointer overflow-hidden transition-shadow hover:shadow-lg"
+      className="group border-primary/10 hover:shadow-primary/5 relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 hover:shadow-xl"
       onClick={onClick}
     >
       <CardContent className="p-0">
@@ -58,8 +58,8 @@ export function VolumeCard({
             loading="lazy"
             decoding="async"
             fallback={
-              <div className="flex h-full items-center justify-center">
-                <span className="text-muted-foreground/30 text-3xl font-bold">
+              <div className="from-primary/5 to-copper/5 flex h-full items-center justify-center bg-linear-to-br">
+                <span className="font-display text-primary/20 text-4xl font-bold">
                   {volume.volume_number}
                 </span>
               </div>
@@ -73,7 +73,7 @@ export function VolumeCard({
           <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex h-8 w-8 items-center justify-center rounded-md"
+                className="bg-background/80 hover:bg-background inline-flex h-8 w-8 items-center justify-center rounded-xl backdrop-blur-sm"
                 onClick={(event) => event.stopPropagation()}
               >
                 <svg
@@ -89,7 +89,7 @@ export function VolumeCard({
                   <circle cx="12" cy="19" r="1" />
                 </svg>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="rounded-xl">
                 <DropdownMenuItem
                   onClick={(event) => {
                     event.stopPropagation()
@@ -115,14 +115,16 @@ export function VolumeCard({
         {/* Volume Info */}
         <div className="space-y-2 p-3">
           <div className="flex items-center justify-between">
-            <span className="font-semibold">Vol. {volume.volume_number}</span>
+            <span className="font-display font-semibold">
+              Vol. {volume.volume_number}
+            </span>
             {volume.rating && (
               <span className="text-muted-foreground flex items-center gap-1 text-sm">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
                   fill="currentColor"
-                  className="h-3.5 w-3.5 text-yellow-500"
+                  className="text-gold h-3.5 w-3.5"
                 >
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
@@ -140,13 +142,13 @@ export function VolumeCard({
           <div className="flex flex-wrap gap-1">
             <Badge
               variant="secondary"
-              className={`text-xs ${ownershipColors[volume.ownership_status] ?? "bg-gray-500/10 text-gray-500"}`}
+              className={`rounded-lg text-xs ${OWNERSHIP_COLORS[volume.ownership_status] ?? "bg-muted text-muted-foreground"}`}
             >
               {volume.ownership_status}
             </Badge>
             <Badge
               variant="secondary"
-              className={`text-xs ${readingColors[volume.reading_status]}`}
+              className={`rounded-lg text-xs ${READING_COLORS[volume.reading_status]}`}
             >
               {volume.reading_status.replace("_", " ")}
             </Badge>
@@ -159,9 +161,9 @@ export function VolumeCard({
                 <span>Progress</span>
                 <span>{progressPercent}%</span>
               </div>
-              <div className="bg-muted h-1.5 overflow-hidden rounded-full">
+              <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
                 <div
-                  className="bg-primary h-full rounded-full transition-all"
+                  className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>

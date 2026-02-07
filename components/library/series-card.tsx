@@ -21,9 +21,9 @@ interface SeriesCardProps {
 }
 
 const TYPE_COLORS: Record<TitleType, string> = {
-  light_novel: "bg-blue-500/10 text-blue-500",
-  manga: "bg-purple-500/10 text-purple-500",
-  other: "bg-gray-500/10 text-gray-500"
+  light_novel: "bg-primary/10 text-primary",
+  manga: "bg-copper/10 text-copper",
+  other: "bg-muted text-muted-foreground"
 }
 
 export function SeriesCard({
@@ -56,13 +56,13 @@ export function SeriesCard({
 
   return (
     <Card
-      className="group relative cursor-pointer overflow-hidden transition-all hover:shadow-lg"
+      className="group border-primary/10 hover:shadow-primary/5 relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 hover:shadow-xl"
       onClick={onClick}
     >
       <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="bg-background/80 hover:bg-background flex h-8 w-8 items-center justify-center rounded-md backdrop-blur-sm"
+            className="bg-background/80 hover:bg-background flex h-8 w-8 items-center justify-center rounded-xl backdrop-blur-sm"
             onClick={(e) => e.stopPropagation()}
           >
             <svg
@@ -80,7 +80,7 @@ export function SeriesCard({
               <circle cx="12" cy="19" r="1" />
             </svg>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="rounded-xl">
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation()
@@ -112,7 +112,7 @@ export function SeriesCard({
           loading="lazy"
           decoding="async"
           fallback={
-            <div className="flex h-full items-center justify-center">
+            <div className="from-primary/5 to-copper/5 flex h-full items-center justify-center bg-linear-to-br">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -121,7 +121,7 @@ export function SeriesCard({
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-muted-foreground/50 h-12 w-12"
+                className="text-primary/30 h-12 w-12"
               >
                 <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
               </svg>
@@ -133,7 +133,7 @@ export function SeriesCard({
 
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 text-sm leading-tight font-semibold">
+          <h3 className="font-display line-clamp-2 text-sm leading-tight font-semibold">
             {series.title}
           </h3>
         </div>
@@ -147,7 +147,7 @@ export function SeriesCard({
         <div className="mt-2 flex flex-wrap gap-1">
           <Badge
             variant="secondary"
-            className={TYPE_COLORS[series.type] ?? TYPE_COLORS.other}
+            className={`rounded-lg text-xs ${TYPE_COLORS[series.type] ?? TYPE_COLORS.other}`}
           >
             {series.type === "light_novel" && "LN"}
             {series.type === "manga" && "Manga"}
@@ -155,7 +155,11 @@ export function SeriesCard({
           </Badge>
 
           {series.tags.slice(0, 2).map((tag) => (
-            <Badge key={tag} variant="outline" className="text-xs">
+            <Badge
+              key={tag}
+              variant="outline"
+              className="border-primary/15 rounded-lg text-xs"
+            >
               {tag}
             </Badge>
           ))}
@@ -169,9 +173,9 @@ export function SeriesCard({
         </div>
 
         {totalVolumes > 0 && (
-          <div className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full">
+          <div className="bg-primary/10 mt-2 h-1.5 w-full overflow-hidden rounded-full">
             <div
-              className="bg-primary h-full transition-all"
+              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
               style={{ width: `${(ownedVolumes / totalVolumes) * 100}%` }}
             />
           </div>

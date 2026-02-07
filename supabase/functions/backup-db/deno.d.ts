@@ -62,9 +62,7 @@ declare module "https://esm.sh/@supabase/supabase-js@2.49.1" {
       }
     }
     auth: {
-      getUser(
-        token?: string
-      ): Promise<{
+      getUser(token?: string): Promise<{
         data: { user: unknown | null } | null
         error: { message: string } | null
       }>
