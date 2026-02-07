@@ -183,7 +183,30 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     )
   }
 
-  const updateIds = body.updates.map((update) => update.id)
+  const updatesWithPayload = body.updates.map(({ id, ...updateData }) => {
+    const updatePayload = Object.fromEntries(
+      Object.entries({
+        row_index: updateData.row_index,
+        position_x: updateData.position_x,
+        orientation: updateData.orientation,
+        z_index: updateData.z_index
+      }).filter(([, value]) => value !== undefined)
+    ) as ShelfItemUpdate
+
+    return { id, updatePayload }
+  })
+
+  const emptyUpdate = updatesWithPayload.find(
+    ({ updatePayload }) => Object.keys(updatePayload).length === 0
+  )
+  if (emptyUpdate) {
+    return NextResponse.json(
+      { error: "no updatable fields provided", itemId: emptyUpdate.id },
+      { status: 400 }
+    )
+  }
+
+  const updateIds = updatesWithPayload.map(({ id }) => id)
   const { data: previousItems, error: previousError } = await supabase
     .from("shelf_items")
     .select("id, row_index, position_x, orientation, z_index")
@@ -205,15 +228,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   // Perform updates with rollback on partial failure
   const results = await Promise.all(
-    body.updates.map(async ({ id, ...updateData }) => {
-      const updatePayload = Object.fromEntries(
-        Object.entries({
-          row_index: updateData.row_index,
-          position_x: updateData.position_x,
-          orientation: updateData.orientation,
-          z_index: updateData.z_index
-        }).filter(([, value]) => value !== undefined)
-      ) as ShelfItemUpdate
+    updatesWithPayload.map(async ({ id, updatePayload }) => {
       const { data, error } = await supabase
         .from("shelf_items")
         .update(updatePayload)

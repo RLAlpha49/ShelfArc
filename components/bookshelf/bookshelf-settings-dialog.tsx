@@ -362,16 +362,16 @@ function alignToGrid(value: number): number {
 }
 
 function clampRowHeight(value: number): number {
-  const clampedValue = Math.min(
-    Math.max(value, BOOK_MIN_ROW_HEIGHT),
+  const alignedValue = alignToGrid(value)
+  return Math.min(
+    Math.max(alignedValue, BOOK_MIN_ROW_HEIGHT),
     BOOK_MAX_ROW_HEIGHT
   )
-  return alignToGrid(clampedValue)
 }
 
 function clampRowWidth(value: number): number {
-  const clampedValue = Math.min(Math.max(value, MIN_ROW_WIDTH), MAX_ROW_WIDTH)
-  return alignToGrid(clampedValue)
+  const alignedValue = alignToGrid(value)
+  return Math.min(Math.max(alignedValue, MIN_ROW_WIDTH), MAX_ROW_WIDTH)
 }
 
 function getColorInputValue(value: string): string {

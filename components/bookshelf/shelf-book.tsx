@@ -190,7 +190,7 @@ function getSpineColor(coverUrl: string | null): string {
   for (let i = 0; i < coverUrl.length; i++) {
     const char = coverUrl.codePointAt(i) ?? 0
     hash = (hash << 5) - hash + char
-    hash = Math.trunc(hash) // Convert to 32bit integer
+    hash = Math.trunc(hash) // Remove fractional part (does not limit to 32-bit)
   }
 
   // Generate HSL color with good saturation and lightness
@@ -222,9 +222,7 @@ function getVolumeTitle(volume: {
   if (title) return title
   if (Number.isFinite(volume.volume_number)) {
     const volumeNumber = volume.volume_number
-    const formattedNumber = Number.isInteger(volumeNumber)
-      ? `${volumeNumber}`
-      : String(volumeNumber)
+    const formattedNumber = String(volumeNumber)
     return `Vol. ${formattedNumber}`
   }
   return "Volume"

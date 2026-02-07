@@ -9,8 +9,9 @@ export function createClient() {
 
   const missingEnvVars = [
     supabaseUrl ? undefined : "NEXT_PUBLIC_SUPABASE_URL",
-    supabaseKey ? undefined : "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    supabaseKey ? undefined : "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+    supabaseKey
+      ? undefined
+      : "NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
   ].filter((value): value is string => Boolean(value))
 
   if (!supabaseUrl || !supabaseKey) {

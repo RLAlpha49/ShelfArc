@@ -7,6 +7,7 @@ type BackupMetadata = {
   createdAt: string
   tableCount: number
   rowCounts: Record<string, number>
+  tableTruncated: Record<string, boolean>
 }
 
 type BackupPayload = {
@@ -28,9 +29,11 @@ const jsonResponse = (status: number, body: JsonRecord) =>
     }
   })
 
-const getEnv = (key: string, fallback?: string) => {
+function getEnv(key: string): string | undefined
+function getEnv(key: string, fallback: string): string
+function getEnv(key: string, fallback?: string) {
   const value = Deno.env.get(key)
-  if (value === undefined || value === null || value.trim() === "") {
+  if (value === undefined || value.trim() === "") {
     return fallback
   }
   return value
@@ -67,7 +70,10 @@ const gzipJson = async (json: string) => {
   return await new Response(stream).blob()
 }
 
-const requireAuthorization = (request: Request) => {
+const requireAuthorization = async (
+  request: Request,
+  supabase: SupabaseClient
+) => {
   const requiredSecret = getEnv("BACKUP_SECRET")
   if (requiredSecret) {
     const providedSecret = request.headers.get("x-backup-secret") ?? ""
@@ -80,12 +86,30 @@ const requireAuthorization = (request: Request) => {
     return { ok: true }
   }
 
-  const authHeader = request.headers.get("authorization")
-  if (!authHeader) {
+  const authHeader = request.headers.get("authorization") ?? ""
+  const tokenMatch = /^Bearer\s+(.+)$/i.exec(authHeader)
+  if (!tokenMatch) {
     return {
       ok: false,
       reason:
         "Missing Authorization header. Provide a JWT or set BACKUP_SECRET for header-based auth."
+    }
+  }
+
+  const token = tokenMatch[1]?.trim()
+  if (!token) {
+    return {
+      ok: false,
+      reason:
+        "Missing JWT in Authorization header. Provide a Bearer token or set BACKUP_SECRET."
+    }
+  }
+
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data?.user) {
+    return {
+      ok: false,
+      reason: error?.message ?? "Invalid or expired JWT."
     }
   }
 
@@ -182,51 +206,254 @@ const resolveTables = async (
   return { data: tables }
 }
 
+type FetchTableOptions = {
+  maxRowsPerTable?: number
+  maxTotalRows?: number
+  hardRowLimit?: number
+  onPage?: (
+    table: string,
+    rows: unknown[],
+    info: { offset: number; tableRows: number; totalRows: number }
+  ) => void | Promise<void>
+}
+
+type PageEvaluation = {
+  pageRows: unknown[]
+  truncated: boolean
+  stopTable: boolean
+  stopAll: boolean
+  nextTableRows: number
+  nextTotalRows: number
+}
+
+const evaluatePage = (input: {
+  data: unknown[]
+  pageSize: number
+  tableRows: number
+  totalRows: number
+  maxRowsPerTable: number
+  maxTotalRows: number
+}): PageEvaluation => {
+  const {
+    data,
+    pageSize,
+    tableRows,
+    totalRows,
+    maxRowsPerTable,
+    maxTotalRows
+  } = input
+
+  const remainingForTable =
+    maxRowsPerTable > 0 ? maxRowsPerTable - tableRows : Number.POSITIVE_INFINITY
+  const remainingGlobal =
+    maxTotalRows > 0 ? maxTotalRows - totalRows : Number.POSITIVE_INFINITY
+  const remaining = Math.min(remainingForTable, remainingGlobal)
+
+  if (remaining <= 0) {
+    return {
+      pageRows: [],
+      truncated: true,
+      stopTable: true,
+      stopAll: maxTotalRows > 0 && totalRows >= maxTotalRows,
+      nextTableRows: tableRows,
+      nextTotalRows: totalRows
+    }
+  }
+
+  const pageRows = data.length > remaining ? data.slice(0, remaining) : data
+  const nextTableRows = tableRows + pageRows.length
+  const nextTotalRows = totalRows + pageRows.length
+  const stopByPage = data.length < pageSize
+  const limitReached =
+    (maxRowsPerTable > 0 && nextTableRows >= maxRowsPerTable) ||
+    (maxTotalRows > 0 && nextTotalRows >= maxTotalRows)
+  const truncatedBySlice = pageRows.length < data.length
+  const truncatedByLimit = limitReached && !stopByPage
+  const truncated = truncatedBySlice || truncatedByLimit
+  const stopTable = truncated || stopByPage || limitReached
+
+  return {
+    pageRows,
+    truncated,
+    stopTable,
+    stopAll: maxTotalRows > 0 && nextTotalRows >= maxTotalRows,
+    nextTableRows,
+    nextTotalRows
+  }
+}
+
+const fetchTableRows = async (input: {
+  supabase: SupabaseClient
+  table: string
+  pageSize: number
+  onPage: (
+    table: string,
+    rows: unknown[],
+    info: { offset: number; tableRows: number; totalRows: number }
+  ) => void | Promise<void>
+  maxRowsPerTable: number
+  maxTotalRows: number
+  hardRowLimit: number
+  totalRows: number
+}): Promise<
+  Result<{
+    rowCount: number
+    truncated: boolean
+    stopAll: boolean
+    totalRows: number
+  }>
+> => {
+  const {
+    supabase,
+    table,
+    pageSize,
+    onPage,
+    maxRowsPerTable,
+    maxTotalRows,
+    hardRowLimit
+  } = input
+  let totalRows = input.totalRows
+  let tableRows = 0
+  let truncated = false
+  let stopAll = false
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .range(offset, offset + pageSize - 1)
+
+    if (error) {
+      return {
+        error: `Failed to fetch rows for table ${table}.`,
+        details: error.message,
+        status: 500
+      }
+    }
+
+    if (!data || data.length === 0) {
+      break
+    }
+
+    const evaluation = evaluatePage({
+      data,
+      pageSize,
+      tableRows,
+      totalRows,
+      maxRowsPerTable,
+      maxTotalRows
+    })
+
+    if (evaluation.pageRows.length === 0) {
+      truncated = true
+      stopAll = evaluation.stopAll
+      break
+    }
+
+    const nextTableRows = evaluation.nextTableRows
+    const nextTotalRows = evaluation.nextTotalRows
+    truncated = truncated || evaluation.truncated
+    stopAll = evaluation.stopAll
+
+    if (hardRowLimit > 0 && nextTableRows > hardRowLimit) {
+      return {
+        error: `Table ${table} exceeds hard row limit (${hardRowLimit}).`,
+        details:
+          "Enable streaming mode or increase BACKUP_HARD_ROW_LIMIT to proceed with large tables.",
+        status: 413
+      }
+    }
+
+    await onPage(table, evaluation.pageRows, {
+      offset,
+      tableRows,
+      totalRows
+    })
+
+    tableRows = nextTableRows
+    totalRows = nextTotalRows
+
+    if (evaluation.stopTable) {
+      break
+    }
+  }
+
+  return {
+    data: {
+      rowCount: tableRows,
+      truncated,
+      stopAll,
+      totalRows
+    }
+  }
+}
+
 const fetchTableData = async (
   supabase: SupabaseClient,
   tables: string[],
-  pageSize: number
+  pageSize: number,
+  options: FetchTableOptions = {}
 ): Promise<
   Result<{
     tableData: Record<string, unknown[]>
     rowCounts: Record<string, number>
+    tableTruncated: Record<string, boolean>
   }>
 > => {
   const tableData: Record<string, unknown[]> = {}
   const rowCounts: Record<string, number> = {}
+  const tableTruncated: Record<string, boolean> = {}
+  const useDefaultSink = !options.onPage
+  const onPage =
+    options.onPage ??
+    ((table: string, rows: unknown[]) => {
+      if (!tableData[table]) {
+        tableData[table] = []
+      }
+      tableData[table].push(...rows)
+    })
+  const maxRowsPerTable = Math.max(0, options.maxRowsPerTable ?? 0)
+  const maxTotalRows = Math.max(0, options.maxTotalRows ?? 0)
+  const hardRowLimit = Math.max(0, options.hardRowLimit ?? 0)
+  let totalRows = 0
+  let stopAll = false
 
   for (const table of tables) {
-    const rows: unknown[] = []
-    for (let offset = 0; ; offset += pageSize) {
-      const { data, error } = await supabase
-        .from(table)
-        .select("*")
-        .range(offset, offset + pageSize - 1)
-
-      if (error) {
-        return {
-          error: `Failed to fetch rows for table ${table}.`,
-          details: error.message,
-          status: 500
-        }
+    if (stopAll) {
+      tableTruncated[table] = true
+      rowCounts[table] = 0
+      if (useDefaultSink) {
+        tableData[table] = []
       }
-
-      if (!data || data.length === 0) {
-        break
-      }
-
-      rows.push(...data)
-
-      if (data.length < pageSize) {
-        break
-      }
+      continue
     }
 
-    tableData[table] = rows
-    rowCounts[table] = rows.length
+    if (useDefaultSink) {
+      tableData[table] = []
+    }
+
+    const tableResult = await fetchTableRows({
+      supabase,
+      table,
+      pageSize,
+      onPage,
+      maxRowsPerTable,
+      maxTotalRows,
+      hardRowLimit,
+      totalRows
+    })
+
+    if (!tableResult.data) {
+      return tableResult
+    }
+
+    rowCounts[table] = tableResult.data.rowCount
+    tableTruncated[table] = tableResult.data.truncated
+    totalRows = tableResult.data.totalRows
+    stopAll = tableResult.data.stopAll
   }
 
-  return { data: { tableData, rowCounts } }
+  return { data: { tableData, rowCounts, tableTruncated } }
 }
 
 const uploadBackup = async (
@@ -248,6 +475,28 @@ const uploadBackup = async (
     })
 
   if (initialUpload.error) {
+    const errorMessage = initialUpload.error.message.toLowerCase()
+    const errorStatus =
+      (initialUpload.error as { statusCode?: number; status?: number })
+        .statusCode ??
+      (initialUpload.error as { statusCode?: number; status?: number }).status
+    const hasStatus = typeof errorStatus === "number"
+    // Supabase reports conflicts via a 409 status code; treat it as authoritative.
+    const isConflict =
+      errorStatus === 409 ||
+      (!hasStatus &&
+        (errorMessage.includes("already exists") ||
+          errorMessage.includes("duplicate") ||
+          errorMessage.includes("conflict")))
+
+    if (!isConflict) {
+      return {
+        error: "Failed to upload backup file.",
+        details: initialUpload.error.message,
+        status: typeof errorStatus === "number" ? errorStatus : 500
+      }
+    }
+
     const fallbackPath = `${prefix}/${timestamp}-${crypto.randomUUID()}.json.gz`
     const retryUpload = await supabase.storage
       .from(bucket)
@@ -302,20 +551,34 @@ const applyRetention = async (
   )
 
   let totalBytes = items.reduce((sum, item) => sum + item.size, 0)
-  const deletable = sortedByNameDesc
-    .slice(keepLast)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const deletable = sortedByNameDesc.slice(keepLast)
+  const deletableByAge = [...deletable].sort((a, b) =>
+    a.name.localeCompare(b.name)
+  )
 
   const toDelete: string[] = []
+  const seen = new Set<string>()
+  const addToDelete = (item: { name: string; size: number }) => {
+    const path = `${prefix}/${item.name}`
+    if (seen.has(path)) {
+      return
+    }
+    seen.add(path)
+    toDelete.push(path)
+    totalBytes -= item.size
+  }
 
   if (maxTotalBytes > 0 && totalBytes > maxTotalBytes) {
-    for (const item of deletable) {
+    for (const item of deletableByAge) {
       if (totalBytes <= maxTotalBytes) {
         break
       }
-      toDelete.push(`${prefix}/${item.name}`)
-      totalBytes -= item.size
+      addToDelete(item)
     }
+  }
+
+  for (const item of deletable) {
+    addToDelete(item)
   }
 
   if (toDelete.length > 0) {
@@ -338,19 +601,17 @@ const applyRetention = async (
 }
 
 serve(async (request: Request) => {
-  if (request.method !== "POST" && request.method !== "GET") {
+  if (request.method !== "POST") {
     return jsonResponse(405, { error: "Method not allowed." })
   }
 
-  const authCheck = requireAuthorization(request)
-  if (!authCheck.ok) {
-    return jsonResponse(401, { error: authCheck.reason })
-  }
-
-  const supabaseUrl = getEnv("SUPABASE_URL", getEnv("NEXT_PUBLIC_SUPABASE_URL"))
+  const supabaseUrl = getEnv(
+    "SUPABASE_URL",
+    getEnv("NEXT_PUBLIC_SUPABASE_URL") ?? ""
+  )
   const serviceRoleKey = getEnv(
     "SUPABASE_SERVICE_ROLE_KEY",
-    getEnv("SUPABASE_SECRET_KEY")
+    getEnv("SUPABASE_SECRET_KEY") ?? ""
   )
 
   if (!supabaseUrl || !serviceRoleKey) {
@@ -367,12 +628,26 @@ serve(async (request: Request) => {
     }
   })
 
-  const bucket = getEnv("BACKUP_BUCKET", "backups") ?? "backups"
-  const prefix = getEnv("BACKUP_PREFIX", "db-backups") ?? "db-backups"
+  const authCheck = await requireAuthorization(request, supabase)
+  if (!authCheck.ok) {
+    return jsonResponse(401, { error: authCheck.reason })
+  }
+
+  const bucket = getEnv("BACKUP_BUCKET", "backups")
+  const prefix = getEnv("BACKUP_PREFIX", "db-backups")
   const keepLast = Math.max(0, toInt(getEnv("BACKUP_KEEP_LAST"), 7))
   const maxTotalMb = Math.max(0, toInt(getEnv("BACKUP_MAX_TOTAL_MB"), 256))
   const maxTotalBytes = maxTotalMb * 1024 * 1024
   const pageSize = Math.max(1, toInt(getEnv("BACKUP_PAGE_SIZE"), 1000))
+  const maxRowsPerTable = Math.max(
+    0,
+    toInt(getEnv("BACKUP_MAX_ROWS_PER_TABLE"), 0)
+  )
+  const maxTotalRows = Math.max(0, toInt(getEnv("BACKUP_MAX_TOTAL_ROWS"), 0))
+  const hardRowLimit = Math.max(
+    0,
+    toInt(getEnv("BACKUP_HARD_ROW_LIMIT"), 250000)
+  )
 
   const allowList = parseCsv(getEnv("BACKUP_TABLES"))
   const excludeList = new Set(parseCsv(getEnv("BACKUP_EXCLUDE_TABLES")))
@@ -388,7 +663,12 @@ serve(async (request: Request) => {
   const tableDataResult = await fetchTableData(
     supabase,
     tablesResult.data,
-    pageSize
+    pageSize,
+    {
+      maxRowsPerTable,
+      maxTotalRows,
+      hardRowLimit
+    }
   )
   if (!tableDataResult.data) {
     return jsonResponse(tableDataResult.status ?? 500, {
@@ -397,12 +677,21 @@ serve(async (request: Request) => {
     })
   }
 
+  const truncatedTables = Object.entries(tableDataResult.data.tableTruncated)
+    .filter(([, truncated]) => truncated)
+    .map(([table]) => table)
+  const truncationWarnings =
+    truncatedTables.length > 0
+      ? [`Backup truncated for tables: ${truncatedTables.join(", ")}.`]
+      : []
+
   const createdAt = new Date()
   const payload: BackupPayload = {
     metadata: {
       createdAt: createdAt.toISOString(),
       tableCount: tablesResult.data.length,
-      rowCounts: tableDataResult.data.rowCounts
+      rowCounts: tableDataResult.data.rowCounts,
+      tableTruncated: tableDataResult.data.tableTruncated
     },
     tables: tableDataResult.data.tableData
   }
@@ -435,6 +724,6 @@ serve(async (request: Request) => {
     bucket,
     prefix,
     metadata: payload.metadata,
-    warnings
+    warnings: [...truncationWarnings, ...warnings]
   })
 })

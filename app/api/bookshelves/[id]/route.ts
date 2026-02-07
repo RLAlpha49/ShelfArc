@@ -78,7 +78,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   const updateData: BookshelfUpdate = {}
   if (typeof body.name === "string") {
-    const trimmedName = body.name?.trim() ?? ""
+    const trimmedName = body.name.trim()
     if (!trimmedName) {
       return NextResponse.json(
         { error: "Bookshelf name cannot be empty" },
