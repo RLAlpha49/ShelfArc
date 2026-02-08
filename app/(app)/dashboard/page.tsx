@@ -238,6 +238,15 @@ export default function DashboardPage() {
       acc + s.volumes.reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
     0
   )
+  const pricedVolumes = series.reduce(
+    (acc, s) =>
+      acc +
+      s.volumes.filter((v) => v.purchase_price != null && v.purchase_price > 0)
+        .length,
+    0
+  )
+  const averagePricePerTrackedVolume =
+    pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
 
   const priceFormatter = useMemo(() => {
     try {
@@ -270,11 +279,16 @@ export default function DashboardPage() {
     .slice(0, 5)
 
   // Collection stats
-  const completeSets = series.filter(
-    (s) =>
-      s.volumes.filter((v) => v.ownership_status === "owned").length ===
-        (s.total_volumes || s.volumes.length) && s.volumes.length > 0
-  ).length
+  const completeSets = series.filter((s) => {
+    const totalVolumes = s.total_volumes
+    if (!totalVolumes || totalVolumes <= 0) return false
+    if (s.volumes.length === 0) return false
+    const ownedCount = s.volumes.filter(
+      (v) => v.ownership_status === "owned"
+    ).length
+    const allOwned = ownedCount === s.volumes.length
+    return allOwned && ownedCount >= totalVolumes
+  }).length
   const wishlistCount = series.reduce(
     (acc, s) =>
       acc + s.volumes.filter((v) => v.ownership_status === "wishlist").length,
@@ -474,7 +488,7 @@ export default function DashboardPage() {
             id: "spent",
             label: "Invested",
             value: priceFormatter.format(totalSpent),
-            detail: `${priceFormatter.format(ownedVolumes > 0 ? totalSpent / ownedVolumes : 0)}/vol`,
+            detail: `${priceFormatter.format(averagePricePerTrackedVolume)}/priced vol`,
             icon: (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -688,6 +702,7 @@ export default function DashboardPage() {
                   id: "ln",
                   label: "Light Novels",
                   value: lightNovels.length,
+                  unit: "series",
                   gradient: "from-primary/15 to-primary/5",
                   textColor: "text-primary",
                   iconBg: "bg-primary/12",
@@ -708,6 +723,7 @@ export default function DashboardPage() {
                   id: "manga",
                   label: "Manga",
                   value: manga.length,
+                  unit: "series",
                   gradient: "from-copper/15 to-copper/5",
                   textColor: "text-copper",
                   iconBg: "bg-copper/12",
@@ -728,8 +744,9 @@ export default function DashboardPage() {
                 },
                 {
                   id: "complete",
-                  label: "Complete",
+                  label: "Complete series",
                   value: completeSets,
+                  unit: "series",
                   gradient: "from-green-500/12 to-green-500/4",
                   textColor: "text-green-600 dark:text-green-400",
                   iconBg: "bg-green-500/12",
@@ -749,8 +766,9 @@ export default function DashboardPage() {
                 },
                 {
                   id: "wishlist",
-                  label: "Wishlist",
+                  label: "Wishlisted volumes",
                   value: wishlistCount,
+                  unit: "volumes",
                   gradient: "from-gold/15 to-gold/5",
                   textColor: "text-gold",
                   iconBg: "bg-gold/12",
@@ -786,6 +804,9 @@ export default function DashboardPage() {
                     className={`font-display text-2xl font-bold ${card.textColor}`}
                   >
                     {card.value}
+                  </div>
+                  <div className="text-muted-foreground text-[10px] uppercase">
+                    {card.unit}
                   </div>
                 </div>
               ))}
@@ -1020,12 +1041,10 @@ export default function DashboardPage() {
             <div className="bg-border hidden h-10 w-px sm:block" />
             <div>
               <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                Avg per Volume
+                Avg per priced volume
               </span>
               <div className="font-display text-lg font-semibold">
-                {priceFormatter.format(
-                  ownedVolumes > 0 ? totalSpent / ownedVolumes : 0
-                )}
+                {priceFormatter.format(averagePricePerTrackedVolume)}
               </div>
             </div>
             <div className="bg-border hidden h-10 w-px sm:block" />
