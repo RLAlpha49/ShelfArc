@@ -31,7 +31,10 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { type BookSearchResult, type BookSearchSource } from "@/lib/books/search"
+import {
+  type BookSearchResult,
+  type BookSearchSource
+} from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -281,8 +284,9 @@ export function BookSearchDialog({
   const decoratedResults = useMemo(() => {
     return deferredResults.map((result) => {
       const normalizedIsbn = result.isbn ? normalizeIsbn(result.isbn) : null
-      const isAlreadyAdded =
-        normalizedIsbn ? existingIsbnSet.has(normalizedIsbn) : false
+      const isAlreadyAdded = normalizedIsbn
+        ? existingIsbnSet.has(normalizedIsbn)
+        : false
       return {
         result,
         isAlreadyAdded,

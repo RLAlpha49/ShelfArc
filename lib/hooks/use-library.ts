@@ -529,10 +529,7 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
-        const hasSeriesId = Object.hasOwn(
-          data,
-          "series_id"
-        )
+        const hasSeriesId = Object.hasOwn(data, "series_id")
         const nextSeriesId = hasSeriesId ? (data.series_id ?? null) : seriesId
         if (nextSeriesId && !series.some((item) => item.id === nextSeriesId)) {
           throw new Error("Series not found")
@@ -836,23 +833,23 @@ export function useLibrary() {
           const initialVolumeNumber = parsedVolumeNumber ?? 1
           let targetSeries = seriesCache.get(seriesKey)
 
-          targetSeries ??= findMatchingSeries(seriesTitle, author);
+          targetSeries ??= findMatchingSeries(seriesTitle, author)
 
           targetSeries ??= await createSeries({
-              title: seriesTitle,
-              author: author || null,
-              description:
-                initialVolumeNumber === 1
-                  ? resolvedResult.description || null
-                  : null,
-              publisher: resolvedResult.publisher || null,
-              cover_image_url:
-                initialVolumeNumber === 1
-                  ? resolvedResult.coverUrl || null
-                  : null,
-              type: "other",
-              tags: []
-            });
+            title: seriesTitle,
+            author: author || null,
+            description:
+              initialVolumeNumber === 1
+                ? resolvedResult.description || null
+                : null,
+            publisher: resolvedResult.publisher || null,
+            cover_image_url:
+              initialVolumeNumber === 1
+                ? resolvedResult.coverUrl || null
+                : null,
+            type: "other",
+            tags: []
+          })
 
           seriesCache.set(seriesKey, targetSeries)
 
