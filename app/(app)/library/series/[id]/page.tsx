@@ -47,6 +47,58 @@ const typeColors = {
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
 
+const formatVolumeNumber = (value: number) => value.toString()
+
+const buildVolumeRangeLabel = (numbers: number[]) => {
+  const uniqueSorted = Array.from(
+    new Set(numbers.filter((value) => Number.isFinite(value)))
+  ).sort((a, b) => a - b)
+
+  if (uniqueSorted.length === 0) return "—"
+
+  const ranges: Array<{ start: number; end: number }> = []
+  let rangeStart = uniqueSorted[0]
+  let rangeEnd = uniqueSorted[0]
+
+  for (let index = 1; index < uniqueSorted.length; index += 1) {
+    const value = uniqueSorted[index]
+    const isConsecutive = Math.abs(value - (rangeEnd + 1)) < 1e-6
+    if (isConsecutive) {
+      rangeEnd = value
+      continue
+    }
+    ranges.push({ start: rangeStart, end: rangeEnd })
+    rangeStart = value
+    rangeEnd = value
+  }
+
+  ranges.push({ start: rangeStart, end: rangeEnd })
+
+  const formatted = ranges
+    .map(({ start, end }) =>
+      start === end
+        ? formatVolumeNumber(start)
+        : `${formatVolumeNumber(start)}–${formatVolumeNumber(end)}`
+    )
+    .join(", ")
+
+  return `Vol. ${formatted}`
+}
+
+const getNextOwnedVolumeNumber = (numbers: number[]) => {
+  const ownedIntegers = new Set(
+    numbers.filter(
+      (value) =>
+        Number.isFinite(value) && Number.isInteger(value) && value > 0
+    )
+  )
+  let next = 1
+  while (ownedIntegers.has(next)) {
+    next += 1
+  }
+  return next
+}
+
 type SeriesInsightData = {
   ownedVolumes: number
   wishlistVolumes: number
@@ -71,12 +123,13 @@ const buildSeriesInsights = (
   series: SeriesWithVolumes,
   dateFormat: DateFormat
 ): SeriesInsightData => {
-  const ownedVolumes = series.volumes.filter(
+  const ownedVolumeEntries = series.volumes.filter(
     (volume) => volume.ownership_status === "owned"
-  ).length
+  )
   const wishlistVolumes = series.volumes.filter(
     (volume) => volume.ownership_status === "wishlist"
   ).length
+  const ownedVolumes = ownedVolumeEntries.length
   const readingVolumes = series.volumes.filter(
     (volume) => volume.reading_status === "reading"
   ).length
@@ -109,19 +162,11 @@ const buildSeriesInsights = (
     if (!best || volume.volume_number > best.volume_number) return volume
     return best
   }, null)
-  const firstVolume = series.volumes.reduce<Volume | null>((best, volume) => {
-    if (!best || volume.volume_number < best.volume_number) return volume
-    return best
-  }, null)
-  const nextVolumeNumber =
-    series.volumes.reduce((maxNumber, volume) => {
-      if (!Number.isFinite(volume.volume_number)) return maxNumber
-      return Math.max(maxNumber, volume.volume_number)
-    }, 0) + 1
-  const volumeRangeLabel =
-    firstVolume && latestVolume
-      ? `Vol. ${firstVolume.volume_number}–${latestVolume.volume_number}`
-      : "—"
+  const ownedVolumeNumbers = ownedVolumeEntries
+    .map((volume) => volume.volume_number)
+    .filter((value) => Number.isFinite(value))
+  const nextVolumeNumber = getNextOwnedVolumeNumber(ownedVolumeNumbers)
+  const volumeRangeLabel = buildVolumeRangeLabel(ownedVolumeNumbers)
   const nextVolumeLabel =
     series.total_volumes && nextVolumeNumber > series.total_volumes
       ? "Complete"
@@ -246,7 +291,7 @@ const SeriesInsightsPanel = ({
         </div>
         <div>
           <dt className="text-muted-foreground text-xs tracking-widest uppercase">
-            Volume range
+            Owned volume range
           </dt>
           <dd className="font-medium">{insights.volumeRangeLabel}</dd>
         </div>
