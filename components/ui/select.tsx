@@ -25,6 +25,29 @@ const SelectLabelContext = React.createContext<SelectLabelContextValue | null>(
 const toValueKey = (value: unknown) =>
   value === null || value === undefined ? "" : String(value)
 
+const isSelectItemElement = (child: React.ReactElement): boolean => {
+  const elementType = child.type
+  if (elementType === SelectItem) return true
+  if (typeof elementType === "function") {
+    return (
+      (elementType as { displayName?: string }).displayName === "SelectItem"
+    )
+  }
+  if (typeof elementType === "object" && elementType !== null) {
+    const wrapped = elementType as {
+      type?: unknown
+      render?: unknown
+      displayName?: string
+    }
+    return (
+      wrapped.type === SelectItem ||
+      wrapped.render === SelectItem ||
+      wrapped.displayName === "SelectItem"
+    )
+  }
+  return false
+}
+
 function collectLabelsFromChildren(children: React.ReactNode) {
   const labels = new Map<string, React.ReactNode>()
   const walk = (node: React.ReactNode) => {
@@ -34,7 +57,7 @@ function collectLabelsFromChildren(children: React.ReactNode) {
         children?: React.ReactNode
         value?: unknown
       }
-      if (child.type === SelectItem) {
+      if (isSelectItemElement(child)) {
         const valueKey = toValueKey(childProps.value)
         if (valueKey) {
           labels.set(valueKey, childProps.children ?? valueKey)
@@ -73,6 +96,8 @@ function Select<Value, Multiple extends boolean | undefined = false>({
   const register = React.useCallback(
     (value: string, label: React.ReactNode) => {
       setDynamicLabels((prev) => {
+        const existing = prev.get(value)
+        if (Object.is(existing, label)) return prev
         const next = new Map(prev)
         next.set(value, label)
         return next
@@ -242,14 +267,17 @@ function SelectItem({
 }: Readonly<SelectPrimitive.Item.Props>) {
   const labelContext = React.useContext(SelectLabelContext)
   const valueKey = toValueKey(props.value)
+  const register = labelContext?.register
+  const unregister = labelContext?.unregister
+  const label = React.useMemo(() => children ?? valueKey, [children, valueKey])
 
   React.useEffect(() => {
-    if (!labelContext || !valueKey) return
-    labelContext.register(valueKey, children ?? valueKey)
+    if (!register || !unregister || !valueKey) return
+    register(valueKey, label)
     return () => {
-      labelContext.unregister(valueKey)
+      unregister(valueKey)
     }
-  }, [children, labelContext, valueKey])
+  }, [label, register, unregister, valueKey])
 
   return (
     <SelectPrimitive.Item
