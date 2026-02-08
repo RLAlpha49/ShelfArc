@@ -23,8 +23,71 @@ const VOLUME_TOKEN_PATTERN =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*(\d+(?:\.\d+)?)\b/i
 const VOLUME_TOKEN_GLOBAL =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
+const VOLUME_WORDS = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
+  "twenty"
+]
+const VOLUME_WORD_VALUE: Record<string, number> = {
+  zero: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+  twenty: 20
+}
+const VOLUME_WORD_PATTERN = new RegExp(
+  String.raw`\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*(${VOLUME_WORDS.join(
+    "|"
+  )})\b`,
+  "i"
+)
+const VOLUME_WORD_GLOBAL = new RegExp(
+  String.raw`\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*(?:${VOLUME_WORDS.join(
+    "|"
+  )})\b`,
+  "gi"
+)
 const TRAILING_VOLUME_PATTERN = /(?:\s+|[-–—:]\s*)(\d+(?:\.\d+)?)\s*$/i
+const INLINE_VOLUME_PATTERN =
+  /^(.*)(?:\s+|[-–—:,]\s*)(\d+(?:\.\d+)?)\s*(?=[(:])/i
 const TRAILING_BRACKET_PATTERN = /\s*[[(]([^)\]]*?)[)\]]\s*$/
+const EXTRA_DESCRIPTOR_PATTERN =
+  /\b(omnibus|collector'?s|special|edition|deluxe|complete|box\s*set|boxset)\b/gi
+const TRAILING_PUNCTUATION_PATTERN = /\s*[-–—:,;]\s*$/g
 const FORMAT_SUFFIXES = [
   "light novel",
   "light novels",
@@ -64,6 +127,14 @@ type VolumeSuffixInfo = {
   wordCount: number
 }
 
+const MAX_VOLUME_NUMBER = 200
+
+const isLikelyYear = (value: number) => value >= 1900 && value <= 2100
+
+const parseVolumeWord = (value: string) => {
+  return VOLUME_WORD_VALUE[value.toLowerCase()] ?? null
+}
+
 const getTrailingVolumeInfo = (title: string): VolumeSuffixInfo | null => {
   const match = new RegExp(TRAILING_VOLUME_PATTERN).exec(title)
   if (!match) return null
@@ -76,13 +147,39 @@ const getTrailingVolumeInfo = (title: string): VolumeSuffixInfo | null => {
   return { number, prefix, wordCount }
 }
 
+const getInlineVolumeInfo = (title: string): VolumeSuffixInfo | null => {
+  const match = INLINE_VOLUME_PATTERN.exec(title)
+  if (!match) return null
+  const number = Number.parseFloat(match[2])
+  if (!Number.isFinite(number)) return null
+  const prefix = match[1].trim()
+  if (!prefix) return null
+  if (!/[A-Za-z]/.test(prefix)) return null
+  const wordCount = prefix.split(/\s+/).filter(Boolean).length
+  return { number, prefix, wordCount }
+}
+
 const shouldStripTrailingForTitle = (info: VolumeSuffixInfo) => {
+  if (isLikelyYear(info.number)) return false
   if (info.number <= 3) return info.wordCount >= 2
-  return info.number <= 20 && info.wordCount >= 3
+  return info.number <= MAX_VOLUME_NUMBER && info.wordCount >= 2
 }
 
 const shouldStripTrailingForKey = (info: VolumeSuffixInfo) => {
-  return info.number <= 20 && info.wordCount >= 2
+  if (isLikelyYear(info.number)) return false
+  return info.number <= MAX_VOLUME_NUMBER && info.wordCount >= 2
+}
+
+const stripInlineVolumeSuffixForTitle = (title: string) => {
+  const info = getInlineVolumeInfo(title)
+  if (info && shouldStripTrailingForTitle(info)) return info.prefix
+  return title
+}
+
+const stripInlineVolumeSuffixForKey = (title: string) => {
+  const info = getInlineVolumeInfo(title)
+  if (info && shouldStripTrailingForKey(info)) return info.prefix
+  return title
 }
 
 const stripTrailingVolumeSuffixForTitle = (title: string) => {
@@ -100,7 +197,7 @@ const stripTrailingVolumeSuffixForKey = (title: string) => {
 const stripTrailingFormatSuffix = (title: string) => {
   let next = title
   while (true) {
-    const trimmed = next.trim().replaceAll(/\s*[-–—:,]\s*$/g, "")
+    const trimmed = next.trim().replaceAll(TRAILING_PUNCTUATION_PATTERN, "")
     const normalized = normalizeDescriptor(trimmed)
     let updated = trimmed
 
@@ -121,16 +218,46 @@ const normalizeDescriptor = (value: string) => {
   return value.trim().toLowerCase().replaceAll(/\s+/g, " ")
 }
 
+const shouldStripBracketDescriptor = (descriptor: string) => {
+  const normalized = normalizeDescriptor(descriptor)
+  if (!normalized) return false
+  if (SERIES_DESCRIPTOR_SET.has(normalized)) return true
+  if (FORMAT_SUFFIXES.some((suffix) => normalized.includes(suffix))) return true
+  if (VOLUME_TOKEN_PATTERN.test(normalized)) return true
+  if (VOLUME_WORD_PATTERN.test(normalized)) return true
+  if (/\b#\s*\d+(?:\s*-\s*\d+)?\b/.test(normalized)) return true
+  if (/^\d+(?:\s*-\s*\d+)?$/.test(normalized)) return true
+  return false
+}
+
 const stripTrailingSeriesDescriptor = (title: string) => {
   let next = title
   while (true) {
     const trimmed = next.trim()
     const match = TRAILING_BRACKET_PATTERN.exec(trimmed)
     if (!match) return trimmed
-    const descriptor = normalizeDescriptor(match[1])
-    if (descriptor && !SERIES_DESCRIPTOR_SET.has(descriptor)) return trimmed
+    if (!shouldStripBracketDescriptor(match[1])) return trimmed
     next = trimmed.slice(0, trimmed.length - match[0].length)
   }
+}
+
+const hasVolumeIndicator = (value: string) => {
+  if (VOLUME_TOKEN_PATTERN.test(value)) return true
+  if (VOLUME_WORD_PATTERN.test(value)) return true
+  if (/\b#\s*\d+\b/.test(value)) return true
+  const inlineInfo = getInlineVolumeInfo(value)
+  if (inlineInfo && shouldStripTrailingForKey(inlineInfo)) return true
+  const trailingInfo = getTrailingVolumeInfo(value)
+  if (trailingInfo && shouldStripTrailingForKey(trailingInfo)) return true
+  return false
+}
+
+const stripSubtitleAfterVolumeIndicator = (title: string) => {
+  const delimiterMatch = /[:–—-]\s/.exec(title)
+  if (!delimiterMatch) return title
+  const head = title.slice(0, delimiterMatch.index).trim()
+  if (!head || !hasVolumeIndicator(head)) return title
+  return head
 }
 
 const extractTrailingVolumeNumber = (title: string) => {
@@ -249,16 +376,18 @@ export function useLibrary() {
 
   const normalizeSeriesTitle = useCallback(
     (value: string) => {
-      const base = normalizeText(
-        stripTrailingFormatSuffix(stripTrailingVolumeSuffixForKey(value))
-      )
+      const withoutSubtitle = stripSubtitleAfterVolumeIndicator(value)
+      const withoutVolumeTokens = withoutSubtitle
+        .replaceAll(VOLUME_TOKEN_GLOBAL, " ")
+        .replaceAll(VOLUME_WORD_GLOBAL, " ")
+      const withoutInline = stripInlineVolumeSuffixForKey(withoutVolumeTokens)
+      const withoutTrailing = stripTrailingVolumeSuffixForKey(withoutInline)
+      const base = normalizeText(stripTrailingFormatSuffix(withoutTrailing))
       return base
         .replaceAll(/\(.*?\)/g, " ")
         .replaceAll(VOLUME_TOKEN_GLOBAL, " ")
-        .replaceAll(
-          /\b(omnibus|collector'?s|special|edition|deluxe|complete|box\s*set|boxset)\b/g,
-          " "
-        )
+        .replaceAll(VOLUME_WORD_GLOBAL, " ")
+        .replaceAll(EXTRA_DESCRIPTOR_PATTERN, " ")
         .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
         .replaceAll(/\s+/g, " ")
         .trim()
@@ -269,17 +398,36 @@ export function useLibrary() {
   const extractVolumeNumber = useCallback((title?: string | null) => {
     if (!title) return null
     const match = new RegExp(VOLUME_TOKEN_PATTERN).exec(title)
-    if (!match) return extractTrailingVolumeNumber(title)
-    const parsed = Number.parseFloat(match[1])
-    return Number.isFinite(parsed) ? parsed : null
+    if (match) {
+      const parsed = Number.parseFloat(match[1])
+      return Number.isFinite(parsed) ? parsed : null
+    }
+    const wordMatch = new RegExp(VOLUME_WORD_PATTERN).exec(title)
+    if (wordMatch) {
+      const parsed = parseVolumeWord(wordMatch[1])
+      if (parsed !== null) return parsed
+    }
+    const inlineInfo = getInlineVolumeInfo(title)
+    if (inlineInfo && shouldStripTrailingForTitle(inlineInfo)) {
+      return inlineInfo.number
+    }
+    return extractTrailingVolumeNumber(title)
   }, [])
 
   const stripVolumeFromTitle = useCallback((title: string) => {
-    const withoutVolume = title.replaceAll(VOLUME_TOKEN_GLOBAL, " ")
-    const withoutTrailing = stripTrailingVolumeSuffixForTitle(withoutVolume)
+    const withoutSubtitle = stripSubtitleAfterVolumeIndicator(title)
+    const withoutVolumeTokens = withoutSubtitle
+      .replaceAll(VOLUME_TOKEN_GLOBAL, " ")
+      .replaceAll(VOLUME_WORD_GLOBAL, " ")
+    const withoutInline = stripInlineVolumeSuffixForTitle(withoutVolumeTokens)
+    const withoutTrailing = stripTrailingVolumeSuffixForTitle(withoutInline)
     const withoutDescriptor = stripTrailingSeriesDescriptor(withoutTrailing)
-    const withoutPunctuation = withoutDescriptor.replaceAll(
-      /\s*[-–—:,]\s*$/g,
+    const withoutExtras = withoutDescriptor.replaceAll(
+      EXTRA_DESCRIPTOR_PATTERN,
+      " "
+    )
+    const withoutPunctuation = withoutExtras.replaceAll(
+      TRAILING_PUNCTUATION_PATTERN,
       ""
     )
     const withoutFormatSuffix = stripTrailingFormatSuffix(withoutPunctuation)
