@@ -495,7 +495,20 @@ export function VolumeDialog({
     seriesOptions?.find((series) => series.id === selectedSeriesId) ?? null
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      if (uploadAbortRef.current) {
+        uploadAbortRef.current.abort()
+        uploadAbortRef.current = null
+      }
+      if (priceAbortRef.current) {
+        priceAbortRef.current.abort()
+        priceAbortRef.current = null
+      }
+      setIsSubmitting(false)
+      setIsUploadingCover(false)
+      setIsFetchingPrice(false)
+      return
+    }
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current)
       previewUrlRef.current = null
@@ -533,6 +546,7 @@ export function VolumeDialog({
   }, [open, volume, nextVolumeNumber])
 
   useEffect(() => {
+    isMountedRef.current = true
     return () => {
       isMountedRef.current = false
       if (uploadAbortRef.current) {
