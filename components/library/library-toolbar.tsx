@@ -12,6 +12,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -135,7 +136,7 @@ export function LibraryToolbar({
                 if (value) setFilters({ type: value as TitleType | "all" })
               }}
             >
-              <SelectTrigger className="w-[7.5rem] rounded-xl text-xs shadow-sm">
+              <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -156,7 +157,7 @@ export function LibraryToolbar({
                   })
               }}
             >
-              <SelectTrigger className="w-[7.5rem] rounded-xl text-xs shadow-sm">
+              <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
                 <SelectValue placeholder="Ownership" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -174,7 +175,7 @@ export function LibraryToolbar({
                   setFilters({ readingStatus: value as ReadingStatus | "all" })
               }}
             >
-              <SelectTrigger className="w-[7.5rem] rounded-xl text-xs shadow-sm">
+              <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
                 <SelectValue placeholder="Reading" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -208,48 +209,50 @@ export function LibraryToolbar({
                 Sort
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
-                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    setSortField("title")
-                    setSortOrder("asc")
-                  }}
-                >
-                  Title (A-Z)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setSortField("title")
-                    setSortOrder("desc")
-                  }}
-                >
-                  Title (Z-A)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setSortField("author")
-                    setSortOrder("asc")
-                  }}
-                >
-                  Author (A-Z)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setSortField("created_at")
-                    setSortOrder("desc")
-                  }}
-                >
-                  Recently Added
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setSortField("updated_at")
-                    setSortOrder("desc")
-                  }}
-                >
-                  Recently Updated
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortField("title")
+                      setSortOrder("asc")
+                    }}
+                  >
+                    Title (A-Z)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortField("title")
+                      setSortOrder("desc")
+                    }}
+                  >
+                    Title (Z-A)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortField("author")
+                      setSortOrder("asc")
+                    }}
+                  >
+                    Author (A-Z)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortField("created_at")
+                      setSortOrder("desc")
+                    }}
+                  >
+                    Recently Added
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortField("updated_at")
+                      setSortOrder("desc")
+                    }}
+                  >
+                    Recently Updated
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
 
