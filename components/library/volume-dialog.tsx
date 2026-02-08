@@ -150,12 +150,11 @@ function SeriesPicker({
             {SERIES_TYPE_LABELS[selectedSeriesOption.type] ?? "Other"}
           </Badge>
         ),
-        meta: `${
-          (selectedSeriesOption.total_volumes ||
-            selectedSeriesOption.volumes.length ||
-            0)
-            .toString()
-        } vols`
+        meta: `${(
+          selectedSeriesOption.total_volumes ||
+          selectedSeriesOption.volumes.length ||
+          0
+        ).toString()} vols`
       }
     }
     if (showUnknownSeries && selectedSeriesId) {
@@ -214,7 +213,9 @@ function SeriesPicker({
         <div className="bg-muted relative aspect-2/3 w-10 overflow-hidden rounded-lg">
           {selectedSeriesOption ? (
             <CoverImage
-              isbn={selectedSeriesOption.volumes.find((volume) => volume.isbn)?.isbn}
+              isbn={
+                selectedSeriesOption.volumes.find((volume) => volume.isbn)?.isbn
+              }
               coverImageUrl={selectedSeriesOption.cover_image_url}
               alt={selectedSeriesOption.title}
               className="absolute inset-0 h-full w-full object-cover"
@@ -222,7 +223,7 @@ function SeriesPicker({
               decoding="async"
               fallback={
                 <div className="from-primary/5 to-copper/5 flex h-full items-center justify-center bg-linear-to-br">
-                  <span className="text-muted-foreground text-[9px] uppercase tracking-[0.3em]">
+                  <span className="text-muted-foreground text-[9px] tracking-[0.3em] uppercase">
                     Series
                   </span>
                 </div>
@@ -380,7 +381,7 @@ function SeriesPicker({
                           decoding="async"
                           fallback={
                             <div className="from-primary/5 to-copper/5 flex h-full items-center justify-center bg-linear-to-br">
-                              <span className="text-muted-foreground text-[8px] uppercase tracking-[0.3em]">
+                              <span className="text-muted-foreground text-[8px] tracking-[0.3em] uppercase">
                                 Series
                               </span>
                             </div>
@@ -393,7 +394,7 @@ function SeriesPicker({
                             {series.title}
                           </p>
                           {selected && (
-                            <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.2em]">
+                            <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[9px] tracking-[0.2em] uppercase">
                               Selected
                             </span>
                           )}
@@ -771,17 +772,15 @@ export function VolumeDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 px-6 pt-6">
-          {showSeriesSelect && (
-            seriesOptions && (
-              <SeriesPicker
-                seriesOptions={seriesOptions}
-                selectedSeriesOption={selectedSeriesOption}
-                selectedSeriesId={selectedSeriesId}
-                onSeriesChange={onSeriesChange}
-                onCreateSeries={onCreateSeries}
-                allowNoSeries={allowNoSeries}
-              />
-            )
+          {showSeriesSelect && seriesOptions && (
+            <SeriesPicker
+              seriesOptions={seriesOptions}
+              selectedSeriesOption={selectedSeriesOption}
+              selectedSeriesId={selectedSeriesId}
+              onSeriesChange={onSeriesChange}
+              onCreateSeries={onCreateSeries}
+              allowNoSeries={allowNoSeries}
+            />
           )}
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
