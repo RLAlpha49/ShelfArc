@@ -1253,7 +1253,8 @@ export default function SettingsPage() {
                     Import Data
                   </h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    Restore your collection from a ShelfArc JSON export file.
+                    Import books from CSV (ISBN list) or restore from a ShelfArc
+                    JSON backup.
                   </p>
                 </div>
               </Link>
