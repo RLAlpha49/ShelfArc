@@ -22,6 +22,52 @@ const VOLUME_TOKEN_PATTERN =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*(\d+(?:\.\d+)?)\b/i
 const VOLUME_TOKEN_GLOBAL =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
+const TRAILING_VOLUME_PATTERN = /(?:\s+|[-–—:]\s*)(\d+(?:\.\d+)?)\s*$/i
+
+type VolumeSuffixInfo = {
+  number: number
+  prefix: string
+  wordCount: number
+}
+
+const getTrailingVolumeInfo = (title: string): VolumeSuffixInfo | null => {
+  const match = new RegExp(TRAILING_VOLUME_PATTERN).exec(title)
+  if (!match) return null
+  const number = Number.parseFloat(match[1])
+  if (!Number.isFinite(number)) return null
+  const prefix = title.slice(0, title.length - match[0].length).trim()
+  if (!prefix) return null
+  if (!/[A-Za-z]/.test(prefix)) return null
+  const wordCount = prefix.split(/\s+/).filter(Boolean).length
+  return { number, prefix, wordCount }
+}
+
+const shouldStripTrailingForTitle = (info: VolumeSuffixInfo) => {
+  if (info.number <= 3) return info.wordCount >= 2
+  return info.number <= 20 && info.wordCount >= 3
+}
+
+const shouldStripTrailingForKey = (info: VolumeSuffixInfo) => {
+  return info.number <= 20 && info.wordCount >= 2
+}
+
+const stripTrailingVolumeSuffixForTitle = (title: string) => {
+  const info = getTrailingVolumeInfo(title)
+  if (info && shouldStripTrailingForTitle(info)) return info.prefix
+  return title
+}
+
+const stripTrailingVolumeSuffixForKey = (title: string) => {
+  const info = getTrailingVolumeInfo(title)
+  if (info && shouldStripTrailingForKey(info)) return info.prefix
+  return title
+}
+
+const extractTrailingVolumeNumber = (title: string) => {
+  const info = getTrailingVolumeInfo(title)
+  if (info && shouldStripTrailingForTitle(info)) return info.number
+  return null
+}
 
 const normalizeDateInput = (value?: string | null) => {
   if (!value) return null
@@ -125,7 +171,7 @@ export function useLibrary() {
 
   const normalizeSeriesTitle = useCallback(
     (value: string) => {
-      const base = normalizeText(value)
+      const base = normalizeText(stripTrailingVolumeSuffixForKey(value))
       return base
         .replaceAll(/\(.*?\)/g, " ")
         .replaceAll(VOLUME_TOKEN_GLOBAL, " ")
@@ -142,15 +188,16 @@ export function useLibrary() {
 
   const extractVolumeNumber = useCallback((title?: string | null) => {
     if (!title) return null
-    const match = title.match(VOLUME_TOKEN_PATTERN)
-    if (!match) return null
+    const match = new RegExp(VOLUME_TOKEN_PATTERN).exec(title)
+    if (!match) return extractTrailingVolumeNumber(title)
     const parsed = Number.parseFloat(match[1])
     return Number.isFinite(parsed) ? parsed : null
   }, [])
 
   const stripVolumeFromTitle = useCallback((title: string) => {
     const withoutVolume = title.replaceAll(VOLUME_TOKEN_GLOBAL, " ")
-    const trimmed = withoutVolume
+    const withoutTrailing = stripTrailingVolumeSuffixForTitle(withoutVolume)
+    const trimmed = withoutTrailing
       .replaceAll(/\s*[-–—:,]\s*$/g, "")
       .replaceAll(/\s+/g, " ")
       .trim()
@@ -482,7 +529,7 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
-        const hasSeriesId = Object.prototype.hasOwnProperty.call(
+        const hasSeriesId = Object.hasOwn(
           data,
           "series_id"
         )
@@ -789,12 +836,9 @@ export function useLibrary() {
           const initialVolumeNumber = parsedVolumeNumber ?? 1
           let targetSeries = seriesCache.get(seriesKey)
 
-          if (!targetSeries) {
-            targetSeries = findMatchingSeries(seriesTitle, author)
-          }
+          targetSeries ??= findMatchingSeries(seriesTitle, author);
 
-          if (!targetSeries) {
-            targetSeries = await createSeries({
+          targetSeries ??= await createSeries({
               title: seriesTitle,
               author: author || null,
               description:
@@ -808,8 +852,7 @@ export function useLibrary() {
                   : null,
               type: "other",
               tags: []
-            })
-          }
+            });
 
           seriesCache.set(seriesKey, targetSeries)
 
