@@ -12,7 +12,95 @@ import {
   ArrowDown01Icon
 } from "@hugeicons/core-free-icons"
 
-const Select = SelectPrimitive.Root
+type SelectLabelContextValue = {
+  labels: Map<string, React.ReactNode>
+  register: (value: string, label: React.ReactNode) => void
+  unregister: (value: string) => void
+}
+
+const SelectLabelContext = React.createContext<SelectLabelContextValue | null>(
+  null
+)
+
+const toValueKey = (value: unknown) =>
+  value === null || value === undefined ? "" : String(value)
+
+function collectLabelsFromChildren(children: React.ReactNode) {
+  const labels = new Map<string, React.ReactNode>()
+  const walk = (node: React.ReactNode) => {
+    React.Children.forEach(node, (child) => {
+      if (!React.isValidElement(child)) return
+      const childProps = child.props as {
+        children?: React.ReactNode
+        value?: unknown
+      }
+      if (child.type === SelectItem) {
+        const valueKey = toValueKey(childProps.value)
+        if (valueKey) {
+          labels.set(valueKey, childProps.children ?? valueKey)
+        }
+        return
+      }
+      if (childProps.children) {
+        walk(childProps.children)
+      }
+    })
+  }
+  walk(children)
+  return labels
+}
+
+function Select<Value, Multiple extends boolean | undefined = false>({
+  children,
+  ...props
+}: Readonly<SelectPrimitive.Root.Props<Value, Multiple>>) {
+  const staticLabels = React.useMemo(
+    () => collectLabelsFromChildren(children),
+    [children]
+  )
+  const [dynamicLabels, setDynamicLabels] = React.useState(
+    () => new Map<string, React.ReactNode>()
+  )
+  const mergedLabels = React.useMemo(() => {
+    if (dynamicLabels.size === 0) return staticLabels
+    const next = new Map(staticLabels)
+    dynamicLabels.forEach((label, key) => {
+      next.set(key, label)
+    })
+    return next
+  }, [dynamicLabels, staticLabels])
+
+  const register = React.useCallback(
+    (value: string, label: React.ReactNode) => {
+      setDynamicLabels((prev) => {
+        const next = new Map(prev)
+        next.set(value, label)
+        return next
+      })
+    },
+    []
+  )
+
+  const unregister = React.useCallback((value: string) => {
+    setDynamicLabels((prev) => {
+      if (!prev.has(value)) return prev
+      const next = new Map(prev)
+      next.delete(value)
+      return next
+    })
+  }, [])
+
+  const contextValue = React.useMemo(
+    () => ({ labels: mergedLabels, register, unregister }),
+    [mergedLabels, register, unregister]
+  )
+
+  return (
+    <SelectLabelContext.Provider value={contextValue}>
+      <SelectPrimitive.Root {...props}>{children}</SelectPrimitive.Root>
+    </SelectLabelContext.Provider>
+  )
+}
 
 function SelectGroup({
   className,
@@ -29,14 +117,34 @@ function SelectGroup({
 
 function SelectValue({
   className,
+  placeholder,
+  children,
   ...props
 }: Readonly<SelectPrimitive.Value.Props>) {
+  const labelContext = React.useContext(SelectLabelContext)
+  const renderValue = React.useCallback(
+    (value: unknown): React.ReactNode => {
+      if (value === null || value === undefined || value === "") {
+        return placeholder ?? null
+      }
+      const key = toValueKey(value)
+      const label = labelContext?.labels.get(key)
+      return label ?? String(value)
+    },
+    [labelContext, placeholder]
+  )
+  const resolvedChildren =
+    children ?? (labelContext?.labels.size ? renderValue : undefined)
+
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
       className={cn("flex flex-1 text-left", className)}
+      placeholder={placeholder}
       {...props}
-    />
+    >
+      {resolvedChildren}
+    </SelectPrimitive.Value>
   )
 }
 
@@ -132,6 +240,17 @@ function SelectItem({
   children,
   ...props
 }: Readonly<SelectPrimitive.Item.Props>) {
+  const labelContext = React.useContext(SelectLabelContext)
+  const valueKey = toValueKey(props.value)
+
+  React.useEffect(() => {
+    if (!labelContext || !valueKey) return
+    labelContext.register(valueKey, children ?? valueKey)
+    return () => {
+      labelContext.unregister(valueKey)
+    }
+  }, [children, labelContext, valueKey])
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
