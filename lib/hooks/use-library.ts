@@ -470,7 +470,9 @@ export function useLibrary() {
       const hasAuthor = normalizedAuthor.length > 0
       const matches: SeriesWithVolumes[] = []
 
-      for (const item of series) {
+      const seriesSnapshot = useLibraryStore.getState().series
+
+      for (const item of seriesSnapshot) {
         if (normalizeSeriesTitle(item.title) !== normalizedTitle) continue
         const itemAuthor = normalizeAuthorKey(item.author)
         if (hasAuthor && itemAuthor && itemAuthor !== normalizedAuthor) continue
@@ -479,7 +481,7 @@ export function useLibrary() {
 
       return matches
     },
-    [normalizeAuthorKey, normalizeSeriesTitle, series]
+    [normalizeAuthorKey, normalizeSeriesTitle]
   )
 
   const pickSeriesByType = useCallback(
