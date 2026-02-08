@@ -288,7 +288,7 @@ export default function BookshelfPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-6 py-8 lg:px-10">
         <Skeleton className="h-10 w-full rounded-2xl" />
         <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
@@ -296,7 +296,7 @@ export default function BookshelfPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="space-y-6 px-6 py-8 lg:px-10">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight">
           Bookshelf

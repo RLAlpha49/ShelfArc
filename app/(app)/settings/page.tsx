@@ -33,6 +33,7 @@ import type { Profile } from "@/lib/types/database"
 import type {
   AmazonDomain,
   CurrencyCode,
+  NavigationMode,
   PriceSource
 } from "@/lib/store/library-store"
 
@@ -57,6 +58,11 @@ const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
 
 const priceSourceOptions: Array<{ value: PriceSource; label: string }> = [
   { value: "amazon", label: "Amazon" }
+]
+
+const navigationOptions: Array<{ value: NavigationMode; label: string }> = [
+  { value: "sidebar", label: "Sidebar (default)" },
+  { value: "header", label: "Header" }
 ]
 
 const isValidOption = <T extends string>(
@@ -113,7 +119,9 @@ export default function SettingsPage() {
     priceDisplayCurrency,
     setPriceSource,
     setAmazonDomain,
-    setPriceDisplayCurrency
+    setPriceDisplayCurrency,
+    navigationMode,
+    setNavigationMode
   } = useLibraryStore()
 
   useEffect(() => {
@@ -300,7 +308,7 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+      <div className="px-6 py-8 lg:px-10">
         <Skeleton className="mb-8 h-10 w-32 rounded-xl" />
         <Skeleton className="h-64 rounded-2xl" />
       </div>
@@ -308,13 +316,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-2xl px-6 py-8 lg:px-10">
       <h1 className="font-display mb-8 text-3xl font-bold tracking-tight">
         Settings
       </h1>
 
       {/* Profile Settings */}
-      <Card className="border-primary/10 mb-6 rounded-2xl">
+      <Card className="mb-6 rounded-2xl">
         <CardHeader>
           <CardTitle className="font-display">Profile</CardTitle>
           <CardDescription>Manage your account information</CardDescription>
@@ -418,7 +426,7 @@ export default function SettingsPage() {
       <Separator className="my-6" />
 
       {/* Preferences */}
-      <Card className="border-primary/10 mb-6 rounded-2xl">
+      <Card className="mb-6 rounded-2xl">
         <CardHeader>
           <CardTitle className="font-display">Preferences</CardTitle>
           <CardDescription>Customize your experience</CardDescription>
@@ -432,8 +440,39 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="text-muted-foreground text-sm">
-              Use the theme toggle in the header
+              Use the theme toggle in the{" "}
+              {navigationMode === "header" ? "header" : "sidebar"}
             </div>
+          </div>
+          <Separator />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="navigation-mode" className="font-medium">
+                Navigation
+              </Label>
+              <p className="text-muted-foreground text-sm">
+                Choose whether navigation lives in the sidebar or top header.
+              </p>
+            </div>
+            <Select
+              value={navigationMode}
+              onValueChange={(value) => {
+                if (isValidOption(value, navigationOptions)) {
+                  setNavigationMode(value)
+                }
+              }}
+            >
+              <SelectTrigger id="navigation-mode" className="sm:w-56">
+                <SelectValue placeholder="Select navigation" />
+              </SelectTrigger>
+              <SelectContent>
+                {navigationOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Separator />
           <div className="flex items-center justify-between gap-4">
@@ -458,7 +497,7 @@ export default function SettingsPage() {
       <Separator className="my-6" />
 
       {/* Pricing */}
-      <Card className="border-primary/10 mb-6 rounded-2xl">
+      <Card className="mb-6 rounded-2xl">
         <CardHeader>
           <CardTitle className="font-display">Pricing</CardTitle>
           <CardDescription>
@@ -544,7 +583,7 @@ export default function SettingsPage() {
       <Separator className="my-6" />
 
       {/* Data Management */}
-      <Card className="border-primary/10 rounded-2xl">
+      <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle className="font-display">Data Management</CardTitle>
           <CardDescription>Export or import your library data</CardDescription>
@@ -553,7 +592,7 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-4 sm:flex-row">
             <a
               href="/settings/export"
-              className="border-primary/15 bg-background hover:bg-primary/5 inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
+              className="bg-background hover:bg-accent inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -571,7 +610,7 @@ export default function SettingsPage() {
             </a>
             <a
               href="/settings/import"
-              className="border-primary/15 bg-background hover:bg-primary/5 inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
+              className="bg-background hover:bg-accent inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

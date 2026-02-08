@@ -56,7 +56,7 @@ export function SeriesCard({
 
   return (
     <Card
-      className="group border-primary/10 hover:shadow-primary/5 relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 hover:shadow-xl"
+      className="group relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
       onClick={onClick}
     >
       <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
@@ -158,7 +158,7 @@ export function SeriesCard({
             <Badge
               key={tag}
               variant="outline"
-              className="border-primary/15 rounded-lg text-xs"
+              className="border-border/60 rounded-lg text-xs"
             >
               {tag}
             </Badge>

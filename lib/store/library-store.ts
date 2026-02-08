@@ -15,6 +15,7 @@ export type ViewMode = "grid" | "list"
 export type CollectionView = "series" | "volumes"
 export type PriceSource = "amazon"
 export type CurrencyCode = "USD" | "GBP" | "EUR" | "CAD" | "JPY"
+export type NavigationMode = "sidebar" | "header"
 export const DEFAULT_CURRENCY_CODE: CurrencyCode = "USD"
 export type AmazonDomain =
   | "amazon.com"
@@ -47,6 +48,7 @@ interface LibraryState {
   priceSource: PriceSource
   amazonDomain: AmazonDomain
   priceDisplayCurrency: CurrencyCode
+  navigationMode: NavigationMode
   isLoading: boolean
 
   // Actions
@@ -79,6 +81,7 @@ interface LibraryState {
   setPriceSource: (value: PriceSource) => void
   setAmazonDomain: (value: AmazonDomain) => void
   setPriceDisplayCurrency: (value: CurrencyCode) => void
+  setNavigationMode: (value: NavigationMode) => void
   setIsLoading: (loading: boolean) => void
 }
 
@@ -106,6 +109,7 @@ export const useLibraryStore = create<LibraryState>()(
       priceSource: "amazon",
       amazonDomain: "amazon.com",
       priceDisplayCurrency: "USD",
+      navigationMode: "sidebar",
       isLoading: false,
 
       // Actions
@@ -219,6 +223,7 @@ export const useLibraryStore = create<LibraryState>()(
       setPriceSource: (value) => set({ priceSource: value }),
       setAmazonDomain: (value) => set({ amazonDomain: value }),
       setPriceDisplayCurrency: (value) => set({ priceDisplayCurrency: value }),
+      setNavigationMode: (value) => set({ navigationMode: value }),
       setIsLoading: (loading) => set({ isLoading: loading })
     }),
     {
@@ -231,7 +236,8 @@ export const useLibraryStore = create<LibraryState>()(
         deleteSeriesVolumes: state.deleteSeriesVolumes,
         priceSource: state.priceSource,
         amazonDomain: state.amazonDomain,
-        priceDisplayCurrency: state.priceDisplayCurrency
+        priceDisplayCurrency: state.priceDisplayCurrency,
+        navigationMode: state.navigationMode
       })
     }
   )

@@ -44,7 +44,7 @@ export function VolumeCard({
 
   return (
     <Card
-      className="group border-primary/10 hover:shadow-primary/5 relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 hover:shadow-xl"
+      className="group relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
       onClick={onClick}
     >
       <CardContent className="p-0">

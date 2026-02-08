@@ -9,14 +9,15 @@ export default async function HomePage() {
   } = await supabase.auth.getUser()
 
   return (
-    <div className="noise-overlay relative min-h-screen overflow-hidden">
-      {/* Hero gradient mesh background */}
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Atmospheric background */}
       <div className="bg-hero-mesh fixed inset-0 -z-10" />
+      <div className="noise-overlay pointer-events-none fixed inset-0 -z-10" />
 
-      {/* Navigation */}
+      {/* Navigation — minimal, floating */}
       <nav className="animate-fade-in-down relative z-50">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-          <Link href="/" className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
+          <Link href="/" className="flex items-center gap-2.5">
             <div className="bg-primary flex h-9 w-9 items-center justify-center rounded-lg">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -26,7 +27,7 @@ export default async function HomePage() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-primary-foreground h-5 w-5"
+                className="text-primary-foreground h-4.5 w-4.5"
               >
                 <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
               </svg>
@@ -36,12 +37,12 @@ export default async function HomePage() {
             </span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <ThemeToggle />
             {user ? (
               <Link
                 href="/library"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-lg px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
               >
                 Go to Library
               </Link>
@@ -55,7 +56,7 @@ export default async function HomePage() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-lg px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
                 >
                   Get Started
                 </Link>
@@ -65,73 +66,167 @@ export default async function HomePage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative px-6 pt-24 pb-32 md:pt-36 md:pb-40">
-        {/* Ambient glow */}
-        <div className="pointer-events-none absolute top-0 left-1/2 -z-10 h-150 w-200 -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)] blur-3xl" />
+      {/* Hero — Asymmetric editorial layout */}
+      <section className="relative px-6 pt-16 pb-24 lg:px-8 lg:pt-24 lg:pb-32">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-8">
+            {/* Left: text content — 7 columns */}
+            <div className="lg:col-span-7">
+              <div className="animate-fade-in-up max-w-2xl">
+                <h1 className="font-display mb-6 text-5xl leading-[1.1] font-bold tracking-tight md:text-6xl lg:text-7xl">
+                  Curate your
+                  <br />
+                  <span className="text-gradient from-copper to-gold bg-linear-to-r">
+                    literary world
+                  </span>
+                </h1>
 
-        <div className="mx-auto max-w-5xl text-center">
-          <div className="ornament-line mb-8">
-            <span className="text-muted-foreground px-4 text-xs tracking-[0.3em] uppercase">
-              A personal library, refined
-            </span>
-          </div>
+                <p className="text-muted-foreground mb-10 max-w-lg text-lg leading-relaxed">
+                  ShelfArc is your sanctuary for light novels and manga. Track
+                  every volume, arrange virtual bookshelves, and watch your
+                  collection come alive.
+                </p>
 
-          <h1 className="mb-8 font-serif text-5xl leading-tight tracking-tight md:text-7xl md:leading-tight">
-            Curate Your
-            <br />
-            <span className="text-primary">Literary Collection</span>
-          </h1>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  {user ? (
+                    <Link
+                      href="/library"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-12 items-center justify-center rounded-xl px-8 text-sm font-semibold shadow-lg transition-all hover:shadow-xl active:scale-[0.98]"
+                    >
+                      Open My Library
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="ml-2 h-4 w-4"
+                      >
+                        <path d="M5 12h14" />
+                        <path d="m12 5 7 7-7 7" />
+                      </svg>
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        href="/signup"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-12 items-center justify-center rounded-xl px-8 text-sm font-semibold shadow-lg transition-all hover:shadow-xl active:scale-[0.98]"
+                      >
+                        Start your collection
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="ml-2 h-4 w-4"
+                        >
+                          <path d="M5 12h14" />
+                          <path d="m12 5 7 7-7 7" />
+                        </svg>
+                      </Link>
+                      <Link
+                        href="/login"
+                        className="text-muted-foreground hover:text-foreground inline-flex h-12 items-center justify-center px-4 text-sm font-medium transition-colors"
+                      >
+                        Sign in to your library
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
 
-          <p className="text-muted-foreground mx-auto mb-12 max-w-2xl text-lg leading-relaxed md:text-xl">
-            ShelfArc is your sanctuary for light novels and manga. Track every
-            volume, organize bookshelves, and watch your collection come to life
-            — all in one beautifully thoughtful space.
-          </p>
-
-          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            {user ? (
-              <Link
-                href="/library"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 warm-shadow-lg inline-flex h-12 items-center justify-center rounded-md px-8 text-sm font-medium tracking-wide transition-all hover:scale-[1.02]"
-              >
-                Open My Library
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/signup"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 warm-shadow-lg inline-flex h-12 items-center justify-center rounded-md px-8 text-sm font-medium tracking-wide transition-all hover:scale-[1.02]"
-                >
-                  Start Your Collection
-                </Link>
-                <Link
-                  href="/login"
-                  className="text-muted-foreground hover:text-foreground inline-flex h-12 items-center justify-center border-none px-6 text-sm font-medium transition-colors"
-                >
-                  Sign in to your library
-                </Link>
-              </>
-            )}
+            {/* Right: decorative book stack — 5 columns */}
+            <div className="hidden lg:col-span-5 lg:block">
+              <div className="animate-fade-in stagger-2 relative">
+                <div className="relative mx-auto aspect-square w-full max-w-md">
+                  <div className="absolute inset-0 rounded-full bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)]" />
+                  <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-end gap-1.5">
+                    {[
+                      {
+                        h: "h-52",
+                        bg: "from-primary/80 to-primary/50",
+                        w: "w-8"
+                      },
+                      {
+                        h: "h-60",
+                        bg: "from-copper/70 to-copper/40",
+                        w: "w-7"
+                      },
+                      {
+                        h: "h-48",
+                        bg: "from-gold/60 to-gold/30",
+                        w: "w-9"
+                      },
+                      {
+                        h: "h-56",
+                        bg: "from-primary/60 to-primary/30",
+                        w: "w-6"
+                      },
+                      {
+                        h: "h-64",
+                        bg: "from-copper/80 to-copper/50",
+                        w: "w-8"
+                      },
+                      {
+                        h: "h-44",
+                        bg: "from-gold/70 to-gold/40",
+                        w: "w-7"
+                      },
+                      {
+                        h: "h-58",
+                        bg: "from-primary/70 to-primary/40",
+                        w: "w-6"
+                      },
+                      {
+                        h: "h-50",
+                        bg: "from-copper/60 to-copper/30",
+                        w: "w-8"
+                      },
+                      {
+                        h: "h-54",
+                        bg: "from-gold/80 to-gold/50",
+                        w: "w-7"
+                      }
+                    ].map((spine, i) => (
+                      <div
+                        key={`spine-${spine.h}-${spine.w}`}
+                        className={`${spine.h} ${spine.w} animate-fade-in-up rounded-t-sm bg-linear-to-t shadow-md`}
+                        style={{ animationDelay: `${0.3 + i * 0.08}s` }}
+                      >
+                        <div
+                          className={`h-full w-full rounded-t-sm bg-linear-to-t ${spine.bg}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="from-border via-border/60 to-border absolute right-4 bottom-7 left-4 h-1 rounded-full bg-linear-to-r" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="relative z-10 border-t">
-        <div className="bg-warm-gradient">
-          <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
-            <div className="mb-16 text-center">
-              <h2 className="animate-fade-in-up font-display text-3xl font-bold tracking-tight md:text-4xl">
-                Everything Your Collection Deserves
+      {/* Features */}
+      <section className="relative z-10">
+        <div className="border-t">
+          <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
+            <div className="mb-14">
+              <span className="text-muted-foreground mb-3 block text-xs tracking-widest uppercase">
+                Features
+              </span>
+              <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+                Everything your collection deserves
               </h2>
-              <p className="animate-fade-in-up stagger-1 text-muted-foreground mx-auto mt-4 max-w-2xl text-lg">
-                Built with care for collectors who value both organization and
-                aesthetics.
-              </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-px overflow-hidden rounded-lg border md:grid-cols-2 lg:grid-cols-3">
               {[
                 {
                   id: "series-tracking",
@@ -142,7 +237,7 @@ export default async function HomePage() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
-                      className="h-6 w-6"
+                      className="h-5 w-5"
                     >
                       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
                     </svg>
@@ -160,7 +255,7 @@ export default async function HomePage() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
-                      className="h-6 w-6"
+                      className="h-5 w-5"
                     >
                       <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
                       <line x1="3" x2="21" y1="9" y2="9" />
@@ -181,7 +276,7 @@ export default async function HomePage() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
-                      className="h-6 w-6"
+                      className="h-5 w-5"
                     >
                       <path d="M12 20V10" />
                       <path d="M18 20V4" />
@@ -201,7 +296,7 @@ export default async function HomePage() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
-                      className="h-6 w-6"
+                      className="h-5 w-5"
                     >
                       <circle cx="11" cy="11" r="8" />
                       <path d="m21 21-4.3-4.3" />
@@ -220,7 +315,7 @@ export default async function HomePage() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
-                      className="h-6 w-6"
+                      className="h-5 w-5"
                     >
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
@@ -240,7 +335,7 @@ export default async function HomePage() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
-                      className="h-6 w-6"
+                      className="h-5 w-5"
                     >
                       <path d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
@@ -252,15 +347,15 @@ export default async function HomePage() {
               ].map((feature) => (
                 <div
                   key={feature.id}
-                  className="bg-card group rounded-2xl border p-7 transition-all hover:shadow-lg"
+                  className="bg-card group hover:bg-accent/40 p-6 transition-colors md:p-8"
                 >
-                  <div className="bg-primary/10 text-primary group-hover:bg-copper/15 mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl transition-colors">
+                  <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors">
                     {feature.icon}
                   </div>
-                  <h3 className="font-display mb-2 text-lg font-semibold">
+                  <h3 className="font-display mb-1.5 text-base font-semibold">
                     {feature.title}
                   </h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <p className="text-muted-foreground text-sm leading-relaxed">
                     {feature.description}
                   </p>
                 </div>
@@ -272,61 +367,67 @@ export default async function HomePage() {
 
       {/* CTA Section */}
       <section className="relative z-10 border-t">
-        <div className="mx-auto max-w-6xl px-6 py-24 text-center md:py-32">
-          <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-            Ready to Organize Your Collection?
-          </h2>
-          <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-lg">
-            Join fellow collectors and bring order and beauty to your manga and
-            light novel library.
-          </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/signup"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-12 items-center justify-center rounded-xl px-8 text-base font-semibold shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
-            >
-              Create Free Account
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="ml-2 h-4 w-4"
+        <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+              Ready to organize
+              <br />
+              your collection?
+            </h2>
+            <p className="text-muted-foreground mx-auto mt-4 max-w-md text-lg leading-relaxed">
+              Join fellow collectors and bring order and beauty to your manga
+              and light novel library.
+            </p>
+            <div className="mt-10">
+              <Link
+                href="/signup"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-12 items-center justify-center rounded-xl px-8 text-base font-semibold shadow-lg transition-all hover:shadow-xl active:scale-[0.98]"
               >
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
-            </Link>
+                Create free account
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="ml-2 h-4 w-4"
+                >
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer — minimal */}
       <footer className="relative z-10 border-t">
-        <div className="mx-auto max-w-6xl px-6 py-8">
+        <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-muted-foreground h-4 w-4"
-              >
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-              </svg>
+              <div className="bg-primary flex h-6 w-6 items-center justify-center rounded-md">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-primary-foreground h-3 w-3"
+                >
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                </svg>
+              </div>
               <span className="text-muted-foreground text-sm">
                 ShelfArc &mdash; Your personal library manager
               </span>
             </div>
             <p className="text-muted-foreground text-sm">
-              &copy; {new Date().getFullYear()} ShelfArc. All rights reserved.
+              &copy; {new Date().getFullYear()} ShelfArc
             </p>
           </div>
         </div>

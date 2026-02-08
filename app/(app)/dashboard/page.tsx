@@ -96,7 +96,7 @@ export default function DashboardPage() {
 
   if (isLoading && series.length === 0) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-6 py-8 lg:px-10">
         <Skeleton className="mb-2 h-10 w-56" />
         <Skeleton className="mb-8 h-5 w-72" />
         <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -222,58 +222,37 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="px-6 py-8 lg:px-10">
       {/* Header */}
-      <div className="mb-8 flex items-end justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Your collection at a glance
-          </p>
-        </div>
-        <Link href="/library">
-          <Button
-            variant="outline"
-            className="border-primary/20 hover:bg-primary/5 rounded-xl"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="mr-2 h-4 w-4"
-            >
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-            </svg>
-            View Library
-          </Button>
-        </Link>
+      <div className="mb-8">
+        <h1 className="font-display text-3xl font-bold tracking-tight">
+          Dashboard
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Your collection at a glance
+        </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {statsCards.map((stat, i) => (
           <Card
             key={stat.id}
-            className={`stagger-${i + 1} animate-fade-in-up border-primary/10 hover:shadow-primary/5 overflow-hidden rounded-2xl transition-shadow hover:shadow-lg`}
+            className={`stagger-${i + 1} animate-fade-in-up hover-lift overflow-hidden rounded-lg`}
           >
-            <CardContent className="p-5">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-lg">
+            <CardContent className="p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <div className="text-primary bg-primary/8 flex h-7 w-7 items-center justify-center rounded-md">
                   {stat.icon}
                 </div>
-                <span className="text-muted-foreground text-sm font-medium">
+                <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                   {stat.label}
                 </span>
               </div>
-              <div className="font-display text-3xl font-bold tracking-tight">
+              <div className="font-display text-2xl font-semibold tracking-tight">
                 {stat.value}
               </div>
-              <div className="text-muted-foreground mt-1 text-xs">
+              <div className="text-muted-foreground mt-0.5 text-xs">
                 {stat.detail}
               </div>
             </CardContent>
@@ -284,26 +263,26 @@ export default function DashboardPage() {
       {/* Content Sections */}
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Recently Added */}
-        <Card className="stagger-5 animate-fade-in-up border-primary/10 rounded-2xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display text-lg font-semibold">
+        <Card className="stagger-5 animate-fade-in-up rounded-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-base font-semibold">
               Recently Added
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Latest additions to your collection
             </CardDescription>
           </CardHeader>
           <CardContent>
             {recentSeries.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="bg-muted mb-3 flex h-12 w-12 items-center justify-center rounded-xl">
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="text-primary bg-primary/8 mb-3 flex h-10 w-10 items-center justify-center rounded-md">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.5"
-                    className="text-muted-foreground h-6 w-6"
+                    className="h-5 w-5"
                   >
                     <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
                   </svg>
@@ -312,24 +291,27 @@ export default function DashboardPage() {
                   No series added yet
                 </p>
                 <Link href="/library" className="mt-2">
-                  <Button variant="link" className="text-primary h-auto p-0">
+                  <Button
+                    variant="link"
+                    className="text-primary h-auto p-0 text-sm"
+                  >
                     Add your first series
                   </Button>
                 </Link>
               </div>
             ) : (
-              <ul className="space-y-1">
+              <ul className="-mx-1 space-y-0.5">
                 {recentSeries.map((s) => (
                   <li key={s.id}>
                     <Link
                       href={`/library/series/${s.id}`}
-                      className="group hover:bg-primary/5 -mx-2 flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors"
+                      className="group hover:bg-accent/60 flex items-center justify-between rounded-md px-2.5 py-2 transition-colors"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="group-hover:text-primary truncate font-medium transition-colors">
+                        <div className="group-hover:text-primary truncate text-sm font-medium transition-colors">
                           {s.title}
                         </div>
-                        <div className="text-muted-foreground text-sm">
+                        <div className="text-muted-foreground text-xs">
                           {s.type === "light_novel" ? "Light Novel" : "Manga"} ·{" "}
                           {s.volumes.length} vol
                         </div>
@@ -340,7 +322,7 @@ export default function DashboardPage() {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
-                        className="text-muted-foreground ml-2 h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+                        className="text-muted-foreground ml-2 h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
                       >
                         <polyline points="9,18 15,12 9,6" />
                       </svg>
@@ -353,24 +335,26 @@ export default function DashboardPage() {
         </Card>
 
         {/* Currently Reading */}
-        <Card className="stagger-6 animate-fade-in-up border-primary/10 rounded-2xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display text-lg font-semibold">
+        <Card className="stagger-6 animate-fade-in-up rounded-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-base font-semibold">
               Currently Reading
             </CardTitle>
-            <CardDescription>Continue where you left off</CardDescription>
+            <CardDescription className="text-xs">
+              Continue where you left off
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {currentlyReading.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="bg-muted mb-3 flex h-12 w-12 items-center justify-center rounded-xl">
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="text-primary bg-primary/8 mb-3 flex h-10 w-10 items-center justify-center rounded-md">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.5"
-                    className="text-muted-foreground h-6 w-6"
+                    className="h-5 w-5"
                   >
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
@@ -381,7 +365,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="-mx-1 space-y-2">
                 {currentlyReading.map((v) => {
                   const progress =
                     v.page_count && v.current_page
@@ -390,23 +374,23 @@ export default function DashboardPage() {
                   return (
                     <li
                       key={v.id}
-                      className="hover:bg-primary/5 -mx-2 space-y-2 rounded-xl px-3 py-2.5 transition-colors"
+                      className="hover:bg-accent/60 space-y-1.5 rounded-md px-2.5 py-2 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">
+                          <div className="truncate text-sm font-medium">
                             {v.seriesTitle}
                           </div>
-                          <div className="text-muted-foreground text-sm">
+                          <div className="text-muted-foreground text-xs">
                             Volume {v.volume_number}
                             {progress !== null && ` · ${progress}%`}
                           </div>
                         </div>
                       </div>
                       {progress !== null && (
-                        <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
+                        <div className="bg-primary/8 h-1.5 overflow-hidden rounded-full">
                           <div
-                            className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+                            className="from-primary to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -421,7 +405,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Collection Breakdown */}
-      <Card className="stagger-7 animate-fade-in-up border-primary/10 rounded-2xl">
+      <Card
+        className="animate-fade-in-up overflow-hidden rounded-2xl"
+        style={{ animationDelay: "0.46s" }}
+      >
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-lg font-semibold">
             Collection Breakdown

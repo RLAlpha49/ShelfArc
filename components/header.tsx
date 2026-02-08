@@ -30,84 +30,136 @@ export function Header({ user }: HeaderProps) {
   const avatarUrl = resolveImageUrl(user?.user_metadata?.avatar_url)
 
   const navItems = [
-    { href: "/library", label: "Library" },
-    { href: "/bookshelf", label: "Bookshelf" },
-    { href: "/dashboard", label: "Dashboard" }
+    {
+      href: "/library",
+      label: "Library",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+        >
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+        </svg>
+      )
+    },
+    {
+      href: "/bookshelf",
+      label: "Bookshelf",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+        >
+          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+          <line x1="3" x2="21" y1="9" y2="9" />
+          <line x1="3" x2="21" y1="15" y2="15" />
+          <line x1="9" x2="9" y1="3" y2="21" />
+        </svg>
+      )
+    },
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+        >
+          <path d="M12 20V10" />
+          <path d="M18 20V4" />
+          <path d="M6 20v-4" />
+        </svg>
+      )
+    }
   ]
 
   return (
-    <header className="bg-background/80 sticky top-0 z-50 w-full border-b backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="bg-primary flex h-8 w-8 items-center justify-center rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-primary-foreground h-4 w-4"
+    <header className="bg-background/90 sticky top-0 z-50 w-full backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-7xl items-center px-6 lg:px-8">
+        {/* Wordmark */}
+        <Link href="/" className="group flex items-center gap-2.5">
+          <div className="bg-primary flex h-7 w-7 items-center justify-center rounded-md">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-primary-foreground h-3.5 w-3.5"
+            >
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+          </div>
+          <span className="font-display text-base font-semibold tracking-tight">
+            ShelfArc
+          </span>
+        </Link>
+
+        {/* Center navigation */}
+        {user && (
+          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0.5 md:flex">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "relative flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors",
+                  pathname === item.href
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-              </svg>
-            </div>
-            <span className="font-display text-lg font-bold tracking-tight">
-              ShelfArc
-            </span>
-          </Link>
+                {item.icon}
+                {item.label}
+                {pathname === item.href && (
+                  <span className="bg-primary absolute inset-x-2 -bottom-3 h-[2px]" />
+                )}
+              </Link>
+            ))}
+          </nav>
+        )}
 
-          {user && (
-            <nav className="hidden items-center gap-1 md:flex">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "relative rounded-lg px-3.5 py-2 text-sm font-medium transition-colors",
-                    pathname === item.href
-                      ? "text-foreground bg-accent"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                  )}
-                >
-                  {item.label}
-                  {pathname === item.href && (
-                    <span className="bg-primary absolute inset-x-3 -bottom-2.25 h-0.5 rounded-full" />
-                  )}
-                </Link>
-              ))}
-            </nav>
-          )}
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
+        {/* Right actions */}
+        <div className="ml-auto flex items-center gap-1.5">
           <ThemeToggle />
 
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="focus:outline-none">
-                <Avatar className="ring-primary/20 h-9 w-9 cursor-pointer ring-2 transition-shadow hover:ring-4">
+                <Avatar className="ring-border h-8 w-8 cursor-pointer ring-1 transition-shadow hover:ring-2">
                   <AvatarImage
                     src={avatarUrl}
                     alt={user.user_metadata?.display_name || "User"}
                   />
-                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                  <AvatarFallback className="bg-primary/8 text-primary text-xs font-medium">
                     {(user.user_metadata?.display_name || user.email || "U")
                       .charAt(0)
                       .toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuContent align="end" className="w-56">
                 <div className="flex items-center gap-3 p-3">
-                  <Avatar className="h-10 w-10">
+                  <Avatar className="h-9 w-9">
                     <AvatarImage
                       src={avatarUrl}
                       alt={user.user_metadata?.display_name || "User"}
                     />
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    <AvatarFallback className="bg-primary/8 text-primary text-xs font-medium">
                       {(user.user_metadata?.display_name || user.email || "U")
                         .charAt(0)
                         .toUpperCase()}
@@ -115,7 +167,7 @@ export function Header({ user }: HeaderProps) {
                   </Avatar>
                   <div className="flex flex-col leading-none">
                     {user.user_metadata?.display_name && (
-                      <p className="text-sm font-semibold">
+                      <p className="text-sm font-medium">
                         {user.user_metadata.display_name}
                       </p>
                     )}
@@ -144,16 +196,16 @@ export function Header({ user }: HeaderProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Link
                 href="/login"
-                className="text-muted-foreground hover:text-foreground inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium transition-colors"
+                className="text-muted-foreground hover:text-foreground inline-flex h-8 items-center justify-center px-3 text-sm font-medium transition-colors"
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-semibold shadow-sm transition-all"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-8 items-center justify-center rounded-md px-3.5 text-sm font-medium transition-colors"
               >
                 Get Started
               </Link>
@@ -161,6 +213,9 @@ export function Header({ user }: HeaderProps) {
           )}
         </div>
       </div>
+
+      {/* Thin editorial bottom line */}
+      <div className="editorial-rule" />
     </header>
   )
 }
