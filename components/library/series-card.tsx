@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,8 @@ interface SeriesCardProps {
   readonly onEdit: () => void
   readonly onDelete: () => void
   readonly onClick: () => void
+  readonly selected?: boolean
+  readonly onSelect?: () => void
 }
 
 const TYPE_COLORS: Record<TitleType, string> = {
@@ -30,7 +33,9 @@ export function SeriesCard({
   series,
   onEdit,
   onDelete,
-  onClick
+  onClick,
+  selected = false,
+  onSelect
 }: SeriesCardProps) {
   const { ownedVolumes, readVolumes, primaryIsbn } = useMemo(
     () =>
@@ -54,14 +59,29 @@ export function SeriesCard({
 
   const totalVolumes = series.total_volumes || series.volumes.length
   const showSeriesProgressBar = useSettingsStore((s) => s.showSeriesProgressBar)
+  const showSelection = Boolean(onSelect)
 
   return (
     <div className="group relative w-full">
       <button
         type="button"
-        className="bg-card hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors"
+        className={`bg-card hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
+        aria-pressed={showSelection ? selected : undefined}
       >
+        {showSelection && (
+          <div
+            className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          >
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onSelect?.()}
+              onClick={(event) => event.stopPropagation()}
+              aria-label={`Select ${series.title}`}
+            />
+          </div>
+        )}
+
         <div className="bg-muted relative aspect-2/3">
           <CoverImage
             isbn={primaryIsbn}
@@ -140,6 +160,7 @@ export function SeriesCard({
           </div>
         </div>
       </button>
+
       <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger

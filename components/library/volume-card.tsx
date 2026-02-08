@@ -1,6 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,8 @@ interface VolumeCardProps {
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly selected?: boolean
+  readonly onSelect?: () => void
 }
 
 const OWNERSHIP_COLORS: Record<string, string> = {
@@ -35,20 +38,24 @@ export function VolumeCard({
   volume,
   onClick,
   onEdit,
-  onDelete
+  onDelete,
+  selected = false,
+  onSelect
 }: VolumeCardProps) {
   const showReadingProgress = useSettingsStore((s) => s.showReadingProgress)
   const progressPercent =
     volume.page_count && volume.current_page
       ? Math.round((volume.current_page / volume.page_count) * 100)
       : null
+  const showSelection = Boolean(onSelect)
 
   return (
     <div className="group relative w-full">
       <button
         type="button"
-        className="bg-card hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors"
+        className={`group bg-card hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
+        aria-pressed={showSelection ? selected : undefined}
       >
         {/* Cover Image */}
         <div className="bg-muted relative aspect-2/3">
@@ -70,6 +77,19 @@ export function VolumeCard({
 
           {/* Hover Overlay */}
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
+
+          {showSelection && (
+            <div
+              className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            >
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => onSelect?.()}
+                onClick={(event) => event.stopPropagation()}
+                aria-label={`Select volume ${volume.volume_number}`}
+              />
+            </div>
+          )}
         </div>
 
         {/* Volume Info */}

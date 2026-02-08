@@ -10,6 +10,8 @@ import { LibraryToolbar } from "@/components/library/library-toolbar"
 import { VolumeCard } from "@/components/library/volume-card"
 import { CoverImage } from "@/components/library/cover-image"
 import { EmptyState } from "@/components/empty-state"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -19,6 +21,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
@@ -37,7 +40,9 @@ import type {
   Series,
   SeriesWithVolumes,
   Volume,
-  OwnershipStatus
+  OwnershipStatus,
+  ReadingStatus,
+  TitleType
 } from "@/lib/types/database"
 import { type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
@@ -84,10 +89,14 @@ function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
 
 function SeriesListItem({
   series,
-  onClick
+  onClick,
+  selected = false,
+  onSelect
 }: {
   readonly series: SeriesWithVolumes
   readonly onClick: () => void
+  readonly selected?: boolean
+  readonly onSelect?: () => void
 }) {
   const ownedCount = series.volumes.filter(
     (v) => v.ownership_status === "owned"
@@ -104,13 +113,27 @@ function SeriesListItem({
       volumeFallbackUrl: fallbackVolume?.cover_image_url ?? null
     }
   }, [series.volumes])
+  const showSelection = Boolean(onSelect)
 
   return (
     <button
       type="button"
-      className="group glass-card hover:bg-accent flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+      className={`group glass-card hover:bg-accent flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
       onClick={onClick}
+      aria-pressed={showSelection ? selected : undefined}
     >
+      {showSelection && (
+        <div
+          className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+        >
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onSelect?.()}
+            onClick={(event) => event.stopPropagation()}
+            aria-label={`Select ${series.title}`}
+          />
+        </div>
+      )}
       <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-xl">
         <CoverImage
           isbn={primaryIsbn}
@@ -171,25 +194,31 @@ function VolumeGridItem({
   item,
   onClick,
   onEdit,
-  onDelete
+  onDelete,
+  selected = false,
+  onSelect
 }: {
   readonly item: VolumeWithSeries
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly selected?: boolean
+  readonly onSelect?: () => void
 }) {
   const volumeLabel = `Volume ${item.volume.volume_number}`
   const volumeDescriptor = item.volume.title
     ? `${volumeLabel} • ${normalizeVolumeTitle(item.volume.title)}`
     : volumeLabel
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
+  const showSelection = Boolean(onSelect)
 
   return (
     <div className="group relative">
       <button
         type="button"
-        className="bg-card hover:bg-accent/40 group-hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors"
+        className={`bg-card hover:bg-accent/40 group-hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
+        aria-pressed={showSelection ? selected : undefined}
       >
         <div className="bg-muted relative aspect-2/3 overflow-hidden">
           <CoverImage
@@ -210,6 +239,18 @@ function VolumeGridItem({
             }
           />
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
+          {showSelection && (
+            <div
+              className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            >
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => onSelect?.()}
+                onClick={(event) => event.stopPropagation()}
+                aria-label={`Select ${coverAlt}`}
+              />
+            </div>
+          )}
         </div>
         <div className="mt-2.5 space-y-1 px-1 pb-2">
           <p className="font-display line-clamp-1 font-medium">
@@ -272,26 +313,44 @@ function VolumeListItem({
   item,
   onClick,
   onEdit,
-  onDelete
+  onDelete,
+  selected = false,
+  onSelect
 }: {
   readonly item: VolumeWithSeries
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly selected?: boolean
+  readonly onSelect?: () => void
 }) {
   const volumeLabel = `Volume ${item.volume.volume_number}`
   const volumeDescriptor = item.volume.title
     ? `${volumeLabel} • ${item.volume.title}`
     : volumeLabel
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
+  const showSelection = Boolean(onSelect)
 
   return (
     <div className="group relative">
       <button
         type="button"
-        className="glass-card hover:bg-accent group-hover:bg-accent relative flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all group-hover:-translate-y-0.5 group-hover:shadow-md hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+        className={`glass-card hover:bg-accent group-hover:bg-accent relative flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all group-hover:-translate-y-0.5 group-hover:shadow-md hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
+        aria-pressed={showSelection ? selected : undefined}
       >
+        {showSelection && (
+          <div
+            className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          >
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onSelect?.()}
+              onClick={(event) => event.stopPropagation()}
+              aria-label={`Select ${coverAlt}`}
+            />
+          </div>
+        )}
         <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-lg">
           <CoverImage
             isbn={item.volume.isbn}
@@ -410,10 +469,32 @@ export default function LibraryPage() {
     useState<SeriesWithVolumes | null>(null)
   const [deleteVolumeDialogOpen, setDeleteVolumeDialogOpen] = useState(false)
   const [deletingVolume, setDeletingVolume] = useState<Volume | null>(null)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedSeriesIds, setSelectedSeriesIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [selectedVolumeIds, setSelectedVolumeIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchSeries()
   }, [fetchSeries])
+
+  const clearSelection = useCallback(() => {
+    setSelectedSeriesIds(new Set())
+    setSelectedVolumeIds(new Set())
+  }, [])
+
+  const toggleSelectionMode = useCallback(() => {
+    setSelectionMode((prev) => {
+      if (prev) {
+        clearSelection()
+      }
+      return !prev
+    })
+  }, [clearSelection])
 
   const existingEntries = useMemo(() => {
     const assigned = series.flatMap((seriesItem) =>
@@ -440,6 +521,31 @@ export default function LibraryPage() {
     return Array.from(new Set(normalized))
   }, [existingEntries])
 
+  const volumeLookup = useMemo(() => {
+    const map = new Map<string, Volume>()
+    for (const seriesItem of series) {
+      for (const volume of seriesItem.volumes) {
+        map.set(volume.id, volume)
+      }
+    }
+    for (const volume of unassignedVolumes) {
+      map.set(volume.id, volume)
+    }
+    return map
+  }, [series, unassignedVolumes])
+
+  const selectedIds =
+    collectionView === "series" ? selectedSeriesIds : selectedVolumeIds
+  const selectedCount = selectedIds.size
+  const totalSelectableCount =
+    collectionView === "series"
+      ? filteredSeries.length
+      : filteredVolumes.length + filteredUnassignedVolumes.length
+  const isAllSelected =
+    totalSelectableCount > 0 && selectedCount === totalSelectableCount
+  const isSeriesSelectionMode = selectionMode && collectionView === "series"
+  const isVolumeSelectionMode = selectionMode && collectionView === "volumes"
+
   const getNextVolumeNumber = useCallback(
     (seriesId: string | null) => {
       if (!seriesId) return 1
@@ -453,6 +559,215 @@ export default function LibraryPage() {
     },
     [series]
   )
+
+  const toggleSeriesSelection = useCallback((seriesId: string) => {
+    setSelectedSeriesIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(seriesId)) {
+        next.delete(seriesId)
+      } else {
+        next.add(seriesId)
+      }
+      return next
+    })
+  }, [])
+
+  const toggleVolumeSelection = useCallback((volumeId: string) => {
+    setSelectedVolumeIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(volumeId)) {
+        next.delete(volumeId)
+      } else {
+        next.add(volumeId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAll = useCallback(() => {
+    if (collectionView === "series") {
+      setSelectedSeriesIds(new Set(filteredSeries.map((item) => item.id)))
+      return
+    }
+
+    const nextIds = new Set(filteredVolumes.map((item) => item.volume.id))
+    for (const volume of filteredUnassignedVolumes) {
+      nextIds.add(volume.id)
+    }
+    setSelectedVolumeIds(nextIds)
+  }, [
+    collectionView,
+    filteredSeries,
+    filteredVolumes,
+    filteredUnassignedVolumes
+  ])
+
+  const handleClearSelection = useCallback(() => {
+    clearSelection()
+  }, [clearSelection])
+
+  const applySeriesType = useCallback(
+    async (nextType: TitleType) => {
+      if (selectedSeriesIds.size === 0) return
+      const targets = Array.from(selectedSeriesIds)
+      const results = await Promise.allSettled(
+        targets.map((id) => editSeries(id, { type: nextType }))
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} series type${successCount === 1 ? "" : "s"}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} series type update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [selectedSeriesIds, editSeries]
+  )
+
+  const applyVolumeOwnershipStatus = useCallback(
+    async (status: OwnershipStatus) => {
+      if (selectedVolumeIds.size === 0) return
+      const targets = Array.from(selectedVolumeIds)
+        .map((id) => volumeLookup.get(id))
+        .filter((volume): volume is Volume => Boolean(volume))
+      const results = await Promise.allSettled(
+        targets.map((volume) =>
+          editVolume(volume.series_id ?? null, volume.id, {
+            ownership_status: status
+          })
+        )
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [selectedVolumeIds, volumeLookup, editVolume]
+  )
+
+  const applyVolumeReadingStatus = useCallback(
+    async (status: ReadingStatus) => {
+      if (selectedVolumeIds.size === 0) return
+      const targets = Array.from(selectedVolumeIds)
+        .map((id) => volumeLookup.get(id))
+        .filter((volume): volume is Volume => Boolean(volume))
+      const results = await Promise.allSettled(
+        targets.map((volume) =>
+          editVolume(volume.series_id ?? null, volume.id, {
+            reading_status: status
+          })
+        )
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status.replace("_", " ")}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [selectedVolumeIds, volumeLookup, editVolume]
+  )
+
+  const deleteSelectedSeries = useCallback(async () => {
+    const targets = Array.from(selectedSeriesIds)
+    if (targets.length === 0) return
+    const results = await Promise.allSettled(
+      targets.map((id) => removeSeries(id))
+    )
+    const successCount = results.filter(
+      (result) => result.status === "fulfilled"
+    ).length
+    const failureCount = results.length - successCount
+
+    if (successCount > 0) {
+      toast.success(
+        `Deleted ${successCount} series${successCount === 1 ? "" : "es"}`
+      )
+    }
+    if (failureCount > 0) {
+      toast.error(
+        `${failureCount} series delete${failureCount === 1 ? "" : "s"} failed`
+      )
+    }
+  }, [selectedSeriesIds, removeSeries])
+
+  const deleteSelectedVolumes = useCallback(async () => {
+    const targets = Array.from(selectedVolumeIds)
+      .map((id) => volumeLookup.get(id))
+      .filter((volume): volume is Volume => Boolean(volume))
+    if (targets.length === 0) return
+    const results = await Promise.allSettled(
+      targets.map((volume) => removeVolume(volume.series_id ?? null, volume.id))
+    )
+    const successCount = results.filter(
+      (result) => result.status === "fulfilled"
+    ).length
+    const failureCount = results.length - successCount
+
+    if (successCount > 0) {
+      toast.success(
+        `Deleted ${successCount} volume${successCount === 1 ? "" : "s"}`
+      )
+    }
+    if (failureCount > 0) {
+      toast.error(
+        `${failureCount} volume delete${failureCount === 1 ? "" : "s"} failed`
+      )
+    }
+  }, [selectedVolumeIds, volumeLookup, removeVolume])
+
+  const performBulkDelete = useCallback(async () => {
+    if (collectionView === "series") {
+      await deleteSelectedSeries()
+    } else {
+      await deleteSelectedVolumes()
+    }
+
+    clearSelection()
+    setBulkDeleteDialogOpen(false)
+  }, [
+    collectionView,
+    deleteSelectedSeries,
+    deleteSelectedVolumes,
+    clearSelection
+  ])
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedCount === 0) return
+    if (!confirmBeforeDelete) {
+      void performBulkDelete()
+      return
+    }
+    setBulkDeleteDialogOpen(true)
+  }, [selectedCount, confirmBeforeDelete, performBulkDelete])
 
   const handleAddSeries = async (data: Parameters<typeof createSeries>[0]) => {
     try {
@@ -556,6 +871,34 @@ export default function LibraryPage() {
     setVolumeDialogOpen(true)
   }, [])
 
+  const handleEditSelected = useCallback(() => {
+    if (selectedCount !== 1) return
+
+    if (collectionView === "series") {
+      const selectedId = Array.from(selectedSeriesIds)[0]
+      const selectedSeries = series.find((item) => item.id === selectedId)
+      if (selectedSeries) {
+        openEditDialog(selectedSeries)
+      }
+      return
+    }
+
+    const selectedId = Array.from(selectedVolumeIds)[0]
+    const selectedVolume = volumeLookup.get(selectedId)
+    if (selectedVolume) {
+      openEditVolumeDialog(selectedVolume)
+    }
+  }, [
+    selectedCount,
+    collectionView,
+    selectedSeriesIds,
+    selectedVolumeIds,
+    series,
+    volumeLookup,
+    openEditDialog,
+    openEditVolumeDialog
+  ])
+
   const openDeleteVolumeDialog = useCallback(
     async (volume: Volume) => {
       if (!confirmBeforeDelete) {
@@ -586,6 +929,28 @@ export default function LibraryPage() {
       router.push(`/library/volume/${volumeId}`)
     },
     [router]
+  )
+
+  const handleSeriesItemClick = useCallback(
+    (seriesItem: SeriesWithVolumes) => {
+      if (isSeriesSelectionMode) {
+        toggleSeriesSelection(seriesItem.id)
+        return
+      }
+      handleSeriesClick(seriesItem)
+    },
+    [isSeriesSelectionMode, toggleSeriesSelection, handleSeriesClick]
+  )
+
+  const handleVolumeItemClick = useCallback(
+    (volumeId: string) => {
+      if (isVolumeSelectionMode) {
+        toggleVolumeSelection(volumeId)
+        return
+      }
+      handleVolumeClick(volumeId)
+    },
+    [isVolumeSelectionMode, toggleVolumeSelection, handleVolumeClick]
   )
 
   const openAddDialog = useCallback(() => {
@@ -672,9 +1037,17 @@ export default function LibraryPage() {
             <VolumeCard
               key={volume.id}
               volume={volume}
-              onClick={() => handleVolumeClick(volume.id)}
+              onClick={() => handleVolumeItemClick(volume.id)}
               onEdit={() => openEditVolumeDialog(volume)}
               onDelete={() => openDeleteVolumeDialog(volume)}
+              selected={
+                isVolumeSelectionMode && selectedVolumeIds.has(volume.id)
+              }
+              onSelect={
+                isVolumeSelectionMode
+                  ? () => toggleVolumeSelection(volume.id)
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -728,9 +1101,18 @@ export default function LibraryPage() {
                     <VolumeGridItem
                       key={item.volume.id}
                       item={item}
-                      onClick={() => handleVolumeClick(item.volume.id)}
+                      onClick={() => handleVolumeItemClick(item.volume.id)}
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
+                      selected={
+                        isVolumeSelectionMode &&
+                        selectedVolumeIds.has(item.volume.id)
+                      }
+                      onSelect={
+                        isVolumeSelectionMode
+                          ? () => toggleVolumeSelection(item.volume.id)
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -742,9 +1124,18 @@ export default function LibraryPage() {
                     <VolumeListItem
                       key={item.volume.id}
                       item={item}
-                      onClick={() => handleVolumeClick(item.volume.id)}
+                      onClick={() => handleVolumeItemClick(item.volume.id)}
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
+                      selected={
+                        isVolumeSelectionMode &&
+                        selectedVolumeIds.has(item.volume.id)
+                      }
+                      onSelect={
+                        isVolumeSelectionMode
+                          ? () => toggleVolumeSelection(item.volume.id)
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -795,7 +1186,15 @@ export default function LibraryPage() {
                     series={series}
                     onEdit={() => openEditDialog(series)}
                     onDelete={() => openDeleteDialog(series)}
-                    onClick={() => handleSeriesClick(series)}
+                    onClick={() => handleSeriesItemClick(series)}
+                    selected={
+                      isSeriesSelectionMode && selectedSeriesIds.has(series.id)
+                    }
+                    onSelect={
+                      isSeriesSelectionMode
+                        ? () => toggleSeriesSelection(series.id)
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -814,7 +1213,15 @@ export default function LibraryPage() {
               <SeriesListItem
                 key={series.id}
                 series={series}
-                onClick={() => handleSeriesClick(series)}
+                onClick={() => handleSeriesItemClick(series)}
+                selected={
+                  isSeriesSelectionMode && selectedSeriesIds.has(series.id)
+                }
+                onSelect={
+                  isSeriesSelectionMode
+                    ? () => toggleSeriesSelection(series.id)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -889,7 +1296,136 @@ export default function LibraryPage() {
       <LibraryToolbar
         onAddBook={openAddDialog}
         onAddSeries={openAddSeriesDialog}
+        selectionMode={selectionMode}
+        onToggleSelectionMode={toggleSelectionMode}
       />
+
+      {selectionMode && (
+        <div className="glass-card animate-fade-in stagger-2 mt-4 rounded-2xl p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-muted-foreground text-[11px] tracking-widest uppercase">
+                Selection
+              </span>
+              <span className="font-display text-sm font-semibold">
+                {selectedCount} selected
+              </span>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectAll}
+              disabled={totalSelectableCount === 0 || isAllSelected}
+              className="rounded-xl"
+            >
+              Select all
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearSelection}
+              disabled={selectedCount === 0}
+              className="rounded-xl"
+            >
+              Clear
+            </Button>
+
+            <div className="flex-1" />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={buttonVariants({
+                  variant: "outline",
+                  size: "sm",
+                  className: "rounded-xl"
+                })}
+                disabled={selectedCount === 0}
+              >
+                Bulk actions
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-xl">
+                {collectionView === "series" ? (
+                  <>
+                    <DropdownMenuLabel>Series type</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => applySeriesType("light_novel")}
+                    >
+                      Set to Light Novel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => applySeriesType("manga")}>
+                      Set to Manga
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => applySeriesType("other")}>
+                      Set to Other
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuLabel>Ownership</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => applyVolumeOwnershipStatus("owned")}
+                    >
+                      Mark owned
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => applyVolumeOwnershipStatus("wishlist")}
+                    >
+                      Mark wishlist
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Reading status</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => applyVolumeReadingStatus("unread")}
+                    >
+                      Mark unread
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => applyVolumeReadingStatus("reading")}
+                    >
+                      Mark reading
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => applyVolumeReadingStatus("completed")}
+                    >
+                      Mark completed
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => applyVolumeReadingStatus("on_hold")}
+                    >
+                      Mark on hold
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => applyVolumeReadingStatus("dropped")}
+                    >
+                      Mark dropped
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEditSelected}
+              disabled={selectedCount !== 1}
+              className="rounded-xl"
+            >
+              Edit
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={selectedCount === 0}
+              className="rounded-xl"
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="my-8 border-t" />
       <div>{renderContent()}</div>
@@ -978,6 +1514,47 @@ export default function LibraryPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSeries}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {collectionView === "series"
+                ? "Delete Selected Series"
+                : "Delete Selected Books"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {collectionView === "series" ? (
+                <>
+                  You are about to delete {selectedCount} series. {""}
+                  {deleteSeriesVolumes
+                    ? "This will also delete all volumes associated with these series."
+                    : "The volumes will be kept and moved to Unassigned Books."}{" "}
+                  This action cannot be undone.
+                </>
+              ) : (
+                <>
+                  You are about to delete {selectedCount} book
+                  {selectedCount === 1 ? "" : "s"}. This action cannot be
+                  undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={performBulkDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete

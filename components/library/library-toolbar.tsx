@@ -28,11 +28,15 @@ import type {
 interface LibraryToolbarProps {
   readonly onAddBook: () => void
   readonly onAddSeries: () => void
+  readonly selectionMode: boolean
+  readonly onToggleSelectionMode: () => void
 }
 
 export function LibraryToolbar({
   onAddBook,
-  onAddSeries
+  onAddSeries,
+  selectionMode,
+  onToggleSelectionMode
 }: LibraryToolbarProps) {
   const {
     collectionView,
@@ -120,6 +124,27 @@ export function LibraryToolbar({
                 <path d="M6 9h12" />
               </svg>
               <span className="hidden sm:inline">Add Series</span>
+            </Button>
+
+            <Button
+              variant={selectionMode ? "secondary" : "ghost"}
+              onClick={onToggleSelectionMode}
+              className="shrink-0 rounded-xl text-xs shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+              aria-pressed={selectionMode}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 h-4 w-4"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              {selectionMode ? "Done" : "Select"}
             </Button>
           </div>
 
