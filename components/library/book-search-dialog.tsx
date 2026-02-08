@@ -129,7 +129,9 @@ export function BookSearchDialog({
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [queryKey, setQueryKey] = useState("")
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectedResultsById, setSelectedResultsById] = useState<
+    Map<string, BookSearchResult>
+  >(new Map())
   const [ownershipStatus, setOwnershipStatus] = useState<OwnershipStatus>(
     defaultOwnershipStatus
   )
@@ -152,7 +154,7 @@ export function BookSearchDialog({
       setHasMore(false)
       setIsLoadingMore(false)
       setQueryKey("")
-      setSelectedIds(new Set())
+      setSelectedResultsById(new Map())
       setIsBulkAdding(false)
       setShowJumpToTop(false)
       setOwnershipStatus(defaultOwnershipStatus)
@@ -176,14 +178,12 @@ export function BookSearchDialog({
       setPage(1)
       setHasMore(false)
       setQueryKey("")
-      setSelectedIds(new Set())
       return
     }
 
     setPage(1)
     setHasMore(false)
     setQueryKey(`${source}:${debouncedQuery}`)
-    setSelectedIds(new Set())
   }, [debouncedQuery, open, source])
 
   useEffect(() => {
@@ -285,6 +285,10 @@ export function BookSearchDialog({
 
   const deferredResults = useDeferredValue(results)
 
+  const selectedIds = useMemo(() => {
+    return new Set(selectedResultsById.keys())
+  }, [selectedResultsById])
+
   const decoratedResults = useMemo(() => {
     return deferredResults.map((result) => {
       const normalizedIsbn = result.isbn ? normalizeIsbn(result.isbn) : null
@@ -314,16 +318,16 @@ export function BookSearchDialog({
   const virtualRows = rowVirtualizer.getVirtualItems()
 
   const selectedResults = useMemo(() => {
-    return results.filter((result) => selectedIds.has(result.id))
-  }, [results, selectedIds])
+    return Array.from(selectedResultsById.values())
+  }, [selectedResultsById])
 
-  const toggleSelected = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
+  const toggleSelected = useCallback((result: BookSearchResult) => {
+    setSelectedResultsById((prev) => {
+      const next = new Map(prev)
+      if (next.has(result.id)) {
+        next.delete(result.id)
       } else {
-        next.add(id)
+        next.set(result.id, result)
       }
       return next
     })
@@ -343,7 +347,7 @@ export function BookSearchDialog({
       )
     })
     if (resultsToAdd.length === 0) {
-      setSelectedIds(new Set())
+      setSelectedResultsById(new Map())
       return
     }
 
@@ -356,7 +360,7 @@ export function BookSearchDialog({
           await onSelectResult(result, { ownershipStatus })
         }
       }
-      setSelectedIds(new Set())
+      setSelectedResultsById(new Map())
     } finally {
       setIsBulkAdding(false)
     }
@@ -372,7 +376,7 @@ export function BookSearchDialog({
   const selectedSource = sourceCopy[source]
   const activeSourceLabel = sourceCopy[sourceUsed ?? source].label
   const isQueryReady = debouncedQuery.length >= 2
-  const selectedCount = selectedIds.size
+  const selectedCount = selectedResultsById.size
   const showEmptyState =
     isQueryReady && !isLoading && !error && results.length === 0
 
@@ -559,7 +563,7 @@ export function BookSearchDialog({
                             aria-pressed={isSelected}
                             className="shrink-0"
                             disabled={isAlreadyAdded || isBulkAdding}
-                            onClick={() => toggleSelected(result.id)}
+                            onClick={() => toggleSelected(result)}
                           >
                             <span className="text-[10px] font-semibold">
                               {isSelected ? "✓" : ""}
