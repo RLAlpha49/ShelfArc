@@ -31,11 +31,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import {
-  normalizeBookKey,
-  type BookSearchResult,
-  type BookSearchSource
-} from "@/lib/books/search"
+import { type BookSearchResult, type BookSearchSource } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -57,7 +53,6 @@ interface BookSearchDialogProps {
   readonly onAddManual: () => void
   readonly context: SearchContext
   readonly existingIsbns?: readonly string[]
-  readonly existingBookKeys?: readonly string[]
 }
 
 const contextCopy: Record<
@@ -108,8 +103,7 @@ export function BookSearchDialog({
   onSelectResults,
   onAddManual,
   context,
-  existingIsbns = [],
-  existingBookKeys = []
+  existingIsbns = []
 }: BookSearchDialogProps) {
   const defaultOwnershipStatus = useSettingsStore(
     (s) => s.defaultOwnershipStatus
@@ -278,11 +272,6 @@ export function BookSearchDialog({
     )
   }, [existingIsbns])
 
-  const existingBookKeySet = useMemo(() => {
-    if (existingBookKeys.length === 0) return new Set<string>()
-    return new Set(existingBookKeys.filter((key) => key.length > 0))
-  }, [existingBookKeys])
-
   const deferredResults = useDeferredValue(results)
 
   const selectedIds = useMemo(() => {
@@ -292,20 +281,15 @@ export function BookSearchDialog({
   const decoratedResults = useMemo(() => {
     return deferredResults.map((result) => {
       const normalizedIsbn = result.isbn ? normalizeIsbn(result.isbn) : null
-      const normalizedKey = normalizeBookKey(
-        result.title,
-        result.authors[0] ?? null
-      )
       const isAlreadyAdded =
-        (normalizedIsbn && existingIsbnSet.has(normalizedIsbn)) ||
-        (normalizedKey && existingBookKeySet.has(normalizedKey))
+        normalizedIsbn ? existingIsbnSet.has(normalizedIsbn) : false
       return {
         result,
         isAlreadyAdded,
         isSelected: selectedIds.has(result.id)
       }
     })
-  }, [deferredResults, existingBookKeySet, existingIsbnSet, selectedIds])
+  }, [deferredResults, existingIsbnSet, selectedIds])
 
   const rowVirtualizer = useVirtualizer({
     count: decoratedResults.length,
@@ -337,14 +321,7 @@ export function BookSearchDialog({
     if (selectedResults.length === 0) return
     const resultsToAdd = selectedResults.filter((result) => {
       const normalizedIsbn = result.isbn ? normalizeIsbn(result.isbn) : null
-      const normalizedKey = normalizeBookKey(
-        result.title,
-        result.authors[0] ?? null
-      )
-      return !(
-        (normalizedIsbn && existingIsbnSet.has(normalizedIsbn)) ||
-        (normalizedKey && existingBookKeySet.has(normalizedKey))
-      )
+      return normalizedIsbn ? !existingIsbnSet.has(normalizedIsbn) : true
     })
     if (resultsToAdd.length === 0) {
       setSelectedResultsById(new Map())
@@ -365,7 +342,6 @@ export function BookSearchDialog({
       setIsBulkAdding(false)
     }
   }, [
-    existingBookKeySet,
     existingIsbnSet,
     onSelectResult,
     onSelectResults,

@@ -31,7 +31,7 @@ import type {
   VolumeInsert,
   OwnershipStatus
 } from "@/lib/types/database"
-import { normalizeBookKey, type BookSearchResult } from "@/lib/books/search"
+import { type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
 const typeColors = {
@@ -89,15 +89,6 @@ export default function SeriesDetailPage() {
       .map((isbn) => normalizeIsbn(isbn))
       .filter((isbn) => isbn.length > 0)
     return Array.from(new Set(normalized))
-  }, [currentSeries])
-
-  const existingBookKeys = useMemo(() => {
-    if (!currentSeries) return []
-    const author = currentSeries.author ?? null
-    const keys = currentSeries.volumes
-      .map((volume) => normalizeBookKey(volume.title, author))
-      .filter((key): key is string => Boolean(key))
-    return Array.from(new Set(keys))
   }, [currentSeries])
 
   useEffect(() => {
@@ -618,7 +609,6 @@ export default function SeriesDetailPage() {
         onAddManual={openManualDialog}
         context="volume"
         existingIsbns={existingIsbns}
-        existingBookKeys={existingBookKeys}
       />
 
       {/* Add/Edit Volume Dialog */}

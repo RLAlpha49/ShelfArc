@@ -39,7 +39,7 @@ import type {
   Volume,
   OwnershipStatus
 } from "@/lib/types/database"
-import { normalizeBookKey, type BookSearchResult } from "@/lib/books/search"
+import { type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
 function getGridClasses(cardSize: CardSize): string {
@@ -434,13 +434,6 @@ export default function LibraryPage() {
       .map((isbn) => normalizeIsbn(isbn))
       .filter((isbn) => isbn.length > 0)
     return Array.from(new Set(normalized))
-  }, [existingEntries])
-
-  const existingBookKeys = useMemo(() => {
-    const keys = existingEntries
-      .map((item) => normalizeBookKey(item.title, item.author))
-      .filter((key): key is string => Boolean(key))
-    return Array.from(new Set(keys))
   }, [existingEntries])
 
   const getNextVolumeNumber = useCallback(
@@ -905,7 +898,6 @@ export default function LibraryPage() {
         onAddManual={openManualDialog}
         context="series"
         existingIsbns={existingIsbns}
-        existingBookKeys={existingBookKeys}
       />
 
       <VolumeDialog
