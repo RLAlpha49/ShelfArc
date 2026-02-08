@@ -42,7 +42,7 @@ export function ShelfRow({
   onItemRemove,
   disabled = false
 }: ShelfRowProps) {
-  const { setNodeRef, isOver, active } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: `shelf-row-${rowIndex}`,
     data: {
       rowIndex,
@@ -77,12 +77,8 @@ export function ShelfRow({
       <div
         ref={setNodeRef}
         className={cn(
-          "relative overflow-visible",
-          "bg-linear-to-b from-amber-800 via-amber-700 to-amber-900",
-          "border-b-4 border-amber-950",
-          "shadow-inner",
-          isOver && "ring-primary ring-2 ring-offset-2",
-          active && "bg-amber-600/90"
+          "shelf-wood relative overflow-visible",
+          isOver && "ring-1 ring-white/30 ring-inset"
         )}
         style={{
           height: `${height}px`,
@@ -90,10 +86,10 @@ export function ShelfRow({
         }}
       >
         <div
-          className="pointer-events-none absolute inset-0 opacity-35"
+          className="pointer-events-none absolute inset-0 opacity-15"
           style={{
             backgroundImage:
-              "linear-gradient(to right, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(to top, rgba(255,255,255,0.08) 1px, transparent 1px)",
+              "linear-gradient(to right, oklch(1 0 0 / 6%) 1px, transparent 1px), linear-gradient(to top, oklch(1 0 0 / 4%) 1px, transparent 1px)",
             backgroundSize: `${BOOK_GRID_SIZE}px ${BOOK_GRID_SIZE}px`
           }}
         />
@@ -111,7 +107,6 @@ export function ShelfRow({
                 key={item.id}
                 item={item}
                 isInGroup={groupInfo.isInGroup}
-                groupPosition={groupInfo.groupPosition}
                 stackIndex={stackInfo?.order ?? 0}
                 stackOffset={stackInfo?.offset ?? 0}
                 onOrientationChange={onItemOrientationChange}
@@ -124,12 +119,12 @@ export function ShelfRow({
 
         {/* Drop indicator when dragging */}
         {isOver && (
-          <div className="bg-primary/10 pointer-events-none absolute inset-0" />
+          <div className="pointer-events-none absolute inset-0 bg-white/5" />
         )}
       </div>
 
       {/* Shelf edge/lip */}
-      <div className="h-3 w-full bg-linear-to-b from-amber-900 to-amber-950 shadow-md" />
+      <div className="shelf-edge h-3 w-full" />
     </div>
   )
 }
@@ -348,7 +343,7 @@ function getSeriesColor(seed: string): string {
     hash = hash & hash
   }
   const hue = Math.abs(hash % 360)
-  return `hsl(${hue}, 45%, 35%)`
+  return `oklch(0.45 0.1 ${hue})`
 }
 
 function SeriesGroupBlock({ block }: { readonly block: SeriesBlock }) {

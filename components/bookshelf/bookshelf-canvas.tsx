@@ -165,13 +165,16 @@ export function BookshelfCanvas({
     >
       <div
         className={cn(
-          "relative inline-block overflow-auto rounded-lg",
-          "bg-amber-950 p-4 shadow-2xl",
-          "border-8 border-amber-900",
+          "shelf-frame relative inline-block overflow-auto rounded-2xl p-3",
           className
         )}
         style={{
-          maxWidth: "100%"
+          maxWidth: "100%",
+          ...(bookshelf.shelf_color
+            ? ({
+                "--shelf-accent": bookshelf.shelf_color
+              } as React.CSSProperties)
+            : {})
         }}
       >
         {/* Bookshelf frame */}
@@ -195,9 +198,25 @@ export function BookshelfCanvas({
         {/* Empty state */}
         {items.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-amber-300/60">
-              Drag books here or click &quot;Add Books&quot; to get started
-            </p>
+            <div className="flex flex-col items-center gap-3 rounded-xl p-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-6 w-6 text-white/50"
+                >
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-white/50">
+                Click &quot;Add Books&quot; to get started
+              </p>
+            </div>
           </div>
         )}
       </div>

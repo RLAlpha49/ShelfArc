@@ -288,46 +288,109 @@ export default function BookshelfPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 px-6 py-8 lg:px-10">
-        <Skeleton className="h-10 w-full rounded-2xl" />
-        <Skeleton className="h-96 w-full rounded-2xl" />
+      <div className="relative px-6 py-8 lg:px-10">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
+        <div className="mb-10 space-y-3">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-72" />
+          <Skeleton className="h-5 w-64" />
+        </div>
+        <Skeleton className="h-14 w-full rounded-2xl" />
+        <div className="mt-6">
+          <Skeleton className="h-96 w-full rounded-2xl" />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 px-6 py-8 lg:px-10">
-      <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight">
-          Bookshelf
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Organize your books on virtual bookshelves
-        </p>
+    <div className="relative px-6 py-8 lg:px-10">
+      {/* Atmospheric background */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
+
+      <div className="mb-10 grid items-end gap-6 lg:grid-cols-12">
+        {/* Left: editorial heading */}
+        <div className="animate-fade-in-up lg:col-span-7">
+          <span className="text-muted-foreground mb-3 block text-xs tracking-widest uppercase">
+            Bookshelf
+          </span>
+          <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+            My{" "}
+            <span className="text-gradient from-copper to-gold bg-linear-to-r">
+              Bookshelf
+            </span>
+          </h1>
+          <p className="text-muted-foreground mt-2 max-w-lg leading-relaxed">
+            Arrange your books on beautiful virtual shelves
+          </p>
+        </div>
+        {/* Right: quick stats */}
+        <div className="animate-fade-in-up stagger-2 hidden lg:col-span-5 lg:flex lg:items-end lg:justify-end lg:gap-6">
+          {!isLoading && bookshelves.length > 0 && (
+            <>
+              <div className="text-right">
+                <div className="font-display text-primary text-2xl font-bold">
+                  {bookshelves.length}
+                </div>
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  {bookshelves.length === 1 ? "Shelf" : "Shelves"}
+                </div>
+              </div>
+              <div className="bg-border h-8 w-px" />
+              <div className="text-right">
+                <div className="font-display text-primary text-2xl font-bold">
+                  {selectedBookshelf?.items.length ?? 0}
+                </div>
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  Books
+                </div>
+              </div>
+              {selectedBookshelf && (
+                <>
+                  <div className="bg-border h-8 w-px" />
+                  <div className="text-right">
+                    <div className="font-display text-primary text-2xl font-bold">
+                      {selectedBookshelf.row_count}
+                    </div>
+                    <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                      {selectedBookshelf.row_count === 1 ? "Row" : "Rows"}
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      <BookshelfToolbar
-        bookshelves={bookshelves}
-        selectedBookshelfId={selectedBookshelfId}
-        onBookshelfSelect={setSelectedBookshelfId}
-        onCreateBookshelf={handleCreateBookshelf}
-        onEditBookshelf={handleEditBookshelf}
-        onDeleteBookshelf={handleDeleteBookshelf}
-        onAddBooks={() => setAddBooksOpen(true)}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        disabled={isLoading}
-      />
+      <div className="animate-fade-in-up stagger-2">
+        <BookshelfToolbar
+          bookshelves={bookshelves}
+          selectedBookshelfId={selectedBookshelfId}
+          onBookshelfSelect={setSelectedBookshelfId}
+          onCreateBookshelf={handleCreateBookshelf}
+          onEditBookshelf={handleEditBookshelf}
+          onDeleteBookshelf={handleDeleteBookshelf}
+          onAddBooks={() => setAddBooksOpen(true)}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          disabled={isLoading}
+        />
+      </div>
 
-      {renderBookshelfContent(
-        bookshelves,
-        selectedBookshelf,
-        handleCreateBookshelf,
-        handleItemMove,
-        handleItemOrientationChange,
-        handleItemRemove,
-        viewMode
-      )}
+      <div className="my-8 border-t" />
+
+      <div className="animate-fade-in-up stagger-3">
+        {renderBookshelfContent(
+          bookshelves,
+          selectedBookshelf,
+          handleCreateBookshelf,
+          handleItemMove,
+          handleItemOrientationChange,
+          handleItemRemove,
+          viewMode
+        )}
+      </div>
 
       <BookshelfSettingsDialog
         open={settingsOpen}

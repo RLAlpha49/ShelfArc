@@ -338,3 +338,121 @@
   background: oklch(0.185 0.012 272 / 60%);
   border: 1px solid oklch(0.92 0.01 75 / 8%);
 }
+
+/* Bookshelf — warm wood surface */
+.shelf-wood {
+  background:
+    repeating-linear-gradient(
+      87deg,
+      oklch(0.42 0.07 60 / 4%) 0px,
+      transparent 1px,
+      transparent 6px
+    ),
+    linear-gradient(
+      to bottom,
+      oklch(0.48 0.07 60),
+      oklch(0.44 0.08 55),
+      oklch(0.42 0.07 62),
+      oklch(0.46 0.06 58)
+    );
+}
+
+.dark .shelf-wood {
+  background:
+    repeating-linear-gradient(
+      87deg,
+      oklch(0.3 0.04 55 / 6%) 0px,
+      transparent 1px,
+      transparent 6px
+    ),
+    linear-gradient(
+      to bottom,
+      oklch(0.28 0.04 55),
+      oklch(0.25 0.05 50),
+      oklch(0.23 0.04 58),
+      oklch(0.26 0.04 52)
+    );
+}
+
+/* Bookshelf — shelf lip/edge with 3D depth */
+.shelf-edge {
+  background: linear-gradient(
+    to bottom,
+    oklch(0.4 0.08 55),
+    oklch(0.35 0.07 50)
+  );
+  box-shadow:
+    inset 0 1px 0 oklch(0.5 0.06 60 / 25%),
+    0 3px 6px oklch(0.2 0.03 55 / 30%),
+    0 1px 2px oklch(0.15 0.02 50 / 20%);
+}
+
+.dark .shelf-edge {
+  background: linear-gradient(
+    to bottom,
+    oklch(0.2 0.04 50),
+    oklch(0.16 0.03 48)
+  );
+  box-shadow:
+    inset 0 1px 0 oklch(0.3 0.03 55 / 15%),
+    0 3px 6px oklch(0.08 0.01 275 / 40%),
+    0 1px 2px oklch(0.05 0.01 275 / 30%);
+}
+
+/* Bookshelf — outer frame */
+.shelf-frame {
+  --shelf-accent: oklch(0.35 0.06 55);
+  background:
+    repeating-linear-gradient(
+      92deg,
+      oklch(0.38 0.05 58 / 3%) 0px,
+      transparent 1px,
+      transparent 8px
+    ),
+    linear-gradient(
+      135deg,
+      var(--shelf-accent),
+      oklch(0.32 0.06 52),
+      oklch(0.3 0.05 58)
+    );
+  box-shadow:
+    inset 0 2px 8px oklch(0.2 0.04 50 / 20%),
+    0 8px 32px oklch(0.2 0.04 55 / 25%),
+    0 2px 8px oklch(0.15 0.03 50 / 15%);
+}
+
+.dark .shelf-frame {
+  --shelf-accent: oklch(0.18 0.03 270);
+  background:
+    repeating-linear-gradient(
+      92deg,
+      oklch(0.22 0.02 265 / 5%) 0px,
+      transparent 1px,
+      transparent 8px
+    ),
+    linear-gradient(
+      135deg,
+      var(--shelf-accent),
+      oklch(0.15 0.02 272),
+      oklch(0.13 0.02 268)
+    );
+  box-shadow:
+    inset 0 2px 8px oklch(0.08 0.01 275 / 30%),
+    0 8px 32px oklch(0.05 0.01 275 / 40%),
+    0 2px 8px oklch(0.05 0.01 275 / 25%);
+}
+
+/* Bookshelf — hover glow on book spines */
+.book-spine-glow {
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+}
+
+.book-spine-glow:hover {
+  box-shadow: 0 0 12px oklch(0.72 0.12 65 / 25%);
+}
+
+.dark .book-spine-glow:hover {
+  box-shadow: 0 0 14px oklch(0.74 0.115 65 / 35%);
+}
