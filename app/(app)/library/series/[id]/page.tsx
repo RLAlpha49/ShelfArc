@@ -13,6 +13,8 @@ import { EmptyState } from "@/components/empty-state"
 import { CoverImage } from "@/components/library/cover-image"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
+import { formatDate } from "@/lib/format-date"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -26,11 +28,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import type {
+  SeriesWithVolumes,
   SeriesInsert,
   Volume,
   VolumeInsert,
   OwnershipStatus
 } from "@/lib/types/database"
+import type { DateFormat } from "@/lib/store/settings-store"
 import { type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
@@ -42,6 +46,259 @@ const typeColors = {
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
+
+type SeriesInsightData = {
+  ownedVolumes: number
+  wishlistVolumes: number
+  readingVolumes: number
+  readVolumes: number
+  totalVolumes: number
+  collectionPercent: number
+  missingVolumes: number | null
+  totalPages: number
+  averageRating: number | null
+  latestVolume: Volume | null
+  volumeRangeLabel: string
+  nextVolumeLabel: string
+  nextVolumeNumber: number
+  catalogedVolumes: number
+  officialTotalVolumes: number | null
+  createdLabel: string
+  updatedLabel: string
+}
+
+const buildSeriesInsights = (
+  series: SeriesWithVolumes,
+  dateFormat: DateFormat
+): SeriesInsightData => {
+  const ownedVolumes = series.volumes.filter(
+    (volume) => volume.ownership_status === "owned"
+  ).length
+  const wishlistVolumes = series.volumes.filter(
+    (volume) => volume.ownership_status === "wishlist"
+  ).length
+  const readingVolumes = series.volumes.filter(
+    (volume) => volume.reading_status === "reading"
+  ).length
+  const readVolumes = series.volumes.filter(
+    (volume) => volume.reading_status === "completed"
+  ).length
+  const totalVolumes = series.total_volumes ?? series.volumes.length
+  const collectionPercent =
+    totalVolumes > 0 ? Math.round((ownedVolumes / totalVolumes) * 100) : 0
+  const missingVolumes =
+    series.total_volumes && series.total_volumes > 0
+      ? Math.max(series.total_volumes - ownedVolumes, 0)
+      : null
+  const totalPages = series.volumes.reduce(
+    (acc, volume) => acc + (volume.page_count ?? 0),
+    0
+  )
+  const ratedVolumes = series.volumes.filter(
+    (volume) => typeof volume.rating === "number"
+  )
+  const averageRating =
+    ratedVolumes.length > 0
+      ? Math.round(
+          (ratedVolumes.reduce((acc, volume) => acc + (volume.rating ?? 0), 0) /
+            ratedVolumes.length) *
+            10
+        ) / 10
+      : null
+  const latestVolume = series.volumes.reduce<Volume | null>((best, volume) => {
+    if (!best || volume.volume_number > best.volume_number) return volume
+    return best
+  }, null)
+  const firstVolume = series.volumes.reduce<Volume | null>((best, volume) => {
+    if (!best || volume.volume_number < best.volume_number) return volume
+    return best
+  }, null)
+  const nextVolumeNumber =
+    series.volumes.reduce((maxNumber, volume) => {
+      if (!Number.isFinite(volume.volume_number)) return maxNumber
+      return Math.max(maxNumber, volume.volume_number)
+    }, 0) + 1
+  const volumeRangeLabel =
+    firstVolume && latestVolume
+      ? `Vol. ${firstVolume.volume_number}–${latestVolume.volume_number}`
+      : "—"
+  const nextVolumeLabel =
+    series.total_volumes && nextVolumeNumber > series.total_volumes
+      ? "Complete"
+      : `Vol. ${nextVolumeNumber}`
+
+  return {
+    ownedVolumes,
+    wishlistVolumes,
+    readingVolumes,
+    readVolumes,
+    totalVolumes,
+    collectionPercent,
+    missingVolumes,
+    totalPages,
+    averageRating,
+    latestVolume,
+    volumeRangeLabel,
+    nextVolumeLabel,
+    nextVolumeNumber,
+    catalogedVolumes: series.volumes.length,
+    officialTotalVolumes: series.total_volumes,
+    createdLabel: formatDate(series.created_at, dateFormat),
+    updatedLabel: formatDate(series.updated_at, dateFormat)
+  }
+}
+
+const SeriesInsightsPanel = ({
+  insights
+}: {
+  readonly insights: SeriesInsightData
+}) => (
+  <div className="mt-6 grid gap-4 lg:grid-cols-2">
+    <div className="glass-card rounded-2xl p-5">
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground text-xs tracking-widest uppercase">
+          Collection breakdown
+        </span>
+        <span className="text-muted-foreground text-xs">
+          {insights.collectionPercent}% collected
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div>
+          <div className="text-foreground text-lg font-semibold">
+            {insights.ownedVolumes}
+          </div>
+          <div className="text-muted-foreground text-xs tracking-widest uppercase">
+            Owned
+          </div>
+        </div>
+        <div>
+          <div className="text-foreground text-lg font-semibold">
+            {insights.wishlistVolumes}
+          </div>
+          <div className="text-muted-foreground text-xs tracking-widest uppercase">
+            Wishlist
+          </div>
+        </div>
+        <div>
+          <div className="text-foreground text-lg font-semibold">
+            {insights.readingVolumes}
+          </div>
+          <div className="text-muted-foreground text-xs tracking-widest uppercase">
+            Reading
+          </div>
+        </div>
+        <div>
+          <div className="text-foreground text-lg font-semibold">
+            {insights.readVolumes}
+          </div>
+          <div className="text-muted-foreground text-xs tracking-widest uppercase">
+            Completed
+          </div>
+        </div>
+        <div>
+          <div className="text-foreground text-lg font-semibold">
+            {insights.missingVolumes ?? "—"}
+          </div>
+          <div className="text-muted-foreground text-xs tracking-widest uppercase">
+            Missing
+          </div>
+        </div>
+        <div>
+          <div className="text-foreground text-lg font-semibold">
+            {insights.averageRating ? insights.averageRating.toFixed(1) : "—"}
+          </div>
+          <div className="text-muted-foreground text-xs tracking-widest uppercase">
+            Avg rating
+          </div>
+        </div>
+      </div>
+      {insights.totalVolumes > 0 && (
+        <div className="mt-4">
+          <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
+            <div
+              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all"
+              style={{ width: `${insights.collectionPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+
+    <div className="glass-card rounded-2xl p-5">
+      <span className="text-muted-foreground text-xs tracking-widest uppercase">
+        Series details
+      </span>
+      <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Cataloged
+          </dt>
+          <dd className="font-medium">{insights.catalogedVolumes}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Total volumes
+          </dt>
+          <dd className="font-medium">
+            {insights.officialTotalVolumes ?? "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Volume range
+          </dt>
+          <dd className="font-medium">{insights.volumeRangeLabel}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Next volume
+          </dt>
+          <dd className="font-medium">{insights.nextVolumeLabel}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Latest volume
+          </dt>
+          <dd className="font-medium">
+            {insights.latestVolume ? (
+              <Link
+                href={`/library/volume/${insights.latestVolume.id}`}
+                className="text-foreground hover:text-primary"
+              >
+                Vol. {insights.latestVolume.volume_number}
+              </Link>
+            ) : (
+              "—"
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Total pages
+          </dt>
+          <dd className="font-medium">
+            {insights.totalPages > 0
+              ? insights.totalPages.toLocaleString()
+              : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Added
+          </dt>
+          <dd className="font-medium">{insights.createdLabel || "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Updated
+          </dt>
+          <dd className="font-medium">{insights.updatedLabel || "—"}</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+)
 
 export default function SeriesDetailPage() {
   const params = useParams()
@@ -63,6 +320,7 @@ export default function SeriesDetailPage() {
   } = useLibrary()
   const { selectedSeries, setSelectedSeries, deleteSeriesVolumes } =
     useLibraryStore()
+  const dateFormat = useSettingsStore((state) => state.dateFormat)
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [volumeDialogOpen, setVolumeDialogOpen] = useState(false)
@@ -80,6 +338,12 @@ export default function SeriesDetailPage() {
     selectedSeries?.id === seriesId
       ? selectedSeries
       : series.find((s) => s.id === seriesId)
+
+  const insights = useMemo(
+    () =>
+      currentSeries ? buildSeriesInsights(currentSeries, dateFormat) : null,
+    [currentSeries, dateFormat]
+  )
 
   const existingIsbns = useMemo(() => {
     if (!currentSeries) return []
@@ -313,7 +577,7 @@ export default function SeriesDetailPage() {
     )
   }
 
-  if (!currentSeries) {
+  if (!currentSeries || !insights) {
     return (
       <div className="px-6 py-8 lg:px-10">
         <EmptyState
@@ -327,21 +591,6 @@ export default function SeriesDetailPage() {
       </div>
     )
   }
-
-  const ownedVolumes = currentSeries.volumes.filter(
-    (v) => v.ownership_status === "owned"
-  ).length
-  const totalVolumes =
-    currentSeries.total_volumes || currentSeries.volumes.length
-  const readVolumes = currentSeries.volumes.filter(
-    (v) => v.reading_status === "completed"
-  ).length
-
-  const nextVolumeNumber =
-    currentSeries.volumes.reduce((maxNumber, volume) => {
-      if (!Number.isFinite(volume.volume_number)) return maxNumber
-      return Math.max(maxNumber, volume.volume_number)
-    }, 0) + 1
 
   const primaryVolume = currentSeries.volumes.reduce<Volume | null>(
     (best, volume) => {
@@ -498,7 +747,7 @@ export default function SeriesDetailPage() {
             <div className="glass-card mt-6 flex items-center divide-x rounded-2xl">
               <div className="flex-1 px-6 py-4 text-center">
                 <div className="font-display text-primary text-2xl font-bold">
-                  {ownedVolumes}/{totalVolumes}
+                  {insights.ownedVolumes}/{insights.totalVolumes}
                 </div>
                 <div className="text-muted-foreground text-xs tracking-widest uppercase">
                   Owned
@@ -506,7 +755,7 @@ export default function SeriesDetailPage() {
               </div>
               <div className="flex-1 px-6 py-4 text-center">
                 <div className="font-display text-primary text-2xl font-bold">
-                  {readVolumes}
+                  {insights.readVolumes}
                 </div>
                 <div className="text-muted-foreground text-xs tracking-widest uppercase">
                   Read
@@ -514,16 +763,14 @@ export default function SeriesDetailPage() {
               </div>
               <div className="flex-1 px-6 py-4 text-center">
                 <div className="font-display text-primary text-2xl font-bold">
-                  {totalVolumes > 0
-                    ? Math.round((ownedVolumes / totalVolumes) * 100)
-                    : 0}
-                  %
+                  {insights.collectionPercent}%
                 </div>
                 <div className="text-muted-foreground text-xs tracking-widest uppercase">
                   Complete
                 </div>
               </div>
             </div>
+            <SeriesInsightsPanel insights={insights} />
           </div>
         </div>
       </div>
@@ -622,7 +869,7 @@ export default function SeriesDetailPage() {
           }
         }}
         volume={editingVolume}
-        nextVolumeNumber={nextVolumeNumber}
+        nextVolumeNumber={insights.nextVolumeNumber}
         onSubmit={editingVolume ? handleEditVolume : handleAddVolume}
         seriesOptions={editingVolume ? series : undefined}
         selectedSeriesId={editingVolume ? selectedSeriesId : undefined}

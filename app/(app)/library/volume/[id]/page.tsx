@@ -13,6 +13,8 @@ import {
   DEFAULT_CURRENCY_CODE,
   useLibraryStore
 } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
+import { formatDate } from "@/lib/format-date"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -83,6 +85,7 @@ export default function VolumeDetailPage() {
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
   )
+  const dateFormat = useSettingsStore((state) => state.dateFormat)
 
   useEffect(() => {
     if (series.length === 0 && unassignedVolumes.length === 0) {
@@ -174,7 +177,7 @@ export default function VolumeDetailPage() {
         <Skeleton className="mb-6 h-8 w-48" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-1">
-            <Skeleton className="aspect-3/4 w-full rounded-lg" />
+            <Skeleton className="aspect-2/3 w-full rounded-lg" />
           </div>
           <div className="space-y-4 lg:col-span-2">
             <Skeleton className="h-6 w-3/4" />
@@ -210,6 +213,70 @@ export default function VolumeDetailPage() {
   const breadcrumbLabel = currentSeries
     ? `Volume ${currentVolume.volume_number}`
     : `${normalizedTitle} (Vol. ${currentVolume.volume_number})`
+
+  const publishedLabel = formatDate(currentVolume.publish_date, dateFormat)
+  const purchaseDateLabel = formatDate(currentVolume.purchase_date, dateFormat)
+  const startedLabel = formatDate(currentVolume.started_at, dateFormat)
+  const finishedLabel = formatDate(currentVolume.finished_at, dateFormat)
+  const addedLabel = formatDate(currentVolume.created_at, dateFormat)
+  const updatedLabel = formatDate(currentVolume.updated_at, dateFormat)
+
+  const detailItems = [
+    {
+      label: "Series",
+      value: currentSeries ? (
+        <Link
+          href={`/library/series/${currentSeries.id}`}
+          className="text-foreground hover:text-primary"
+        >
+          {currentSeries.title}
+        </Link>
+      ) : (
+        "Unassigned"
+      ),
+      show: true
+    },
+    {
+      label: "ISBN",
+      value: currentVolume.isbn,
+      show: Boolean(currentVolume.isbn)
+    },
+    {
+      label: "Edition",
+      value: currentVolume.edition,
+      show: Boolean(currentVolume.edition)
+    },
+    {
+      label: "Format",
+      value: currentVolume.format,
+      show: Boolean(currentVolume.format)
+    },
+    {
+      label: "Published",
+      value: publishedLabel,
+      show: Boolean(publishedLabel)
+    },
+    {
+      label: "Purchased",
+      value: purchaseDateLabel,
+      show: Boolean(purchaseDateLabel)
+    },
+    {
+      label: "Price",
+      value:
+        currentVolume.purchase_price !== null &&
+        currentVolume.purchase_price !== undefined
+          ? priceFormatter.format(currentVolume.purchase_price)
+          : null,
+      show:
+        currentVolume.purchase_price !== null &&
+        currentVolume.purchase_price !== undefined
+    },
+    { label: "Started", value: startedLabel, show: Boolean(startedLabel) },
+    { label: "Finished", value: finishedLabel, show: Boolean(finishedLabel) },
+    { label: "Added", value: addedLabel || "—", show: true },
+    { label: "Updated", value: updatedLabel || "—", show: true }
+  ]
 
   return (
     <div className="relative px-6 py-8 lg:px-10">
@@ -271,7 +338,7 @@ export default function VolumeDetailPage() {
         <div className="lg:col-span-5">
           <div className="relative">
             <div className="absolute -inset-4 rounded-3xl bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)]" />
-            <div className="bg-muted relative aspect-3/4 overflow-hidden rounded-2xl shadow-lg">
+            <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-2xl shadow-lg">
               <CoverImage
                 isbn={currentVolume.isbn}
                 coverImageUrl={currentVolume.cover_image_url}
@@ -356,18 +423,23 @@ export default function VolumeDetailPage() {
               </div>
             )}
 
-          {(currentVolume.purchase_date || currentVolume.purchase_price) && (
-            <div className="text-muted-foreground text-sm">
-              {currentVolume.purchase_date && (
-                <p>Purchased on {currentVolume.purchase_date}</p>
-              )}
-              {currentVolume.purchase_price && (
-                <p>
-                  Price {priceFormatter.format(currentVolume.purchase_price)}
-                </p>
-              )}
-            </div>
-          )}
+          <div className="glass-card rounded-2xl p-5">
+            <span className="text-muted-foreground text-xs tracking-widest uppercase">
+              Details
+            </span>
+            <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+              {detailItems
+                .filter((item) => item.show)
+                .map((item) => (
+                  <div key={item.label}>
+                    <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+                      {item.label}
+                    </dt>
+                    <dd className="font-medium">{item.value}</dd>
+                  </div>
+                ))}
+            </dl>
+          </div>
         </div>
       </div>
 
