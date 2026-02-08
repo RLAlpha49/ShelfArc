@@ -233,9 +233,11 @@ export function SeriesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{series ? "Edit Series" : "Add New Series"}</DialogTitle>
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto rounded-2xl p-0 sm:max-w-4xl">
+        <DialogHeader className="bg-warm/30 rounded-t-2xl border-b px-6 pt-6 pb-4">
+          <DialogTitle className="font-display">
+            {series ? "Edit Series" : "Add New Series"}
+          </DialogTitle>
           <DialogDescription>
             {series
               ? "Update the series information below."
@@ -243,10 +245,13 @@ export function SeriesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 px-6 pt-6">
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-6">
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Basic Info
+                </span>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="title">Title *</Label>
@@ -292,6 +297,9 @@ export function SeriesDialog({
               </div>
 
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Credits
+                </span>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="author">Author</Label>
@@ -332,6 +340,9 @@ export function SeriesDialog({
               </div>
 
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Publication
+                </span>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="type">Type *</Label>
@@ -413,8 +424,11 @@ export function SeriesDialog({
               </div>
             </div>
 
-            <aside className="bg-muted/30 rounded-lg border p-4">
+            <aside className="glass-card rounded-2xl p-4">
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Cover Art
+                </span>
                 <div className="space-y-2">
                   <Label htmlFor="cover_image_url">Cover Image URL</Label>
                   <Input
@@ -474,7 +488,7 @@ export function SeriesDialog({
 
                 {coverUrl && !coverPreviewError && (
                   <div className="flex justify-center">
-                    <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded">
+                    <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded-xl">
                       <img
                         src={coverUrl}
                         alt="Cover preview"
@@ -497,7 +511,7 @@ export function SeriesDialog({
                 )}
                 {coverPreviewError && (
                   <div className="flex justify-center">
-                    <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded text-xs">
+                    <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded-xl text-xs">
                       Preview unavailable
                     </div>
                   </div>
@@ -509,15 +523,20 @@ export function SeriesDialog({
             </aside>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 pb-6">
             <Button
               type="button"
               variant="outline"
+              className="rounded-xl"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || isUploading}>
+            <Button
+              type="submit"
+              className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+              disabled={loading || isUploading}
+            >
               {loading && "Saving..."}
               {!loading && series && "Save Changes"}
               {!loading && !series && "Add Series"}

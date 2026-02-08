@@ -5,8 +5,6 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { CoverImage } from "@/components/library/cover-image"
 import { VolumeDialog } from "@/components/library/volume-dialog"
 import { EmptyState } from "@/components/empty-state"
@@ -48,19 +46,19 @@ const formatReadingStatus = (status: string) => {
 }
 
 export const ownershipColors: Record<string, string> = {
-  owned: "bg-green-500/10 text-green-500",
-  wishlist: "bg-yellow-500/10 text-yellow-500",
-  reading: "bg-blue-500/10 text-blue-500",
-  completed: "bg-purple-500/10 text-purple-500",
-  dropped: "bg-red-500/10 text-red-500"
+  owned: "bg-copper/10 text-copper",
+  wishlist: "bg-gold/10 text-gold",
+  reading: "bg-primary/10 text-primary",
+  completed: "bg-copper/10 text-copper",
+  dropped: "bg-destructive/10 text-destructive"
 }
 
 export const readingColors: Record<string, string> = {
-  unread: "bg-gray-500/10 text-gray-500",
-  reading: "bg-blue-500/10 text-blue-500",
-  completed: "bg-green-500/10 text-green-500",
-  on_hold: "bg-yellow-500/10 text-yellow-500",
-  dropped: "bg-red-500/10 text-red-500"
+  unread: "bg-muted text-muted-foreground",
+  reading: "bg-primary/10 text-primary",
+  completed: "bg-copper/10 text-copper",
+  on_hold: "bg-gold/10 text-gold",
+  dropped: "bg-destructive/10 text-destructive"
 }
 
 export default function VolumeDetailPage() {
@@ -172,7 +170,7 @@ export default function VolumeDetailPage() {
 
   if (isLoading && !currentVolume) {
     return (
-      <div className="container mx-auto px-4 py-6">
+      <div className="relative px-6 py-8 lg:px-10">
         <Skeleton className="mb-6 h-8 w-48" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-1">
@@ -190,7 +188,7 @@ export default function VolumeDetailPage() {
 
   if (!currentVolume) {
     return (
-      <div className="container mx-auto px-4 py-6">
+      <div className="relative px-6 py-8 lg:px-10">
         <EmptyState
           title="Volume not found"
           description="The volume you're looking for doesn't exist or has been deleted."
@@ -214,8 +212,11 @@ export default function VolumeDetailPage() {
     : `${normalizedTitle} (Vol. ${currentVolume.volume_number})`
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <nav className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+    <div className="relative px-6 py-8 lg:px-10">
+      {/* Atmospheric background */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_30%_20%,var(--warm-glow-strong),transparent_70%)]" />
+
+      <nav className="animate-fade-in-down mb-8 flex flex-wrap items-center gap-2 text-xs tracking-wider">
         <Link
           href="/library"
           className="text-muted-foreground hover:text-foreground"
@@ -237,51 +238,61 @@ export default function VolumeDetailPage() {
         <span className="font-medium">{breadcrumbLabel}</span>
       </nav>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold">{heading}</h1>
-          {currentVolume.isbn && (
-            <p className="text-muted-foreground text-sm">
-              ISBN {currentVolume.isbn}
-            </p>
-          )}
+      <div className="mb-8 grid items-start gap-6 lg:grid-cols-12">
+        <div className="animate-fade-in-up lg:col-span-8">
+          <span className="text-muted-foreground mb-2 block text-xs tracking-widest uppercase">
+            {currentVolume.isbn
+              ? `ISBN ${currentVolume.isbn}`
+              : "Volume Details"}
+          </span>
+          <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+            {heading}
+          </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={openEditDialog}>
+        <div className="animate-fade-in-up stagger-2 flex items-start justify-end gap-2 lg:col-span-4">
+          <Button
+            variant="outline"
+            onClick={openEditDialog}
+            className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+          >
             Edit Volume
           </Button>
           <Button
             variant="destructive"
             onClick={() => setDeleteDialogOpen(true)}
+            className="rounded-xl shadow-sm"
           >
             Delete Volume
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-1">
-          <div className="bg-muted relative aspect-3/4 overflow-hidden rounded-lg">
-            <CoverImage
-              isbn={currentVolume.isbn}
-              coverImageUrl={currentVolume.cover_image_url}
-              alt={heading}
-              className="absolute inset-0 h-full w-full object-cover"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-              fallback={
-                <div className="flex h-full items-center justify-center">
-                  <span className="text-muted-foreground/40 text-4xl font-semibold">
-                    {currentVolume.volume_number}
-                  </span>
-                </div>
-              }
-            />
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-3xl bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)]" />
+            <div className="bg-muted relative aspect-3/4 overflow-hidden rounded-2xl shadow-lg">
+              <CoverImage
+                isbn={currentVolume.isbn}
+                coverImageUrl={currentVolume.cover_image_url}
+                alt={heading}
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+                fallback={
+                  <div className="flex h-full items-center justify-center">
+                    <span className="text-muted-foreground/40 text-4xl font-semibold">
+                      {currentVolume.volume_number}
+                    </span>
+                  </div>
+                }
+              />
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4 lg:col-span-2">
+        <div className="space-y-4 lg:col-span-7">
           <div className="flex flex-wrap gap-2">
             <Badge
               variant="secondary"
@@ -300,25 +311,33 @@ export default function VolumeDetailPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold">
-                  {currentVolume.page_count ?? "—"}
+          <div className="glass-card flex items-center divide-x rounded-2xl">
+            <div className="flex-1 px-5 py-4 text-center">
+              <div className="font-display text-primary text-2xl font-bold">
+                {currentVolume.page_count ?? "—"}
+              </div>
+              <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                Pages
+              </div>
+            </div>
+            <div className="flex-1 px-5 py-4 text-center">
+              <div className="font-display text-primary text-2xl font-bold">
+                {currentVolume.current_page ?? "—"}
+              </div>
+              <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                Current Page
+              </div>
+            </div>
+            {currentVolume.rating && (
+              <div className="flex-1 px-5 py-4 text-center">
+                <div className="font-display text-primary text-2xl font-bold">
+                  {currentVolume.rating}/10
                 </div>
-                <div className="text-muted-foreground text-sm">Pages</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold">
-                  {currentVolume.current_page ?? "—"}
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  Rating
                 </div>
-                <div className="text-muted-foreground text-sm">
-                  Current Page
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            )}
           </div>
 
           {progressPercent !== null &&
@@ -328,9 +347,9 @@ export default function VolumeDetailPage() {
                   <span>Reading progress</span>
                   <span>{progressPercent}%</span>
                 </div>
-                <div className="bg-muted h-2 overflow-hidden rounded-full">
+                <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
                   <div
-                    className="bg-primary h-full rounded-full transition-all"
+                    className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -352,18 +371,28 @@ export default function VolumeDetailPage() {
         </div>
       </div>
 
-      <Separator className="my-8" />
+      <div className="my-10 border-t" />
 
       {currentVolume.description && (
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold">Description</h2>
+          <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
+            About
+          </span>
+          <h2 className="font-display text-xl font-semibold tracking-tight">
+            Description
+          </h2>
           <p className="text-muted-foreground">{currentVolume.description}</p>
         </div>
       )}
 
       {currentVolume.notes && (
-        <div className="mt-6 space-y-2">
-          <h2 className="text-xl font-semibold">Notes</h2>
+        <div className="mt-8 space-y-2 border-t pt-8">
+          <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
+            Personal
+          </span>
+          <h2 className="font-display text-xl font-semibold tracking-tight">
+            Notes
+          </h2>
           <p className="text-muted-foreground whitespace-pre-line">
             {currentVolume.notes}
           </p>

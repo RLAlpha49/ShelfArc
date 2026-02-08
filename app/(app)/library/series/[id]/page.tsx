@@ -5,8 +5,6 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { VolumeDialog } from "@/components/library/volume-dialog"
 import { SeriesDialog } from "@/components/library/series-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
@@ -37,9 +35,9 @@ import { normalizeBookKey, type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
 const typeColors = {
-  light_novel: "bg-blue-500/10 text-blue-500",
-  manga: "bg-purple-500/10 text-purple-500",
-  other: "bg-gray-500/10 text-gray-500"
+  light_novel: "bg-gold/10 text-gold",
+  manga: "bg-copper/10 text-copper",
+  other: "bg-muted text-muted-foreground"
 }
 
 const getErrorMessage = (error: unknown) =>
@@ -308,7 +306,7 @@ export default function SeriesDetailPage() {
 
   if (isLoading && !currentSeries) {
     return (
-      <div className="container mx-auto px-4 py-6">
+      <div className="px-6 py-8 lg:px-10">
         <Skeleton className="mb-6 h-8 w-48" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-1">
@@ -326,7 +324,7 @@ export default function SeriesDetailPage() {
 
   if (!currentSeries) {
     return (
-      <div className="container mx-auto px-4 py-6">
+      <div className="px-6 py-8 lg:px-10">
         <EmptyState
           title="Series not found"
           description="The series you're looking for doesn't exist or has been deleted."
@@ -365,9 +363,12 @@ export default function SeriesDetailPage() {
   const primaryIsbn = primaryVolume?.isbn ?? null
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="relative px-6 py-8 lg:px-10">
+      {/* Atmospheric background */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_30%_20%,var(--warm-glow-strong),transparent_70%)]" />
+
       {/* Breadcrumb */}
-      <nav className="mb-6 flex items-center gap-2 text-sm">
+      <nav className="animate-fade-in-down mb-8 flex items-center gap-2 text-xs tracking-wider">
         <Link
           href="/library"
           className="text-muted-foreground hover:text-foreground"
@@ -379,152 +380,180 @@ export default function SeriesDetailPage() {
       </nav>
 
       {/* Series Header */}
-      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-4">
-        {/* Cover Image */}
-        <div className="lg:col-span-1">
-          <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-lg">
-            <CoverImage
-              isbn={primaryIsbn}
-              coverImageUrl={currentSeries.cover_image_url}
-              alt={currentSeries.title}
-              className="absolute inset-0 h-full w-full object-cover"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-              fallback={
-                <div className="flex h-full items-center justify-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    className="text-muted-foreground/50 h-16 w-16"
-                  >
-                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-                  </svg>
-                </div>
-              }
-            />
+      <div className="relative mb-10">
+        <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-[radial-gradient(ellipse_at_30%_50%,var(--warm-glow-strong),transparent_70%)]" />
+        <div className="animate-fade-in-up grid grid-cols-1 gap-8 lg:grid-cols-12">
+          {/* Cover Image */}
+          <div className="lg:col-span-4">
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-3xl bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)]" />
+              <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-2xl shadow-lg">
+                <CoverImage
+                  isbn={primaryIsbn}
+                  coverImageUrl={currentSeries.cover_image_url}
+                  alt={currentSeries.title}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                  fallback={
+                    <div className="flex h-full items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        className="text-muted-foreground/50 h-16 w-16"
+                      >
+                        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                      </svg>
+                    </div>
+                  }
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Series Info */}
-        <div className="space-y-4 lg:col-span-3">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="secondary"
-                  className={typeColors[currentSeries.type]}
-                >
-                  {currentSeries.type === "light_novel" && "Light Novel"}
-                  {currentSeries.type === "manga" && "Manga"}
-                  {currentSeries.type === "other" && "Other"}
-                </Badge>
-                {currentSeries.status && (
-                  <Badge variant="outline">{currentSeries.status}</Badge>
+          {/* Series Info */}
+          <div className="space-y-4 lg:col-span-8">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="secondary"
+                    className={typeColors[currentSeries.type]}
+                  >
+                    {currentSeries.type === "light_novel" && "Light Novel"}
+                    {currentSeries.type === "manga" && "Manga"}
+                    {currentSeries.type === "other" && "Other"}
+                  </Badge>
+                  {currentSeries.status && (
+                    <Badge variant="outline">{currentSeries.status}</Badge>
+                  )}
+                </div>
+                <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+                  {currentSeries.title}
+                </h1>
+                {currentSeries.original_title && (
+                  <p className="text-muted-foreground mt-1 text-lg">
+                    {currentSeries.original_title}
+                  </p>
                 )}
               </div>
-              <h1 className="text-3xl font-bold">{currentSeries.title}</h1>
-              {currentSeries.original_title && (
-                <p className="text-muted-foreground mt-1 text-lg">
-                  {currentSeries.original_title}
-                </p>
-              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+                  onClick={() => setSeriesDialogOpen(true)}
+                >
+                  Edit Series
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="rounded-xl shadow-sm"
+                  onClick={() => setDeleteSeriesDialogOpen(true)}
+                >
+                  Delete Series
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setSeriesDialogOpen(true)}
-              >
-                Edit Series
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteSeriesDialogOpen(true)}
-              >
-                Delete Series
-              </Button>
-            </div>
-          </div>
 
-          {currentSeries.author && (
-            <p className="text-muted-foreground">
-              By{" "}
-              <span className="text-foreground font-medium">
-                {currentSeries.author}
-              </span>
-              {currentSeries.artist &&
-                currentSeries.artist !== currentSeries.author && (
-                  <>
-                    , illustrated by{" "}
-                    <span className="text-foreground font-medium">
-                      {currentSeries.artist}
-                    </span>
-                  </>
-                )}
-            </p>
-          )}
+            {currentSeries.author && (
+              <p className="text-muted-foreground">
+                By{" "}
+                <span className="text-foreground font-medium">
+                  {currentSeries.author}
+                </span>
+                {currentSeries.artist &&
+                  currentSeries.artist !== currentSeries.author && (
+                    <>
+                      , illustrated by{" "}
+                      <span className="text-foreground font-medium">
+                        {currentSeries.artist}
+                      </span>
+                    </>
+                  )}
+              </p>
+            )}
 
-          {currentSeries.publisher && (
-            <p className="text-muted-foreground text-sm">
-              Published by {currentSeries.publisher}
-            </p>
-          )}
+            {currentSeries.publisher && (
+              <p className="text-muted-foreground text-sm">
+                Published by {currentSeries.publisher}
+              </p>
+            )}
 
-          {currentSeries.description && (
-            <p className="text-muted-foreground">{currentSeries.description}</p>
-          )}
+            {currentSeries.description && (
+              <p className="text-muted-foreground">
+                {currentSeries.description}
+              </p>
+            )}
 
-          {currentSeries.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {currentSeries.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
+            {currentSeries.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {currentSeries.tags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="border-primary/15 rounded-lg"
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 pt-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold">
+            {/* Stats */}
+            <div className="glass-card mt-6 flex items-center divide-x rounded-2xl">
+              <div className="flex-1 px-6 py-4 text-center">
+                <div className="font-display text-primary text-2xl font-bold">
                   {ownedVolumes}/{totalVolumes}
                 </div>
-                <div className="text-muted-foreground text-sm">Owned</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold">{readVolumes}</div>
-                <div className="text-muted-foreground text-sm">Read</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold">
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  Owned
+                </div>
+              </div>
+              <div className="flex-1 px-6 py-4 text-center">
+                <div className="font-display text-primary text-2xl font-bold">
+                  {readVolumes}
+                </div>
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  Read
+                </div>
+              </div>
+              <div className="flex-1 px-6 py-4 text-center">
+                <div className="font-display text-primary text-2xl font-bold">
                   {totalVolumes > 0
                     ? Math.round((ownedVolumes / totalVolumes) * 100)
                     : 0}
                   %
                 </div>
-                <div className="text-muted-foreground text-sm">Complete</div>
-              </CardContent>
-            </Card>
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  Complete
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <Separator className="my-8" />
+      <div className="my-10 border-t" />
 
       {/* Volumes Section */}
       <div>
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Volumes</h2>
-          <Button onClick={openAddDialog}>
+        <div className="animate-fade-in-up stagger-2 mb-6 flex items-center justify-between">
+          <div>
+            <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
+              Collection
+            </span>
+            <h2 className="font-display text-xl font-semibold tracking-tight">
+              Volumes
+            </h2>
+          </div>
+          <Button
+            className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+            onClick={openAddDialog}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -562,18 +591,20 @@ export default function SeriesDetailPage() {
             }}
           />
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {currentSeries.volumes
-              .toSorted((a, b) => a.volume_number - b.volume_number)
-              .map((volume) => (
-                <VolumeCard
-                  key={volume.id}
-                  volume={volume}
-                  onClick={() => handleVolumeClick(volume.id)}
-                  onEdit={() => openEditDialog(volume)}
-                  onDelete={() => openDeleteDialog(volume)}
-                />
-              ))}
+          <div className="animate-fade-in-up">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              {currentSeries.volumes
+                .toSorted((a, b) => a.volume_number - b.volume_number)
+                .map((volume) => (
+                  <VolumeCard
+                    key={volume.id}
+                    volume={volume}
+                    onClick={() => handleVolumeClick(volume.id)}
+                    onEdit={() => openEditDialog(volume)}
+                    onDelete={() => openDeleteDialog(volume)}
+                  />
+                ))}
+            </div>
           </div>
         )}
       </div>

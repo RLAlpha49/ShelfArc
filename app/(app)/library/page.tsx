@@ -45,22 +45,24 @@ function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
 
   if (viewMode === "grid") {
     return (
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {items.map((id) => (
-          <div key={id} className="space-y-2">
-            <Skeleton className="aspect-2/3 w-full rounded-md" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
-          </div>
-        ))}
+      <div className="animate-fade-in">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {items.map((id) => (
+            <div key={id} className="space-y-2 p-3">
+              <Skeleton className="aspect-2/3 w-full rounded-xl" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="animate-fade-in space-y-4">
       {items.map((id) => (
-        <Skeleton key={id} className="h-20 w-full rounded-md" />
+        <Skeleton key={id} className="h-20 w-full rounded-xl" />
       ))}
     </div>
   )
@@ -92,10 +94,10 @@ function SeriesListItem({
   return (
     <button
       type="button"
-      className="group hover:bg-accent flex w-full cursor-pointer items-center gap-4 rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
+      className="group glass-card hover:bg-accent flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
       onClick={onClick}
     >
-      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-lg">
+      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-xl">
         <CoverImage
           isbn={primaryIsbn}
           coverImageUrl={series.cover_image_url}
@@ -139,6 +141,18 @@ type VolumeWithSeries = {
   series: SeriesWithVolumes
 }
 
+const VOLUME_TOKEN_PATTERN =
+  /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
+
+const normalizeVolumeTitle = (title: string) => {
+  const withoutToken = title.replaceAll(VOLUME_TOKEN_PATTERN, " ")
+  const cleaned = withoutToken
+    .replaceAll(/\s*[-–—:]\s*$/g, "")
+    .replaceAll(/\s+/g, " ")
+    .trim()
+  return cleaned || title.trim()
+}
+
 function VolumeGridItem({
   item,
   onClick,
@@ -152,27 +166,17 @@ function VolumeGridItem({
 }) {
   const volumeLabel = `Volume ${item.volume.volume_number}`
   const volumeDescriptor = item.volume.title
-    ? `${volumeLabel} • ${item.volume.title}`
+    ? `${volumeLabel} • ${normalizeVolumeTitle(item.volume.title)}`
     : volumeLabel
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="group relative cursor-pointer text-left transition-shadow hover:shadow-lg"
+    <button
+      type="button"
+      className="group bg-card hover:bg-accent/40 relative cursor-pointer overflow-hidden rounded-2xl text-left transition-colors"
       onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) {
-          return
-        }
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault()
-          onClick()
-        }
-      }}
     >
-      <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-md">
+      <div className="bg-muted relative aspect-2/3 overflow-hidden">
         <CoverImage
           isbn={item.volume.isbn}
           coverImageUrl={item.volume.cover_image_url}
@@ -194,7 +198,7 @@ function VolumeGridItem({
         <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex h-8 w-8 items-center justify-center rounded-md"
+              className="bg-background/80 hover:bg-background inline-flex h-8 w-8 items-center justify-center rounded-md backdrop-blur-sm"
               onClick={(event) => event.stopPropagation()}
             >
               <svg
@@ -233,14 +237,18 @@ function VolumeGridItem({
           </DropdownMenu>
         </div>
       </div>
-      <div className="mt-2 space-y-1">
-        <p className="line-clamp-1 font-medium">{item.series.title}</p>
+      <div className="mt-2.5 space-y-1 px-1 pb-2">
+        <p className="font-display line-clamp-1 font-medium">
+          {item.series.title}
+        </p>
         <p className="text-muted-foreground line-clamp-2 text-xs">
           Vol. {item.volume.volume_number}
-          {item.volume.title ? ` • ${item.volume.title}` : ""}
+          {item.volume.title
+            ? ` • ${normalizeVolumeTitle(item.volume.title)}`
+            : ""}
         </p>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -262,33 +270,12 @@ function VolumeListItem({
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="group hover:bg-accent relative flex w-full cursor-pointer items-center gap-4 rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
+    <button
+      type="button"
+      className="group glass-card hover:bg-accent relative flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
       onClick={onClick}
-      onKeyDown={(event) => {
-        const target = event.target as HTMLElement
-
-        if (target !== event.currentTarget) {
-          if (
-            target.closest(
-              'button, a, input, textarea, select, [role="button"]'
-            )
-          ) {
-            return
-          }
-
-          return
-        }
-
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault()
-          onClick()
-        }
-      }}
     >
-      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded">
+      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-lg">
         <CoverImage
           isbn={item.volume.isbn}
           coverImageUrl={item.volume.cover_image_url}
@@ -364,7 +351,7 @@ function VolumeListItem({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -632,9 +619,16 @@ export default function LibraryPage() {
     if (filteredUnassignedVolumes.length === 0) return null
 
     return (
-      <div className="mt-8 space-y-3">
+      <div className="animate-fade-in-up stagger-3 mt-10 space-y-4 border-t pt-10">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Unassigned Books</h2>
+          <div>
+            <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
+              Uncategorized
+            </span>
+            <h2 className="font-display text-lg font-semibold">
+              Unassigned Books
+            </h2>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filteredUnassignedVolumes.map((volume) => (
@@ -691,28 +685,32 @@ export default function LibraryPage() {
         <div className="space-y-8">
           {hasAssignedVolumes &&
             (viewMode === "grid" ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                {filteredVolumes.map((item) => (
-                  <VolumeGridItem
-                    key={item.volume.id}
-                    item={item}
-                    onClick={() => handleVolumeClick(item.volume.id)}
-                    onEdit={() => openEditVolumeDialog(item.volume)}
-                    onDelete={() => openDeleteVolumeDialog(item.volume)}
-                  />
-                ))}
+              <div className="animate-fade-in-up">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {filteredVolumes.map((item) => (
+                    <VolumeGridItem
+                      key={item.volume.id}
+                      item={item}
+                      onClick={() => handleVolumeClick(item.volume.id)}
+                      onEdit={() => openEditVolumeDialog(item.volume)}
+                      onDelete={() => openDeleteVolumeDialog(item.volume)}
+                    />
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                {filteredVolumes.map((item) => (
-                  <VolumeListItem
-                    key={item.volume.id}
-                    item={item}
-                    onClick={() => handleVolumeClick(item.volume.id)}
-                    onEdit={() => openEditVolumeDialog(item.volume)}
-                    onDelete={() => openDeleteVolumeDialog(item.volume)}
-                  />
-                ))}
+              <div className="animate-fade-in-up">
+                <div className="space-y-2">
+                  {filteredVolumes.map((item) => (
+                    <VolumeListItem
+                      key={item.volume.id}
+                      item={item}
+                      onClick={() => handleVolumeClick(item.volume.id)}
+                      onEdit={() => openEditVolumeDialog(item.volume)}
+                      onDelete={() => openDeleteVolumeDialog(item.volume)}
+                    />
+                  ))}
+                </div>
               </div>
             ))}
           {renderUnassignedSection()}
@@ -750,16 +748,21 @@ export default function LibraryPage() {
     if (viewMode === "grid") {
       return (
         <div className="space-y-8">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {filteredSeries.map((series) => (
-              <SeriesCard
-                key={series.id}
-                series={series}
-                onEdit={() => openEditDialog(series)}
-                onDelete={() => openDeleteDialog(series)}
-                onClick={() => handleSeriesClick(series)}
-              />
-            ))}
+          <div className="animate-fade-in-up">
+            <div className="overflow-hidden rounded-2xl">
+              {" "}
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                {filteredSeries.map((series) => (
+                  <SeriesCard
+                    key={series.id}
+                    series={series}
+                    onEdit={() => openEditDialog(series)}
+                    onDelete={() => openDeleteDialog(series)}
+                    onClick={() => handleSeriesClick(series)}
+                  />
+                ))}
+              </div>
+            </div>{" "}
           </div>
           {renderUnassignedSection()}
         </div>
@@ -768,14 +771,16 @@ export default function LibraryPage() {
 
     return (
       <div className="space-y-8">
-        <div className="space-y-2">
-          {filteredSeries.map((series) => (
-            <SeriesListItem
-              key={series.id}
-              series={series}
-              onClick={() => handleSeriesClick(series)}
-            />
-          ))}
+        <div className="animate-fade-in-up">
+          <div className="space-y-2">
+            {filteredSeries.map((series) => (
+              <SeriesListItem
+                key={series.id}
+                series={series}
+                onClick={() => handleSeriesClick(series)}
+              />
+            ))}
+          </div>
         </div>
         {renderUnassignedSection()}
       </div>
@@ -783,15 +788,64 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="px-6 py-8 lg:px-10">
-      <div className="mb-8 flex items-end justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">
-            My Library
+    <div className="relative px-6 py-8 lg:px-10">
+      {/* Atmospheric background */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
+
+      <div className="mb-10 grid items-end gap-6 lg:grid-cols-12">
+        {/* Left: editorial heading — 7 columns */}
+        <div className="animate-fade-in-up lg:col-span-7">
+          <span className="text-muted-foreground mb-3 block text-xs tracking-widest uppercase">
+            Collection
+          </span>
+          <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+            My{" "}
+            <span className="text-gradient from-copper to-gold bg-linear-to-r">
+              Library
+            </span>
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-2 max-w-lg leading-relaxed">
             Manage your light novel and manga collection
           </p>
+        </div>
+        {/* Right: quick stats — 5 columns */}
+        <div className="animate-fade-in-up stagger-2 hidden lg:col-span-5 lg:flex lg:items-end lg:justify-end lg:gap-6">
+          {!isLoading && series.length > 0 && (
+            <>
+              <div className="text-right">
+                <div className="font-display text-primary text-2xl font-bold">
+                  {series.length}
+                </div>
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  Series
+                </div>
+              </div>
+              <div className="bg-border h-8 w-px" />
+              <div className="text-right">
+                <div className="font-display text-primary text-2xl font-bold">
+                  {series.reduce(
+                    (sum, s) =>
+                      sum +
+                      s.volumes.filter((v) => v.ownership_status === "owned")
+                        .length,
+                    0
+                  )}
+                </div>
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  Owned
+                </div>
+              </div>
+              <div className="bg-border h-8 w-px" />
+              <div className="text-right">
+                <div className="font-display text-primary text-2xl font-bold">
+                  {series.reduce((sum, s) => sum + s.volumes.length, 0)}
+                </div>
+                <div className="text-muted-foreground text-xs tracking-widest uppercase">
+                  Volumes
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -800,7 +854,8 @@ export default function LibraryPage() {
         onAddSeries={openAddSeriesDialog}
       />
 
-      <div className="mt-6">{renderContent()}</div>
+      <div className="my-8 border-t" />
+      <div>{renderContent()}</div>
 
       <BookSearchDialog
         open={searchDialogOpen}

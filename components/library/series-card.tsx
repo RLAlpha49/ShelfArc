@@ -2,7 +2,6 @@
 
 import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +20,7 @@ interface SeriesCardProps {
 }
 
 const TYPE_COLORS: Record<TitleType, string> = {
-  light_novel: "bg-primary/10 text-primary",
+  light_novel: "bg-gold/10 text-gold",
   manga: "bg-copper/10 text-copper",
   other: "bg-muted text-muted-foreground"
 }
@@ -55,8 +54,9 @@ export function SeriesCard({
   const totalVolumes = series.total_volumes || series.volumes.length
 
   return (
-    <Card
-      className="group relative cursor-pointer overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+    <button
+      type="button"
+      className="group bg-card hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors"
       onClick={onClick}
     >
       <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
@@ -131,17 +131,24 @@ export function SeriesCard({
         <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
 
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-display line-clamp-2 text-sm leading-tight font-semibold">
-            {series.title}
-          </h3>
-        </div>
+      <div className="p-3">
+        <h3 className="font-display line-clamp-2 text-sm leading-tight font-semibold">
+          {series.title}
+        </h3>
 
         {series.author && (
           <p className="text-muted-foreground mt-1 line-clamp-1 text-xs">
             {series.author}
           </p>
+        )}
+
+        {totalVolumes > 0 && (
+          <div className="bg-primary/10 mt-2.5 h-1.5 w-full overflow-hidden rounded-full">
+            <div
+              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+              style={{ width: `${(ownedVolumes / totalVolumes) * 100}%` }}
+            />
+          </div>
         )}
 
         <div className="mt-2 flex flex-wrap gap-1">
@@ -158,29 +165,21 @@ export function SeriesCard({
             <Badge
               key={tag}
               variant="outline"
-              className="border-border/60 rounded-lg text-xs"
+              className="border-primary/15 rounded-lg text-xs"
             >
               {tag}
             </Badge>
           ))}
         </div>
 
-        <div className="text-muted-foreground mt-3 flex items-center justify-between text-xs">
+        <div className="text-muted-foreground mt-2.5 flex items-center gap-3 text-[11px]">
           <span>
             {ownedVolumes}/{totalVolumes} owned
           </span>
+          <span className="bg-border h-3 w-px" />
           <span>{readVolumes} read</span>
         </div>
-
-        {totalVolumes > 0 && (
-          <div className="bg-primary/10 mt-2 h-1.5 w-full overflow-hidden rounded-full">
-            <div
-              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
-              style={{ width: `${(ownedVolumes / totalVolumes) * 100}%` }}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </button>
   )
 }

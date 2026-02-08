@@ -385,10 +385,10 @@ export function BookSearchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden p-0 sm:max-w-3xl">
-        <DialogHeader className="bg-muted/30 shrink-0 border-b px-6 pt-6 pb-4">
+      <DialogContent className="flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl p-0 sm:max-w-3xl">
+        <DialogHeader className="bg-warm/30 shrink-0 border-b px-6 pt-6 pb-4">
           <div className="flex flex-col gap-1">
-            <DialogTitle className="text-base">
+            <DialogTitle className="font-display text-base">
               {contextCopy[context].title}
             </DialogTitle>
             <DialogDescription>
@@ -403,6 +403,7 @@ export function BookSearchDialog({
                   placeholder={SEARCH_PLACEHOLDER}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
+                  className="rounded-xl"
                 />
                 <p className="text-muted-foreground mt-2 text-[11px]">
                   Tip: search by title, author, or ISBN.
@@ -421,7 +422,7 @@ export function BookSearchDialog({
                     setSource(value as BookSearchSource)
                   }
                 >
-                  <TabsList className="h-9">
+                  <TabsList className="h-9 rounded-xl">
                     <TabsTrigger value="google_books">Google Books</TabsTrigger>
                     <TabsTrigger value="open_library">Open Library</TabsTrigger>
                   </TabsList>
@@ -442,7 +443,7 @@ export function BookSearchDialog({
                 >
                   <SelectTrigger
                     id="ownership_status"
-                    className="h-9 w-[160px]"
+                    className="h-9 w-40 rounded-xl"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -492,14 +493,24 @@ export function BookSearchDialog({
             )}
 
             {showEmptyState && (
-              <div className="text-muted-foreground text-sm">
-                No results found. Try a different query or switch sources.
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="from-copper/20 to-gold/20 mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br shadow-[0_0_30px_var(--warm-glow)]">
+                  <span className="text-2xl">📚</span>
+                </div>
+                <p className="font-display text-lg font-semibold">
+                  No results found
+                </p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Try a different query or switch sources.
+                </p>
               </div>
             )}
 
             {!isLoading && !error && results.length > 0 && (
               <div className="text-muted-foreground flex items-center justify-between text-[11px]">
-                <span>Results from {activeSourceLabel}</span>
+                <span className="tracking-widest uppercase">
+                  Results from {activeSourceLabel}
+                </span>
                 <span>
                   {results.length} result{results.length === 1 ? "" : "s"}
                 </span>
@@ -528,11 +539,11 @@ export function BookSearchDialog({
                         }}
                       >
                         <div
-                          className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${
+                          className={`glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition ${
                             isSelected
-                              ? "border-primary/40 bg-accent/30"
+                              ? "border-copper/40 bg-warm/40 ring-copper/30 ring-1"
                               : "border-border/70"
-                          } ${isAlreadyAdded ? "opacity-70" : "hover:border-primary/30 hover:bg-accent/40"}`}
+                          } ${isAlreadyAdded ? "opacity-70" : "hover:border-copper/25 hover:bg-warm/20"}`}
                         >
                           <Button
                             type="button"
@@ -551,7 +562,7 @@ export function BookSearchDialog({
                             </span>
                           </Button>
 
-                          <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-md">
+                          <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-lg">
                             <CoverImage
                               isbn={result.isbn}
                               coverImageUrl={result.coverUrl}
@@ -634,6 +645,7 @@ export function BookSearchDialog({
                 <Button
                   type="button"
                   variant="outline"
+                  className="rounded-xl"
                   onClick={() => setPage((prev) => prev + 1)}
                   disabled={isLoadingMore}
                 >
@@ -652,7 +664,7 @@ export function BookSearchDialog({
                   type="button"
                   variant="secondary"
                   size="sm"
-                  className="pointer-events-auto shadow-sm"
+                  className="pointer-events-auto rounded-xl shadow-sm"
                   onClick={() =>
                     scrollViewportRef.current?.scrollTo({
                       top: 0,
@@ -667,10 +679,11 @@ export function BookSearchDialog({
           </div>
         </ScrollArea>
 
-        <DialogFooter className="bg-background shrink-0 border-t px-6 py-4 shadow-[0_-6px_16px_-12px_rgba(0,0,0,0.35)]">
+        <DialogFooter className="bg-background shrink-0 border-t px-6 py-4 shadow-[0_-6px_16px_-12px_var(--warm-glow)]">
           {selectedCount > 0 && (
             <Button
               type="button"
+              className="rounded-xl shadow-sm"
               onClick={handleAddSelected}
               disabled={isBulkAdding}
             >
@@ -679,12 +692,18 @@ export function BookSearchDialog({
                 : `Add selected (${selectedCount})`}
             </Button>
           )}
-          <Button variant="outline" type="button" onClick={onAddManual}>
+          <Button
+            variant="outline"
+            type="button"
+            className="rounded-xl"
+            onClick={onAddManual}
+          >
             {manualLabel}
           </Button>
           <Button
             type="button"
             variant="ghost"
+            className="rounded-xl"
             onClick={() => onOpenChange(false)}
           >
             Close

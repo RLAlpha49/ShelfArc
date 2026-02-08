@@ -368,9 +368,11 @@ export function VolumeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Volume" : "Add Volume"}</DialogTitle>
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl p-0 sm:max-w-3xl">
+        <DialogHeader className="bg-warm/30 rounded-t-2xl border-b px-6 pt-6 pb-4">
+          <DialogTitle className="font-display">
+            {isEditing ? "Edit Volume" : "Add Volume"}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
               ? "Update volume details"
@@ -378,9 +380,9 @@ export function VolumeDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 px-6 pt-6">
           {showSeriesSelect && (
-            <div className="bg-muted/30 rounded-lg border p-4">
+            <div className="glass-card rounded-2xl p-4">
               <div className="space-y-3">
                 <Label htmlFor="series_id">Series</Label>
                 <Select
@@ -433,6 +435,9 @@ export function VolumeDialog({
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
             <div className="space-y-6">
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Volume Info
+                </span>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="volume_number">Volume Number *</Label>
@@ -461,6 +466,9 @@ export function VolumeDialog({
                   </div>
                 </div>
 
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Identification
+                </span>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="isbn">ISBN</Label>
@@ -486,6 +494,9 @@ export function VolumeDialog({
               </div>
 
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Status
+                </span>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="ownership_status">Ownership Status</Label>
@@ -528,6 +539,9 @@ export function VolumeDialog({
               </div>
 
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Progress
+                </span>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="current_page">Current Page</Label>
@@ -557,6 +571,9 @@ export function VolumeDialog({
               </div>
 
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Purchase
+                </span>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="purchase_date">Purchase Date</Label>
@@ -587,6 +604,7 @@ export function VolumeDialog({
                         type="button"
                         variant="outline"
                         size="sm"
+                        className="rounded-xl"
                         onClick={handleFetchAmazonPrice}
                         disabled={
                           isFetchingPrice || isSubmitting || isUploadingCover
@@ -605,8 +623,11 @@ export function VolumeDialog({
               </div>
             </div>
 
-            <aside className="bg-muted/30 rounded-lg border p-4">
+            <aside className="glass-card rounded-2xl p-4">
               <div className="space-y-4">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Cover Art
+                </span>
                 <div className="space-y-2">
                   <Label htmlFor="cover_image_url">Cover Image URL</Label>
                   <Input
@@ -663,7 +684,7 @@ export function VolumeDialog({
 
                 {coverUrl && !coverPreviewError && (
                   <div className="flex justify-center">
-                    <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded">
+                    <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded-xl">
                       <img
                         src={coverUrl}
                         alt="Cover preview"
@@ -678,7 +699,7 @@ export function VolumeDialog({
                 )}
                 {coverPreviewError && (
                   <div className="flex justify-center">
-                    <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded text-xs">
+                    <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded-xl text-xs">
                       Preview unavailable
                     </div>
                   </div>
@@ -712,15 +733,20 @@ export function VolumeDialog({
             />
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 pb-6">
             <Button
               type="button"
               variant="outline"
+              className="rounded-xl"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || isUploadingCover}>
+            <Button
+              type="submit"
+              className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+              disabled={isSubmitting || isUploadingCover}
+            >
               {getButtonLabel()}
             </Button>
           </DialogFooter>
