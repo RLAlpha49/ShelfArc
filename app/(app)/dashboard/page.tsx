@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
+import type { DateFormat } from "@/lib/store/settings-store"
+import { formatDate } from "@/lib/format-date"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
@@ -50,9 +53,11 @@ function RecentSeriesEmpty() {
 }
 
 function RecentSeriesList({
-  items
+  items,
+  dateFormat
 }: {
   readonly items: readonly SeriesWithVolumes[]
+  readonly dateFormat: DateFormat
 }) {
   return (
     <div className="grid gap-px overflow-hidden rounded-xl border">
@@ -72,6 +77,10 @@ function RecentSeriesList({
               {s.author && (
                 <span className="text-muted-foreground/60"> · {s.author}</span>
               )}
+              <span className="text-muted-foreground/60">
+                {" "}
+                · {formatDate(s.created_at, dateFormat)}
+              </span>
             </div>
           </div>
           <svg
@@ -113,10 +122,12 @@ function RecentVolumesEmpty() {
 
 function RecentVolumesList({
   items,
-  priceFormatter
+  priceFormatter,
+  dateFormat
 }: {
   readonly items: readonly RecentVolumeItem[]
   readonly priceFormatter: Intl.NumberFormat
+  readonly dateFormat: DateFormat
 }) {
   return (
     <div className="grid gap-px overflow-hidden rounded-xl border">
@@ -138,6 +149,10 @@ function RecentVolumesList({
                   · {priceFormatter.format(v.purchase_price)}
                 </span>
               )}
+              <span className="text-muted-foreground/60">
+                {" "}
+                · {formatDate(v.created_at, dateFormat)}
+              </span>
             </div>
           </div>
           <svg
@@ -160,20 +175,26 @@ function RecentlyAddedContent({
   tab,
   recentSeries,
   recentVolumes,
-  priceFormatter
+  priceFormatter,
+  dateFormat
 }: {
   readonly tab: "series" | "volumes"
   readonly recentSeries: readonly SeriesWithVolumes[]
   readonly recentVolumes: readonly RecentVolumeItem[]
   readonly priceFormatter: Intl.NumberFormat
+  readonly dateFormat: DateFormat
 }) {
   if (tab === "series") {
     if (recentSeries.length === 0) return <RecentSeriesEmpty />
-    return <RecentSeriesList items={recentSeries} />
+    return <RecentSeriesList items={recentSeries} dateFormat={dateFormat} />
   }
   if (recentVolumes.length === 0) return <RecentVolumesEmpty />
   return (
-    <RecentVolumesList items={recentVolumes} priceFormatter={priceFormatter} />
+    <RecentVolumesList
+      items={recentVolumes}
+      priceFormatter={priceFormatter}
+      dateFormat={dateFormat}
+    />
   )
 }
 
@@ -182,6 +203,7 @@ export default function DashboardPage() {
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
   )
+  const dateFormat = useSettingsStore((s) => s.dateFormat)
 
   useEffect(() => {
     if (series.length === 0) {
@@ -642,6 +664,7 @@ export default function DashboardPage() {
               recentSeries={recentSeries}
               recentVolumes={recentVolumes}
               priceFormatter={priceFormatter}
+              dateFormat={dateFormat}
             />
           </div>
         </div>

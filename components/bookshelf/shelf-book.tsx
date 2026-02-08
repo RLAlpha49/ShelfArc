@@ -3,6 +3,7 @@
 import { useDraggable } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import { CoverImage } from "@/components/library/cover-image"
 import type { ShelfItemWithVolume, BookOrientation } from "@/lib/types/database"
 
@@ -37,6 +38,8 @@ export function ShelfBook({
   disabled = false
 }: ShelfBookProps) {
   const { volume, orientation, id, position_x } = item
+  const showSpineCovers = useSettingsStore((s) => s.showSpineCovers)
+  const showSpineLabels = useSettingsStore((s) => s.showSpineLabels)
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -113,7 +116,7 @@ export function ShelfBook({
           }}
         >
           {/* Cover image background */}
-          {(volume.cover_image_url || volume.isbn) && (
+          {showSpineCovers && (volume.cover_image_url || volume.isbn) && (
             <CoverImage
               isbn={volume.isbn}
               coverImageUrl={volume.cover_image_url}
@@ -123,75 +126,18 @@ export function ShelfBook({
             />
           )}
           {/* Title label with scrim for legibility */}
-          <span
-            className={cn(
-              "relative z-10 px-1 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]",
-              !isVertical && "truncate"
-            )}
-          >
-            {volumeTitle}
-          </span>
+          {showSpineLabels && (
+            <span
+              className={cn(
+                "relative z-10 px-1 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]",
+                !isVertical && "truncate"
+              )}
+            >
+              {volumeTitle}
+            </span>
+          )}
         </div>
       </button>
-      {/* <button
-        type="button"
-        onClick={handleToggleOrientation}
-        onPointerDown={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
-        aria-label={getToggleLabel(isVertical)}
-        title={getToggleLabel(isVertical)}
-        className={cn(
-          "absolute -top-2.5 -right-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full",
-          "bg-card/95 text-foreground shadow-md backdrop-blur-sm transition-opacity",
-          "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-          "focus-visible:ring-primary focus-visible:ring-2 focus-visible:outline-none"
-        )}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-3.5 w-3.5"
-        >
-          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-          <path d="M21 3v5h-5" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation()
-          onRemove?.(id)
-        }}
-        onPointerDown={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
-        aria-label="Remove from shelf"
-        title="Remove from shelf"
-        className={cn(
-          "absolute -top-2.5 -left-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full",
-          "bg-card/95 text-foreground shadow-md backdrop-blur-sm transition-opacity",
-          "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-          "focus-visible:ring-primary focus-visible:ring-2 focus-visible:outline-none"
-        )}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-3.5 w-3.5"
-        >
-          <path d="M18 6 6 18" />
-          <path d="m6 6 12 12" />
-        </svg>
-      </button> */}
     </li>
   )
 }

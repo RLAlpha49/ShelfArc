@@ -38,6 +38,7 @@ import {
 } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { OwnershipStatus } from "@/lib/types/database"
 
 type SearchContext = "series" | "volume"
@@ -110,6 +111,11 @@ export function BookSearchDialog({
   existingIsbns = [],
   existingBookKeys = []
 }: BookSearchDialogProps) {
+  const defaultOwnershipStatus = useSettingsStore(
+    (s) => s.defaultOwnershipStatus
+  )
+  const defaultSearchSource = useSettingsStore((s) => s.defaultSearchSource)
+
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [results, setResults] = useState<BookSearchResult[]>([])
@@ -118,14 +124,15 @@ export function BookSearchDialog({
   const [isBulkAdding, setIsBulkAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sourceUsed, setSourceUsed] = useState<BookSearchSource | null>(null)
-  const [source, setSource] = useState<BookSearchSource>("google_books")
+  const [source, setSource] = useState<BookSearchSource>(defaultSearchSource)
   const [selectingId, setSelectingId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [queryKey, setQueryKey] = useState("")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [ownershipStatus, setOwnershipStatus] =
-    useState<OwnershipStatus>("owned")
+  const [ownershipStatus, setOwnershipStatus] = useState<OwnershipStatus>(
+    defaultOwnershipStatus
+  )
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
   const [showJumpToTop, setShowJumpToTop] = useState(false)
 
@@ -140,7 +147,7 @@ export function BookSearchDialog({
       setError(null)
       setSourceUsed(null)
       setSelectingId(null)
-      setSource("google_books")
+      setSource(defaultSearchSource)
       setPage(1)
       setHasMore(false)
       setIsLoadingMore(false)
@@ -148,9 +155,9 @@ export function BookSearchDialog({
       setSelectedIds(new Set())
       setIsBulkAdding(false)
       setShowJumpToTop(false)
-      setOwnershipStatus("owned")
+      setOwnershipStatus(defaultOwnershipStatus)
     }
-  }, [open])
+  }, [open, defaultOwnershipStatus, defaultSearchSource])
 
   useEffect(() => {
     const handle = setTimeout(() => {

@@ -122,6 +122,10 @@
 }
 
 :root {
+  /* Font mapping — overridden at runtime by SettingsApplier */
+  --font-display: var(--font-playfair);
+  --font-sans: var(--font-plus-jakarta);
+
   --background: oklch(0.975 0.006 75);
   --foreground: oklch(0.18 0.025 55);
   --card: oklch(0.99 0.004 75);
@@ -215,6 +219,16 @@
   h4 {
     font-family: var(--font-display), serif;
   }
+}
+
+/* Disable all animations and transitions when the user opts out */
+.no-animations *,
+.no-animations *::before,
+.no-animations *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
 }
 
 /* Noise texture overlay for atmospheric depth */

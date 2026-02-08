@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { CoverImage } from "@/components/library/cover-image"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { Volume } from "@/lib/types/database"
 
 interface VolumeCardProps {
@@ -36,6 +37,7 @@ export function VolumeCard({
   onEdit,
   onDelete
 }: VolumeCardProps) {
+  const showReadingProgress = useSettingsStore((s) => s.showReadingProgress)
   const progressPercent =
     volume.page_count && volume.current_page
       ? Math.round((volume.current_page / volume.page_count) * 100)
@@ -154,20 +156,22 @@ export function VolumeCard({
         </div>
 
         {/* Reading Progress */}
-        {progressPercent !== null && volume.reading_status === "reading" && (
-          <div className="space-y-1">
-            <div className="text-muted-foreground flex justify-between text-xs">
-              <span>Progress</span>
-              <span>{progressPercent}%</span>
+        {showReadingProgress &&
+          progressPercent !== null &&
+          volume.reading_status === "reading" && (
+            <div className="space-y-1">
+              <div className="text-muted-foreground flex justify-between text-xs">
+                <span>Progress</span>
+                <span>{progressPercent}%</span>
+              </div>
+              <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
+                <div
+                  className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
             </div>
-            <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
-              <div
-                className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-        )}
+          )}
       </div>
     </button>
   )

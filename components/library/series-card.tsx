@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -52,6 +53,7 @@ export function SeriesCard({
   )
 
   const totalVolumes = series.total_volumes || series.volumes.length
+  const showSeriesProgressBar = useSettingsStore((s) => s.showSeriesProgressBar)
 
   return (
     <button
@@ -142,7 +144,7 @@ export function SeriesCard({
           </p>
         )}
 
-        {totalVolumes > 0 && (
+        {showSeriesProgressBar && totalVolumes > 0 && (
           <div className="bg-primary/10 mt-2.5 h-1.5 w-full overflow-hidden rounded-full">
             <div
               className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"

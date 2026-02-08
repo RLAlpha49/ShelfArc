@@ -4,6 +4,15 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
+import type {
+  DisplayFont,
+  BodyFont,
+  CardSize,
+  DateFormat,
+  DefaultOwnershipStatus,
+  SearchSource
+} from "@/lib/store/settings-store"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -60,9 +69,54 @@ const navigationOptions: Array<{ value: NavigationMode; label: string }> = [
   { value: "header", label: "Header" }
 ]
 
+const displayFontOptions: Array<{ value: DisplayFont; label: string }> = [
+  { value: "playfair", label: "Playfair Display" },
+  { value: "lora", label: "Lora" },
+  { value: "crimson-text", label: "Crimson Text" },
+  { value: "source-serif", label: "Source Serif" }
+]
+
+const bodyFontOptions: Array<{ value: BodyFont; label: string }> = [
+  { value: "plus-jakarta", label: "Plus Jakarta Sans" },
+  { value: "inter", label: "Inter" },
+  { value: "dm-sans", label: "DM Sans" }
+]
+
+const cardSizeOptions: Array<{ value: CardSize; label: string }> = [
+  { value: "compact", label: "Compact" },
+  { value: "default", label: "Default" },
+  { value: "large", label: "Large" }
+]
+
+const ownershipStatusOptions: Array<{
+  value: DefaultOwnershipStatus
+  label: string
+}> = [
+  { value: "owned", label: "Owned" },
+  { value: "wishlist", label: "Wishlist" }
+]
+
+const searchSourceOptions: Array<{ value: SearchSource; label: string }> = [
+  { value: "google_books", label: "Google Books" },
+  { value: "open_library", label: "Open Library" }
+]
+
+const dateFormatOptions: Array<{
+  value: DateFormat
+  label: string
+  example: string
+}> = [
+  { value: "relative", label: "Relative", example: "2d ago" },
+  { value: "short", label: "Short", example: "Jan 5, 2026" },
+  { value: "long", label: "Long", example: "January 5, 2026" },
+  { value: "iso", label: "ISO", example: "2026-01-05" }
+]
+
 const settingsNav = [
   { id: "profile", label: "Profile" },
   { id: "preferences", label: "Preferences" },
+  { id: "bookshelf", label: "Bookshelf" },
+  { id: "appearance", label: "Appearance" },
   { id: "pricing", label: "Pricing" },
   { id: "data", label: "Data" }
 ] as const
@@ -125,6 +179,34 @@ export default function SettingsPage() {
     navigationMode,
     setNavigationMode
   } = useLibraryStore()
+  const {
+    showSpineCovers,
+    setShowSpineCovers,
+    showSpineLabels,
+    setShowSpineLabels,
+    showReadingProgress,
+    setShowReadingProgress,
+    showSeriesProgressBar,
+    setShowSeriesProgressBar,
+    cardSize,
+    setCardSize,
+    enableAnimations,
+    setEnableAnimations,
+    displayFont,
+    setDisplayFont,
+    bodyFont,
+    setBodyFont,
+    confirmBeforeDelete,
+    setConfirmBeforeDelete,
+    defaultOwnershipStatus,
+    setDefaultOwnershipStatus,
+    defaultSearchSource,
+    setDefaultSearchSource,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    dateFormat,
+    setDateFormat
+  } = useSettingsStore()
   const [activeSection, setActiveSection] = useState("profile")
 
   useEffect(() => {
@@ -626,6 +708,397 @@ export default function SettingsPage() {
                   checked={deleteSeriesVolumes}
                   onCheckedChange={setDeleteSeriesVolumes}
                 />
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="show-reading-progress"
+                    className="font-medium"
+                  >
+                    Show reading progress
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Display reading progress bars on volume cards in the
+                    library.
+                  </p>
+                </div>
+                <Switch
+                  id="show-reading-progress"
+                  checked={showReadingProgress}
+                  onCheckedChange={setShowReadingProgress}
+                />
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="card-size" className="font-medium">
+                    Library card size
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Adjust the size of series and volume cards in grid view.
+                  </p>
+                </div>
+                <Select
+                  value={cardSize}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, cardSizeOptions)) {
+                      setCardSize(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="card-size" className="sm:w-56">
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cardSizeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="show-series-progress" className="font-medium">
+                    Show collection progress on series cards
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Display the ownership progress bar on series cards in the
+                    library.
+                  </p>
+                </div>
+                <Switch
+                  id="show-series-progress"
+                  checked={showSeriesProgressBar}
+                  onCheckedChange={setShowSeriesProgressBar}
+                />
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="confirm-before-delete"
+                    className="font-medium"
+                  >
+                    Confirm before deleting
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Show a confirmation dialog before deleting series or
+                    volumes. Disable to delete immediately.
+                  </p>
+                </div>
+                <Switch
+                  id="confirm-before-delete"
+                  checked={confirmBeforeDelete}
+                  onCheckedChange={setConfirmBeforeDelete}
+                />
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="default-ownership" className="font-medium">
+                    Default ownership status
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    The default ownership status when adding books via search.
+                  </p>
+                </div>
+                <Select
+                  value={defaultOwnershipStatus}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, ownershipStatusOptions)) {
+                      setDefaultOwnershipStatus(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="default-ownership" className="sm:w-56">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ownershipStatusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="default-search-source"
+                    className="font-medium"
+                  >
+                    Default search source
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    The search provider used by default when adding books.
+                  </p>
+                </div>
+                <Select
+                  value={defaultSearchSource}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, searchSourceOptions)) {
+                      setDefaultSearchSource(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="default-search-source" className="sm:w-56">
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {searchSourceOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="sidebar-collapsed" className="font-medium">
+                    Start sidebar collapsed
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Open the sidebar in its collapsed state by default. Only
+                    applies when navigation mode is &quot;Sidebar&quot;.
+                  </p>
+                </div>
+                <Switch
+                  id="sidebar-collapsed"
+                  checked={sidebarCollapsed}
+                  onCheckedChange={setSidebarCollapsed}
+                />
+              </div>
+            </div>
+          </section>
+
+          <div className="border-t" />
+
+          {/* ── Bookshelf ──────────────────────────── */}
+          <section id="bookshelf" className="scroll-mt-24 py-10">
+            <div className="mb-6">
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Bookshelf
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Customize how books appear on the bookshelf canvas
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="show-spine-covers" className="font-medium">
+                    Show cover images on spines
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Display volume cover art on book spines. When disabled,
+                    spines show a solid color derived from the cover.
+                  </p>
+                </div>
+                <Switch
+                  id="show-spine-covers"
+                  checked={showSpineCovers}
+                  onCheckedChange={setShowSpineCovers}
+                />
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="show-spine-labels" className="font-medium">
+                    Show title labels on spines
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Overlay the volume title or number on each book spine.
+                  </p>
+                </div>
+                <Switch
+                  id="show-spine-labels"
+                  checked={showSpineLabels}
+                  onCheckedChange={setShowSpineLabels}
+                />
+              </div>
+            </div>
+          </section>
+
+          <div className="border-t" />
+
+          {/* ── Appearance ─────────────────────────── */}
+          <section id="appearance" className="scroll-mt-24 py-10">
+            <div className="mb-6">
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Appearance
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Font choices and visual preferences
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="enable-animations" className="font-medium">
+                    Animations
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Enable page transitions and micro-animations. Disable for a
+                    faster, reduced-motion experience.
+                  </p>
+                </div>
+                <Switch
+                  id="enable-animations"
+                  checked={enableAnimations}
+                  onCheckedChange={setEnableAnimations}
+                />
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="display-font" className="font-medium">
+                    Heading font
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    The serif font used for titles and headings.
+                  </p>
+                </div>
+                <Select
+                  value={displayFont}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, displayFontOptions)) {
+                      setDisplayFont(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="display-font" className="sm:w-56">
+                    <SelectValue placeholder="Select font" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {displayFontOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span
+                          style={{
+                            fontFamily: `var(--font-${option.value}), serif`
+                          }}
+                        >
+                          {option.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="body-font" className="font-medium">
+                    Body font
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    The sans-serif font used for body text and UI elements.
+                  </p>
+                </div>
+                <Select
+                  value={bodyFont}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, bodyFontOptions)) {
+                      setBodyFont(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="body-font" className="sm:w-56">
+                    <SelectValue placeholder="Select font" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bodyFontOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span
+                          style={{
+                            fontFamily: `var(--font-${option.value}), sans-serif`
+                          }}
+                        >
+                          {option.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="date-format" className="font-medium">
+                    Date format
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    How dates are displayed throughout the app.
+                  </p>
+                </div>
+                <Select
+                  value={dateFormat}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, dateFormatOptions)) {
+                      setDateFormat(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="date-format" className="sm:w-56">
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dateFormatOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}{" "}
+                        <span className="text-muted-foreground">
+                          ({option.example})
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Live font preview */}
+              <div className="bg-muted/30 rounded-xl border p-5">
+                <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase">
+                  Preview
+                </p>
+                <h3 className="font-display text-lg leading-snug font-semibold">
+                  The quick brown fox jumps over the lazy dog
+                </h3>
+                <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                  ShelfArc helps you track, organize, and celebrate your
+                  collection with a beautifully crafted personal library
+                  manager.
+                </p>
               </div>
             </div>
           </section>

@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -116,9 +117,10 @@ export function SidebarNav({
 }: SidebarNavProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [collapsedInternal, setCollapsedInternal] = useState(false)
-  const collapsed = collapsedProp ?? collapsedInternal
-  const setCollapsed = onCollapsedChange ?? setCollapsedInternal
+  const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)
+  const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed)
+  const collapsed = collapsedProp ?? sidebarCollapsed
+  const setCollapsed = onCollapsedChange ?? setSidebarCollapsed
   const [mobileOpen, setMobileOpen] = useState(false)
   const avatarUrl = resolveImageUrl(user?.user_metadata?.avatar_url)
 

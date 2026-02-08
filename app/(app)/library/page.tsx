@@ -12,6 +12,8 @@ import { CoverImage } from "@/components/library/cover-image"
 import { EmptyState } from "@/components/empty-state"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
+import type { CardSize } from "@/lib/store/settings-store"
 import { toast } from "sonner"
 import {
   DropdownMenu,
@@ -40,13 +42,25 @@ import type {
 import { normalizeBookKey, type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
+function getGridClasses(cardSize: CardSize): string {
+  switch (cardSize) {
+    case "compact":
+      return "grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
+    case "large":
+      return "grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+    default:
+      return "grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+  }
+}
+
 function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
+  const cardSize = useSettingsStore((s) => s.cardSize)
   const items = Array.from({ length: 12 }, (_, i) => `skeleton-${i}`)
 
   if (viewMode === "grid") {
     return (
       <div className="animate-fade-in">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className={getGridClasses(cardSize)}>
           {items.map((id) => (
             <div key={id} className="space-y-2 p-3">
               <Skeleton className="aspect-2/3 w-full rounded-xl" />
@@ -377,6 +391,8 @@ export default function LibraryPage() {
 
   const { viewMode, setSelectedSeries, collectionView, deleteSeriesVolumes } =
     useLibraryStore()
+  const cardSize = useSettingsStore((s) => s.cardSize)
+  const confirmBeforeDelete = useSettingsStore((s) => s.confirmBeforeDelete)
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
@@ -520,10 +536,22 @@ export default function LibraryPage() {
     setSeriesDialogOpen(true)
   }, [])
 
-  const openDeleteDialog = useCallback((series: SeriesWithVolumes) => {
-    setDeletingSeries(series)
-    setDeleteDialogOpen(true)
-  }, [])
+  const openDeleteDialog = useCallback(
+    async (series: SeriesWithVolumes) => {
+      if (!confirmBeforeDelete) {
+        try {
+          await removeSeries(series.id)
+          toast.success("Series deleted successfully")
+        } catch {
+          toast.error("Failed to delete series")
+        }
+        return
+      }
+      setDeletingSeries(series)
+      setDeleteDialogOpen(true)
+    },
+    [confirmBeforeDelete, removeSeries]
+  )
 
   const openEditVolumeDialog = useCallback((volume: Volume) => {
     setEditingVolume(volume)
@@ -531,10 +559,22 @@ export default function LibraryPage() {
     setVolumeDialogOpen(true)
   }, [])
 
-  const openDeleteVolumeDialog = useCallback((volume: Volume) => {
-    setDeletingVolume(volume)
-    setDeleteVolumeDialogOpen(true)
-  }, [])
+  const openDeleteVolumeDialog = useCallback(
+    async (volume: Volume) => {
+      if (!confirmBeforeDelete) {
+        try {
+          await removeVolume(volume.series_id ?? null, volume.id)
+          toast.success("Book deleted successfully")
+        } catch {
+          toast.error("Failed to delete book")
+        }
+        return
+      }
+      setDeletingVolume(volume)
+      setDeleteVolumeDialogOpen(true)
+    },
+    [confirmBeforeDelete, removeVolume]
+  )
 
   const handleSeriesClick = useCallback(
     (series: SeriesWithVolumes) => {
@@ -630,7 +670,7 @@ export default function LibraryPage() {
             </h2>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className={getGridClasses(cardSize)}>
           {filteredUnassignedVolumes.map((volume) => (
             <VolumeCard
               key={volume.id}
@@ -686,7 +726,7 @@ export default function LibraryPage() {
           {hasAssignedVolumes &&
             (viewMode === "grid" ? (
               <div className="animate-fade-in-up">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                <div className={getGridClasses(cardSize)}>
                   {filteredVolumes.map((item) => (
                     <VolumeGridItem
                       key={item.volume.id}
@@ -751,7 +791,7 @@ export default function LibraryPage() {
           <div className="animate-fade-in-up">
             <div className="overflow-hidden rounded-2xl">
               {" "}
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              <div className={getGridClasses(cardSize)}>
                 {filteredSeries.map((series) => (
                   <SeriesCard
                     key={series.id}
