@@ -88,8 +88,7 @@ const buildVolumeRangeLabel = (numbers: number[]) => {
 const getNextOwnedVolumeNumber = (numbers: number[]) => {
   const ownedIntegers = new Set(
     numbers.filter(
-      (value) =>
-        Number.isFinite(value) && Number.isInteger(value) && value > 0
+      (value) => Number.isFinite(value) && Number.isInteger(value) && value > 0
     )
   )
   let next = 1

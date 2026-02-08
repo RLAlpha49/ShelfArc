@@ -1206,19 +1206,13 @@ export function useLibrary() {
         ? seriesCache.get(typedSeriesKey)
         : seriesCache.get(seriesKey)
 
-      targetSeries ??= findMatchingSeries(
-        seriesTitle,
-        author,
-        seriesTypeHint
-      )
+      targetSeries ??= findMatchingSeries(seriesTitle, author, seriesTypeHint)
 
       targetSeries ??= await createSeries({
         title: seriesTitle,
         author: author || null,
         description:
-          initialVolumeNumber === 1
-            ? resolvedResult.description || null
-            : null,
+          initialVolumeNumber === 1 ? resolvedResult.description || null : null,
         publisher: resolvedResult.publisher || null,
         cover_image_url:
           initialVolumeNumber === 1 ? resolvedResult.coverUrl || null : null,
