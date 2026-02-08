@@ -8,6 +8,7 @@ const AMAZON_SEARCH_PATH = "/s"
 const DEFAULT_BINDING = "Paperback"
 const FETCH_TIMEOUT_MS = 12000
 const MATCH_THRESHOLD = 0.6
+const REQUIRED_MATCH_THRESHOLD = 0.8
 const MAX_TITLE_LENGTH = 200
 const MAX_FORMAT_LENGTH = 80
 const MAX_QUERY_LENGTH = 260
@@ -53,6 +54,7 @@ const normalizeText = (value: string) => {
     .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
     .toLowerCase()
+    .replaceAll(/\bvols?\b/g, "volume")
     .replaceAll(/\s+/g, " ")
 }
 
@@ -60,7 +62,7 @@ const tokenize = (value: string) => {
   const tokens = normalizeText(value)
     .split(" ")
     .map((token) => token.trim())
-    .filter((token) => token.length > 1)
+    .filter((token) => token.length > 1 || /^\d+$/.test(token))
   return new Set(tokens)
 }
 
@@ -73,6 +75,17 @@ const similarityScore = (expected: string, actual: string) => {
     if (actualTokens.has(token)) intersection += 1
   }
   return intersection / Math.max(expectedTokens.size, actualTokens.size)
+}
+
+const tokenCoverageScore = (expected: string, actual: string) => {
+  const expectedTokens = tokenize(expected)
+  const actualTokens = tokenize(actual)
+  if (expectedTokens.size === 0 || actualTokens.size === 0) return 0
+  let intersection = 0
+  for (const token of expectedTokens) {
+    if (actualTokens.has(token)) intersection += 1
+  }
+  return intersection / expectedTokens.size
 }
 
 const sanitizeInput = (value: string | null, maxLength: number) => {
@@ -206,8 +219,10 @@ const getSearchContext = (request: NextRequest) => {
     Boolean
   )
   const expectedTokens = [title, volumeLabel, format].filter(Boolean)
+  const requiredTokens = [title, volumeLabel].filter(Boolean)
   const searchQuery = searchTokens.join(" ").slice(0, MAX_QUERY_LENGTH)
   const expectedTitle = expectedTokens.join(" ")
+  const requiredTitle = requiredTokens.join(" ")
 
   const url = new URL(`https://${host}${AMAZON_SEARCH_PATH}`)
   url.searchParams.set("k", searchQuery)
@@ -217,6 +232,7 @@ const getSearchContext = (request: NextRequest) => {
     host,
     title,
     expectedTitle,
+    requiredTitle,
     bindingLabel,
     searchUrl: url.toString()
   }
@@ -380,6 +396,7 @@ const extractProductUrl = (result: cheerio.Cheerio<Element>, host: string) => {
 const parseAmazonResult = (
   html: string,
   expectedTitle: string,
+  requiredTitle: string,
   bindingLabel: string,
   fallbackTitle: string,
   host: string
@@ -387,13 +404,30 @@ const parseAmazonResult = (
   const $ = cheerio.load(html)
   const result = getTopResult($)
   const resultTitle = extractResultTitle(result)
-  const matchScore = similarityScore(
+  const strictScore = similarityScore(
     expectedTitle || fallbackTitle,
     resultTitle
   )
-  if (matchScore < MATCH_THRESHOLD) {
+  const requiredScore = tokenCoverageScore(
+    requiredTitle || fallbackTitle,
+    resultTitle
+  )
+  const matchScore = Math.max(strictScore, requiredScore)
+
+  if (
+    strictScore < MATCH_THRESHOLD &&
+    requiredScore < REQUIRED_MATCH_THRESHOLD
+  ) {
+    console.debug("Match score below threshold", {
+      strictScore,
+      requiredScore,
+      matchScore,
+      resultTitle
+    })
     throw new ApiError(404, "Top result did not match expected title", {
       matchScore,
+      strictScore,
+      requiredScore,
       resultTitle
     })
   }
@@ -421,6 +455,7 @@ export async function GET(request: NextRequest) {
     const parsed = parseAmazonResult(
       html,
       context.expectedTitle,
+      context.requiredTitle,
       context.bindingLabel,
       context.title,
       context.host
