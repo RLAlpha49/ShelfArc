@@ -88,6 +88,7 @@ const sourceCopy: Record<BookSearchSource, { label: string; hint: string }> = {
 const SEARCH_PLACEHOLDER = "Search by title, author, or ISBN..."
 const SKELETON_ROWS = ["primary", "secondary", "tertiary"]
 const RESULTS_PAGE_SIZE = 50
+const VIRTUALIZE_THRESHOLD = 12
 
 const dedupeResults = (items: BookSearchResult[]) => {
   const seen = new Set<string>()
@@ -359,6 +360,103 @@ export function BookSearchDialog({
   const selectedCount = selectedResultsById.size
   const showEmptyState =
     isQueryReady && !isLoading && !error && results.length === 0
+  const shouldVirtualize = decoratedResults.length > VIRTUALIZE_THRESHOLD
+
+  const renderResultCard = useCallback(
+    (item: {
+      result: BookSearchResult
+      isAlreadyAdded: boolean
+      isSelected: boolean
+    }) => {
+      const { result, isAlreadyAdded, isSelected } = item
+      return (
+        <div
+          className={`glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition ${
+            isSelected
+              ? "border-copper/40 bg-warm/40 ring-copper/30 ring-1"
+              : "border-border/70"
+          } ${isAlreadyAdded ? "opacity-70" : "hover:border-copper/25 hover:bg-warm/20"}`}
+        >
+          <Button
+            type="button"
+            variant={isSelected ? "default" : "outline"}
+            size="icon-sm"
+            aria-pressed={isSelected}
+            className="shrink-0"
+            disabled={isAlreadyAdded || isBulkAdding}
+            onClick={() => toggleSelected(result)}
+          >
+            <span className="text-[10px] font-semibold">
+              {isSelected ? "✓" : ""}
+            </span>
+            <span className="sr-only">
+              {isSelected ? "Deselect" : "Select"} book
+            </span>
+          </Button>
+
+          <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-lg">
+            <CoverImage
+              isbn={result.isbn}
+              coverImageUrl={result.coverUrl}
+              alt={result.title}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+              fallback={
+                <div className="text-muted-foreground/60 flex h-full w-full items-center justify-center text-xs">
+                  No cover
+                </div>
+              }
+            />
+          </div>
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="line-clamp-1 text-sm font-semibold">
+                {result.title}
+              </h3>
+              {isAlreadyAdded && (
+                <Badge variant="outline" className="text-[10px]">
+                  Added
+                </Badge>
+              )}
+              {selectingId === result.id && (
+                <Badge variant="outline" className="text-[10px]">
+                  Adding...
+                </Badge>
+              )}
+            </div>
+            <p className="text-muted-foreground line-clamp-1 text-sm">
+              {result.authors.length > 0
+                ? result.authors.join(", ")
+                : "Unknown author"}
+            </p>
+            <div className="text-muted-foreground text-xs">
+              {result.isbn && <span>ISBN {result.isbn}</span>}
+              {result.publishedDate && (
+                <span className={result.isbn ? "ml-2" : undefined}>
+                  {result.publishedDate}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            {!isAlreadyAdded && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={selectingId === result.id || isBulkAdding}
+                onClick={() => handleSelect(result)}
+              >
+                {selectingId === result.id ? "Adding..." : "Add"}
+              </Button>
+            )}
+          </div>
+        </div>
+      )
+    },
+    [handleSelect, isBulkAdding, selectingId, toggleSelected]
+  )
 
   useEffect(() => {
     const viewport = scrollViewportRef.current
@@ -510,124 +608,37 @@ export function BookSearchDialog({
 
             {decoratedResults.length > 0 && (
               <div className="relative w-full">
-                <div
-                  className="relative w-full"
-                  style={{ height: rowVirtualizer.getTotalSize() }}
-                >
-                  {virtualRows.map((virtualRow) => {
-                    const item = decoratedResults[virtualRow.index]
-                    if (!item) return null
-                    const { result, isAlreadyAdded, isSelected } = item
+                {shouldVirtualize ? (
+                  <div
+                    className="relative w-full"
+                    style={{ height: rowVirtualizer.getTotalSize() }}
+                  >
+                    {virtualRows.map((virtualRow) => {
+                      const item = decoratedResults[virtualRow.index]
+                      if (!item) return null
 
-                    return (
-                      <div
-                        key={result.id}
-                        ref={rowVirtualizer.measureElement}
-                        data-index={virtualRow.index}
-                        className="absolute top-0 left-0 w-full pb-4"
-                        style={{
-                          transform: `translateY(${virtualRow.start}px)`
-                        }}
-                      >
+                      return (
                         <div
-                          className={`glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition ${
-                            isSelected
-                              ? "border-copper/40 bg-warm/40 ring-copper/30 ring-1"
-                              : "border-border/70"
-                          } ${isAlreadyAdded ? "opacity-70" : "hover:border-copper/25 hover:bg-warm/20"}`}
+                          key={item.result.id}
+                          ref={rowVirtualizer.measureElement}
+                          data-index={virtualRow.index}
+                          className="absolute top-0 left-0 w-full pb-4"
+                          style={{
+                            transform: `translateY(${virtualRow.start}px)`
+                          }}
                         >
-                          <Button
-                            type="button"
-                            variant={isSelected ? "default" : "outline"}
-                            size="icon-sm"
-                            aria-pressed={isSelected}
-                            className="shrink-0"
-                            disabled={isAlreadyAdded || isBulkAdding}
-                            onClick={() => toggleSelected(result)}
-                          >
-                            <span className="text-[10px] font-semibold">
-                              {isSelected ? "✓" : ""}
-                            </span>
-                            <span className="sr-only">
-                              {isSelected ? "Deselect" : "Select"} book
-                            </span>
-                          </Button>
-
-                          <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-lg">
-                            <CoverImage
-                              isbn={result.isbn}
-                              coverImageUrl={result.coverUrl}
-                              alt={result.title}
-                              className="absolute inset-0 h-full w-full object-cover"
-                              loading="lazy"
-                              decoding="async"
-                              fallback={
-                                <div className="text-muted-foreground/60 flex h-full w-full items-center justify-center text-xs">
-                                  No cover
-                                </div>
-                              }
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="line-clamp-1 text-sm font-semibold">
-                                {result.title}
-                              </h3>
-                              {isAlreadyAdded && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px]"
-                                >
-                                  Added
-                                </Badge>
-                              )}
-                              {selectingId === result.id && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px]"
-                                >
-                                  Adding...
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-muted-foreground line-clamp-1 text-sm">
-                              {result.authors.length > 0
-                                ? result.authors.join(", ")
-                                : "Unknown author"}
-                            </p>
-                            <div className="text-muted-foreground text-xs">
-                              {result.isbn && <span>ISBN {result.isbn}</span>}
-                              {result.publishedDate && (
-                                <span
-                                  className={result.isbn ? "ml-2" : undefined}
-                                >
-                                  {result.publishedDate}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-2">
-                            {!isAlreadyAdded && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="secondary"
-                                disabled={
-                                  selectingId === result.id || isBulkAdding
-                                }
-                                onClick={() => handleSelect(result)}
-                              >
-                                {selectingId === result.id
-                                  ? "Adding..."
-                                  : "Add"}
-                              </Button>
-                            )}
-                          </div>
+                          {renderResultCard(item)}
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {decoratedResults.map((item) => (
+                      <div key={item.result.id}>{renderResultCard(item)}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
