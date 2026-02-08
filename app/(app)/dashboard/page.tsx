@@ -268,7 +268,7 @@ export default function DashboardPage() {
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )
-    .slice(0, 5)
+    .slice(0, 8)
 
   // Get currently reading volumes
   const currentlyReading = series
@@ -1022,64 +1022,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
-
-      {/* ── Investment summary ribbon ── */}
-      {totalSpent > 0 && (
-        <section
-          className="animate-fade-in-up rounded-xl border p-6"
-          style={{ animationDelay: "0.5s" }}
-        >
-          <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
-            <div>
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                Total Invested
-              </span>
-              <div className="font-display text-gradient from-copper to-gold bg-linear-to-r text-2xl font-bold">
-                {priceFormatter.format(totalSpent)}
-              </div>
-            </div>
-            <div className="bg-border hidden h-10 w-px sm:block" />
-            <div>
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                Avg per priced volume
-              </span>
-              <div className="font-display text-lg font-semibold">
-                {priceFormatter.format(averagePricePerTrackedVolume)}
-              </div>
-            </div>
-            <div className="bg-border hidden h-10 w-px sm:block" />
-            <div>
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                Light Novels
-              </span>
-              <div className="font-display text-primary text-lg font-semibold">
-                {priceFormatter.format(priceBreakdown.lnSpent)}
-              </div>
-            </div>
-            <div className="bg-border hidden h-10 w-px sm:block" />
-            <div>
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                Manga
-              </span>
-              <div className="font-display text-copper text-lg font-semibold">
-                {priceFormatter.format(priceBreakdown.mangaSpent)}
-              </div>
-            </div>
-            <div className="bg-border hidden h-10 w-px sm:block" />
-            <div>
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                Volumes Owned
-              </span>
-              <div className="font-display text-lg font-semibold">
-                {ownedVolumes}{" "}
-                <span className="text-muted-foreground text-sm font-normal">
-                  of {totalVolumes}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   )
 }
