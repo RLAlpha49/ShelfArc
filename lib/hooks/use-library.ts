@@ -8,6 +8,7 @@ import type {
   Series,
   SeriesWithVolumes,
   SeriesInsert,
+  TitleType,
   Volume,
   VolumeInsert,
   OwnershipStatus
@@ -23,6 +24,39 @@ const VOLUME_TOKEN_PATTERN =
 const VOLUME_TOKEN_GLOBAL =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
 const TRAILING_VOLUME_PATTERN = /(?:\s+|[-–—:]\s*)(\d+(?:\.\d+)?)\s*$/i
+const TRAILING_BRACKET_PATTERN = /\s*[[(]([^)\]]*?)[)\]]\s*$/
+const FORMAT_SUFFIXES = [
+  "light novel",
+  "light novels",
+  "graphic novel",
+  "graphic novels",
+  "comic book",
+  "comic books",
+  "comics",
+  "comic",
+  "manga",
+  "manhwa",
+  "manhua",
+  "webtoon",
+  "web comic",
+  "webcomic",
+  "novels",
+  "novel"
+]
+const SERIES_DESCRIPTOR_SET = new Set([
+  "comic",
+  "comic book",
+  "graphic novel",
+  "manga",
+  "manhwa",
+  "manhua",
+  "light novel",
+  "novel",
+  "webtoon",
+  "web comic",
+  "webcomic",
+  "gn"
+])
 
 type VolumeSuffixInfo = {
   number: number
@@ -61,6 +95,42 @@ const stripTrailingVolumeSuffixForKey = (title: string) => {
   const info = getTrailingVolumeInfo(title)
   if (info && shouldStripTrailingForKey(info)) return info.prefix
   return title
+}
+
+const stripTrailingFormatSuffix = (title: string) => {
+  let next = title
+  while (true) {
+    const trimmed = next.trim().replaceAll(/\s*[-–—:,]\s*$/g, "")
+    const normalized = normalizeDescriptor(trimmed)
+    let updated = trimmed
+
+    for (const suffix of FORMAT_SUFFIXES) {
+      if (!normalized.endsWith(suffix)) continue
+      const suffixPattern = suffix.replaceAll(/\s+/g, String.raw`\s+`)
+      const pattern = new RegExp(String.raw`\s*${suffixPattern}\s*$`, "gi")
+      updated = trimmed.replaceAll(pattern, "").trim()
+      break
+    }
+
+    if (updated === trimmed) return trimmed
+    next = updated
+  }
+}
+
+const normalizeDescriptor = (value: string) => {
+  return value.trim().toLowerCase().replaceAll(/\s+/g, " ")
+}
+
+const stripTrailingSeriesDescriptor = (title: string) => {
+  let next = title
+  while (true) {
+    const trimmed = next.trim()
+    const match = TRAILING_BRACKET_PATTERN.exec(trimmed)
+    if (!match) return trimmed
+    const descriptor = normalizeDescriptor(match[1])
+    if (descriptor && !SERIES_DESCRIPTOR_SET.has(descriptor)) return trimmed
+    next = trimmed.slice(0, trimmed.length - match[0].length)
+  }
 }
 
 const extractTrailingVolumeNumber = (title: string) => {
@@ -169,9 +239,19 @@ export function useLibrary() {
       .replaceAll(/\s+/g, " ")
   }, [])
 
+  const normalizeAuthorKey = useCallback(
+    (value?: string | null) => {
+      const base = normalizeText(value ?? "")
+      return base.replaceAll(/[^\p{L}\p{N}]+/gu, "")
+    },
+    [normalizeText]
+  )
+
   const normalizeSeriesTitle = useCallback(
     (value: string) => {
-      const base = normalizeText(stripTrailingVolumeSuffixForKey(value))
+      const base = normalizeText(
+        stripTrailingFormatSuffix(stripTrailingVolumeSuffixForKey(value))
+      )
       return base
         .replaceAll(/\(.*?\)/g, " ")
         .replaceAll(VOLUME_TOKEN_GLOBAL, " ")
@@ -197,10 +277,13 @@ export function useLibrary() {
   const stripVolumeFromTitle = useCallback((title: string) => {
     const withoutVolume = title.replaceAll(VOLUME_TOKEN_GLOBAL, " ")
     const withoutTrailing = stripTrailingVolumeSuffixForTitle(withoutVolume)
-    const trimmed = withoutTrailing
-      .replaceAll(/\s*[-–—:,]\s*$/g, "")
-      .replaceAll(/\s+/g, " ")
-      .trim()
+    const withoutDescriptor = stripTrailingSeriesDescriptor(withoutTrailing)
+    const withoutPunctuation = withoutDescriptor.replaceAll(
+      /\s*[-–—:,]\s*$/g,
+      ""
+    )
+    const withoutFormatSuffix = stripTrailingFormatSuffix(withoutPunctuation)
+    const trimmed = withoutFormatSuffix.replaceAll(/\s+/g, " ").trim()
     return trimmed || title.trim()
   }, [])
 
@@ -216,26 +299,113 @@ export function useLibrary() {
   const buildSeriesKey = useCallback(
     (title: string, author?: string | null) => {
       const normalizedTitle = normalizeSeriesTitle(title)
-      const normalizedAuthor = normalizeText(author ?? "")
+      const normalizedAuthor = normalizeAuthorKey(author)
       return `${normalizedTitle}|${normalizedAuthor}`
     },
-    [normalizeSeriesTitle, normalizeText]
+    [normalizeAuthorKey, normalizeSeriesTitle]
+  )
+
+  const pickSeriesByVolumeCount = useCallback(
+    (candidates: SeriesWithVolumes[]) => {
+      return candidates.reduce((best, current) => {
+        if (current.volumes.length > best.volumes.length) return current
+        return best
+      }, candidates[0])
+    },
+    []
+  )
+
+  const collectSeriesMatches = useCallback(
+    (title: string, author?: string | null) => {
+      const normalizedTitle = normalizeSeriesTitle(title)
+      const normalizedAuthor = normalizeAuthorKey(author)
+      const hasAuthor = normalizedAuthor.length > 0
+      const matches: SeriesWithVolumes[] = []
+
+      for (const item of series) {
+        if (normalizeSeriesTitle(item.title) !== normalizedTitle) continue
+        const itemAuthor = normalizeAuthorKey(item.author)
+        if (hasAuthor && itemAuthor && itemAuthor !== normalizedAuthor) continue
+        matches.push(item)
+      }
+
+      return matches
+    },
+    [normalizeAuthorKey, normalizeSeriesTitle, series]
+  )
+
+  const pickSeriesByType = useCallback(
+    (matches: SeriesWithVolumes[], typeHint?: TitleType | null) => {
+      if (matches.length === 0) return undefined
+      if (!typeHint) return pickSeriesByVolumeCount(matches)
+
+      const typeMatches = matches.filter((item) => item.type === typeHint)
+      if (typeMatches.length > 0) return pickSeriesByVolumeCount(typeMatches)
+
+      const otherMatches = matches.filter((item) => item.type === "other")
+      if (otherMatches.length > 0) return pickSeriesByVolumeCount(otherMatches)
+
+      return pickSeriesByVolumeCount(matches)
+    },
+    [pickSeriesByVolumeCount]
   )
 
   const findMatchingSeries = useCallback(
-    (title: string, author?: string | null) => {
-      const normalizedTitle = normalizeSeriesTitle(title)
-      const normalizedAuthor = normalizeText(author ?? "")
-
-      return series.find((item) => {
-        if (normalizeSeriesTitle(item.title) !== normalizedTitle) return false
-        if (author) {
-          return normalizeText(item.author) === normalizedAuthor
-        }
-        return true
-      })
+    (title: string, author?: string | null, typeHint?: TitleType | null) => {
+      const matches = collectSeriesMatches(title, author)
+      if (matches.length === 0) return undefined
+      if (matches.length === 1) return matches[0]
+      return pickSeriesByType(matches, typeHint)
     },
-    [normalizeSeriesTitle, normalizeText, series]
+    [collectSeriesMatches, pickSeriesByType]
+  )
+
+  const normalizeSeriesTypeHint = useCallback(
+    (value?: string | null) => {
+      return normalizeText(value ?? "")
+        .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
+        .replaceAll(/\s+/g, " ")
+        .trim()
+    },
+    [normalizeText]
+  )
+
+  const detectSeriesTypeFromText = useCallback(
+    (value?: string | null): TitleType | null => {
+      const normalized = normalizeSeriesTypeHint(value)
+      if (!normalized) return null
+
+      const hasMangaHint =
+        normalized.includes("manga") ||
+        normalized.includes("manhwa") ||
+        normalized.includes("manhua") ||
+        normalized.includes("webtoon") ||
+        normalized.includes("web comic") ||
+        normalized.includes("webcomic") ||
+        normalized.includes("graphic novel") ||
+        normalized.includes("comic book") ||
+        normalized.includes("comic")
+
+      if (hasMangaHint) return "manga"
+      if (normalized.includes("light novel") || normalized.includes("novel")) {
+        return "light_novel"
+      }
+
+      return null
+    },
+    [normalizeSeriesTypeHint]
+  )
+
+  const deriveSeriesType = useCallback(
+    (result: BookSearchResult): TitleType | null => {
+      const fromTitle = detectSeriesTypeFromText(result.title)
+      const fromSeries = detectSeriesTypeFromText(result.seriesTitle)
+      if (fromTitle && fromSeries && fromTitle !== fromSeries) {
+        return fromTitle
+      }
+      return fromTitle ?? fromSeries
+    },
+    [detectSeriesTypeFromText]
   )
 
   const getNextVolumeNumber = useCallback(
@@ -398,6 +568,39 @@ export function useLibrary() {
 
       if (Object.keys(updates).length > 0) {
         await editSeries(targetSeries.id, updates)
+      }
+    },
+    [editSeries]
+  )
+
+  const updateSeriesAuthorIfMissing = useCallback(
+    async (targetSeries: SeriesWithVolumes, author?: string | null) => {
+      const nextAuthor = author?.trim()
+      if (!nextAuthor) return targetSeries
+      if (targetSeries.author?.trim()) return targetSeries
+
+      try {
+        await editSeries(targetSeries.id, { author: nextAuthor })
+        return { ...targetSeries, author: nextAuthor }
+      } catch (error) {
+        console.warn("Error updating series author:", error)
+        return targetSeries
+      }
+    },
+    [editSeries]
+  )
+
+  const updateSeriesTypeIfMissing = useCallback(
+    async (targetSeries: SeriesWithVolumes, typeHint?: TitleType | null) => {
+      if (!typeHint) return targetSeries
+      if (targetSeries.type !== "other") return targetSeries
+
+      try {
+        await editSeries(targetSeries.id, { type: typeHint })
+        return { ...targetSeries, type: typeHint }
+      } catch (error) {
+        console.warn("Error updating series type:", error)
+        return targetSeries
       }
     },
     [editSeries]
@@ -828,12 +1031,22 @@ export function useLibrary() {
           const resolvedResult = await resolveSearchResultDetails(result)
           const seriesTitle = deriveSeriesTitle(resolvedResult)
           const author = resolvedResult.authors[0] ?? null
+          const seriesTypeHint = deriveSeriesType(resolvedResult)
           const seriesKey = buildSeriesKey(seriesTitle, author)
+          const typedSeriesKey = seriesTypeHint
+            ? `${seriesKey}|${seriesTypeHint}`
+            : seriesKey
           const parsedVolumeNumber = extractVolumeNumber(resolvedResult.title)
           const initialVolumeNumber = parsedVolumeNumber ?? 1
-          let targetSeries = seriesCache.get(seriesKey)
+          let targetSeries = seriesCache.get(typedSeriesKey)
 
-          targetSeries ??= findMatchingSeries(seriesTitle, author)
+          targetSeries ??= seriesCache.get(seriesKey)
+
+          targetSeries ??= findMatchingSeries(
+            seriesTitle,
+            author,
+            seriesTypeHint
+          )
 
           targetSeries ??= await createSeries({
             title: seriesTitle,
@@ -847,11 +1060,20 @@ export function useLibrary() {
               initialVolumeNumber === 1
                 ? resolvedResult.coverUrl || null
                 : null,
-            type: "other",
+            type: seriesTypeHint ?? "other",
             tags: []
           })
 
+          targetSeries = await updateSeriesAuthorIfMissing(targetSeries, author)
+          targetSeries = await updateSeriesTypeIfMissing(
+            targetSeries,
+            seriesTypeHint
+          )
+
           seriesCache.set(seriesKey, targetSeries)
+          if (seriesTypeHint) {
+            seriesCache.set(typedSeriesKey, targetSeries)
+          }
 
           const volumeNumber =
             parsedVolumeNumber ?? getNextVolumeNumberForSeries(targetSeries)
@@ -899,10 +1121,13 @@ export function useLibrary() {
       createSeries,
       createVolume,
       deriveSeriesTitle,
+      deriveSeriesType,
       extractVolumeNumber,
       findMatchingSeries,
       getNextVolumeNumber,
-      resolveSearchResultDetails
+      resolveSearchResultDetails,
+      updateSeriesAuthorIfMissing,
+      updateSeriesTypeIfMissing
     ]
   )
 
