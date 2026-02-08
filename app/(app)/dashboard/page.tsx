@@ -15,6 +15,18 @@ interface RecentVolumeItem extends Volume {
   seriesId: string
 }
 
+interface SuggestedBuy {
+  seriesId: string
+  seriesTitle: string
+  seriesType: string
+  volumeNumber: number
+  isGap: boolean
+  isWishlisted: boolean
+  estimatedPrice: number | null
+  score: number
+  isReading: boolean
+}
+
 function RecentSeriesEmpty() {
   return (
     <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
@@ -235,14 +247,21 @@ export default function DashboardPage() {
 
   const totalSpent = series.reduce(
     (acc, s) =>
-      acc + s.volumes.reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
+      acc +
+      s.volumes
+        .filter((v) => v.ownership_status === "owned")
+        .reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
     0
   )
   const pricedVolumes = series.reduce(
     (acc, s) =>
       acc +
-      s.volumes.filter((v) => v.purchase_price != null && v.purchase_price > 0)
-        .length,
+      s.volumes.filter(
+        (v) =>
+          v.ownership_status === "owned" &&
+          v.purchase_price != null &&
+          v.purchase_price > 0
+      ).length,
     0
   )
   const averagePricePerTrackedVolume =
@@ -315,6 +334,7 @@ export default function DashboardPage() {
   const priceBreakdown = useMemo(() => {
     const allPricedVolumes = series.flatMap((s) =>
       s.volumes
+        .filter((v) => v.ownership_status === "owned")
         .filter((v) => v.purchase_price != null && v.purchase_price > 0)
         .map((v) => ({ ...v, seriesTitle: s.title, seriesType: s.type }))
     )
@@ -324,7 +344,9 @@ export default function DashboardPage() {
       .reduce(
         (acc, s) =>
           acc +
-          s.volumes.reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
+          s.volumes
+            .filter((v) => v.ownership_status === "owned")
+            .reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
         0
       )
 
@@ -333,7 +355,9 @@ export default function DashboardPage() {
       .reduce(
         (acc, s) =>
           acc +
-          s.volumes.reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
+          s.volumes
+            .filter((v) => v.ownership_status === "owned")
+            .reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
         0
       )
 
@@ -353,15 +377,18 @@ export default function DashboardPage() {
 
     // Top 5 most expensive series
     const spendingBySeries = series
-      .map((s) => ({
-        id: s.id,
-        title: s.title,
-        type: s.type,
-        total: s.volumes.reduce((acc, v) => acc + (v.purchase_price || 0), 0),
-        volumeCount: s.volumes.filter(
-          (v) => v.purchase_price != null && v.purchase_price > 0
-        ).length
-      }))
+      .map((s) => {
+        const owned = s.volumes.filter((v) => v.ownership_status === "owned")
+        return {
+          id: s.id,
+          title: s.title,
+          type: s.type,
+          total: owned.reduce((acc, v) => acc + (v.purchase_price || 0), 0),
+          volumeCount: owned.filter(
+            (v) => v.purchase_price != null && v.purchase_price > 0
+          ).length
+        }
+      })
       .filter((s) => s.total > 0)
       .sort((a, b) => b.total - a.total)
       .slice(0, 5)
@@ -379,6 +406,162 @@ export default function DashboardPage() {
       spendingBySeries,
       maxSeriesSpent
     }
+  }, [series])
+
+  // Wishlist stats
+  const wishlistStats = useMemo(() => {
+    const wishlistVolumes = series.flatMap((s) =>
+      s.volumes
+        .filter((v) => v.ownership_status === "wishlist")
+        .map((v) => ({
+          ...v,
+          seriesTitle: s.title,
+          seriesId: s.id,
+          seriesType: s.type
+        }))
+    )
+
+    const totalWishlistCost = wishlistVolumes
+      .filter((v) => v.purchase_price != null && v.purchase_price > 0)
+      .reduce((acc, v) => acc + v.purchase_price!, 0)
+
+    const wishlistPricedCount = wishlistVolumes.filter(
+      (v) => v.purchase_price != null && v.purchase_price > 0
+    ).length
+
+    const averageWishlistPrice =
+      wishlistPricedCount > 0 ? totalWishlistCost / wishlistPricedCount : 0
+
+    // Top wishlisted series
+    const seriesMap = new Map<
+      string,
+      { id: string; title: string; type: string; count: number; cost: number }
+    >()
+    for (const v of wishlistVolumes) {
+      const existing = seriesMap.get(v.seriesId)
+      if (existing) {
+        existing.count++
+        existing.cost += v.purchase_price ?? 0
+      } else {
+        seriesMap.set(v.seriesId, {
+          id: v.seriesId,
+          title: v.seriesTitle,
+          type: v.seriesType,
+          count: 1,
+          cost: v.purchase_price ?? 0
+        })
+      }
+    }
+    const topWishlistedSeries = [...seriesMap.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    const maxWishlistSeriesCount =
+      topWishlistedSeries.length > 0 ? topWishlistedSeries[0].count : 0
+
+    return {
+      totalWishlistCost,
+      wishlistPricedCount,
+      averageWishlistPrice,
+      topWishlistedSeries,
+      maxWishlistSeriesCount,
+      totalCount: wishlistVolumes.length
+    }
+  }, [series])
+
+  // What to buy next suggestions
+  const suggestedNextBuys = useMemo(() => {
+    const suggestions: SuggestedBuy[] = []
+
+    const computeScore = (
+      isGap: boolean,
+      isReading: boolean,
+      ownedCount: number,
+      hasPrice: boolean
+    ) => {
+      let score = isGap ? 20 : 10
+      if (isReading) score += 30
+      score += ownedCount
+      if (hasPrice) score += 5
+      return score
+    }
+
+    const makeSuggestion = (
+      s: SeriesWithVolumes,
+      volumeNumber: number,
+      isGap: boolean,
+      wishlistMap: Map<number, Volume>,
+      isReading: boolean,
+      ownedCount: number
+    ): SuggestedBuy => {
+      const wishlistVol = wishlistMap.get(volumeNumber)
+      return {
+        seriesId: s.id,
+        seriesTitle: s.title,
+        seriesType: s.type,
+        volumeNumber,
+        isGap,
+        isWishlisted: wishlistMap.has(volumeNumber),
+        estimatedPrice: wishlistVol?.purchase_price ?? null,
+        score: computeScore(
+          isGap,
+          isReading,
+          ownedCount,
+          !!wishlistVol?.purchase_price
+        ),
+        isReading
+      }
+    }
+
+    for (const s of series) {
+      const ownedVolumes = s.volumes.filter(
+        (v) => v.ownership_status === "owned"
+      )
+      if (ownedVolumes.length === 0) continue
+
+      const ownedNumbers = new Set(ownedVolumes.map((v) => v.volume_number))
+      const wishlistMap = new Map(
+        s.volumes
+          .filter((v) => v.ownership_status === "wishlist")
+          .map((v) => [v.volume_number, v] as const)
+      )
+      const isReading = s.volumes.some((v) => v.reading_status === "reading")
+      const maxOwned = Math.max(...ownedNumbers)
+
+      // Find gaps
+      for (let i = 1; i < maxOwned; i++) {
+        if (!ownedNumbers.has(i)) {
+          suggestions.push(
+            makeSuggestion(
+              s,
+              i,
+              true,
+              wishlistMap,
+              isReading,
+              ownedVolumes.length
+            )
+          )
+        }
+      }
+
+      // Next sequential volume
+      const nextNum = maxOwned + 1
+      const isInRange = !s.total_volumes || nextNum <= s.total_volumes
+      if (!ownedNumbers.has(nextNum) && isInRange) {
+        suggestions.push(
+          makeSuggestion(
+            s,
+            nextNum,
+            false,
+            wishlistMap,
+            isReading,
+            ownedVolumes.length
+          )
+        )
+      }
+    }
+
+    return suggestions.toSorted((a, b) => b.score - a.score).slice(0, 8)
   }, [series])
 
   // Reading completion percentage
@@ -681,12 +864,113 @@ export default function DashboardPage() {
               dateFormat={dateFormat}
             />
           </div>
+
+          {/* What to Buy Next */}
+          <div className="animate-fade-in-up stagger-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-semibold tracking-tight">
+                  What to Buy Next
+                </h2>
+                <p className="text-muted-foreground text-xs">
+                  Continue your collection
+                </p>
+              </div>
+              {suggestedNextBuys.length > 0 && (
+                <Link
+                  href="/library"
+                  className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+                >
+                  Browse library
+                </Link>
+              )}
+            </div>
+
+            {suggestedNextBuys.length === 0 ? (
+              <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+                <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="h-5 w-5"
+                  >
+                    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                    <line x1="3" x2="21" y1="6" y2="6" />
+                    <path d="M16 10a4 4 0 0 1-8 0" />
+                  </svg>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  No suggestions yet
+                </p>
+                <p className="text-muted-foreground/60 mt-1 text-xs">
+                  Start collecting volumes to get personalized picks
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {suggestedNextBuys.map((buy) => (
+                  <Link
+                    key={`${buy.seriesId}-${buy.volumeNumber}`}
+                    href={`/library/series/${buy.seriesId}`}
+                    className="glass-card group block rounded-xl p-4 transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
+                            {buy.seriesTitle}
+                          </span>
+                          {buy.isReading && (
+                            <span className="bg-primary/10 text-primary shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium">
+                              Reading
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
+                          <span>Volume {buy.volumeNumber}</span>
+                          {buy.isGap && (
+                            <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                              Gap
+                            </span>
+                          )}
+                          {buy.isWishlisted && (
+                            <span className="bg-gold/10 text-gold rounded px-1.5 py-0.5 text-[10px] font-medium">
+                              Wishlisted
+                            </span>
+                          )}
+                          {buy.estimatedPrice != null &&
+                            buy.estimatedPrice > 0 && (
+                              <span className="text-muted-foreground/60">
+                                {priceFormatter.format(buy.estimatedPrice)}
+                              </span>
+                            )}
+                        </div>
+                      </div>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+                      >
+                        <polyline points="9,18 15,12 9,6" />
+                      </svg>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right column — sidebar content */}
         <div className="space-y-8 lg:col-span-5">
           {/* Collection Breakdown */}
-          <div className="animate-fade-in-up stagger-4">
+          <div className="animate-fade-in-up stagger-5">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Breakdown
@@ -814,7 +1098,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Reading progress ring */}
-          <div className="animate-fade-in-up stagger-5">
+          <div className="animate-fade-in-up stagger-6">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Progress
@@ -896,7 +1180,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Price Tracking */}
-          <div className="animate-fade-in-up stagger-6">
+          <div className="animate-fade-in-up stagger-7">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Price Tracking
@@ -1016,6 +1300,121 @@ export default function DashboardPage() {
                 <div className="text-muted-foreground/60 pt-1 text-center text-[10px]">
                   {priceBreakdown.trackedCount} of {totalVolumes} volumes
                   tracked
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Wishlist Overview */}
+          <div className="animate-fade-in-up stagger-8">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-semibold tracking-tight">
+                Wishlist
+              </h2>
+              <p className="text-muted-foreground text-xs">Your want list</p>
+            </div>
+
+            {wishlistCount === 0 ? (
+              <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+                <div className="text-gold bg-gold/10 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="h-5 w-5"
+                  >
+                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                  </svg>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  No wishlisted volumes
+                </p>
+                <p className="text-muted-foreground/60 mt-1 text-xs">
+                  Add volumes to your wishlist to track what you want
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Stats cards */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="from-gold/15 to-gold/5 rounded-lg border bg-linear-to-br p-3">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Volumes
+                    </span>
+                    <div className="text-gold font-display mt-0.5 text-lg font-bold">
+                      {wishlistCount}
+                    </div>
+                  </div>
+                  <div className="from-copper/12 to-copper/4 rounded-lg border bg-linear-to-br p-3">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Est. Cost
+                    </span>
+                    <div className="text-copper font-display mt-0.5 text-lg font-bold">
+                      {priceFormatter.format(wishlistStats.totalWishlistCost)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Average price */}
+                {wishlistStats.wishlistPricedCount > 0 && (
+                  <div className="bg-card rounded-lg border p-3 text-center">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Avg. Price
+                    </span>
+                    <div className="font-display mt-0.5 text-sm font-semibold">
+                      {priceFormatter.format(
+                        wishlistStats.averageWishlistPrice
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top wishlisted series */}
+                {wishlistStats.topWishlistedSeries.length > 0 && (
+                  <div>
+                    <span className="text-muted-foreground mb-2 block text-[10px] font-medium tracking-wider uppercase">
+                      Top wishlisted series
+                    </span>
+                    <div className="space-y-2">
+                      {wishlistStats.topWishlistedSeries.map((s) => (
+                        <Link
+                          key={s.id}
+                          href={`/library/series/${s.id}`}
+                          className="group block"
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="group-hover:text-primary min-w-0 flex-1 truncate font-medium transition-colors">
+                              {s.title}
+                            </span>
+                            <span className="text-muted-foreground ml-2 shrink-0">
+                              {s.count} vol{s.count === 1 ? "" : "s"}
+                              {s.cost > 0 && (
+                                <span className="text-muted-foreground/60">
+                                  {" "}
+                                  · {priceFormatter.format(s.cost)}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="bg-gold/10 mt-1 h-1.5 overflow-hidden rounded-full">
+                            <div
+                              className="from-gold to-copper h-full rounded-full bg-linear-to-r transition-all duration-500"
+                              style={{
+                                width: `${wishlistStats.maxWishlistSeriesCount > 0 ? Math.round((s.count / wishlistStats.maxWishlistSeriesCount) * 100) : 0}%`
+                              }}
+                            />
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-muted-foreground/60 pt-1 text-center text-[10px]">
+                  {wishlistStats.wishlistPricedCount} of {wishlistCount} volumes
+                  priced
                 </div>
               </div>
             )}
