@@ -1,15 +1,11 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useLibraryStore } from "@/lib/store/library-store"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card"
+import { cn } from "@/lib/utils"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
@@ -64,6 +59,13 @@ const navigationOptions: Array<{ value: NavigationMode; label: string }> = [
   { value: "sidebar", label: "Sidebar (default)" },
   { value: "header", label: "Header" }
 ]
+
+const settingsNav = [
+  { id: "profile", label: "Profile" },
+  { id: "preferences", label: "Preferences" },
+  { id: "pricing", label: "Pricing" },
+  { id: "data", label: "Data" }
+] as const
 
 const isValidOption = <T extends string>(
   value: string | null | undefined,
@@ -123,6 +125,7 @@ export default function SettingsPage() {
     navigationMode,
     setNavigationMode
   } = useLibraryStore()
+  const [activeSection, setActiveSection] = useState("profile")
 
   useEffect(() => {
     async function loadProfile() {
@@ -306,329 +309,485 @@ export default function SettingsPage() {
     setAvatarPreviewError(false)
   }, [avatarPreview])
 
+  useEffect(() => {
+    if (isLoading) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id)
+          }
+        }
+      },
+      { rootMargin: "-20% 0px -70% 0px" }
+    )
+    for (const section of settingsNav) {
+      const el = document.getElementById(section.id)
+      if (el) observer.observe(el)
+    }
+    return () => observer.disconnect()
+  }, [isLoading])
+
   if (isLoading) {
     return (
-      <div className="px-6 py-8 lg:px-10">
-        <Skeleton className="mb-8 h-10 w-32 rounded-xl" />
-        <Skeleton className="h-64 rounded-2xl" />
+      <div className="mx-auto max-w-5xl px-6 py-10 lg:px-10">
+        <Skeleton className="mb-2 h-9 w-40 rounded-xl" />
+        <Skeleton className="mb-10 h-5 w-64 rounded-lg" />
+        <div className="grid gap-10 lg:grid-cols-[200px_1fr] lg:gap-14">
+          <Skeleton className="hidden h-48 rounded-xl lg:block" />
+          <div className="space-y-8">
+            <Skeleton className="h-64 rounded-2xl" />
+            <Skeleton className="h-48 rounded-2xl" />
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8 lg:px-10">
-      <h1 className="font-display mb-8 text-3xl font-bold tracking-tight">
-        Settings
-      </h1>
+    <div className="mx-auto max-w-5xl px-6 py-10 lg:px-10">
+      {/* Header */}
+      <div className="animate-fade-in mb-8 lg:mb-10">
+        <h1 className="font-display text-3xl font-bold tracking-tight">
+          Settings
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Manage your profile, preferences, and data
+        </p>
+      </div>
 
-      {/* Profile Settings */}
-      <Card className="mb-6 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="font-display">Profile</CardTitle>
-          <CardDescription>Manage your account information</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={profile?.email || ""}
-              disabled
-              className="bg-muted"
-            />
-            <p className="text-muted-foreground text-xs">
-              Email cannot be changed
-            </p>
+      {/* Mobile section tabs */}
+      <div className="-mx-6 mb-8 overflow-x-auto border-b px-6 lg:hidden">
+        <div className="flex gap-1 pb-px">
+          {settingsNav.map((section) => (
+            <a
+              key={section.id}
+              href={`#${section.id}`}
+              className={cn(
+                "relative shrink-0 px-3 py-2.5 text-sm font-medium transition-colors",
+                activeSection === section.id
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {section.label}
+              {activeSection === section.id && (
+                <span className="bg-primary absolute inset-x-1 bottom-0 h-0.5 rounded-full" />
+              )}
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-10 lg:grid-cols-[200px_1fr] lg:gap-14">
+        {/* Desktop section nav */}
+        <nav className="hidden lg:block">
+          <div className="sticky top-6">
+            <ul className="space-y-1">
+              {settingsNav.map((section) => (
+                <li key={section.id}>
+                  <a
+                    href={`#${section.id}`}
+                    className={cn(
+                      "block rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      activeSection === section.id
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    {section.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
+        </nav>
 
-          <div className="space-y-2">
-            <Label htmlFor="displayName">Display Name</Label>
-            <Input
-              id="displayName"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="How should we call you?"
-            />
-          </div>
+        {/* Content sections */}
+        <div className="animate-fade-in-up min-w-0">
+          {/* ── Profile ───────────────────────────── */}
+          <section id="profile" className="scroll-mt-24 pb-10">
+            <div className="mb-6">
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Profile
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Manage your account information
+              </p>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="avatarUrl">Avatar URL</Label>
-            <Input
-              id="avatarUrl"
-              type="url"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://..."
-            />
-          </div>
+            <div className="mb-6 flex flex-col items-start gap-6 sm:flex-row">
+              {/* Avatar preview */}
+              <div className="relative shrink-0">
+                <Avatar className="ring-border h-20 w-20 ring-2">
+                  {avatarPreview && !avatarPreviewError && (
+                    <AvatarImage
+                      src={avatarPreview}
+                      alt="Avatar preview"
+                      onError={() => setAvatarPreviewError(true)}
+                      onLoad={() => setAvatarPreviewError(false)}
+                    />
+                  )}
+                  {!(avatarPreview && !avatarPreviewError) &&
+                    resolvedAvatarUrl && (
+                      <AvatarImage src={resolvedAvatarUrl} alt="Avatar" />
+                    )}
+                  <AvatarFallback className="bg-primary/10 text-primary font-display text-2xl font-semibold">
+                    {(displayName || profile?.email || "U")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {isUploadingAvatar && (
+                  <div className="bg-background/80 absolute inset-0 flex items-center justify-center rounded-full backdrop-blur-sm">
+                    <div className="border-primary h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" />
+                  </div>
+                )}
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="avatarUpload">Upload Avatar</Label>
-            <Input
-              id="avatarUpload"
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) {
-                  void handleAvatarFileChange(file)
-                }
-                e.currentTarget.value = ""
-              }}
-            />
-            <div className="flex items-center gap-2">
-              {avatarUrl && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setAvatarUrl("")
-                    setPreviewUrl(null)
+              {/* Name + email */}
+              <div className="flex-1 space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="displayName">Display Name</Label>
+                  <Input
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="How should we call you?"
+                    className="max-w-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profile?.email || ""}
+                    disabled
+                    className="bg-muted max-w-sm"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Email cannot be changed
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Avatar controls */}
+            <div className="bg-muted/30 space-y-3 rounded-xl border p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Avatar</p>
+                  <p className="text-muted-foreground text-xs">
+                    Square images work best. Uploads are compressed to WebP.
+                  </p>
+                </div>
+                {avatarUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setAvatarUrl("")
+                      setPreviewUrl(null)
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="avatarUrl"
+                    className="text-muted-foreground text-xs"
+                  >
+                    Image URL
+                  </Label>
+                  <Input
+                    id="avatarUrl"
+                    type="url"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="avatarUpload"
+                    className="text-muted-foreground text-xs"
+                  >
+                    Upload file
+                  </Label>
+                  <Input
+                    id="avatarUpload"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        void handleAvatarFileChange(file)
+                      }
+                      e.currentTarget.value = ""
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <Button
+                onClick={handleSaveProfile}
+                disabled={isSaving || isUploadingAvatar}
+                className="rounded-xl px-6"
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </section>
+
+          <div className="border-t" />
+
+          {/* ── Preferences ────────────────────────── */}
+          <section id="preferences" className="scroll-mt-24 py-10">
+            <div className="mb-6">
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Preferences
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Customize your experience
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Theme</p>
+                  <p className="text-muted-foreground text-sm">
+                    Choose your preferred color scheme
+                  </p>
+                </div>
+                <span className="text-muted-foreground text-sm">
+                  Use the theme toggle in the{" "}
+                  {navigationMode === "header" ? "header" : "sidebar"}
+                </span>
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="navigation-mode" className="font-medium">
+                    Navigation
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Choose whether navigation lives in the sidebar or top
+                    header.
+                  </p>
+                </div>
+                <Select
+                  value={navigationMode}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, navigationOptions)) {
+                      setNavigationMode(value)
+                    }
                   }}
                 >
-                  Clear
-                </Button>
-              )}
-              {isUploadingAvatar && (
-                <span className="text-muted-foreground text-xs">
-                  Uploading...
-                </span>
-              )}
-            </div>
-            {avatarPreview && !avatarPreviewError && (
-              <div className="flex items-center gap-3">
-                <img
-                  src={avatarPreview}
-                  alt="Avatar preview"
-                  className="h-14 w-14 rounded-full object-cover"
-                  onError={() => setAvatarPreviewError(true)}
-                  onLoad={() => setAvatarPreviewError(false)}
+                  <SelectTrigger id="navigation-mode" className="sm:w-56">
+                    <SelectValue placeholder="Select navigation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {navigationOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="border-t" />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="delete-series-volumes"
+                    className="font-medium"
+                  >
+                    Delete volumes with series
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    When enabled, deleting a series also deletes its volumes.
+                    Otherwise, volumes become unassigned.
+                  </p>
+                </div>
+                <Switch
+                  id="delete-series-volumes"
+                  checked={deleteSeriesVolumes}
+                  onCheckedChange={setDeleteSeriesVolumes}
                 />
-                <span className="text-muted-foreground text-xs">Preview</span>
-              </div>
-            )}
-            <p className="text-muted-foreground text-xs">
-              Square images work best. Uploads are compressed to WebP.
-            </p>
-          </div>
-
-          <Button
-            onClick={handleSaveProfile}
-            disabled={isSaving || isUploadingAvatar}
-          >
-            {isSaving ? "Saving..." : "Save Changes"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Separator className="my-6" />
-
-      {/* Preferences */}
-      <Card className="mb-6 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="font-display">Preferences</CardTitle>
-          <CardDescription>Customize your experience</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">Theme</div>
-              <div className="text-muted-foreground text-sm">
-                Choose your preferred color scheme
               </div>
             </div>
-            <div className="text-muted-foreground text-sm">
-              Use the theme toggle in the{" "}
-              {navigationMode === "header" ? "header" : "sidebar"}
-            </div>
-          </div>
-          <Separator />
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="navigation-mode" className="font-medium">
-                Navigation
-              </Label>
-              <p className="text-muted-foreground text-sm">
-                Choose whether navigation lives in the sidebar or top header.
+          </section>
+
+          <div className="border-t" />
+
+          {/* ── Pricing ────────────────────────────── */}
+          <section id="pricing" className="scroll-mt-24 py-10">
+            <div className="mb-6">
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Pricing
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Configure where prices are fetched from and how they are
+                displayed
               </p>
             </div>
-            <Select
-              value={navigationMode}
-              onValueChange={(value) => {
-                if (isValidOption(value, navigationOptions)) {
-                  setNavigationMode(value)
-                }
-              }}
-            >
-              <SelectTrigger id="navigation-mode" className="sm:w-56">
-                <SelectValue placeholder="Select navigation" />
-              </SelectTrigger>
-              <SelectContent>
-                {navigationOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="delete-series-volumes" className="font-medium">
-                Delete volumes with series
-              </Label>
-              <p className="text-muted-foreground text-sm">
-                When enabled, deleting a series also deletes its volumes.
-                Otherwise, volumes become unassigned.
+
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="price-source">Default price source</Label>
+                <Select
+                  value={priceSource}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, priceSourceOptions)) {
+                      setPriceSource(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="price-source">
+                    <SelectValue placeholder="Choose a source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priceSourceOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">
+                  Used when fetching prices for volumes.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="amazon-domain">Amazon domain</Label>
+                <Select
+                  value={amazonDomain}
+                  onValueChange={(value) =>
+                    setAmazonDomain(value as AmazonDomain)
+                  }
+                >
+                  <SelectTrigger id="amazon-domain">
+                    <SelectValue placeholder="Select a domain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {amazonDomainOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">
+                  Used for Amazon price lookups.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="display-currency">Display currency</Label>
+                <Select
+                  value={priceDisplayCurrency}
+                  onValueChange={(value) =>
+                    setPriceDisplayCurrency(value as CurrencyCode)
+                  }
+                >
+                  <SelectTrigger id="display-currency">
+                    <SelectValue placeholder="Choose currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencyOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">
+                  Controls how prices are formatted across the app.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <div className="border-t" />
+
+          {/* ── Data Management ────────────────────── */}
+          <section id="data" className="scroll-mt-24 py-10">
+            <div className="mb-6">
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Data Management
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Export or import your library data
               </p>
             </div>
-            <Switch
-              id="delete-series-volumes"
-              checked={deleteSeriesVolumes}
-              onCheckedChange={setDeleteSeriesVolumes}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
-      <Separator className="my-6" />
-
-      {/* Pricing */}
-      <Card className="mb-6 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="font-display">Pricing</CardTitle>
-          <CardDescription>
-            Configure where prices are fetched from and how they are displayed
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="price-source">Default price source</Label>
-            <Select
-              value={priceSource}
-              onValueChange={(value) => {
-                if (isValidOption(value, priceSourceOptions)) {
-                  setPriceSource(value)
-                }
-              }}
-            >
-              <SelectTrigger id="price-source">
-                <SelectValue placeholder="Choose a source" />
-              </SelectTrigger>
-              <SelectContent>
-                {priceSourceOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-xs">
-              Used when fetching prices for volumes. More sources will be added
-              later.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="amazon-domain">Amazon domain</Label>
-            <Select
-              value={amazonDomain}
-              onValueChange={(value) => setAmazonDomain(value as AmazonDomain)}
-            >
-              <SelectTrigger id="amazon-domain">
-                <SelectValue placeholder="Select a domain" />
-              </SelectTrigger>
-              <SelectContent>
-                {amazonDomainOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-xs">
-              Used for Amazon price lookups.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="display-currency">Display currency</Label>
-            <Select
-              value={priceDisplayCurrency}
-              onValueChange={(value) =>
-                setPriceDisplayCurrency(value as CurrencyCode)
-              }
-            >
-              <SelectTrigger id="display-currency">
-                <SelectValue placeholder="Choose currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {currencyOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-xs">
-              Controls how prices are formatted across the app.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Separator className="my-6" />
-
-      {/* Data Management */}
-      <Card className="rounded-2xl">
-        <CardHeader>
-          <CardTitle className="font-display">Data Management</CardTitle>
-          <CardDescription>Export or import your library data</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <a
-              href="/settings/export"
-              className="bg-background hover:bg-accent inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="mr-2 h-4 w-4"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Export Data
-            </a>
-            <a
-              href="/settings/import"
-              className="bg-background hover:bg-accent inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="mr-2 h-4 w-4"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              Import Data
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Link href="/settings/export" className="group rounded-xl">
+                <div className="bg-card hover:bg-accent/40 rounded-xl border p-5 transition-colors">
+                  <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-5 w-5"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                  </div>
+                  <h3 className="font-display mb-1 text-base font-semibold">
+                    Export Data
+                  </h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Download your collection as JSON or CSV for backup or
+                    migration.
+                  </p>
+                </div>
+              </Link>
+              <Link href="/settings/import" className="group rounded-xl">
+                <div className="bg-card hover:bg-accent/40 rounded-xl border p-5 transition-colors">
+                  <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-5 w-5"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <h3 className="font-display mb-1 text-base font-semibold">
+                    Import Data
+                  </h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Restore your collection from a ShelfArc JSON export file.
+                  </p>
+                </div>
+              </Link>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   )
 }

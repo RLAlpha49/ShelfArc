@@ -167,115 +167,138 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8 lg:px-10">
-      <nav className="mb-6 flex items-center gap-2 text-sm">
+    <div className="mx-auto max-w-3xl px-6 py-10 lg:px-10">
+      {/* Back link + heading */}
+      <div className="animate-fade-in mb-8">
         <Link
           href="/settings"
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
         >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="m15 18-6-6 6-6" />
+          </svg>
           Settings
         </Link>
-        <span className="text-muted-foreground">/</span>
-        <span className="font-medium">Import</span>
-      </nav>
+        <h1 className="font-display text-2xl font-bold tracking-tight">
+          Import Data
+        </h1>
+      </div>
 
-      <h1 className="mb-6 text-2xl font-bold">Import Data</h1>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Import Your Library</CardTitle>
-          <CardDescription>
-            Upload a JSON file exported from ShelfArc to restore your collection
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <Label htmlFor="file">Select File</Label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              id="file"
-              accept=".json"
-              onChange={handleFileSelect}
-              className="text-muted-foreground file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 block w-full cursor-pointer text-sm file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium"
-            />
-            <p className="text-muted-foreground text-xs">
-              Only JSON exports from ShelfArc are supported
-            </p>
-          </div>
-
-          {preview && (
-            <div className="bg-muted/50 rounded-lg border p-4">
-              <h3 className="mb-2 font-medium">Preview</h3>
-              <p className="text-muted-foreground text-sm">
-                Found{" "}
-                <span className="text-foreground font-medium">
-                  {preview.seriesCount}
-                </span>{" "}
-                series with{" "}
-                <span className="text-foreground font-medium">
-                  {preview.volumeCount}
-                </span>{" "}
-                volumes
+      <div className="animate-fade-in-up">
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Import Your Library</CardTitle>
+            <CardDescription>
+              Upload a JSON file exported from ShelfArc to restore your
+              collection
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="file">Select File</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="file"
+                accept=".json"
+                onChange={handleFileSelect}
+                className="text-muted-foreground file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 block w-full cursor-pointer text-sm file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium"
+              />
+              <p className="text-muted-foreground text-xs">
+                Only JSON exports from ShelfArc are supported
               </p>
             </div>
-          )}
 
-          {preview && (
-            <div className="space-y-3">
-              <Label>Import Mode</Label>
-              <RadioGroup
-                value={mode}
-                onValueChange={(value: ImportMode) => setMode(value)}
-                className="space-y-2"
+            {preview && (
+              <div className="bg-muted/50 rounded-lg border p-4">
+                <h3 className="mb-2 font-medium">Preview</h3>
+                <p className="text-muted-foreground text-sm">
+                  Found{" "}
+                  <span className="text-foreground font-medium">
+                    {preview.seriesCount}
+                  </span>{" "}
+                  series with{" "}
+                  <span className="text-foreground font-medium">
+                    {preview.volumeCount}
+                  </span>{" "}
+                  volumes
+                </p>
+              </div>
+            )}
+
+            {preview && (
+              <div className="space-y-3">
+                <Label>Import Mode</Label>
+                <RadioGroup
+                  value={mode}
+                  onValueChange={(value: ImportMode) => setMode(value)}
+                  className="space-y-2"
+                >
+                  <div className="flex items-start space-x-3 rounded-lg border p-4">
+                    <RadioGroupItem value="merge" id="merge" className="mt-1" />
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="merge"
+                        className="cursor-pointer font-medium"
+                      >
+                        Add to Collection
+                      </Label>
+                      <p className="text-muted-foreground text-sm">
+                        Import as new entries. Existing data will not be
+                        affected.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3 rounded-lg border p-4">
+                    <RadioGroupItem
+                      value="replace"
+                      id="replace"
+                      className="mt-1"
+                    />
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="replace"
+                        className="text-destructive cursor-pointer font-medium"
+                      >
+                        Replace Collection
+                      </Label>
+                      <p className="text-muted-foreground text-sm">
+                        Delete all existing data and import fresh. This cannot
+                        be undone.
+                      </p>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <Button
+                onClick={handleImport}
+                disabled={!preview || isImporting}
+                className="rounded-xl px-6"
               >
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
-                  <RadioGroupItem value="merge" id="merge" className="mt-1" />
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="merge"
-                      className="cursor-pointer font-medium"
-                    >
-                      Add to Collection
-                    </Label>
-                    <p className="text-muted-foreground text-sm">
-                      Import as new entries. Existing data will not be affected.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
-                  <RadioGroupItem
-                    value="replace"
-                    id="replace"
-                    className="mt-1"
-                  />
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="replace"
-                      className="text-destructive cursor-pointer font-medium"
-                    >
-                      Replace Collection
-                    </Label>
-                    <p className="text-muted-foreground text-sm">
-                      Delete all existing data and import fresh. This cannot be
-                      undone.
-                    </p>
-                  </div>
-                </div>
-              </RadioGroup>
+                {isImporting ? "Importing..." : "Import"}
+              </Button>
+              <Link
+                href="/settings"
+                className="text-muted-foreground hover:text-foreground inline-flex h-10 items-center justify-center px-4 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </Link>
             </div>
-          )}
-
-          <div className="flex gap-4">
-            <Button onClick={handleImport} disabled={!preview || isImporting}>
-              {isImporting ? "Importing..." : "Import"}
-            </Button>
-            <Link href="/settings">
-              <Button variant="outline">Cancel</Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
