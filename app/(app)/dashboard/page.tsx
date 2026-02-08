@@ -1,18 +1,181 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
+
+interface RecentVolumeItem extends Volume {
+  seriesTitle: string
+  seriesId: string
+}
+
+function RecentSeriesEmpty() {
+  return (
+    <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+      <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-5 w-5"
+        >
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+        </svg>
+      </div>
+      <p className="text-muted-foreground text-sm">No series added yet</p>
+      <Link
+        href="/library"
+        className="text-primary hover:text-primary/80 mt-2 inline-flex items-center gap-1 text-sm font-medium transition-colors"
+      >
+        Add your first series
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="h-3.5 w-3.5"
+        >
+          <path d="M5 12h14" />
+          <path d="m12 5 7 7-7 7" />
+        </svg>
+      </Link>
+    </div>
+  )
+}
+
+function RecentSeriesList({
+  items
+}: {
+  readonly items: readonly SeriesWithVolumes[]
+}) {
+  return (
+    <div className="grid gap-px overflow-hidden rounded-xl border">
+      {items.map((s) => (
+        <Link
+          key={s.id}
+          href={`/library/series/${s.id}`}
+          className="bg-card group hover:bg-accent/40 flex items-center justify-between p-4 transition-colors"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
+              {s.title}
+            </div>
+            <div className="text-muted-foreground mt-0.5 text-xs">
+              {s.type === "light_novel" ? "Light Novel" : "Manga"} ·{" "}
+              {s.volumes.length} vol
+              {s.author && (
+                <span className="text-muted-foreground/60"> · {s.author}</span>
+              )}
+            </div>
+          </div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+          >
+            <polyline points="9,18 15,12 9,6" />
+          </svg>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+function RecentVolumesEmpty() {
+  return (
+    <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+      <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-5 w-5"
+        >
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </svg>
+      </div>
+      <p className="text-muted-foreground text-sm">No volumes added yet</p>
+    </div>
+  )
+}
+
+function RecentVolumesList({
+  items,
+  priceFormatter
+}: {
+  readonly items: readonly RecentVolumeItem[]
+  readonly priceFormatter: Intl.NumberFormat
+}) {
+  return (
+    <div className="grid gap-px overflow-hidden rounded-xl border">
+      {items.map((v) => (
+        <Link
+          key={v.id}
+          href={`/library/volume/${v.id}`}
+          className="bg-card group hover:bg-accent/40 flex items-center justify-between p-4 transition-colors"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
+              {v.title || `Volume ${v.volume_number}`}
+            </div>
+            <div className="text-muted-foreground mt-0.5 text-xs">
+              {v.seriesTitle} · Vol. {v.volume_number}
+              {v.purchase_price != null && v.purchase_price > 0 && (
+                <span className="text-muted-foreground/60">
+                  {" "}
+                  · {priceFormatter.format(v.purchase_price)}
+                </span>
+              )}
+            </div>
+          </div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+          >
+            <polyline points="9,18 15,12 9,6" />
+          </svg>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+function RecentlyAddedContent({
+  tab,
+  recentSeries,
+  recentVolumes,
+  priceFormatter
+}: {
+  readonly tab: "series" | "volumes"
+  readonly recentSeries: readonly SeriesWithVolumes[]
+  readonly recentVolumes: readonly RecentVolumeItem[]
+  readonly priceFormatter: Intl.NumberFormat
+}) {
+  if (tab === "series") {
+    if (recentSeries.length === 0) return <RecentSeriesEmpty />
+    return <RecentSeriesList items={recentSeries} />
+  }
+  if (recentVolumes.length === 0) return <RecentVolumesEmpty />
+  return (
+    <RecentVolumesList items={recentVolumes} priceFormatter={priceFormatter} />
+  )
+}
 
 export default function DashboardPage() {
   const { series, fetchSeries, isLoading } = useLibrary()
@@ -78,7 +241,9 @@ export default function DashboardPage() {
 
   // Get currently reading volumes
   const currentlyReading = series
-    .flatMap((s) => s.volumes.map((v) => ({ ...v, seriesTitle: s.title })))
+    .flatMap((s) =>
+      s.volumes.map((v) => ({ ...v, seriesTitle: s.title, seriesId: s.id }))
+    )
     .filter((v) => v.reading_status === "reading")
     .slice(0, 5)
 
@@ -94,260 +259,263 @@ export default function DashboardPage() {
     0
   )
 
+  // Recently added volumes (across all series)
+  const recentVolumes = useMemo(() => {
+    return series
+      .flatMap((s) =>
+        s.volumes.map((v) => ({ ...v, seriesTitle: s.title, seriesId: s.id }))
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      .slice(0, 8)
+  }, [series])
+
+  // Recently added tab state
+  const [recentTab, setRecentTab] = useState<"series" | "volumes">("series")
+
+  // Price tracking breakdown
+  const priceBreakdown = useMemo(() => {
+    const allPricedVolumes = series.flatMap((s) =>
+      s.volumes
+        .filter((v) => v.purchase_price != null && v.purchase_price > 0)
+        .map((v) => ({ ...v, seriesTitle: s.title, seriesType: s.type }))
+    )
+
+    const lnSpent = series
+      .filter((s) => s.type === "light_novel")
+      .reduce(
+        (acc, s) =>
+          acc +
+          s.volumes.reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
+        0
+      )
+
+    const mangaSpent = series
+      .filter((s) => s.type === "manga")
+      .reduce(
+        (acc, s) =>
+          acc +
+          s.volumes.reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
+        0
+      )
+
+    const prices = allPricedVolumes.map((v) => v.purchase_price!)
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0
+    const medianPrice =
+      prices.length > 0
+        ? (() => {
+            const sorted = [...prices].sort((a, b) => a - b)
+            const mid = Math.floor(sorted.length / 2)
+            return sorted.length % 2 === 0
+              ? (sorted[mid - 1] + sorted[mid]) / 2
+              : sorted[mid]
+          })()
+        : 0
+
+    // Top 5 most expensive series
+    const spendingBySeries = series
+      .map((s) => ({
+        id: s.id,
+        title: s.title,
+        type: s.type,
+        total: s.volumes.reduce((acc, v) => acc + (v.purchase_price || 0), 0),
+        volumeCount: s.volumes.filter(
+          (v) => v.purchase_price != null && v.purchase_price > 0
+        ).length
+      }))
+      .filter((s) => s.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5)
+
+    const maxSeriesSpent =
+      spendingBySeries.length > 0 ? spendingBySeries[0].total : 0
+
+    return {
+      lnSpent,
+      mangaSpent,
+      minPrice,
+      maxPrice,
+      medianPrice,
+      trackedCount: allPricedVolumes.length,
+      spendingBySeries,
+      maxSeriesSpent
+    }
+  }, [series])
+
+  // Reading completion percentage
+  const readPercentage =
+    totalVolumes > 0 ? Math.round((readVolumes / totalVolumes) * 100) : 0
+  const ownedPercentage =
+    totalVolumes > 0 ? Math.round((ownedVolumes / totalVolumes) * 100) : 0
+
   if (isLoading && series.length === 0) {
     return (
-      <div className="px-6 py-8 lg:px-10">
-        <Skeleton className="mb-2 h-10 w-56" />
-        <Skeleton className="mb-8 h-5 w-72" />
-        <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="dashboard-container mx-auto max-w-7xl px-6 py-10 lg:px-10">
+        <Skeleton className="mb-1 h-8 w-36" />
+        <Skeleton className="mb-10 h-12 w-80" />
+        <div className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-2xl" />
+            <Skeleton key={i} className="h-28 rounded-none" />
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Skeleton className="h-80 rounded-2xl" />
-          <Skeleton className="h-80 rounded-2xl" />
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+          <Skeleton className="h-96 rounded-xl lg:col-span-7" />
+          <Skeleton className="h-96 rounded-xl lg:col-span-5" />
         </div>
       </div>
     )
   }
 
-  const statsCards = [
-    {
-      id: "series",
-      label: "Total Series",
-      value: totalSeries,
-      detail: `${lightNovels.length} LN · ${manga.length} Manga`,
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          className="h-5 w-5"
-        >
-          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-        </svg>
-      )
-    },
-    {
-      id: "volumes",
-      label: "Total Volumes",
-      value: totalVolumes,
-      detail: `${ownedVolumes} owned`,
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          className="h-5 w-5"
-        >
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-        </svg>
-      )
-    },
-    {
-      id: "read",
-      label: "Volumes Read",
-      value: readVolumes,
-      detail: `${readingVolumes} in progress`,
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          className="h-5 w-5"
-        >
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
-      )
-    },
-    {
-      id: "spent",
-      label: "Total Spent",
-      value: priceFormatter.format(totalSpent),
-      detail: `${priceFormatter.format(ownedVolumes > 0 ? totalSpent / ownedVolumes : 0)}/vol avg`,
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          className="h-5 w-5"
-        >
-          <line x1="12" y1="1" x2="12" y2="23" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-      )
-    }
-  ]
-
-  const breakdownCards = [
-    {
-      id: "ln",
-      label: "Light Novels",
-      value: lightNovels.length,
-      color: "text-primary",
-      bgColor: "bg-primary/10"
-    },
-    {
-      id: "manga",
-      label: "Manga",
-      value: manga.length,
-      color: "text-copper",
-      bgColor: "bg-copper/10"
-    },
-    {
-      id: "complete",
-      label: "Complete Sets",
-      value: completeSets,
-      color: "text-green-600 dark:text-green-400",
-      bgColor: "bg-green-500/10"
-    },
-    {
-      id: "wishlist",
-      label: "On Wishlist",
-      value: wishlistCount,
-      color: "text-gold",
-      bgColor: "bg-gold/10"
-    }
-  ]
-
   return (
-    <div className="px-6 py-8 lg:px-10">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold tracking-tight">
+    <div className="dashboard-container mx-auto max-w-7xl px-6 py-10 lg:px-10">
+      {/* ── Welcome header ── */}
+      <section className="animate-fade-in-down mb-10">
+        <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
           Dashboard
+        </span>
+        <h1 className="font-display text-4xl leading-tight font-bold tracking-tight md:text-5xl">
+          Your{" "}
+          <span className="text-gradient from-copper to-gold bg-linear-to-r">
+            collection
+          </span>
         </h1>
-        <p className="text-muted-foreground mt-1">
-          Your collection at a glance
+        <p className="text-muted-foreground mt-2 max-w-lg text-base leading-relaxed">
+          {totalSeries > 0
+            ? `${totalSeries} series · ${totalVolumes} volumes · ${readingVolumes} in progress`
+            : "Start building your library to see your collection stats here."}
         </p>
-      </div>
+      </section>
 
-      {/* Stats Grid */}
-      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {statsCards.map((stat, i) => (
-          <Card
+      {/* ── Stats strip ── */}
+      <section className="animate-fade-in-up stagger-1 mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border md:grid-cols-4">
+        {[
+          {
+            id: "series",
+            label: "Series",
+            value: totalSeries,
+            detail: `${lightNovels.length} LN · ${manga.length} Manga`,
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
+            )
+          },
+          {
+            id: "volumes",
+            label: "Volumes",
+            value: totalVolumes,
+            detail: `${ownedVolumes} owned · ${ownedPercentage}%`,
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            )
+          },
+          {
+            id: "read",
+            label: "Read",
+            value: readVolumes,
+            detail: `${readPercentage}% complete`,
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            )
+          },
+          {
+            id: "spent",
+            label: "Invested",
+            value: priceFormatter.format(totalSpent),
+            detail: `${priceFormatter.format(ownedVolumes > 0 ? totalSpent / ownedVolumes : 0)}/vol`,
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            )
+          }
+        ].map((stat) => (
+          <div
             key={stat.id}
-            className={`stagger-${i + 1} animate-fade-in-up hover-lift overflow-hidden rounded-lg`}
+            className="bg-card group hover:bg-accent/40 flex flex-col gap-1 p-5 transition-colors"
           >
-            <CardContent className="p-4">
-              <div className="mb-2 flex items-center gap-2">
-                <div className="text-primary bg-primary/8 flex h-7 w-7 items-center justify-center rounded-md">
-                  {stat.icon}
-                </div>
-                <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                  {stat.label}
-                </span>
+            <div className="flex items-center gap-2">
+              <div className="text-primary bg-primary/8 flex h-6 w-6 items-center justify-center rounded-md">
+                {stat.icon}
               </div>
-              <div className="font-display text-2xl font-semibold tracking-tight">
-                {stat.value}
-              </div>
-              <div className="text-muted-foreground mt-0.5 text-xs">
-                {stat.detail}
-              </div>
-            </CardContent>
-          </Card>
+              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                {stat.label}
+              </span>
+            </div>
+            <div className="font-display text-2xl font-bold tracking-tight">
+              {stat.value}
+            </div>
+            <div className="text-muted-foreground text-xs">{stat.detail}</div>
+          </div>
         ))}
-      </div>
+      </section>
 
-      {/* Content Sections */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recently Added */}
-        <Card className="stagger-5 animate-fade-in-up rounded-lg">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-display text-base font-semibold">
-              Recently Added
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Latest additions to your collection
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {recentSeries.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="text-primary bg-primary/8 mb-3 flex h-10 w-10 items-center justify-center rounded-md">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    className="h-5 w-5"
-                  >
-                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-                  </svg>
-                </div>
-                <p className="text-muted-foreground text-sm">
-                  No series added yet
+      {/* ── Main content: asymmetric 7/5 grid ── */}
+      <section className="mb-10 grid grid-cols-1 gap-8 lg:grid-cols-12">
+        {/* Left column — primary content */}
+        <div className="space-y-8 lg:col-span-7">
+          {/* Currently Reading */}
+          <div className="animate-fade-in-up stagger-2">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-semibold tracking-tight">
+                  Currently Reading
+                </h2>
+                <p className="text-muted-foreground text-xs">
+                  Continue where you left off
                 </p>
-                <Link href="/library" className="mt-2">
-                  <Button
-                    variant="link"
-                    className="text-primary h-auto p-0 text-sm"
-                  >
-                    Add your first series
-                  </Button>
-                </Link>
               </div>
-            ) : (
-              <ul className="-mx-1 space-y-0.5">
-                {recentSeries.map((s) => (
-                  <li key={s.id}>
-                    <Link
-                      href={`/library/series/${s.id}`}
-                      className="group hover:bg-accent/60 flex items-center justify-between rounded-md px-2.5 py-2 transition-colors"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="group-hover:text-primary truncate text-sm font-medium transition-colors">
-                          {s.title}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {s.type === "light_novel" ? "Light Novel" : "Manga"} ·{" "}
-                          {s.volumes.length} vol
-                        </div>
-                      </div>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="text-muted-foreground ml-2 h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
-                      >
-                        <polyline points="9,18 15,12 9,6" />
-                      </svg>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+              {currentlyReading.length > 0 && (
+                <Link
+                  href="/library"
+                  className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+                >
+                  View all
+                </Link>
+              )}
+            </div>
 
-        {/* Currently Reading */}
-        <Card className="stagger-6 animate-fade-in-up rounded-lg">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-display text-base font-semibold">
-              Currently Reading
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Continue where you left off
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
             {currentlyReading.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="text-primary bg-primary/8 mb-3 flex h-10 w-10 items-center justify-center rounded-md">
+              <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+                <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -361,80 +529,515 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  Nothing in progress
+                  Nothing in progress yet
+                </p>
+                <p className="text-muted-foreground/60 mt-1 text-xs">
+                  Mark a volume as &quot;reading&quot; to see it here
                 </p>
               </div>
             ) : (
-              <ul className="-mx-1 space-y-2">
+              <div className="space-y-2">
                 {currentlyReading.map((v) => {
                   const progress =
                     v.page_count && v.current_page
                       ? Math.round((v.current_page / v.page_count) * 100)
                       : null
                   return (
-                    <li
+                    <Link
                       key={v.id}
-                      className="hover:bg-accent/60 space-y-1.5 rounded-md px-2.5 py-2 transition-colors"
+                      href={`/library/volume/${v.id}`}
+                      className="glass-card group block rounded-xl p-4 transition-all hover:shadow-md"
                     >
                       <div className="flex items-center justify-between">
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium">
+                          <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
                             {v.seriesTitle}
                           </div>
-                          <div className="text-muted-foreground text-xs">
+                          <div className="text-muted-foreground mt-0.5 text-xs">
                             Volume {v.volume_number}
-                            {progress !== null && ` · ${progress}%`}
+                            {progress !== null && (
+                              <span className="text-primary/80 ml-2 font-medium">
+                                {progress}%
+                              </span>
+                            )}
                           </div>
                         </div>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+                        >
+                          <polyline points="9,18 15,12 9,6" />
+                        </svg>
                       </div>
                       {progress !== null && (
-                        <div className="bg-primary/8 h-1.5 overflow-hidden rounded-full">
+                        <div className="bg-primary/8 mt-3 h-1.5 overflow-hidden rounded-full">
                           <div
-                            className="from-primary to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+                            className="from-primary to-gold h-full rounded-full bg-linear-to-r transition-all duration-700 ease-out"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
                       )}
-                    </li>
+                    </Link>
                   )
                 })}
-              </ul>
+              </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      {/* Collection Breakdown */}
-      <Card
-        className="animate-fade-in-up overflow-hidden rounded-2xl"
-        style={{ animationDelay: "0.46s" }}
-      >
-        <CardHeader className="pb-3">
-          <CardTitle className="font-display text-lg font-semibold">
-            Collection Breakdown
-          </CardTitle>
-          <CardDescription>Your collection at a glance</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {breakdownCards.map((card) => (
-              <div
-                key={card.id}
-                className={`${card.bgColor} flex flex-col items-center rounded-xl p-5 text-center transition-transform hover:scale-[1.02]`}
-              >
-                <div
-                  className={`font-display text-3xl font-bold ${card.color}`}
-                >
-                  {card.value}
+          {/* Recently Added */}
+          <div className="animate-fade-in-up stagger-3">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-semibold tracking-tight">
+                  Recently Added
+                </h2>
+                <p className="text-muted-foreground text-xs">
+                  Latest additions to your collection
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="bg-muted flex rounded-lg p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setRecentTab("series")}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                      recentTab === "series"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Series
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecentTab("volumes")}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                      recentTab === "volumes"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Volumes
+                  </button>
                 </div>
-                <div className="text-muted-foreground mt-1 text-sm">
-                  {card.label}
+                {(recentTab === "series"
+                  ? recentSeries.length > 0
+                  : recentVolumes.length > 0) && (
+                  <Link
+                    href="/library"
+                    className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+                  >
+                    View all
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <RecentlyAddedContent
+              tab={recentTab}
+              recentSeries={recentSeries}
+              recentVolumes={recentVolumes}
+              priceFormatter={priceFormatter}
+            />
+          </div>
+        </div>
+
+        {/* Right column — sidebar content */}
+        <div className="space-y-8 lg:col-span-5">
+          {/* Collection Breakdown */}
+          <div className="animate-fade-in-up stagger-4">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-semibold tracking-tight">
+                Breakdown
+              </h2>
+              <p className="text-muted-foreground text-xs">
+                Collection composition
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                {
+                  id: "ln",
+                  label: "Light Novels",
+                  value: lightNovels.length,
+                  gradient: "from-primary/15 to-primary/5",
+                  textColor: "text-primary",
+                  iconBg: "bg-primary/12",
+                  icon: (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                    </svg>
+                  )
+                },
+                {
+                  id: "manga",
+                  label: "Manga",
+                  value: manga.length,
+                  gradient: "from-copper/15 to-copper/5",
+                  textColor: "text-copper",
+                  iconBg: "bg-copper/12",
+                  icon: (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-3.5 w-3.5"
+                    >
+                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                      <line x1="3" x2="21" y1="9" y2="9" />
+                      <line x1="9" x2="9" y1="3" y2="21" />
+                    </svg>
+                  )
+                },
+                {
+                  id: "complete",
+                  label: "Complete",
+                  value: completeSets,
+                  gradient: "from-green-500/12 to-green-500/4",
+                  textColor: "text-green-600 dark:text-green-400",
+                  iconBg: "bg-green-500/12",
+                  icon: (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  )
+                },
+                {
+                  id: "wishlist",
+                  label: "Wishlist",
+                  value: wishlistCount,
+                  gradient: "from-gold/15 to-gold/5",
+                  textColor: "text-gold",
+                  iconBg: "bg-gold/12",
+                  icon: (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                    </svg>
+                  )
+                }
+              ].map((card) => (
+                <div
+                  key={card.id}
+                  className={`bg-linear-to-br ${card.gradient} rounded-xl border p-4 transition-transform hover:scale-[1.02]`}
+                >
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <div
+                      className={`${card.iconBg} ${card.textColor} flex h-5 w-5 items-center justify-center rounded`}
+                    >
+                      {card.icon}
+                    </div>
+                    <span className="text-muted-foreground text-[11px] font-medium uppercase">
+                      {card.label}
+                    </span>
+                  </div>
+                  <div
+                    className={`font-display text-2xl font-bold ${card.textColor}`}
+                  >
+                    {card.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Reading progress ring */}
+          <div className="animate-fade-in-up stagger-5">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-semibold tracking-tight">
+                Progress
+              </h2>
+              <p className="text-muted-foreground text-xs">
+                Overall reading completion
+              </p>
+            </div>
+
+            <div className="glass-card rounded-xl p-6">
+              <div className="flex items-center gap-6">
+                {/* SVG ring */}
+                <div className="relative h-24 w-24 shrink-0">
+                  <svg
+                    viewBox="0 0 100 100"
+                    className="h-full w-full -rotate-90"
+                  >
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="42"
+                      fill="none"
+                      className="stroke-primary/10"
+                      strokeWidth="8"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="42"
+                      fill="none"
+                      className="stroke-primary"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${readPercentage * 2.64} ${264 - readPercentage * 2.64}`}
+                      style={{
+                        transition: "stroke-dasharray 1s ease-out"
+                      }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="font-display text-xl font-bold">
+                      {readPercentage}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Read</span>
+                      <span className="font-medium">
+                        {readVolumes}/{totalVolumes}
+                      </span>
+                    </div>
+                    <div className="bg-primary/8 mt-1 h-1.5 overflow-hidden rounded-full">
+                      <div
+                        className="bg-primary h-full rounded-full transition-all duration-700"
+                        style={{ width: `${readPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">In progress</span>
+                      <span className="font-medium">{readingVolumes}</span>
+                    </div>
+                    <div className="bg-gold/10 mt-1 h-1.5 overflow-hidden rounded-full">
+                      <div
+                        className="bg-gold h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${totalVolumes > 0 ? Math.round((readingVolumes / totalVolumes) * 100) : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Price Tracking */}
+          <div className="animate-fade-in-up stagger-6">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-semibold tracking-tight">
+                Price Tracking
+              </h2>
+              <p className="text-muted-foreground text-xs">
+                Investment breakdown
+              </p>
+            </div>
+
+            {priceBreakdown.trackedCount === 0 ? (
+              <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+                <div className="text-gold bg-gold/10 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="h-5 w-5"
+                  >
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  No prices tracked yet
+                </p>
+                <p className="text-muted-foreground/60 mt-1 text-xs">
+                  Add purchase prices to volumes to see insights
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Category split */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="from-primary/12 to-primary/4 rounded-lg border bg-linear-to-br p-3">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Light Novels
+                    </span>
+                    <div className="text-primary font-display mt-0.5 text-lg font-bold">
+                      {priceFormatter.format(priceBreakdown.lnSpent)}
+                    </div>
+                  </div>
+                  <div className="from-copper/12 to-copper/4 rounded-lg border bg-linear-to-br p-3">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Manga
+                    </span>
+                    <div className="text-copper font-display mt-0.5 text-lg font-bold">
+                      {priceFormatter.format(priceBreakdown.mangaSpent)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Price range stats */}
+                <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border">
+                  <div className="bg-card p-3 text-center">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Min
+                    </span>
+                    <div className="font-display mt-0.5 text-sm font-semibold">
+                      {priceFormatter.format(priceBreakdown.minPrice)}
+                    </div>
+                  </div>
+                  <div className="bg-card p-3 text-center">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Median
+                    </span>
+                    <div className="font-display mt-0.5 text-sm font-semibold">
+                      {priceFormatter.format(priceBreakdown.medianPrice)}
+                    </div>
+                  </div>
+                  <div className="bg-card p-3 text-center">
+                    <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+                      Max
+                    </span>
+                    <div className="font-display mt-0.5 text-sm font-semibold">
+                      {priceFormatter.format(priceBreakdown.maxPrice)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top spending by series */}
+                {priceBreakdown.spendingBySeries.length > 0 && (
+                  <div>
+                    <span className="text-muted-foreground mb-2 block text-[10px] font-medium tracking-wider uppercase">
+                      Top series by spend
+                    </span>
+                    <div className="space-y-2">
+                      {priceBreakdown.spendingBySeries.map((s) => (
+                        <Link
+                          key={s.id}
+                          href={`/library/series/${s.id}`}
+                          className="group block"
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="group-hover:text-primary min-w-0 flex-1 truncate font-medium transition-colors">
+                              {s.title}
+                            </span>
+                            <span className="text-muted-foreground ml-2 shrink-0">
+                              {priceFormatter.format(s.total)}
+                            </span>
+                          </div>
+                          <div className="bg-primary/8 mt-1 h-1.5 overflow-hidden rounded-full">
+                            <div
+                              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+                              style={{
+                                width: `${priceBreakdown.maxSeriesSpent > 0 ? Math.round((s.total / priceBreakdown.maxSeriesSpent) * 100) : 0}%`
+                              }}
+                            />
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-muted-foreground/60 pt-1 text-center text-[10px]">
+                  {priceBreakdown.trackedCount} of {totalVolumes} volumes
+                  tracked
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Investment summary ribbon ── */}
+      {totalSpent > 0 && (
+        <section
+          className="animate-fade-in-up rounded-xl border p-6"
+          style={{ animationDelay: "0.5s" }}
+        >
+          <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
+            <div>
+              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                Total Invested
+              </span>
+              <div className="font-display text-gradient from-copper to-gold bg-linear-to-r text-2xl font-bold">
+                {priceFormatter.format(totalSpent)}
+              </div>
+            </div>
+            <div className="bg-border hidden h-10 w-px sm:block" />
+            <div>
+              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                Avg per Volume
+              </span>
+              <div className="font-display text-lg font-semibold">
+                {priceFormatter.format(
+                  ownedVolumes > 0 ? totalSpent / ownedVolumes : 0
+                )}
+              </div>
+            </div>
+            <div className="bg-border hidden h-10 w-px sm:block" />
+            <div>
+              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                Light Novels
+              </span>
+              <div className="font-display text-primary text-lg font-semibold">
+                {priceFormatter.format(priceBreakdown.lnSpent)}
+              </div>
+            </div>
+            <div className="bg-border hidden h-10 w-px sm:block" />
+            <div>
+              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                Manga
+              </span>
+              <div className="font-display text-copper text-lg font-semibold">
+                {priceFormatter.format(priceBreakdown.mangaSpent)}
+              </div>
+            </div>
+            <div className="bg-border hidden h-10 w-px sm:block" />
+            <div>
+              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                Volumes Owned
+              </span>
+              <div className="font-display text-lg font-semibold">
+                {ownedVolumes}{" "}
+                <span className="text-muted-foreground text-sm font-normal">
+                  of {totalVolumes}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   )
 }
