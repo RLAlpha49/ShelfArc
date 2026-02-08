@@ -711,19 +711,43 @@ export function useLibrary() {
 
       const updates: Partial<Series> = {}
       const nextDescription = resolvedResult.description?.trim() ?? ""
-      const nextCoverUrl = resolvedResult.coverUrl?.trim() ?? ""
 
       if (!targetSeries.description?.trim() && nextDescription) {
         updates.description = resolvedResult.description
       }
 
-      if (!targetSeries.cover_image_url?.trim() && nextCoverUrl) {
-        updates.cover_image_url = resolvedResult.coverUrl
-      }
-
       if (Object.keys(updates).length > 0) {
         await editSeries(targetSeries.id, updates)
       }
+    },
+    [editSeries]
+  )
+
+  const updateSeriesCoverFromVolume = useCallback(
+    async (seriesId: string, volume: Volume) => {
+      const nextCoverUrl = volume.cover_image_url?.trim() ?? ""
+      if (!nextCoverUrl) return
+
+      const seriesSnapshot = useLibraryStore.getState().series
+      const targetSeries = seriesSnapshot.find((item) => item.id === seriesId)
+      if (!targetSeries) return
+
+      const lowestExistingVolume =
+        targetSeries.volumes.length > 0
+          ? targetSeries.volumes.reduce(
+              (lowest, item) => Math.min(lowest, item.volume_number),
+              Number.POSITIVE_INFINITY
+            )
+          : null
+
+      const shouldUpdateCover =
+        lowestExistingVolume === null ||
+        volume.volume_number < lowestExistingVolume
+
+      if (!shouldUpdateCover) return
+      if (targetSeries.cover_image_url?.trim() === nextCoverUrl) return
+
+      await editSeries(seriesId, { cover_image_url: nextCoverUrl })
     },
     [editSeries]
   )
@@ -861,6 +885,7 @@ export function useLibrary() {
         if (error) throw error
 
         if (seriesId) {
+          await updateSeriesCoverFromVolume(seriesId, newVolume as Volume)
           addVolume(seriesId, newVolume as Volume)
         } else {
           addUnassignedVolume(newVolume as Volume)
@@ -871,7 +896,7 @@ export function useLibrary() {
         throw error
       }
     },
-    [supabase, addVolume, addUnassignedVolume]
+    [supabase, addVolume, addUnassignedVolume, updateSeriesCoverFromVolume]
   )
 
   // Update volume
@@ -937,6 +962,7 @@ export function useLibrary() {
         }
 
         if (nextSeriesId) {
+          await updateSeriesCoverFromVolume(nextSeriesId, updatedVolume)
           addVolume(nextSeriesId, updatedVolume)
         } else {
           addUnassignedVolume(updatedVolume)
@@ -955,7 +981,8 @@ export function useLibrary() {
       deleteVolume,
       deleteUnassignedVolume,
       addVolume,
-      addUnassignedVolume
+      addUnassignedVolume,
+      updateSeriesCoverFromVolume
     ]
   )
 
