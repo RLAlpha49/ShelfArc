@@ -185,84 +185,86 @@ function VolumeGridItem({
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
 
   return (
-    <button
-      type="button"
-      className="group bg-card hover:bg-accent/40 relative cursor-pointer overflow-hidden rounded-2xl text-left transition-colors"
-      onClick={onClick}
-    >
-      <div className="bg-muted relative aspect-2/3 overflow-hidden">
-        <CoverImage
-          isbn={item.volume.isbn}
-          coverImageUrl={item.volume.cover_image_url}
-          fallbackCoverImageUrl={item.series.cover_image_url}
-          alt={coverAlt}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-          decoding="async"
-          fallback={
-            <div className="flex h-full items-center justify-center">
-              <span className="text-muted-foreground/30 text-3xl font-bold">
-                {item.volume.volume_number}
-              </span>
-              <span className="sr-only">{coverAlt}</span>
-            </div>
-          }
-        />
-        <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
-        <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="bg-background/80 hover:bg-background inline-flex h-8 w-8 items-center justify-center rounded-md backdrop-blur-sm"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="h-4 w-4"
-              >
-                <circle cx="12" cy="12" r="1" />
-                <circle cx="12" cy="5" r="1" />
-                <circle cx="12" cy="19" r="1" />
-              </svg>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onEdit()
-                }}
-              >
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onDelete()
-                }}
-                className="text-destructive"
-              >
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <div className="group relative">
+      <button
+        type="button"
+        className="bg-card hover:bg-accent/40 group-hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors"
+        onClick={onClick}
+      >
+        <div className="bg-muted relative aspect-2/3 overflow-hidden">
+          <CoverImage
+            isbn={item.volume.isbn}
+            coverImageUrl={item.volume.cover_image_url}
+            fallbackCoverImageUrl={item.series.cover_image_url}
+            alt={coverAlt}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <span className="text-muted-foreground/30 text-3xl font-bold">
+                  {item.volume.volume_number}
+                </span>
+                <span className="sr-only">{coverAlt}</span>
+              </div>
+            }
+          />
+          <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
+        <div className="mt-2.5 space-y-1 px-1 pb-2">
+          <p className="font-display line-clamp-1 font-medium">
+            {item.series.title}
+          </p>
+          <p className="text-muted-foreground line-clamp-2 text-xs">
+            Vol. {item.volume.volume_number}
+            {item.volume.title
+              ? ` • ${normalizeVolumeTitle(item.volume.title)}`
+              : ""}
+          </p>
+        </div>
+      </button>
+      <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="bg-background/80 hover:bg-background inline-flex h-8 w-8 items-center justify-center rounded-md backdrop-blur-sm"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="h-4 w-4"
+            >
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={(event) => {
+                event.stopPropagation()
+                onEdit()
+              }}
+            >
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(event) => {
+                event.stopPropagation()
+                onDelete()
+              }}
+              className="text-destructive"
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      <div className="mt-2.5 space-y-1 px-1 pb-2">
-        <p className="font-display line-clamp-1 font-medium">
-          {item.series.title}
-        </p>
-        <p className="text-muted-foreground line-clamp-2 text-xs">
-          Vol. {item.volume.volume_number}
-          {item.volume.title
-            ? ` • ${normalizeVolumeTitle(item.volume.title)}`
-            : ""}
-        </p>
-      </div>
-    </button>
+    </div>
   )
 }
 
@@ -284,46 +286,48 @@ function VolumeListItem({
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
 
   return (
-    <button
-      type="button"
-      className="group glass-card hover:bg-accent relative flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
-      onClick={onClick}
-    >
-      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-lg">
-        <CoverImage
-          isbn={item.volume.isbn}
-          coverImageUrl={item.volume.cover_image_url}
-          fallbackCoverImageUrl={item.series.cover_image_url}
-          alt={coverAlt}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-          decoding="async"
-          fallback={
-            <div className="flex h-full w-full items-center justify-center">
-              <span className="text-muted-foreground/50 text-sm font-semibold">
-                {item.volume.volume_number}
-              </span>
-              <span className="sr-only">{coverAlt}</span>
-            </div>
-          }
-        />
-        <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate font-medium">{item.series.title}</h3>
-        <p className="text-muted-foreground truncate text-sm">
-          Vol. {item.volume.volume_number}
-          {item.volume.title ? ` • ${item.volume.title}` : ""}
-        </p>
-        {item.series.author && (
-          <p className="text-muted-foreground truncate text-xs">
-            {item.series.author}
+    <div className="group relative">
+      <button
+        type="button"
+        className="glass-card hover:bg-accent group-hover:bg-accent relative flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all group-hover:-translate-y-0.5 group-hover:shadow-md hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+        onClick={onClick}
+      >
+        <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-lg">
+          <CoverImage
+            isbn={item.volume.isbn}
+            coverImageUrl={item.volume.cover_image_url}
+            fallbackCoverImageUrl={item.series.cover_image_url}
+            alt={coverAlt}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            fallback={
+              <div className="flex h-full w-full items-center justify-center">
+                <span className="text-muted-foreground/50 text-sm font-semibold">
+                  {item.volume.volume_number}
+                </span>
+                <span className="sr-only">{coverAlt}</span>
+              </div>
+            }
+          />
+          <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-medium">{item.series.title}</h3>
+          <p className="text-muted-foreground truncate text-sm">
+            Vol. {item.volume.volume_number}
+            {item.volume.title ? ` • ${item.volume.title}` : ""}
           </p>
-        )}
-      </div>
-      <div className="text-muted-foreground text-xs capitalize">
-        {item.volume.ownership_status}
-      </div>
+          {item.series.author && (
+            <p className="text-muted-foreground truncate text-xs">
+              {item.series.author}
+            </p>
+          )}
+        </div>
+        <div className="text-muted-foreground text-xs capitalize">
+          {item.volume.ownership_status}
+        </div>
+      </button>
       <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -365,7 +369,7 @@ function VolumeListItem({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </button>
+    </div>
   )
 }
 
