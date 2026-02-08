@@ -230,6 +230,15 @@ export function SeriesDialog({
   }
 
   const coverUrl = coverPreviewUrl || resolveImageUrl(formData.cover_image_url)
+  const coverSearchTitle = formData.title.trim()
+  const coverSearchUrl = coverSearchTitle
+    ? `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(coverSearchTitle)}`
+    : ""
+
+  const handleOpenCoverSearch = () => {
+    if (!coverSearchUrl) return
+    window.open(coverSearchUrl, "_blank", "noopener,noreferrer")
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -444,6 +453,26 @@ export function SeriesDialog({
                     placeholder="https://..."
                     type="url"
                   />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={handleOpenCoverSearch}
+                    disabled={!coverSearchUrl}
+                    title={
+                      coverSearchUrl
+                        ? "Search Google Images for cover art"
+                        : "Add a title to enable image search"
+                    }
+                  >
+                    Search Google Images
+                  </Button>
+                  <span className="text-muted-foreground text-xs">
+                    Opens a new tab using the series title.
+                  </span>
                 </div>
 
                 <div className="space-y-2">

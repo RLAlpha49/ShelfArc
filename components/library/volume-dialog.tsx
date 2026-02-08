@@ -365,6 +365,21 @@ export function VolumeDialog({
   const coverUrl = coverPreviewError
     ? ""
     : coverPreviewUrl || resolveImageUrl(formData.cover_image_url)
+  const volumeTitle = formData.title.trim()
+  const seriesTitle = selectedSeriesOption?.title?.trim() ?? ""
+  const coverSearchBase = volumeTitle || seriesTitle
+  const coverSearchQuery =
+    coverSearchBase && !volumeTitle && formData.volume_number
+      ? `${coverSearchBase} volume ${formData.volume_number}`
+      : coverSearchBase
+  const coverSearchUrl = coverSearchQuery
+    ? `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(coverSearchQuery)}`
+    : ""
+
+  const handleOpenCoverSearch = () => {
+    if (!coverSearchUrl) return
+    window.open(coverSearchUrl, "_blank", "noopener,noreferrer")
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -640,6 +655,26 @@ export function VolumeDialog({
                       updateField("cover_image_url", e.target.value)
                     }}
                   />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={handleOpenCoverSearch}
+                    disabled={!coverSearchUrl}
+                    title={
+                      coverSearchUrl
+                        ? "Search Google Images for cover art"
+                        : "Add a title to enable image search"
+                    }
+                  >
+                    Search Google Images
+                  </Button>
+                  <span className="text-muted-foreground text-xs">
+                    Opens a new tab using the volume or series title.
+                  </span>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cover_image_upload">Upload Cover Image</Label>
