@@ -504,10 +504,15 @@ export function useLibrary() {
     (title: string, author?: string | null, typeHint?: TitleType | null) => {
       const matches = collectSeriesMatches(title, author)
       if (matches.length === 0) return undefined
+      if (typeHint) {
+        const typeMatches = matches.filter((item) => item.type === typeHint)
+        if (typeMatches.length === 0) return undefined
+        return pickSeriesByVolumeCount(typeMatches)
+      }
       if (matches.length === 1) return matches[0]
       return pickSeriesByType(matches, typeHint)
     },
-    [collectSeriesMatches, pickSeriesByType]
+    [collectSeriesMatches, pickSeriesByType, pickSeriesByVolumeCount]
   )
 
   const normalizeSeriesTypeHint = useCallback(
@@ -1155,6 +1160,71 @@ export function useLibrary() {
     })
   }, [filteredVolumes, sortField, sortOrder])
 
+  const resolveSeriesForResult = useCallback(
+    async (
+      resolvedResult: BookSearchResult,
+      seriesCache: Map<string, SeriesWithVolumes>
+    ) => {
+      const seriesTitle = deriveSeriesTitle(resolvedResult)
+      const author = resolvedResult.authors[0] ?? null
+      const seriesTypeHint = deriveSeriesType(resolvedResult)
+      const seriesKey = buildSeriesKey(seriesTitle, author)
+      const typedSeriesKey = seriesTypeHint
+        ? `${seriesKey}|${seriesTypeHint}`
+        : seriesKey
+      const parsedVolumeNumber = extractVolumeNumber(resolvedResult.title)
+      const initialVolumeNumber = parsedVolumeNumber ?? 1
+
+      let targetSeries = seriesTypeHint
+        ? seriesCache.get(typedSeriesKey)
+        : seriesCache.get(seriesKey)
+
+      targetSeries ??= findMatchingSeries(
+        seriesTitle,
+        author,
+        seriesTypeHint
+      )
+
+      targetSeries ??= await createSeries({
+        title: seriesTitle,
+        author: author || null,
+        description:
+          initialVolumeNumber === 1
+            ? resolvedResult.description || null
+            : null,
+        publisher: resolvedResult.publisher || null,
+        cover_image_url:
+          initialVolumeNumber === 1 ? resolvedResult.coverUrl || null : null,
+        type: seriesTypeHint ?? "other",
+        tags: []
+      })
+
+      targetSeries = await updateSeriesAuthorIfMissing(targetSeries, author)
+      targetSeries = await updateSeriesTypeIfMissing(
+        targetSeries,
+        seriesTypeHint
+      )
+
+      if (seriesTypeHint) {
+        seriesCache.set(typedSeriesKey, targetSeries)
+      } else {
+        seriesCache.set(seriesKey, targetSeries)
+      }
+
+      return { targetSeries, parsedVolumeNumber }
+    },
+    [
+      buildSeriesKey,
+      createSeries,
+      deriveSeriesTitle,
+      deriveSeriesType,
+      extractVolumeNumber,
+      findMatchingSeries,
+      updateSeriesAuthorIfMissing,
+      updateSeriesTypeIfMissing
+    ]
+  )
+
   const addBooksFromSearchResults = useCallback(
     async (
       results: BookSearchResult[],
@@ -1179,51 +1249,8 @@ export function useLibrary() {
       for (const result of results) {
         try {
           const resolvedResult = await resolveSearchResultDetails(result)
-          const seriesTitle = deriveSeriesTitle(resolvedResult)
-          const author = resolvedResult.authors[0] ?? null
-          const seriesTypeHint = deriveSeriesType(resolvedResult)
-          const seriesKey = buildSeriesKey(seriesTitle, author)
-          const typedSeriesKey = seriesTypeHint
-            ? `${seriesKey}|${seriesTypeHint}`
-            : seriesKey
-          const parsedVolumeNumber = extractVolumeNumber(resolvedResult.title)
-          const initialVolumeNumber = parsedVolumeNumber ?? 1
-          let targetSeries = seriesCache.get(typedSeriesKey)
-
-          targetSeries ??= seriesCache.get(seriesKey)
-
-          targetSeries ??= findMatchingSeries(
-            seriesTitle,
-            author,
-            seriesTypeHint
-          )
-
-          targetSeries ??= await createSeries({
-            title: seriesTitle,
-            author: author || null,
-            description:
-              initialVolumeNumber === 1
-                ? resolvedResult.description || null
-                : null,
-            publisher: resolvedResult.publisher || null,
-            cover_image_url:
-              initialVolumeNumber === 1
-                ? resolvedResult.coverUrl || null
-                : null,
-            type: seriesTypeHint ?? "other",
-            tags: []
-          })
-
-          targetSeries = await updateSeriesAuthorIfMissing(targetSeries, author)
-          targetSeries = await updateSeriesTypeIfMissing(
-            targetSeries,
-            seriesTypeHint
-          )
-
-          seriesCache.set(seriesKey, targetSeries)
-          if (seriesTypeHint) {
-            seriesCache.set(typedSeriesKey, targetSeries)
-          }
+          const { targetSeries, parsedVolumeNumber } =
+            await resolveSeriesForResult(resolvedResult, seriesCache)
 
           const volumeNumber =
             parsedVolumeNumber ?? getNextVolumeNumberForSeries(targetSeries)
@@ -1267,17 +1294,10 @@ export function useLibrary() {
     [
       autoFillSeriesFromVolume,
       bumpNextVolumeNumberForSeries,
-      buildSeriesKey,
-      createSeries,
       createVolume,
-      deriveSeriesTitle,
-      deriveSeriesType,
-      extractVolumeNumber,
-      findMatchingSeries,
       getNextVolumeNumber,
       resolveSearchResultDetails,
-      updateSeriesAuthorIfMissing,
-      updateSeriesTypeIfMissing
+      resolveSeriesForResult
     ]
   )
 
