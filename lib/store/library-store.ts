@@ -48,6 +48,7 @@ interface LibraryState {
   priceSource: PriceSource
   amazonDomain: AmazonDomain
   priceDisplayCurrency: CurrencyCode
+  showAmazonDisclaimer: boolean
   navigationMode: NavigationMode
   isLoading: boolean
 
@@ -81,6 +82,7 @@ interface LibraryState {
   setPriceSource: (value: PriceSource) => void
   setAmazonDomain: (value: AmazonDomain) => void
   setPriceDisplayCurrency: (value: CurrencyCode) => void
+  setShowAmazonDisclaimer: (value: boolean) => void
   setNavigationMode: (value: NavigationMode) => void
   setIsLoading: (loading: boolean) => void
 }
@@ -109,6 +111,7 @@ export const useLibraryStore = create<LibraryState>()(
       priceSource: "amazon",
       amazonDomain: "amazon.com",
       priceDisplayCurrency: "USD",
+      showAmazonDisclaimer: true,
       navigationMode: "sidebar",
       isLoading: false,
 
@@ -223,6 +226,7 @@ export const useLibraryStore = create<LibraryState>()(
       setPriceSource: (value) => set({ priceSource: value }),
       setAmazonDomain: (value) => set({ amazonDomain: value }),
       setPriceDisplayCurrency: (value) => set({ priceDisplayCurrency: value }),
+      setShowAmazonDisclaimer: (value) => set({ showAmazonDisclaimer: value }),
       setNavigationMode: (value) => set({ navigationMode: value }),
       setIsLoading: (loading) => set({ isLoading: loading })
     }),
@@ -237,6 +241,7 @@ export const useLibraryStore = create<LibraryState>()(
         priceSource: state.priceSource,
         amazonDomain: state.amazonDomain,
         priceDisplayCurrency: state.priceDisplayCurrency,
+        showAmazonDisclaimer: state.showAmazonDisclaimer,
         navigationMode: state.navigationMode
       })
     }

@@ -2,12 +2,6 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { Volume } from "@/lib/types/database"
@@ -153,45 +147,29 @@ export function VolumeCard({
             )}
         </div>
       </button>
-      <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className="bg-background/80 hover:bg-background inline-flex h-8 w-8 items-center justify-center rounded-xl backdrop-blur-sm"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="h-4 w-4"
-            >
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="12" cy="5" r="1" />
-              <circle cx="12" cy="19" r="1" />
-            </svg>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="rounded-xl">
-            <DropdownMenuItem
-              onClick={(event) => {
-                event.stopPropagation()
-                onEdit()
-              }}
-            >
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(event) => {
-                event.stopPropagation()
-                onDelete()
-              }}
-              className="text-destructive"
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            onEdit()
+          }}
+          aria-label={`Edit volume ${volume.volume_number}`}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-destructive/10 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete()
+          }}
+          aria-label={`Delete volume ${volume.volume_number}`}
+        >
+          Delete
+        </button>
       </div>
     </div>
   )

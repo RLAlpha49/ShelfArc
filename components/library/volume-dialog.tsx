@@ -13,6 +13,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText
+} from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -28,7 +34,10 @@ import {
   extractStoragePath,
   resolveImageUrl
 } from "@/lib/uploads/resolve-image-url"
-import { useLibraryStore } from "@/lib/store/library-store"
+import {
+  DEFAULT_CURRENCY_CODE,
+  useLibraryStore
+} from "@/lib/store/library-store"
 import { cn } from "@/lib/utils"
 import type {
   SeriesWithVolumes,
@@ -486,6 +495,7 @@ export function VolumeDialog({
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [coverPreviewError, setCoverPreviewError] = useState(false)
   const [showAmazonWarning, setShowAmazonWarning] = useState(false)
+  const formRef = useRef<HTMLFormElement | null>(null)
   const previewUrlRef = useRef<string | null>(null)
   const isMountedRef = useRef(true)
   const uploadAbortRef = useRef<AbortController | null>(null)
@@ -493,6 +503,29 @@ export function VolumeDialog({
   const [formData, setFormData] = useState(defaultFormData)
   const priceSource = useLibraryStore((state) => state.priceSource)
   const amazonDomain = useLibraryStore((state) => state.amazonDomain)
+  const priceDisplayCurrency = useLibraryStore(
+    (state) => state.priceDisplayCurrency
+  )
+  const showAmazonDisclaimer = useLibraryStore(
+    (state) => state.showAmazonDisclaimer
+  )
+  const setShowAmazonDisclaimer = useLibraryStore(
+    (state) => state.setShowAmazonDisclaimer
+  )
+
+  const priceCurrencySymbol = useMemo(() => {
+    const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
+    try {
+      const parts = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency,
+        currencyDisplay: "narrowSymbol"
+      }).formatToParts(0)
+      return parts.find((part) => part.type === "currency")?.value ?? currency
+    } catch {
+      return currency
+    }
+  }, [priceDisplayCurrency])
 
   const showSeriesSelect = !!seriesOptions
   const selectedSeriesOption =
@@ -500,6 +533,55 @@ export function VolumeDialog({
 
   const isBusy =
     isSubmitting || isUploadingCover || isFetchingPrice || isFetchingImage
+  const isSubmitDisabled = isSubmitting || isUploadingCover
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.key !== "Enter" ||
+        event.shiftKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        isSubmitDisabled
+      ) {
+        return
+      }
+
+      const activeElement = globalThis.document
+        ?.activeElement as HTMLElement | null
+      const target = activeElement ?? (event.target as HTMLElement | null)
+      const form = formRef.current
+
+      if (!form) return
+      if (!target) {
+        event.preventDefault()
+        form.requestSubmit()
+        return
+      }
+      if (target instanceof HTMLTextAreaElement) return
+      if (target instanceof HTMLInputElement && target.type === "file") return
+      if (target.isContentEditable) return
+      if (target.closest("[role='combobox']")) return
+      if (target.closest("[aria-haspopup='listbox']")) return
+      if (target.dataset.preventEnterSubmit === "true") return
+      if (target.closest("[data-prevent-enter-submit='true']")) return
+
+      event.preventDefault()
+      form.requestSubmit()
+    }
+
+    globalThis.addEventListener("keydown", handleKeyDown, { capture: true })
+    return () => {
+      globalThis.removeEventListener("keydown", handleKeyDown, {
+        capture: true
+      })
+    }
+  }, [open, isSubmitDisabled])
 
   useEffect(() => {
     if (!open) {
@@ -860,7 +942,11 @@ export function VolumeDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 px-6 pt-6">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="space-y-6 px-6 pt-6"
+        >
           {showSeriesSelect && seriesOptions && (
             <SeriesPicker
               seriesOptions={seriesOptions}
@@ -1028,18 +1114,28 @@ export function VolumeDialog({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="purchase_price">Price</Label>
-                    <Input
-                      id="purchase_price"
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      placeholder="0.00"
-                      value={formData.purchase_price}
-                      onChange={(e) =>
-                        updateField("purchase_price", e.target.value)
-                      }
-                    />
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="purchase_price">Price</Label>
+                      <span className="text-muted-foreground text-xs">
+                        {priceDisplayCurrency} · {priceCurrencySymbol}
+                      </span>
+                    </div>
+                    <InputGroup>
+                      <InputGroupAddon align="inline-start">
+                        <InputGroupText>{priceCurrencySymbol}</InputGroupText>
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id="purchase_price"
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        placeholder="0.00"
+                        value={formData.purchase_price}
+                        onChange={(e) =>
+                          updateField("purchase_price", e.target.value)
+                        }
+                      />
+                    </InputGroup>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1308,7 +1404,7 @@ export function VolumeDialog({
           </div>
 
           {/* Amazon warning callout — shown after any Amazon fetch */}
-          {showAmazonWarning && (
+          {showAmazonWarning && showAmazonDisclaimer && (
             <div className="border-gold/30 bg-gold/5 rounded-xl border px-4 py-3">
               <div className="flex items-start gap-2.5">
                 <svg
@@ -1343,6 +1439,20 @@ export function VolumeDialog({
                     will automatically pause and retry later. You can wait and
                     try again.
                   </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-[11px]"
+                      onClick={() => {
+                        setShowAmazonDisclaimer(false)
+                        setShowAmazonWarning(false)
+                      }}
+                    >
+                      Don&apos;t show again
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1376,13 +1486,14 @@ export function VolumeDialog({
               variant="outline"
               className="rounded-xl"
               onClick={() => onOpenChange(false)}
+              data-prevent-enter-submit="true"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
-              disabled={isSubmitting || isUploadingCover}
+              disabled={isSubmitDisabled}
             >
               {getButtonLabel()}
             </Button>

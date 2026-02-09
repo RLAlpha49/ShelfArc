@@ -173,9 +173,11 @@ export default function SettingsPage() {
     priceSource,
     amazonDomain,
     priceDisplayCurrency,
+    showAmazonDisclaimer,
     setPriceSource,
     setAmazonDomain,
     setPriceDisplayCurrency,
+    setShowAmazonDisclaimer,
     navigationMode,
     setNavigationMode
   } = useLibraryStore()
@@ -1190,6 +1192,28 @@ export default function SettingsPage() {
                 <p className="text-muted-foreground text-xs">
                   Controls how prices are formatted across the app.
                 </p>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="show-amazon-disclaimer"
+                    className="font-medium"
+                  >
+                    Show Amazon data disclaimer
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Display the Amazon data disclaimer after fetching prices or
+                    images.
+                  </p>
+                </div>
+                <Switch
+                  id="show-amazon-disclaimer"
+                  checked={showAmazonDisclaimer}
+                  onCheckedChange={setShowAmazonDisclaimer}
+                />
               </div>
             </div>
           </section>

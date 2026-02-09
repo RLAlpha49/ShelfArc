@@ -98,6 +98,7 @@ export function SeriesDialog({
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [coverPreviewError, setCoverPreviewError] = useState(false)
+  const formRef = useRef<HTMLFormElement | null>(null)
   const previewUrlRef = useRef<string | null>(null)
   const [formData, setFormData] = useState(() => buildSeriesFormData(series))
   const seriesRef = useRef(series)
@@ -240,6 +241,54 @@ export function SeriesDialog({
   const isEditing = Boolean(series)
   const isBusy = isSubmitting || isUploadingCover
 
+  useEffect(() => {
+    if (!open) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.key !== "Enter" ||
+        event.shiftKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        isBusy
+      ) {
+        return
+      }
+
+      const activeElement = globalThis.document
+        ?.activeElement as HTMLElement | null
+      const target = activeElement ?? (event.target as HTMLElement | null)
+      const form = formRef.current
+
+      if (!form) return
+      if (!target) {
+        event.preventDefault()
+        form.requestSubmit()
+        return
+      }
+      if (target instanceof HTMLTextAreaElement) return
+      if (target instanceof HTMLInputElement && target.type === "file") return
+      if (target.isContentEditable) return
+      if (target.closest("[role='combobox']")) return
+      if (target.closest("[aria-haspopup='listbox']")) return
+      if (target.dataset.preventEnterSubmit === "true") return
+      if (target.closest("[data-prevent-enter-submit='true']")) return
+
+      event.preventDefault()
+      form.requestSubmit()
+    }
+
+    globalThis.addEventListener("keydown", handleKeyDown, { capture: true })
+    return () => {
+      globalThis.removeEventListener("keydown", handleKeyDown, {
+        capture: true
+      })
+    }
+  }, [open, isBusy])
+
   const firstVolume = useMemo(() => {
     const volumes = series?.volumes ?? []
     if (volumes.length === 0) return null
@@ -293,7 +342,11 @@ export function SeriesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 px-6 pt-6">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="space-y-6 px-6 pt-6"
+        >
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
             <div className="space-y-6">
               <fieldset className="glass-card space-y-4 rounded-2xl p-4">
@@ -653,6 +706,7 @@ export function SeriesDialog({
               variant="outline"
               className="rounded-xl"
               onClick={() => onOpenChange(false)}
+              data-prevent-enter-submit="true"
             >
               Cancel
             </Button>
