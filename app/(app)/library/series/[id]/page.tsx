@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { VolumeDialog } from "@/components/library/volume-dialog"
 import { SeriesDialog } from "@/components/library/series-dialog"
+import { BulkScrapeDialog } from "@/components/library/bulk-scrape-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { VolumeCard } from "@/components/library/volume-card"
 import { EmptyState } from "@/components/empty-state"
@@ -373,6 +374,7 @@ export default function SeriesDetailPage() {
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
   const [deleteVolumeDialogOpen, setDeleteVolumeDialogOpen] = useState(false)
   const [deleteSeriesDialogOpen, setDeleteSeriesDialogOpen] = useState(false)
+  const [bulkScrapeDialogOpen, setBulkScrapeDialogOpen] = useState(false)
   const [isDeletingSeries, setIsDeletingSeries] = useState(false)
   const [isDeletingVolume, setIsDeletingVolume] = useState(false)
   const [deletingVolume, setDeletingVolume] = useState<Volume | null>(null)
@@ -730,6 +732,28 @@ export default function SeriesDetailPage() {
                 )}
               </div>
               <div className="flex items-center gap-2">
+                {currentSeries.volumes.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+                    onClick={() => setBulkScrapeDialogOpen(true)}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-1.5 h-4 w-4"
+                    >
+                      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                      <path d="M21 3v5h-5" />
+                    </svg>
+                    Bulk Scrape
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
@@ -943,6 +967,13 @@ export default function SeriesDetailPage() {
         onOpenChange={setSeriesDialogOpen}
         series={currentSeries}
         onSubmit={handleEditSeries}
+      />
+
+      <BulkScrapeDialog
+        open={bulkScrapeDialogOpen}
+        onOpenChange={setBulkScrapeDialogOpen}
+        series={currentSeries}
+        editVolume={editVolume}
       />
 
       <AlertDialog
