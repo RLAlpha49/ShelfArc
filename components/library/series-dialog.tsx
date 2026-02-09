@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
+import { CoverPreviewImage } from "@/components/library/cover-preview-image"
 import { uploadImage } from "@/lib/uploads/upload-image"
 import {
   extractStoragePath,
@@ -519,17 +520,15 @@ export function SeriesDialog({
 
               {coverUrl && !coverPreviewError && (
                 <div className="flex justify-center">
-                  <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded-xl shadow-md">
-                    <img
-                      src={coverUrl}
-                      alt="Cover preview"
-                      className="absolute inset-0 h-full w-full object-cover"
-                      onError={() => {
-                        setCoverPreviewError(true)
-                        setPreviewUrl(null)
-                      }}
-                    />
-                  </div>
+                  <CoverPreviewImage
+                    key={coverUrl}
+                    src={coverUrl}
+                    alt="Cover preview"
+                    onError={() => {
+                      setCoverPreviewError(true)
+                      setPreviewUrl(null)
+                    }}
+                  />
                 </div>
               )}
               {coverPreviewError && (
