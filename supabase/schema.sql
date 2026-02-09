@@ -153,6 +153,9 @@ CREATE INDEX idx_shelf_items_bookshelf_id ON shelf_items(bookshelf_id);
 CREATE INDEX idx_shelf_items_volume_id ON shelf_items(volume_id);
 CREATE INDEX idx_shelf_items_user_id ON shelf_items(user_id);
 
+-- Supabase recommended indexes
+CREATE INDEX ON public.volumes USING btree (volume_number);
+
 -- Row Level Security (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE series ENABLE ROW LEVEL SECURITY;
