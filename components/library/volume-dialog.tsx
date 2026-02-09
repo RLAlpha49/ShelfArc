@@ -972,7 +972,7 @@ export function VolumeDialog({
                     <Input
                       id="volume_number"
                       type="number"
-                      min={1}
+                      min={0}
                       value={formData.volume_number}
                       onChange={(e) =>
                         updateField(
