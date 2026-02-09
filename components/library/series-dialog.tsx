@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
+import { CoverImage } from "@/components/library/cover-image"
 import { CoverPreviewImage } from "@/components/library/cover-preview-image"
 import { uploadImage } from "@/lib/uploads/upload-image"
 import {
@@ -30,17 +32,37 @@ import {
 import type {
   SeriesInsert,
   SeriesWithVolumes,
-  TitleType
+  TitleType,
+  Volume
 } from "@/lib/types/database"
 
 interface SeriesDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly series?: SeriesWithVolumes | null
-  readonly onSubmit: (data: Omit<SeriesInsert, "user_id">) => Promise<void>
+  readonly unassignedVolumes?: Volume[]
+  readonly onSubmit: (
+    data: Omit<SeriesInsert, "user_id">,
+    options?: {
+      volumeIds?: string[]
+      basisVolumeId?: string | null
+    }
+  ) => Promise<void>
 }
 
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
+
+const VOLUME_TOKEN_PATTERN =
+  /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
+
+const normalizeVolumeTitle = (title: string) => {
+  const withoutToken = title.replaceAll(VOLUME_TOKEN_PATTERN, " ")
+  const cleaned = withoutToken
+    .replaceAll(/\s*[-–—:]\s*$/g, "")
+    .replaceAll(/\s+/g, " ")
+    .trim()
+  return cleaned || title.trim()
+}
 
 const defaultFormData = {
   title: "",
@@ -93,19 +115,51 @@ export function SeriesDialog({
   open,
   onOpenChange,
   series,
+  unassignedVolumes,
   onSubmit
 }: SeriesDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [coverPreviewError, setCoverPreviewError] = useState(false)
+  const [basisVolumeId, setBasisVolumeId] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement | null>(null)
   const previewUrlRef = useRef<string | null>(null)
   const [formData, setFormData] = useState(() => buildSeriesFormData(series))
   const seriesRef = useRef(series)
   const seriesIdRef = useRef<string | null>(series?.id ?? null)
   const seriesSnapshotRef = useRef(buildSeriesFormData(series))
+  const basisSeedRef = useRef<
+    Pick<SeriesFormData, "title" | "description" | "cover_image_url">
+  >({
+    title: "",
+    description: "",
+    cover_image_url: ""
+  })
   const wasOpenRef = useRef(false)
+  const isEditing = Boolean(series)
+
+  const availableVolumes = useMemo(() => {
+    if (!unassignedVolumes || unassignedVolumes.length === 0) return []
+    return [...unassignedVolumes]
+      .filter((volume) => !volume.series_id)
+      .sort((a, b) => {
+        const titleA = (a.title ?? "").toLowerCase()
+        const titleB = (b.title ?? "").toLowerCase()
+        if (titleA && titleB && titleA !== titleB) {
+          return titleA.localeCompare(titleB)
+        }
+        if (titleA || titleB) {
+          return titleA.localeCompare(titleB)
+        }
+        return a.volume_number - b.volume_number
+      })
+  }, [unassignedVolumes])
+
+  const basisVolume = useMemo(() => {
+    if (!basisVolumeId) return null
+    return availableVolumes.find((volume) => volume.id === basisVolumeId) ?? null
+  }, [availableVolumes, basisVolumeId])
 
   useEffect(() => {
     return () => {
@@ -122,6 +176,12 @@ export function SeriesDialog({
   useEffect(() => {
     if (!open) {
       wasOpenRef.current = false
+      setBasisVolumeId(null)
+      basisSeedRef.current = {
+        title: "",
+        description: "",
+        cover_image_url: ""
+      }
       return
     }
 
@@ -141,11 +201,27 @@ export function SeriesDialog({
       const nextFormData = buildSeriesFormData(nextSeries)
       setFormData(nextFormData)
       seriesSnapshotRef.current = nextFormData
+      setBasisVolumeId(null)
+      basisSeedRef.current = {
+        title: "",
+        description: "",
+        cover_image_url: ""
+      }
     }
 
     seriesIdRef.current = nextSeriesId
     wasOpenRef.current = true
   }, [open, series?.id])
+
+  useEffect(() => {
+    if (!basisVolumeId) return
+    const stillAvailable = availableVolumes.some(
+      (volume) => volume.id === basisVolumeId
+    )
+    if (!stillAvailable) {
+      setBasisVolumeId(null)
+    }
+  }, [availableVolumes, basisVolumeId])
 
   useEffect(() => {
     if (!open || !series) return
@@ -163,6 +239,54 @@ export function SeriesDialog({
       seriesSnapshotRef.current = nextFormData
     }
   }, [open, series, formData])
+
+  useEffect(() => {
+    if (!basisVolume || isEditing) return
+    const rawTitle = basisVolume.title?.trim() ?? ""
+    const derivedTitle = rawTitle ? normalizeVolumeTitle(rawTitle) : ""
+    const nextSeed = {
+      title: derivedTitle || rawTitle || "",
+      description: basisVolume.description ?? "",
+      cover_image_url: basisVolume.cover_image_url ?? ""
+    }
+    const previousSeed = basisSeedRef.current
+    let shouldResetCover = false
+
+    setFormData((prev) => {
+      const nextForm = { ...prev }
+
+      if (
+        nextSeed.title &&
+        (!prev.title || prev.title === previousSeed.title)
+      ) {
+        nextForm.title = nextSeed.title
+      }
+
+      if (
+        nextSeed.description &&
+        (!prev.description || prev.description === previousSeed.description)
+      ) {
+        nextForm.description = nextSeed.description
+      }
+
+      if (
+        nextSeed.cover_image_url &&
+        (!prev.cover_image_url ||
+          prev.cover_image_url === previousSeed.cover_image_url)
+      ) {
+        nextForm.cover_image_url = nextSeed.cover_image_url
+        shouldResetCover = true
+      }
+
+      return nextForm
+    })
+
+    if (shouldResetCover) {
+      setCoverPreviewError(false)
+      setPreviewUrl(null)
+    }
+    basisSeedRef.current = nextSeed
+  }, [basisVolume, isEditing])
 
   const setPreviewUrl = (url: string | null) => {
     if (previewUrlRef.current) {
@@ -184,22 +308,32 @@ export function SeriesDialog({
             .filter(Boolean)
         : []
 
-      await onSubmit({
-        title: formData.title,
-        original_title: formData.original_title || null,
-        description: formData.description || null,
-        notes: formData.notes || null,
-        author: formData.author || null,
-        artist: formData.artist || null,
-        publisher: formData.publisher || null,
-        cover_image_url: formData.cover_image_url || null,
-        type: formData.type,
-        total_volumes: formData.total_volumes
-          ? Number.parseInt(formData.total_volumes, 10)
-          : null,
-        status: formData.status || null,
-        tags: tagsArray
-      })
+      const selectedVolumeIds = basisVolumeId ? [basisVolumeId] : []
+
+      await onSubmit(
+        {
+          title: formData.title,
+          original_title: formData.original_title || null,
+          description: formData.description || null,
+          notes: formData.notes || null,
+          author: formData.author || null,
+          artist: formData.artist || null,
+          publisher: formData.publisher || null,
+          cover_image_url: formData.cover_image_url || null,
+          type: formData.type,
+          total_volumes: formData.total_volumes
+            ? Number.parseInt(formData.total_volumes, 10)
+            : null,
+          status: formData.status || null,
+          tags: tagsArray
+        },
+        selectedVolumeIds.length > 0
+          ? {
+              volumeIds: selectedVolumeIds,
+              basisVolumeId
+            }
+          : undefined
+      )
       onOpenChange(false)
     } catch (error) {
       console.error("Error saving series:", error)
@@ -239,7 +373,6 @@ export function SeriesDialog({
     }
   }
 
-  const isEditing = Boolean(series)
   const isBusy = isSubmitting || isUploadingCover
 
   useEffect(() => {
@@ -384,6 +517,114 @@ export function SeriesDialog({
                   </div>
                 </div>
               </fieldset>
+
+              {!isEditing && (
+                <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                  <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
+                    Seed Volume
+                  </legend>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground text-xs">
+                        Pick an unassigned volume to seed this series and add
+                        it automatically on creation.
+                      </p>
+                    </div>
+                    <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                      <span>{availableVolumes.length} unassigned</span>
+                      {basisVolumeId && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() => setBasisVolumeId(null)}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {availableVolumes.length === 0 ? (
+                    <div className="text-muted-foreground text-xs">
+                      No unassigned volumes available yet.
+                    </div>
+                  ) : (
+                    <RadioGroup
+                      value={basisVolumeId ?? ""}
+                      onValueChange={(value) => setBasisVolumeId(value || null)}
+                      className="space-y-2"
+                    >
+                      {availableVolumes.map((volume) => {
+                        const volumeTitle = volume.title?.trim() ?? ""
+                        const normalizedTitle = volumeTitle
+                          ? normalizeVolumeTitle(volumeTitle)
+                          : ""
+                        const displayTitle =
+                          normalizedTitle ||
+                          volumeTitle ||
+                          `Volume ${volume.volume_number}`
+                        const subtitleParts = [`Vol. ${volume.volume_number}`]
+
+                        if (
+                          volumeTitle &&
+                          normalizedTitle &&
+                          normalizedTitle !== volumeTitle
+                        ) {
+                          subtitleParts.push(volumeTitle)
+                        }
+                        if (!volumeTitle && volume.isbn) {
+                          subtitleParts.push(volume.isbn)
+                        }
+
+                        return (
+                          <div
+                            key={volume.id}
+                            className={`border-border/60 bg-card/70 hover:bg-accent/40 flex items-start gap-3 rounded-xl border px-3 py-2 transition ${basisVolumeId === volume.id ? "ring-primary/40 ring-2" : ""}`}
+                          >
+                            <RadioGroupItem
+                              value={volume.id}
+                              id={`basis-${volume.id}`}
+                              className="mt-1"
+                            />
+                            <Label
+                              htmlFor={`basis-${volume.id}`}
+                              className="flex flex-1 cursor-pointer items-start gap-3"
+                            >
+                              <div className="bg-muted relative aspect-2/3 w-10 overflow-hidden rounded-lg">
+                                <CoverImage
+                                  isbn={volume.isbn}
+                                  coverImageUrl={volume.cover_image_url}
+                                  alt={displayTitle}
+                                  className="absolute inset-0 h-full w-full object-cover"
+                                  loading="lazy"
+                                  decoding="async"
+                                  fallback={
+                                    <div className="from-primary/5 to-copper/5 flex h-full items-center justify-center bg-linear-to-br">
+                                      <span className="text-muted-foreground text-[9px] font-semibold">
+                                        {volume.volume_number}
+                                      </span>
+                                    </div>
+                                  }
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-display line-clamp-1 text-xs font-semibold">
+                                  {displayTitle}
+                                </p>
+                                <p className="text-muted-foreground line-clamp-1 text-[11px]">
+                                  {subtitleParts.join(" • ")}
+                                </p>
+                              </div>
+                            </Label>
+                          </div>
+                        )
+                      })}
+                    </RadioGroup>
+                  )}
+                </fieldset>
+              )}
 
               <fieldset className="glass-card space-y-4 rounded-2xl p-4">
                 <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">

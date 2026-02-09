@@ -766,10 +766,41 @@ export default function LibraryPage() {
     setBulkDeleteDialogOpen(true)
   }, [selectedCount, confirmBeforeDelete, performBulkDelete])
 
-  const handleAddSeries = async (data: Parameters<typeof createSeries>[0]) => {
+  const handleAddSeries = async (
+    data: Parameters<typeof createSeries>[0],
+    options?: { volumeIds?: string[] }
+  ) => {
     try {
       const createdSeries = await createSeries(data)
       toast.success("Series added successfully")
+
+      const volumeIds = Array.from(
+        new Set(options?.volumeIds?.filter(Boolean) ?? [])
+      )
+
+      if (volumeIds.length > 0) {
+        const results = await Promise.allSettled(
+          volumeIds.map((volumeId) =>
+            editVolume(null, volumeId, { series_id: createdSeries.id })
+          )
+        )
+        const successCount = results.filter(
+          (result) => result.status === "fulfilled"
+        ).length
+        const failureCount = results.length - successCount
+
+        if (successCount > 0) {
+          toast.success(
+            `Added ${successCount} volume${successCount === 1 ? "" : "s"} to the series`
+          )
+        }
+        if (failureCount > 0) {
+          toast.error(
+            `${failureCount} volume${failureCount === 1 ? "" : "s"} failed to attach`
+          )
+        }
+      }
+
       if (pendingSeriesSelection) {
         setSelectedSeriesId(createdSeries.id)
         setPendingSeriesSelection(false)
@@ -779,8 +810,12 @@ export default function LibraryPage() {
     }
   }
 
-  const handleEditSeries = async (data: Parameters<typeof createSeries>[0]) => {
+  const handleEditSeries = async (
+    data: Parameters<typeof createSeries>[0],
+    options?: { volumeIds?: string[] }
+  ) => {
     if (!editingSeries) return
+    void options
     try {
       await editSeries(editingSeries.id, data)
       toast.success("Series updated successfully")
@@ -1469,6 +1504,7 @@ export default function LibraryPage() {
           }
         }}
         series={editingSeries}
+        unassignedVolumes={unassignedVolumes}
         onSubmit={editingSeries ? handleEditSeries : handleAddSeries}
       />
 

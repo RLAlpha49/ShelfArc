@@ -290,7 +290,7 @@ const SeriesInsightsPanel = ({
         </div>
         <div>
           <dt className="text-muted-foreground text-xs tracking-widest uppercase">
-            Owned volume range
+            Owned volumes
           </dt>
           <dd className="font-medium">{insights.volumeRangeLabel}</dd>
         </div>
@@ -454,8 +454,12 @@ export default function SeriesDetailPage() {
     }
   }
 
-  const handleEditSeries = async (data: Omit<SeriesInsert, "user_id">) => {
+  const handleEditSeries = async (
+    data: Omit<SeriesInsert, "user_id">,
+    options?: { volumeIds?: string[] }
+  ) => {
     if (!currentSeries) return
+    void options
     try {
       await editSeries(currentSeries.id, data)
       toast.success("Series updated successfully")
