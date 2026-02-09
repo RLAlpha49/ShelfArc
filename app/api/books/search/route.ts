@@ -7,6 +7,7 @@ import {
   type BookSearchSource
 } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
+import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
 
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 const OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"
@@ -43,42 +44,87 @@ const fetchWithTimeout = async (
   }
 }
 
+const fetchGoogleBooksResponse = async (
+  query: string,
+  apiKeys: string[],
+  batchSize: number,
+  startIndex: number,
+  keyIndex: number
+): Promise<{ response?: Response; keyIndex: number; error?: string }> => {
+  const totalKeys = apiKeys.length
+  let usedKeyIndex = keyIndex
+
+  for (let attempt = 0; attempt < totalKeys; attempt += 1) {
+    usedKeyIndex = (keyIndex + attempt) % totalKeys
+    const apiKey = apiKeys[usedKeyIndex]
+    const url = new URL(GOOGLE_BOOKS_URL)
+    url.searchParams.set("q", buildGoogleQuery(query))
+    url.searchParams.set("maxResults", String(batchSize))
+    url.searchParams.set("startIndex", String(startIndex))
+    url.searchParams.set("printType", "books")
+    url.searchParams.set("key", apiKey)
+
+    try {
+      const response = await fetchWithTimeout(
+        url.toString(),
+        { cache: "no-store" },
+        FETCH_TIMEOUT_MS,
+        "Google Books"
+      )
+
+      if (response.status === 429 && totalKeys > 1 && attempt < totalKeys - 1) {
+        continue
+      }
+
+      return { response, keyIndex: usedKeyIndex }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      return { error: message, keyIndex: usedKeyIndex }
+    }
+  }
+
+  return { keyIndex: usedKeyIndex }
+}
+
 const fetchGoogleBooks = async (
   query: string,
-  apiKey: string,
+  apiKeys: string[],
   page: number,
   limit: number
 ): Promise<{ items: BookSearchResult[]; warning?: string }> => {
   const safeLimit = Math.min(Math.max(limit, 1), MAX_LIMIT)
   const startIndex = Math.max(page - 1, 0) * safeLimit
   const results: BookSearchResult[] = []
+  let keyIndex = 0
 
   for (let offset = 0; offset < safeLimit; offset += GOOGLE_BOOKS_MAX_LIMIT) {
     const batchSize = Math.min(GOOGLE_BOOKS_MAX_LIMIT, safeLimit - offset)
-    const url = new URL(GOOGLE_BOOKS_URL)
-    url.searchParams.set("q", buildGoogleQuery(query))
-    url.searchParams.set("maxResults", String(batchSize))
-    url.searchParams.set("startIndex", String(startIndex + offset))
-    url.searchParams.set("printType", "books")
-    url.searchParams.set("key", apiKey)
-
-    let response: Response
-    try {
-      response = await fetchWithTimeout(
-        url.toString(),
-        { cache: "no-store" },
-        FETCH_TIMEOUT_MS,
-        "Google Books"
+    const { response, keyIndex: nextKeyIndex, error } =
+      await fetchGoogleBooksResponse(
+        query,
+        apiKeys,
+        batchSize,
+        startIndex + offset,
+        keyIndex
       )
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error"
+
+    keyIndex = nextKeyIndex
+
+    if (error) {
       console.warn("Google Books batch failed", {
         retrieved: results.length,
-        error: message
+        error
       })
       return {
         items: results.slice(0, safeLimit),
-        warning: `Partial results: ${results.length} items; failed to fetch batch: ${message}`
+        warning: `Partial results: ${results.length} items; failed to fetch batch: ${error}`
+      }
+    }
+
+    if (!response) {
+      return {
+        items: results.slice(0, safeLimit),
+        warning: `Partial results: ${results.length} items; failed to fetch batch: unavailable response`
       }
     }
     if (!response.ok) {
@@ -168,8 +214,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (source === "google_books") {
-    const googleApiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim()
-    if (!googleApiKey) {
+    const googleApiKeys = getGoogleBooksApiKeys()
+    if (googleApiKeys.length === 0) {
       return NextResponse.json(
         {
           results: [],
@@ -183,7 +229,7 @@ export async function GET(request: NextRequest) {
     try {
       const { items, warning } = await fetchGoogleBooks(
         query,
-        googleApiKey,
+        googleApiKeys,
         page,
         limit
       )
