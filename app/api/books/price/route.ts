@@ -9,11 +9,21 @@ import {
 
 export const dynamic = "force-dynamic"
 
+// Set to `true` to enable detailed debug logging of the search result scoring process.
+const DEBUG = false
+
+const debugLog = (...args: Parameters<typeof console.debug>) => {
+  if (DEBUG) {
+    console.debug(...args)
+  }
+}
+
 const AMAZON_SEARCH_PATH = "/s"
 const DEFAULT_BINDING = "Paperback"
 const FETCH_TIMEOUT_MS = 12000
 const MATCH_THRESHOLD = 0.6
 const REQUIRED_MATCH_THRESHOLD = 0.8
+const MAX_RESULTS_TO_SCORE = 3
 const MAX_TITLE_LENGTH = 200
 const MAX_FORMAT_LENGTH = 80
 const MAX_QUERY_LENGTH = 260
@@ -92,6 +102,34 @@ const tokenize = (value: string) => {
     .map((token) => token.trim())
     .filter((token) => token.length > 1 || /^\d+$/.test(token))
   return new Set(tokens)
+}
+
+const hasExactVolumeMatch = (title: string, volumeNumber: number) => {
+  const lower = title.toLowerCase()
+  const explicitPattern = new RegExp(
+    String.raw`\bvol(?:ume)?\.?\s*${volumeNumber}\b(?!\s*(?:-|–|—|to)\s*\d)`,
+    "i"
+  )
+  if (explicitPattern.test(lower)) return true
+
+  const rangePattern = /\b(\d+)\s*(?:-|–|—|to)\s*(\d+)\b/g
+  let inRange = false
+  for (const match of lower.matchAll(rangePattern)) {
+    const start = Number.parseInt(match[1], 10)
+    const end = Number.parseInt(match[2], 10)
+    if (Number.isFinite(start) && Number.isFinite(end)) {
+      const min = Math.min(start, end)
+      const max = Math.max(start, end)
+      if (volumeNumber >= min && volumeNumber <= max) {
+        inRange = true
+        break
+      }
+    }
+  }
+
+  const standalonePattern = new RegExp(String.raw`\b${volumeNumber}\b`)
+  const hasStandalone = standalonePattern.test(lower)
+  return hasStandalone && !inRange
 }
 
 const similarityScore = (expected: string, actual: string) => {
@@ -238,8 +276,11 @@ const getSearchContext = (request: NextRequest) => {
   const binding = sanitizeInput(request.nextUrl.searchParams.get("binding"), 40)
 
   const volumeNumber = Number.parseInt(volumeParam, 10)
-  const volumeLabel = Number.isFinite(volumeNumber)
-    ? `Volume ${volumeNumber}`
+  const resolvedVolumeNumber = Number.isFinite(volumeNumber)
+    ? volumeNumber
+    : null
+  const volumeLabel = resolvedVolumeNumber
+    ? `Volume ${resolvedVolumeNumber}`
     : null
   const bindingLabel = binding || DEFAULT_BINDING
 
@@ -255,6 +296,17 @@ const getSearchContext = (request: NextRequest) => {
   const url = new URL(`https://${host}${AMAZON_SEARCH_PATH}`)
   url.searchParams.set("k", searchQuery)
 
+  debugLog("Amazon search context resolved", {
+    domain,
+    host,
+    title,
+    volumeNumber: resolvedVolumeNumber,
+    format,
+    bindingLabel,
+    searchQuery,
+    searchUrl: url.toString()
+  })
+
   return {
     domain,
     host,
@@ -262,13 +314,17 @@ const getSearchContext = (request: NextRequest) => {
     expectedTitle,
     requiredTitle,
     bindingLabel,
+    volumeNumber: resolvedVolumeNumber,
     searchUrl: url.toString()
   }
 }
 
+type SearchContext = ReturnType<typeof getSearchContext>
+
 const fetchAmazonHtml = async (searchUrl: string) => {
   let response: Response
   try {
+    debugLog("Fetching Amazon search HTML", { searchUrl })
     response = await fetchWithTimeout(
       searchUrl,
       {
@@ -287,10 +343,15 @@ const fetchAmazonHtml = async (searchUrl: string) => {
   }
 
   if (!response.ok) {
+    debugLog("Amazon response not ok", {
+      status: response.status,
+      statusText: response.statusText
+    })
     throw new ApiError(502, `Amazon request failed (${response.status})`)
   }
 
   const html = await response.text()
+  debugLog("Fetched Amazon HTML", { length: html.length })
   if (isLikelyBotGate(html)) {
     throw new ApiError(429, "Amazon blocked the request (captcha/robot check)")
   }
@@ -298,22 +359,26 @@ const fetchAmazonHtml = async (searchUrl: string) => {
   return html
 }
 
-const getTopResult = ($: cheerio.CheerioAPI) => {
+const getSearchResults = ($: cheerio.CheerioAPI) => {
   const searchRoot = $("#search")
   if (!searchRoot.length) {
     throw new ApiError(502, "Amazon search results not found")
   }
 
-  const result = searchRoot
+  const results = searchRoot
     .find('div[data-component-type="s-search-result"]')
     .filter((_: number, el: Element) => $(el).attr("data-ad") !== "true")
-    .first()
 
-  if (!result.length) {
+  if (!results.length) {
     throw new ApiError(404, "No search results found")
   }
 
-  return result
+  debugLog("Amazon search results extracted", {
+    totalResults: results.length,
+    scoringResults: Math.min(results.length, MAX_RESULTS_TO_SCORE)
+  })
+
+  return results.slice(0, MAX_RESULTS_TO_SCORE).toArray()
 }
 
 const extractResultTitle = (result: cheerio.Cheerio<Element>) => {
@@ -391,6 +456,14 @@ const extractPriceText = (
 
   const priceText = primaryPrice || nearbyPrice || siblingPrice || fallbackPrice
 
+  debugLog("Amazon price candidates", {
+    primaryPrice,
+    nearbyPrice,
+    siblingPrice,
+    fallbackPrice,
+    selectedPrice: priceText
+  })
+
   if (!primaryPrice) {
     const resultSnippet = result
       .text()
@@ -398,7 +471,7 @@ const extractPriceText = (
       .trim()
       .slice(0, 200)
     const bindingLinkHtml = bindingLink.html()
-    console.warn("Amazon price selector fallback", {
+    debugLog("Amazon price selector fallback", {
       bindingHref: bindingLink.attr("href") ?? null,
       bindingLinkHtml: bindingLinkHtml ? bindingLinkHtml.slice(0, 160) : null,
       primaryPrice,
@@ -430,41 +503,106 @@ const extractImageUrl = (result: cheerio.Cheerio<Element>) => {
 
 const parseAmazonResult = (
   html: string,
-  expectedTitle: string,
-  requiredTitle: string,
-  bindingLabel: string,
-  fallbackTitle: string,
-  host: string,
+  context: SearchContext,
   options: { includePrice: boolean; includeImage: boolean }
 ) => {
   const $ = cheerio.load(html)
-  const result = getTopResult($)
-  const resultTitle = extractResultTitle(result)
-  const strictScore = similarityScore(
-    expectedTitle || fallbackTitle,
-    resultTitle
+  const resultElements = getSearchResults($)
+  debugLog(
+    `Scoring top ${resultElements.length} Amazon results against expected title`,
+    {
+      expectedTitle: context.expectedTitle,
+      requiredTitle: context.requiredTitle,
+      results: resultElements.map((el) => extractResultTitle($(el)))
+    }
   )
-  const requiredScore = tokenCoverageScore(
-    requiredTitle || fallbackTitle,
-    resultTitle
+  const scoredResults = resultElements.map((el, index) => {
+    const result = $(el)
+    const resultTitle = extractResultTitle(result)
+    const strictScore = similarityScore(
+      context.expectedTitle || context.title,
+      resultTitle
+    )
+    const requiredScore = tokenCoverageScore(
+      context.requiredTitle || context.title,
+      resultTitle
+    )
+    const matchScore = Math.max(strictScore, requiredScore)
+    const hasVolumeMatch = context.volumeNumber
+      ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
+      : true
+
+    return {
+      result,
+      resultTitle,
+      strictScore,
+      requiredScore,
+      matchScore,
+      hasVolumeMatch,
+      index
+    }
+  })
+
+  let candidates = scoredResults
+  if (
+    context.volumeNumber &&
+    scoredResults.some((item) => item.hasVolumeMatch)
+  ) {
+    candidates = scoredResults.filter((item) => item.hasVolumeMatch)
+  }
+
+  debugLog("Scored Amazon results", {
+    candidates: candidates.map((item) => ({
+      title: item.resultTitle,
+      strictScore: item.strictScore.toFixed(2),
+      requiredScore: item.requiredScore.toFixed(2),
+      matchScore: item.matchScore.toFixed(2),
+      index: item.index
+    }))
+  })
+
+  const best = candidates.reduce<typeof scoredResults[number] | null>(
+    (currentBest, item) => {
+      if (!currentBest) return item
+      if (item.matchScore > currentBest.matchScore) return item
+      if (
+        item.matchScore === currentBest.matchScore &&
+        item.index < currentBest.index
+      ) {
+        return item
+      }
+      return currentBest
+    },
+    null
   )
-  const matchScore = Math.max(strictScore, requiredScore)
+
+  if (!best) {
+    throw new ApiError(404, "No search results found")
+  }
+
+  debugLog("Selected Amazon result", {
+    title: best.resultTitle,
+    strictScore: best.strictScore,
+    requiredScore: best.requiredScore,
+    matchScore: best.matchScore,
+    index: best.index
+  })
 
   if (
-    strictScore < MATCH_THRESHOLD &&
-    requiredScore < REQUIRED_MATCH_THRESHOLD
+    best.strictScore < MATCH_THRESHOLD &&
+    best.requiredScore < REQUIRED_MATCH_THRESHOLD
   ) {
-    console.debug("Match score below threshold", {
-      strictScore,
-      requiredScore,
-      matchScore,
-      resultTitle
+    debugLog("Match score below threshold", {
+      strictScore: best.strictScore,
+      requiredScore: best.requiredScore,
+      matchScore: best.matchScore,
+      resultTitle: best.resultTitle
     })
     throw new ApiError(404, "Top result did not match expected title", {
-      matchScore,
-      strictScore,
-      requiredScore,
-      resultTitle
+      matchScore: best.matchScore,
+      strictScore: best.strictScore,
+      requiredScore: best.requiredScore,
+      resultTitle: best.resultTitle
     })
   }
 
@@ -473,18 +611,21 @@ const parseAmazonResult = (
   let currency: string | null = null
 
   if (options.includePrice) {
-    const bindingLink = findBindingLink($, result, bindingLabel)
-    priceText = extractPriceText(result, bindingLink)
-    priceValue = parsePriceValue(priceText, host)
-    currency = detectCurrency(priceText, host)
+    const bindingLink = findBindingLink($, best.result, context.bindingLabel)
+    priceText = extractPriceText(best.result, bindingLink)
+    priceValue = parsePriceValue(priceText, context.host)
+    currency = detectCurrency(priceText, context.host)
+    debugLog("Parsed Amazon price", { priceText, priceValue, currency })
   }
 
-  const productUrl = extractProductUrl(result, host)
-  const imageUrl = options.includeImage ? extractImageUrl(result) : null
+  const productUrl = extractProductUrl(best.result, context.host)
+  const imageUrl = options.includeImage
+    ? extractImageUrl(best.result)
+    : null
 
   return {
-    resultTitle,
-    matchScore,
+    resultTitle: best.resultTitle,
+    matchScore: best.matchScore,
     priceText,
     priceValue,
     currency,
@@ -499,6 +640,10 @@ export async function GET(request: NextRequest) {
     if (isRateLimited(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)) {
       const remaining = getCooldownRemaining(RATE_LIMIT_KEY)
       const minutes = Math.ceil(remaining / 60_000)
+      debugLog("Amazon scrape blocked by cooldown", {
+        remainingMs: remaining,
+        minutes
+      })
       return NextResponse.json(
         {
           error: `Amazon scraping is temporarily disabled due to anti-bot detection. Try again in ~${minutes} minute${minutes === 1 ? "" : "s"}.`,
@@ -513,15 +658,13 @@ export async function GET(request: NextRequest) {
     const includePrice =
       request.nextUrl.searchParams.get("includePrice") !== "false"
 
+    debugLog("Amazon price lookup request", { includeImage, includePrice })
+
     const context = getSearchContext(request)
     const html = await fetchAmazonHtml(context.searchUrl)
     const parsed = parseAmazonResult(
       html,
-      context.expectedTitle,
-      context.requiredTitle,
-      context.bindingLabel,
-      context.title,
-      context.host,
+      context,
       { includePrice, includeImage }
     )
 
@@ -542,6 +685,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     if (error instanceof ApiError) {
+      debugLog("Amazon price lookup error", {
+        status: error.status,
+        message: error.message,
+        details: error.details ?? null
+      })
       // Record captcha / bot-gate failures toward cooldown
       if (error.status === 429) {
         recordFailure(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)
