@@ -89,11 +89,15 @@ function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
 function SeriesListItem({
   series,
   onClick,
+  onEdit,
+  onDelete,
   selected = false,
   onSelect
 }: {
   readonly series: SeriesWithVolumes
   readonly onClick: () => void
+  readonly onEdit: () => void
+  readonly onDelete: () => void
   readonly selected?: boolean
   readonly onSelect?: () => void
 }) {
@@ -115,60 +119,86 @@ function SeriesListItem({
   const showSelection = Boolean(onSelect)
 
   return (
-    <button
-      type="button"
-      className={`group glass-card hover:bg-accent flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
-      onClick={onClick}
-      aria-pressed={showSelection ? selected : undefined}
-    >
-      {showSelection && (
-        <div
-          className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-        >
-          <Checkbox
-            checked={selected}
-            onCheckedChange={() => onSelect?.()}
-            onClick={(event) => event.stopPropagation()}
-            aria-label={`Select ${series.title}`}
+    <div className="group relative">
+      <button
+        type="button"
+        className={`group glass-card hover:bg-accent flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        onClick={onClick}
+        aria-pressed={showSelection ? selected : undefined}
+      >
+        {showSelection && (
+          <div
+            className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          >
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onSelect?.()}
+              onClick={(event) => event.stopPropagation()}
+              aria-label={`Select ${series.title}`}
+            />
+          </div>
+        )}
+        <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-xl">
+          <CoverImage
+            isbn={primaryIsbn}
+            coverImageUrl={series.cover_image_url}
+            fallbackCoverImageUrl={volumeFallbackUrl}
+            alt={series.title}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            fallback={
+              <div className="from-primary/5 to-copper/5 flex h-full w-full items-center justify-center bg-linear-to-br">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="text-primary/30 h-6 w-6"
+                >
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                </svg>
+              </div>
+            }
           />
+          <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
-      )}
-      <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-xl">
-        <CoverImage
-          isbn={primaryIsbn}
-          coverImageUrl={series.cover_image_url}
-          fallbackCoverImageUrl={volumeFallbackUrl}
-          alt={series.title}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-          decoding="async"
-          fallback={
-            <div className="from-primary/5 to-copper/5 flex h-full w-full items-center justify-center bg-linear-to-br">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="text-primary/30 h-6 w-6"
-              >
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-              </svg>
-            </div>
-          }
-        />
-        <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display truncate font-medium">{series.title}</h3>
+          <p className="text-muted-foreground truncate text-sm">
+            {series.author || "Unknown Author"}
+          </p>
+        </div>
+        <div className="text-muted-foreground text-sm">
+          {ownedCount}/{totalCount} volumes
+        </div>
+      </button>
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            onEdit()
+          }}
+          aria-label={`Edit ${series.title}`}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-destructive/10 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete()
+          }}
+          aria-label={`Delete ${series.title}`}
+        >
+          Delete
+        </button>
       </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="font-display truncate font-medium">{series.title}</h3>
-        <p className="text-muted-foreground truncate text-sm">
-          {series.author || "Unknown Author"}
-        </p>
-      </div>
-      <div className="text-muted-foreground text-sm">
-        {ownedCount}/{totalCount} volumes
-      </div>
-    </button>
+    </div>
   )
 }
 
@@ -263,46 +293,29 @@ function VolumeGridItem({
           </p>
         </div>
       </button>
-      <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className="bg-background/80 hover:bg-background inline-flex h-8 w-8 items-center justify-center rounded-md backdrop-blur-sm"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="h-4 w-4"
-            >
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="12" cy="5" r="1" />
-              <circle cx="12" cy="19" r="1" />
-            </svg>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={(event) => {
-                event.stopPropagation()
-                onEdit()
-              }}
-            >
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(event) => {
-                event.stopPropagation()
-                onDelete()
-              }}
-              className="text-destructive"
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            onEdit()
+          }}
+          aria-label={`Edit ${coverAlt}`}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-destructive/10 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete()
+          }}
+          aria-label={`Delete ${coverAlt}`}
+        >
+          Delete
+        </button>
       </div>
     </div>
   )
@@ -386,46 +399,29 @@ function VolumeListItem({
           {item.volume.ownership_status}
         </div>
       </button>
-      <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className="bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex h-8 w-8 items-center justify-center rounded-md"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="h-4 w-4"
-            >
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="12" cy="5" r="1" />
-              <circle cx="12" cy="19" r="1" />
-            </svg>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={(event) => {
-                event.stopPropagation()
-                onEdit()
-              }}
-            >
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={(event) => {
-                event.stopPropagation()
-                onDelete()
-              }}
-              className="text-destructive"
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            onEdit()
+          }}
+          aria-label={`Edit ${coverAlt}`}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-destructive/10 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete()
+          }}
+          aria-label={`Delete ${coverAlt}`}
+        >
+          Delete
+        </button>
       </div>
     </div>
   )
@@ -1215,6 +1211,8 @@ export default function LibraryPage() {
                 key={series.id}
                 series={series}
                 onClick={() => handleSeriesItemClick(series)}
+                onEdit={() => openEditDialog(series)}
+                onDelete={() => openDeleteDialog(series)}
                 selected={
                   isSeriesSelectionMode && selectedSeriesIds.has(series.id)
                 }
