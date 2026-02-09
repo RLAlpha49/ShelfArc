@@ -358,6 +358,11 @@ export function BookSearchDialog({
   const activeSourceLabel = sourceCopy[sourceUsed ?? source].label
   const isQueryReady = debouncedQuery.length >= 2
   const selectedCount = selectedResultsById.size
+  const isAdding = isBulkAdding || selectingId !== null
+  const addingUnit = selectedCount === 1 ? "book" : "books"
+  const addingLabel = isBulkAdding
+    ? `Adding ${selectedCount} ${addingUnit}...`
+    : "Adding book..."
   const showEmptyState =
     isQueryReady && !isLoading && !error && results.length === 0
   const shouldVirtualize = decoratedResults.length > VIRTUALIZE_THRESHOLD
@@ -474,7 +479,20 @@ export function BookSearchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl p-0 sm:max-w-3xl">
+      <DialogContent
+        className="flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl p-0 sm:max-w-3xl"
+        aria-busy={isAdding}
+      >
+        {isAdding && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/65 backdrop-blur-sm">
+            <div className="glass-card flex items-center gap-3 rounded-2xl border border-copper/30 bg-background/80 px-4 py-3 shadow-lg">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-copper" />
+              <output className="text-sm font-medium" aria-live="polite">
+                {addingLabel}
+              </output>
+            </div>
+          </div>
+        )}
         <DialogHeader className="bg-warm/30 shrink-0 border-b px-6 pt-6 pb-4">
           <div className="flex flex-col gap-1">
             <DialogTitle className="font-display text-base">
