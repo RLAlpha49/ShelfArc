@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,12 +26,16 @@ import {
   extractStoragePath,
   resolveImageUrl
 } from "@/lib/uploads/resolve-image-url"
-import type { Series, SeriesInsert, TitleType } from "@/lib/types/database"
+import type {
+  SeriesInsert,
+  SeriesWithVolumes,
+  TitleType
+} from "@/lib/types/database"
 
 interface SeriesDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
-  readonly series?: Series | null
+  readonly series?: SeriesWithVolumes | null
   readonly onSubmit: (data: Omit<SeriesInsert, "user_id">) => Promise<void>
 }
 
@@ -41,6 +45,7 @@ const defaultFormData = {
   title: "",
   original_title: "",
   description: "",
+  notes: "",
   author: "",
   artist: "",
   publisher: "",
@@ -51,11 +56,12 @@ const defaultFormData = {
   tags: ""
 }
 
-const buildSeriesFormData = (series?: Series | null) => ({
+const buildSeriesFormData = (series?: SeriesWithVolumes | null) => ({
   ...defaultFormData,
   title: series?.title ?? "",
   original_title: series?.original_title ?? "",
   description: series?.description ?? "",
+  notes: series?.notes ?? "",
   author: series?.author ?? "",
   artist: series?.artist ?? "",
   publisher: series?.publisher ?? "",
@@ -72,6 +78,7 @@ const areSeriesFormDataEqual = (left: SeriesFormData, right: SeriesFormData) =>
   left.title === right.title &&
   left.original_title === right.original_title &&
   left.description === right.description &&
+  left.notes === right.notes &&
   left.author === right.author &&
   left.artist === right.artist &&
   left.publisher === right.publisher &&
@@ -87,9 +94,9 @@ export function SeriesDialog({
   series,
   onSubmit
 }: SeriesDialogProps) {
-  const [loading, setLoading] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [coverPreviewUrl, setCoverPreviewUrl] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploadingCover, setIsUploadingCover] = useState(false)
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [coverPreviewError, setCoverPreviewError] = useState(false)
   const previewUrlRef = useRef<string | null>(null)
   const [formData, setFormData] = useState(() => buildSeriesFormData(series))
@@ -125,7 +132,7 @@ export function SeriesDialog({
       URL.revokeObjectURL(previewUrlRef.current)
       previewUrlRef.current = null
     }
-    setCoverPreviewUrl("")
+    setCoverPreviewUrl(null)
     setCoverPreviewError(false)
 
     if (isOpening || seriesChanged) {
@@ -160,18 +167,18 @@ export function SeriesDialog({
       URL.revokeObjectURL(previewUrlRef.current)
     }
     previewUrlRef.current = url
-    setCoverPreviewUrl(url ?? "")
+    setCoverPreviewUrl(url)
   }
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setLoading(true)
+    setIsSubmitting(true)
 
     try {
       const tagsArray = formData.tags
         ? formData.tags
             .split(",")
-            .map((t) => t.trim())
+            .map((tag) => tag.trim())
             .filter(Boolean)
         : []
 
@@ -179,6 +186,7 @@ export function SeriesDialog({
         title: formData.title,
         original_title: formData.original_title || null,
         description: formData.description || null,
+        notes: formData.notes || null,
         author: formData.author || null,
         artist: formData.artist || null,
         publisher: formData.publisher || null,
@@ -194,7 +202,7 @@ export function SeriesDialog({
     } catch (error) {
       console.error("Error saving series:", error)
     } finally {
-      setLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -208,7 +216,7 @@ export function SeriesDialog({
       toast.error("Cover images must be 5MB or smaller.")
       return
     }
-    setIsUploading(true)
+    setIsUploadingCover(true)
     setCoverPreviewError(false)
     const previewUrl = URL.createObjectURL(file)
     setPreviewUrl(previewUrl)
@@ -224,12 +232,43 @@ export function SeriesDialog({
       const message = error instanceof Error ? error.message : "Upload failed"
       toast.error(message)
     } finally {
-      setIsUploading(false)
+      setIsUploadingCover(false)
       setPreviewUrl(null)
     }
   }
 
-  const coverUrl = coverPreviewUrl || resolveImageUrl(formData.cover_image_url)
+  const isEditing = Boolean(series)
+  const isBusy = isSubmitting || isUploadingCover
+
+  const firstVolume = useMemo(() => {
+    const volumes = series?.volumes ?? []
+    if (volumes.length === 0) return null
+    return volumes.reduce((lowest, volume) => {
+      if (!lowest) return volume
+      return volume.volume_number < lowest.volume_number ? volume : lowest
+    }, volumes[0])
+  }, [series?.volumes])
+
+  const firstVolumeCoverUrl = firstVolume?.cover_image_url?.trim() ?? ""
+
+  const handleUseFirstVolumeCover = () => {
+    if (!firstVolume) {
+      toast.error("No volumes found for this series yet.")
+      return
+    }
+    if (!firstVolumeCoverUrl) {
+      toast.error("The first volume doesn't have a cover image yet.")
+      return
+    }
+    setCoverPreviewError(false)
+    setPreviewUrl(null)
+    setFormData((prev) => ({ ...prev, cover_image_url: firstVolumeCoverUrl }))
+    toast.success(`Updated cover from volume ${firstVolume.volume_number}.`)
+  }
+
+  const coverUrl = coverPreviewError
+    ? ""
+    : coverPreviewUrl || resolveImageUrl(formData.cover_image_url)
   const coverSearchTitle = formData.title.trim()
   const coverSearchUrl = coverSearchTitle
     ? `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(coverSearchTitle)}`
@@ -242,25 +281,25 @@ export function SeriesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto rounded-2xl p-0 sm:max-w-4xl">
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl p-0 sm:max-w-3xl">
         <DialogHeader className="bg-warm/30 rounded-t-2xl border-b px-6 pt-6 pb-4">
           <DialogTitle className="font-display">
-            {series ? "Edit Series" : "Add New Series"}
+            {isEditing ? "Edit Series" : "Add Series"}
           </DialogTitle>
           <DialogDescription>
-            {series
-              ? "Update the series information below."
-              : "Fill in the details to add a new series to your collection."}
+            {isEditing
+              ? "Update series details."
+              : "Create a new series for your collection."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 px-6 pt-6">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
             <div className="space-y-6">
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
-                  Basic Info
-                </span>
+              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
+                  Basics
+                </legend>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="title">Title *</Label>
@@ -290,25 +329,12 @@ export function SeriesDialog({
                     />
                   </div>
                 </div>
+              </fieldset>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    placeholder="Brief description of the series"
-                    rows={4}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
                   Credits
-                </span>
+                </legend>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="author">Author</Label>
@@ -346,12 +372,12 @@ export function SeriesDialog({
                     />
                   </div>
                 </div>
-              </div>
+              </fieldset>
 
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
                   Publication
-                </span>
+                </legend>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="type">Type *</Label>
@@ -414,142 +440,211 @@ export function SeriesDialog({
                     </Select>
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tags">Tags</Label>
+                  <Input
+                    id="tags"
+                    value={formData.tags}
+                    onChange={(e) =>
+                      setFormData({ ...formData, tags: e.target.value })
+                    }
+                    placeholder="Enter tags separated by commas"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Separate multiple tags with commas (e.g., fantasy, isekai,
+                    romance)
+                  </p>
+                </div>
+              </fieldset>
+            </div>
+
+            <fieldset className="glass-card space-y-4 self-start rounded-2xl p-4">
+              <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
+                Cover Art
+              </legend>
+
+              {coverUrl && !coverPreviewError && (
+                <div className="flex justify-center">
+                  <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded-xl shadow-md">
+                    <img
+                      src={coverUrl}
+                      alt="Cover preview"
+                      className="absolute inset-0 h-full w-full object-cover"
+                      onError={() => {
+                        setCoverPreviewError(true)
+                        setPreviewUrl(null)
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              {coverPreviewError && (
+                <div className="flex justify-center">
+                  <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded-xl text-xs">
+                    Preview unavailable
+                  </div>
+                </div>
+              )}
+              {!coverUrl && !coverPreviewError && (
+                <div className="flex justify-center">
+                  <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-muted-foreground/60 h-8 w-8"
+                    >
+                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                      <circle cx="9" cy="9" r="2" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                    </svg>
+                    <span className="text-muted-foreground/60 text-[10px]">
+                      No cover
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="cover_image_url">Cover Image URL</Label>
+                <Input
+                  id="cover_image_url"
+                  value={formData.cover_image_url}
+                  onChange={(e) => {
+                    setCoverPreviewError(false)
+                    setFormData({
+                      ...formData,
+                      cover_image_url: e.target.value
+                    })
+                  }}
+                  placeholder="https://..."
+                  type="url"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tags">Tags</Label>
-                <Input
-                  id="tags"
-                  value={formData.tags}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tags: e.target.value })
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-xl"
+                  onClick={handleUseFirstVolumeCover}
+                  disabled={!firstVolumeCoverUrl || isBusy}
+                  title={
+                    firstVolumeCoverUrl
+                      ? "Use the earliest cataloged volume cover"
+                      : "Add a volume cover to enable this"
                   }
-                  placeholder="Enter tags separated by commas"
-                />
-                <p className="text-muted-foreground text-xs">
-                  Separate multiple tags with commas (e.g., fantasy, isekai,
-                  romance)
-                </p>
-              </div>
-            </div>
-
-            <aside className="glass-card rounded-2xl p-4">
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
-                  Cover Art
-                </span>
-                <div className="space-y-2">
-                  <Label htmlFor="cover_image_url">Cover Image URL</Label>
-                  <Input
-                    id="cover_image_url"
-                    value={formData.cover_image_url}
-                    onChange={(e) => {
-                      setCoverPreviewError(false)
-                      setFormData({
-                        ...formData,
-                        cover_image_url: e.target.value
-                      })
-                    }}
-                    placeholder="https://..."
-                    type="url"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={handleOpenCoverSearch}
-                    disabled={!coverSearchUrl}
-                    title={
-                      coverSearchUrl
-                        ? "Search Google Images for cover art"
-                        : "Add a title to enable image search"
-                    }
+                >
+                  {firstVolume
+                    ? `Use Vol. ${firstVolume.volume_number} Cover`
+                    : "Use First Volume Cover"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-xl"
+                  onClick={handleOpenCoverSearch}
+                  disabled={!coverSearchUrl}
+                  title={
+                    coverSearchUrl
+                      ? "Search Google Images for cover art"
+                      : "Add a title to enable image search"
+                  }
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-1.5 h-4 w-4"
                   >
-                    Search Google Images
-                  </Button>
-                  <span className="text-muted-foreground text-xs">
-                    Opens a new tab using the series title.
-                  </span>
-                </div>
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                  Google Images
+                </Button>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="cover_image_upload">Upload Cover Image</Label>
-                  <Input
-                    id="cover_image_upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
+              <div className="space-y-2">
+                <Label htmlFor="cover_image_upload">Upload Cover Image</Label>
+                <Input
+                  id="cover_image_upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      if (file.size > MAX_COVER_SIZE_BYTES) {
+                        toast.error("Cover images must be 5MB or smaller.")
+                      } else {
                         void handleCoverFileChange(file)
                       }
-                      e.currentTarget.value = ""
-                    }}
-                  />
-                  <div className="flex items-center gap-2">
-                    {formData.cover_image_url && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setFormData((prev) => ({
-                            ...prev,
-                            cover_image_url: ""
-                          }))
-                          setCoverPreviewError(false)
-                          setPreviewUrl(null)
-                        }}
-                      >
-                        Clear
-                      </Button>
-                    )}
-                    {isUploading && (
-                      <span className="text-muted-foreground text-xs">
-                        Uploading...
-                      </span>
-                    )}
-                  </div>
+                    }
+                    e.currentTarget.value = ""
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  {formData.cover_image_url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          cover_image_url: ""
+                        }))
+                        setCoverPreviewError(false)
+                        setPreviewUrl(null)
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  {isUploadingCover && (
+                    <span className="text-muted-foreground text-xs">
+                      Uploading...
+                    </span>
+                  )}
                 </div>
-
-                {coverUrl && !coverPreviewError && (
-                  <div className="flex justify-center">
-                    <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded-xl">
-                      <img
-                        src={coverUrl}
-                        alt="Cover preview"
-                        className="absolute inset-0 h-full w-full object-cover"
-                        onError={() => {
-                          if (!coverPreviewError) {
-                            const attemptedUrl = coverUrl
-                            toast.error(
-                              attemptedUrl
-                                ? `Failed to load cover image (${attemptedUrl}).`
-                                : "Failed to load cover image."
-                            )
-                          }
-                          setCoverPreviewError(true)
-                          setPreviewUrl(null)
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {coverPreviewError && (
-                  <div className="flex justify-center">
-                    <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded-xl text-xs">
-                      Preview unavailable
-                    </div>
-                  </div>
-                )}
-                <p className="text-muted-foreground text-xs">
-                  Images are resized and compressed to WebP on upload.
-                </p>
               </div>
-            </aside>
+            </fieldset>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              placeholder="Brief description of the series"
+              rows={4}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) =>
+                setFormData({ ...formData, notes: e.target.value })
+              }
+              placeholder="Personal notes or reminders"
+              rows={3}
+            />
           </div>
 
           <DialogFooter className="px-6 pb-6">
@@ -564,11 +659,11 @@ export function SeriesDialog({
             <Button
               type="submit"
               className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
-              disabled={loading || isUploading}
+              disabled={isBusy}
             >
-              {loading && "Saving..."}
-              {!loading && series && "Save Changes"}
-              {!loading && !series && "Add Series"}
+              {isSubmitting && "Saving..."}
+              {!isSubmitting && isEditing && "Save Changes"}
+              {!isSubmitting && !isEditing && "Add Series"}
             </Button>
           </DialogFooter>
         </form>

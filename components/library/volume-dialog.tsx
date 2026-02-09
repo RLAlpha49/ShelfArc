@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -182,10 +182,12 @@ function SeriesPicker({
   })()
 
   return (
-    <div className="glass-card rounded-2xl p-4">
+    <fieldset className="glass-card rounded-2xl p-4">
+      <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
+        Series
+      </legend>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <Label htmlFor="series_picker">Series</Label>
           <p className="text-muted-foreground text-xs">
             Choose the series this volume belongs to.
           </p>
@@ -460,7 +462,7 @@ function SeriesPicker({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </fieldset>
   )
 }
 
@@ -480,8 +482,10 @@ export function VolumeDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [isFetchingPrice, setIsFetchingPrice] = useState(false)
+  const [isFetchingImage, setIsFetchingImage] = useState(false)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [coverPreviewError, setCoverPreviewError] = useState(false)
+  const [showAmazonWarning, setShowAmazonWarning] = useState(false)
   const previewUrlRef = useRef<string | null>(null)
   const isMountedRef = useRef(true)
   const uploadAbortRef = useRef<AbortController | null>(null)
@@ -493,6 +497,9 @@ export function VolumeDialog({
   const showSeriesSelect = !!seriesOptions
   const selectedSeriesOption =
     seriesOptions?.find((series) => series.id === selectedSeriesId) ?? null
+
+  const isBusy =
+    isSubmitting || isUploadingCover || isFetchingPrice || isFetchingImage
 
   useEffect(() => {
     if (!open) {
@@ -507,6 +514,8 @@ export function VolumeDialog({
       setIsSubmitting(false)
       setIsUploadingCover(false)
       setIsFetchingPrice(false)
+      setIsFetchingImage(false)
+      setShowAmazonWarning(false)
       return
     }
     if (previewUrlRef.current) {
@@ -664,7 +673,7 @@ export function VolumeDialog({
     const queryTitle = seriesTitle || volumeTitle
     if (!queryTitle) {
       return {
-        error: "Add a series title or volume title before fetching price."
+        error: "Add a series title or volume title before fetching from Amazon."
       }
     }
 
@@ -690,60 +699,126 @@ export function VolumeDialog({
     return match ? match[0] : ""
   }
 
-  const handleFetchAmazonPrice = async () => {
+  /** Apply price result from Amazon response. */
+  const applyPriceResult = (result?: {
+    priceText?: string
+    priceValue?: number
+  }) => {
+    const parsedPrice = parsePriceFromResult(result)
+    if (parsedPrice) {
+      updateField("purchase_price", parsedPrice)
+      toast.success(`Price found: ${result?.priceText || parsedPrice}`)
+    } else {
+      toast.warning("Price not found in the Amazon result.")
+    }
+  }
+
+  /** Apply image result from Amazon response. */
+  const applyImageResult = (imageUrl?: string | null) => {
+    if (imageUrl) {
+      updateField("cover_image_url", imageUrl)
+      setCoverPreviewError(false)
+      toast.success("Cover image fetched from Amazon")
+    } else {
+      toast.warning("Image not found in the Amazon result.")
+    }
+  }
+
+  /** Build the full URL and validate pre-conditions. Returns null on failure. */
+  const prepareAmazonFetch = (options: {
+    includePrice: boolean
+    includeImage: boolean
+  }) => {
     if (priceSource !== "amazon") {
       toast.error("This price source is not supported yet.")
-      return
+      return null
     }
+
     const buildResult = buildPriceParams()
     if ("error" in buildResult) {
       toast.error(buildResult.error)
-      return
+      return null
     }
 
-    if (priceAbortRef.current) {
-      priceAbortRef.current.abort()
-    }
+    buildResult.params.set("domain", amazonDomain)
+    if (options.includeImage) buildResult.params.set("includeImage", "true")
+    if (!options.includePrice) buildResult.params.set("includePrice", "false")
 
-    const controller = new AbortController()
-    priceAbortRef.current = controller
-    setIsFetchingPrice(true)
+    return `/api/books/price?${buildResult.params}`
+  }
 
-    try {
-      buildResult.params.set("domain", amazonDomain)
-      const response = await fetch(`/api/books/price?${buildResult.params}`, {
-        signal: controller.signal
-      })
-      const data = (await response.json()) as {
-        result?: { priceText?: string; priceValue?: number }
-        error?: string
-      }
+  const handleAmazonError = (error: unknown) => {
+    if (error instanceof Error && error.name === "AbortError") return
+    const message =
+      error instanceof Error ? error.message : "Amazon lookup failed"
+    toast.error(message)
+  }
 
-      if (!response.ok) {
-        throw new Error(data.error ?? "Price lookup failed")
-      }
+  const cleanupAmazonFetch = (controller: AbortController) => {
+    if (!isMountedRef.current) return
+    if (priceAbortRef.current === controller) priceAbortRef.current = null
+    setIsFetchingPrice(false)
+    setIsFetchingImage(false)
+  }
 
-      const parsedPrice = parsePriceFromResult(data.result)
+  /** Core Amazon fetch — returns both price and image when requested. */
+  const fetchFromAmazon = useCallback(
+    async (options: { includePrice: boolean; includeImage: boolean }) => {
+      const url = prepareAmazonFetch(options)
+      if (!url) return
 
-      if (!parsedPrice) {
-        throw new Error("Price not found")
-      }
+      if (priceAbortRef.current) priceAbortRef.current.abort()
+      const controller = new AbortController()
+      priceAbortRef.current = controller
 
-      updateField("purchase_price", parsedPrice)
-      toast.success(`Price found: ${data.result?.priceText || parsedPrice}`)
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") return
-      const message =
-        error instanceof Error ? error.message : "Price lookup failed"
-      toast.error(message)
-    } finally {
-      if (isMountedRef.current) {
-        if (priceAbortRef.current === controller) {
-          priceAbortRef.current = null
+      if (options.includePrice) setIsFetchingPrice(true)
+      if (options.includeImage) setIsFetchingImage(true)
+
+      try {
+        const response = await fetch(url, { signal: controller.signal })
+        const data = (await response.json()) as {
+          result?: {
+            priceText?: string
+            priceValue?: number
+            imageUrl?: string | null
+          }
+          error?: string
         }
-        setIsFetchingPrice(false)
+
+        if (!response.ok) throw new Error(data.error ?? "Amazon lookup failed")
+
+        if (options.includePrice) applyPriceResult(data.result)
+        if (options.includeImage) applyImageResult(data.result?.imageUrl)
+      } catch (error) {
+        handleAmazonError(error)
+      } finally {
+        cleanupAmazonFetch(controller)
       }
-    }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      priceSource,
+      amazonDomain,
+      selectedSeriesOption,
+      formData.title,
+      formData.volume_number
+    ]
+  )
+
+  const handleFetchAmazonPrice = () => {
+    setShowAmazonWarning(true)
+    void fetchFromAmazon({ includePrice: true, includeImage: false })
+  }
+
+  const handleFetchAmazonImageOnly = () => {
+    setShowAmazonWarning(true)
+    void fetchFromAmazon({ includePrice: false, includeImage: true })
+  }
+
+  const handleFetchAmazonImage = () => {
+    setShowAmazonWarning(true)
+    // Fetching image also fetches the price to avoid a duplicate request
+    void fetchFromAmazon({ includePrice: true, includeImage: true })
   }
 
   const getButtonLabel = () => {
@@ -799,10 +874,11 @@ export function VolumeDialog({
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
             <div className="space-y-6">
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+              {/* Volume Info */}
+              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
                   Volume Info
-                </span>
+                </legend>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="volume_number">Volume Number *</Label>
@@ -831,9 +907,6 @@ export function VolumeDialog({
                   </div>
                 </div>
 
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
-                  Identification
-                </span>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="isbn">ISBN</Label>
@@ -856,12 +929,13 @@ export function VolumeDialog({
                     />
                   </div>
                 </div>
-              </div>
+              </fieldset>
 
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+              {/* Status */}
+              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
                   Status
-                </span>
+                </legend>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="ownership_status">Ownership Status</Label>
@@ -901,12 +975,13 @@ export function VolumeDialog({
                     </Select>
                   </div>
                 </div>
-              </div>
+              </fieldset>
 
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+              {/* Progress */}
+              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
                   Progress
-                </span>
+                </legend>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="current_page">Current Page</Label>
@@ -933,12 +1008,13 @@ export function VolumeDialog({
                     />
                   </div>
                 </div>
-              </div>
+              </fieldset>
 
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+              {/* Purchase */}
+              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
                   Purchase
-                </span>
+                </legend>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="purchase_date">Purchase Date</Label>
@@ -964,47 +1040,7 @@ export function VolumeDialog({
                         updateField("purchase_price", e.target.value)
                       }
                     />
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-xl"
-                        onClick={handleFetchAmazonPrice}
-                        disabled={
-                          isFetchingPrice || isSubmitting || isUploadingCover
-                        }
-                      >
-                        {isFetchingPrice
-                          ? "Checking Amazon..."
-                          : "Fetch Amazon price"}
-                      </Button>
-                      <span className="text-muted-foreground text-xs">
-                        Uses the top Amazon search result (beta)
-                      </span>
-                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <aside className="glass-card rounded-2xl p-4">
-              <div className="space-y-4">
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
-                  Cover Art
-                </span>
-                <div className="space-y-2">
-                  <Label htmlFor="cover_image_url">Cover Image URL</Label>
-                  <Input
-                    id="cover_image_url"
-                    type="url"
-                    placeholder="https://..."
-                    value={formData.cover_image_url}
-                    onChange={(e) => {
-                      setCoverPreviewError(false)
-                      updateField("cover_image_url", e.target.value)
-                    }}
-                  />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -1012,89 +1048,305 @@ export function VolumeDialog({
                     variant="outline"
                     size="sm"
                     className="rounded-xl"
-                    onClick={handleOpenCoverSearch}
-                    disabled={!coverSearchUrl}
-                    title={
-                      coverSearchUrl
-                        ? "Search Google Images for cover art"
-                        : "Add a title to enable image search"
-                    }
+                    onClick={handleFetchAmazonPrice}
+                    disabled={isBusy}
                   >
-                    Search Google Images
+                    {isFetchingPrice && !isFetchingImage ? (
+                      <>
+                        <svg
+                          className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                        Checking...
+                      </>
+                    ) : (
+                      "Fetch Amazon Price"
+                    )}
                   </Button>
-                  <span className="text-muted-foreground text-xs">
-                    Opens a new tab using the volume or series title.
+                  <span className="text-muted-foreground text-[11px]">
+                    Price only
                   </span>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cover_image_upload">Upload Cover Image</Label>
-                  <Input
-                    id="cover_image_upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        if (file.size > MAX_COVER_SIZE_BYTES) {
-                          toast.error("Cover images must be 5MB or smaller.")
-                        } else {
-                          void handleCoverFileChange(file)
-                        }
-                      }
-                      e.currentTarget.value = ""
-                    }}
-                  />
-                  <div className="flex items-center gap-2">
-                    {formData.cover_image_url && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          updateField("cover_image_url", "")
-                          setCoverPreviewError(false)
-                          setPreviewUrl(null)
-                        }}
-                      >
-                        Clear
-                      </Button>
-                    )}
-                    {isUploadingCover && (
-                      <span className="text-muted-foreground text-xs">
-                        Uploading...
-                      </span>
-                    )}
+              </fieldset>
+            </div>
+
+            {/* Cover Art sidebar */}
+            <fieldset className="glass-card space-y-4 self-start rounded-2xl p-4">
+              <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
+                Cover Art
+              </legend>
+
+              {/* Preview */}
+              {coverUrl && !coverPreviewError && (
+                <div className="flex justify-center">
+                  <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded-xl shadow-md">
+                    <img
+                      src={coverUrl}
+                      alt="Cover preview"
+                      className="absolute inset-0 h-full w-full object-cover"
+                      onError={() => {
+                        setCoverPreviewError(true)
+                        setPreviewUrl(null)
+                      }}
+                    />
                   </div>
                 </div>
+              )}
+              {coverPreviewError && (
+                <div className="flex justify-center">
+                  <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded-xl text-xs">
+                    Preview unavailable
+                  </div>
+                </div>
+              )}
+              {!coverUrl && !coverPreviewError && (
+                <div className="flex justify-center">
+                  <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-muted-foreground/60 h-8 w-8"
+                    >
+                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                      <circle cx="9" cy="9" r="2" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                    </svg>
+                    <span className="text-muted-foreground/60 text-[10px]">
+                      No cover
+                    </span>
+                  </div>
+                </div>
+              )}
 
-                {coverUrl && !coverPreviewError && (
-                  <div className="flex justify-center">
-                    <div className="bg-muted relative aspect-2/3 w-40 overflow-hidden rounded-xl">
-                      <img
-                        src={coverUrl}
-                        alt="Cover preview"
-                        className="absolute inset-0 h-full w-full object-cover"
-                        onError={() => {
-                          setCoverPreviewError(true)
-                          setPreviewUrl(null)
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {coverPreviewError && (
-                  <div className="flex justify-center">
-                    <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded-xl text-xs">
-                      Preview unavailable
-                    </div>
-                  </div>
-                )}
-                <p className="text-muted-foreground text-xs">
-                  Images are resized and compressed to WebP on upload.
-                </p>
+              <div className="space-y-2">
+                <Label htmlFor="cover_image_url">Cover Image URL</Label>
+                <Input
+                  id="cover_image_url"
+                  type="url"
+                  placeholder="https://..."
+                  value={formData.cover_image_url}
+                  onChange={(e) => {
+                    setCoverPreviewError(false)
+                    updateField("cover_image_url", e.target.value)
+                  }}
+                />
               </div>
-            </aside>
+
+              {/* Action buttons */}
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-xl"
+                  onClick={handleFetchAmazonImage}
+                  disabled={isBusy}
+                >
+                  {isFetchingImage && isFetchingPrice ? (
+                    <>
+                      <svg
+                        className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        />
+                      </svg>
+                      Fetching image &amp; price...
+                    </>
+                  ) : (
+                    "Fetch Amazon Image & Price"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-xl"
+                  onClick={handleFetchAmazonImageOnly}
+                  disabled={isBusy}
+                >
+                  {isFetchingImage && !isFetchingPrice ? (
+                    <>
+                      <svg
+                        className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        />
+                      </svg>
+                      Fetching image...
+                    </>
+                  ) : (
+                    "Fetch Amazon Image Only"
+                  )}
+                </Button>
+                <div className="text-muted-foreground space-y-1 text-[11px] leading-snug">
+                  <p>
+                    Grabs the cover image and price from the top Amazon search
+                    result in a single request.
+                  </p>
+                  <p>Use image-only if you don&apos;t want price updates.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={handleOpenCoverSearch}
+                  disabled={!coverSearchUrl}
+                  title={
+                    coverSearchUrl
+                      ? "Search Google Images for cover art"
+                      : "Add a title to enable image search"
+                  }
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-1.5 h-4 w-4"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                  Google Images
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cover_image_upload">Upload Cover Image</Label>
+                <Input
+                  id="cover_image_upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      if (file.size > MAX_COVER_SIZE_BYTES) {
+                        toast.error("Cover images must be 5MB or smaller.")
+                      } else {
+                        void handleCoverFileChange(file)
+                      }
+                    }
+                    e.currentTarget.value = ""
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  {formData.cover_image_url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        updateField("cover_image_url", "")
+                        setCoverPreviewError(false)
+                        setPreviewUrl(null)
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  {isUploadingCover && (
+                    <span className="text-muted-foreground text-xs">
+                      Uploading...
+                    </span>
+                  )}
+                </div>
+              </div>
+            </fieldset>
           </div>
+
+          {/* Amazon warning callout — shown after any Amazon fetch */}
+          {showAmazonWarning && (
+            <div className="border-gold/30 bg-gold/5 rounded-xl border px-4 py-3">
+              <div className="flex items-start gap-2.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-gold mt-0.5 h-4 w-4 shrink-0"
+                >
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                </svg>
+                <div className="space-y-1.5">
+                  <p className="text-foreground text-xs font-semibold">
+                    Amazon Data Disclaimer
+                  </p>
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                    The cover image from Amazon is usually{" "}
+                    <strong>much higher quality</strong> than other sources,
+                    however it could be incorrect if the top search result
+                    doesn&apos;t match. The price is generally reliable — if the
+                    wrong product is matched, the lookup usually fails outright
+                    rather than returning incorrect data.
+                  </p>
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                    Amazon may use anti-scraping measures that temporarily
+                    prevent fetching. If requests fail repeatedly, the feature
+                    will automatically pause and retry later. You can wait and
+                    try again.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>

@@ -815,6 +815,19 @@ export default function SeriesDetailPage() {
               </div>
             </div>
             <SeriesInsightsPanel insights={insights} />
+            {currentSeries.notes && (
+              <div className="border-border/60 bg-card/60 mt-6 rounded-2xl border p-5">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Personal
+                </span>
+                <h2 className="font-display mt-2 text-lg font-semibold tracking-tight">
+                  Notes
+                </h2>
+                <p className="text-muted-foreground mt-2 whitespace-pre-line">
+                  {currentSeries.notes}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

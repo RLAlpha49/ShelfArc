@@ -51,6 +51,7 @@ CREATE TABLE series (
   title TEXT NOT NULL,
   original_title TEXT,
   description TEXT,
+  notes TEXT,
   author TEXT,
   artist TEXT,
   publisher TEXT,

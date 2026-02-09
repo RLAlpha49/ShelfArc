@@ -55,6 +55,7 @@ export interface Database {
           title: string
           original_title: string | null
           description: string | null
+          notes: string | null
           author: string | null
           artist: string | null
           publisher: string | null
@@ -72,6 +73,7 @@ export interface Database {
           title: string
           original_title?: string | null
           description?: string | null
+          notes?: string | null
           author?: string | null
           artist?: string | null
           publisher?: string | null
@@ -89,6 +91,7 @@ export interface Database {
           title?: string
           original_title?: string | null
           description?: string | null
+          notes?: string | null
           author?: string | null
           artist?: string | null
           publisher?: string | null

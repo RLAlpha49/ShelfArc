@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import type {
-  Series,
   SeriesWithVolumes,
   Volume,
   OwnershipStatus,
@@ -459,7 +458,9 @@ export default function LibraryPage() {
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
-  const [editingSeries, setEditingSeries] = useState<Series | null>(null)
+  const [editingSeries, setEditingSeries] = useState<SeriesWithVolumes | null>(
+    null
+  )
   const [volumeDialogOpen, setVolumeDialogOpen] = useState(false)
   const [editingVolume, setEditingVolume] = useState<Volume | null>(null)
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null)

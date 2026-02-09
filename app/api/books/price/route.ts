@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as cheerio from "cheerio"
 import type { Element } from "domhandler"
+import {
+  isRateLimited,
+  recordFailure,
+  getCooldownRemaining
+} from "@/lib/rate-limit"
 
 export const dynamic = "force-dynamic"
 
@@ -12,6 +17,29 @@ const REQUIRED_MATCH_THRESHOLD = 0.8
 const MAX_TITLE_LENGTH = 200
 const MAX_FORMAT_LENGTH = 80
 const MAX_QUERY_LENGTH = 260
+
+const RATE_LIMIT_KEY = "amazon-scrape"
+const RATE_LIMIT_CONFIG = {
+  maxFailures: 3,
+  failureWindowMs: 5 * 60 * 1000, // 5 minutes
+  cooldownMs: 10 * 60 * 1000 // 10-minute cooldown after 3 captcha blocks
+} as const
+
+/**
+ * Amazon product image URLs contain a suffix like `._AC_UY218_.jpg`.
+ * Stripping everything after the ASIN-style image ID yields the full-res image.
+ */
+const getFullSizeImageUrl = (thumbnailUrl: string): string | null => {
+  try {
+    const url = new URL(thumbnailUrl)
+    if (!url.hostname.includes("media-amazon.com")) return null
+    // Pattern: /images/I/<id>._AC_UY218_.jpg -> /images/I/<id>.jpg
+    const cleaned = url.pathname.replace(/\._[^.]+(\.[a-z0-9]+)$/i, "$1")
+    return `${url.origin}${cleaned}`
+  } catch {
+    return null
+  }
+}
 
 const AMAZON_DOMAINS = {
   "amazon.com": "www.amazon.com",
@@ -393,13 +421,21 @@ const extractProductUrl = (result: cheerio.Cheerio<Element>, host: string) => {
   return productPath ? new URL(productPath, `https://${host}`).toString() : null
 }
 
+const extractImageUrl = (result: cheerio.Cheerio<Element>) => {
+  const img = result.find("img.s-image").first()
+  const src = img.attr("src") ?? img.attr("data-src") ?? ""
+  if (!src) return null
+  return getFullSizeImageUrl(src)
+}
+
 const parseAmazonResult = (
   html: string,
   expectedTitle: string,
   requiredTitle: string,
   bindingLabel: string,
   fallbackTitle: string,
-  host: string
+  host: string,
+  options: { includePrice: boolean; includeImage: boolean }
 ) => {
   const $ = cheerio.load(html)
   const result = getTopResult($)
@@ -432,11 +468,19 @@ const parseAmazonResult = (
     })
   }
 
-  const bindingLink = findBindingLink($, result, bindingLabel)
-  const priceText = extractPriceText(result, bindingLink)
-  const priceValue = parsePriceValue(priceText, host)
-  const currency = detectCurrency(priceText, host)
+  let priceText: string | null = null
+  let priceValue: number | null = null
+  let currency: string | null = null
+
+  if (options.includePrice) {
+    const bindingLink = findBindingLink($, result, bindingLabel)
+    priceText = extractPriceText(result, bindingLink)
+    priceValue = parsePriceValue(priceText, host)
+    currency = detectCurrency(priceText, host)
+  }
+
   const productUrl = extractProductUrl(result, host)
+  const imageUrl = options.includeImage ? extractImageUrl(result) : null
 
   return {
     resultTitle,
@@ -444,12 +488,31 @@ const parseAmazonResult = (
     priceText,
     priceValue,
     currency,
-    productUrl
+    productUrl,
+    imageUrl
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
+    // Check rate-limit cooldown before making any outbound request
+    if (isRateLimited(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)) {
+      const remaining = getCooldownRemaining(RATE_LIMIT_KEY)
+      const minutes = Math.ceil(remaining / 60_000)
+      return NextResponse.json(
+        {
+          error: `Amazon scraping is temporarily disabled due to anti-bot detection. Try again in ~${minutes} minute${minutes === 1 ? "" : "s"}.`,
+          cooldownMs: remaining
+        },
+        { status: 429 }
+      )
+    }
+
+    const includeImage =
+      request.nextUrl.searchParams.get("includeImage") === "true"
+    const includePrice =
+      request.nextUrl.searchParams.get("includePrice") !== "false"
+
     const context = getSearchContext(request)
     const html = await fetchAmazonHtml(context.searchUrl)
     const parsed = parseAmazonResult(
@@ -458,7 +521,8 @@ export async function GET(request: NextRequest) {
       context.requiredTitle,
       context.bindingLabel,
       context.title,
-      context.host
+      context.host,
+      { includePrice, includeImage }
     )
 
     return NextResponse.json({
@@ -472,11 +536,16 @@ export async function GET(request: NextRequest) {
         priceText: parsed.priceText,
         priceValue: parsed.priceValue,
         currency: parsed.currency,
-        url: parsed.productUrl
+        url: parsed.productUrl,
+        imageUrl: parsed.imageUrl
       }
     })
   } catch (error) {
     if (error instanceof ApiError) {
+      // Record captcha / bot-gate failures toward cooldown
+      if (error.status === 429) {
+        recordFailure(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)
+      }
       return jsonError(error)
     }
 
