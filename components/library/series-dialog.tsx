@@ -158,7 +158,9 @@ export function SeriesDialog({
 
   const basisVolume = useMemo(() => {
     if (!basisVolumeId) return null
-    return availableVolumes.find((volume) => volume.id === basisVolumeId) ?? null
+    return (
+      availableVolumes.find((volume) => volume.id === basisVolumeId) ?? null
+    )
   }, [availableVolumes, basisVolumeId])
 
   useEffect(() => {
@@ -526,8 +528,8 @@ export function SeriesDialog({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-muted-foreground text-xs">
-                        Pick an unassigned volume to seed this series and add
-                        it automatically on creation.
+                        Pick an unassigned volume to seed this series and add it
+                        automatically on creation.
                       </p>
                     </div>
                     <div className="text-muted-foreground flex items-center gap-2 text-xs">

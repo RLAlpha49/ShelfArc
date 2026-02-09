@@ -99,14 +99,17 @@ const fetchGoogleBooks = async (
 
   for (let offset = 0; offset < safeLimit; offset += GOOGLE_BOOKS_MAX_LIMIT) {
     const batchSize = Math.min(GOOGLE_BOOKS_MAX_LIMIT, safeLimit - offset)
-    const { response, keyIndex: nextKeyIndex, error } =
-      await fetchGoogleBooksResponse(
-        query,
-        apiKeys,
-        batchSize,
-        startIndex + offset,
-        keyIndex
-      )
+    const {
+      response,
+      keyIndex: nextKeyIndex,
+      error
+    } = await fetchGoogleBooksResponse(
+      query,
+      apiKeys,
+      batchSize,
+      startIndex + offset,
+      keyIndex
+    )
 
     keyIndex = nextKeyIndex
 

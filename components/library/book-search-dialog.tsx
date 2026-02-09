@@ -484,9 +484,9 @@ export function BookSearchDialog({
         aria-busy={isAdding}
       >
         {isAdding && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/65 backdrop-blur-sm">
-            <div className="glass-card flex items-center gap-3 rounded-2xl border border-copper/30 bg-background/80 px-4 py-3 shadow-lg">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-copper" />
+          <div className="bg-background/65 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm">
+            <div className="glass-card border-copper/30 bg-background/80 flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-lg">
+              <div className="border-muted-foreground/40 border-t-copper h-5 w-5 animate-spin rounded-full border-2" />
               <output className="text-sm font-medium" aria-live="polite">
                 {addingLabel}
               </output>

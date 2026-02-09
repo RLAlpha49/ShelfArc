@@ -20,7 +20,11 @@ const fetchGoogleBooksVolumeResponse = async (
     url.searchParams.set("key", apiKey)
     const response = await fetch(url.toString(), { cache: "no-store" })
 
-    if (response.status === 429 && apiKeys.length > 1 && attempt < apiKeys.length - 1) {
+    if (
+      response.status === 429 &&
+      apiKeys.length > 1 &&
+      attempt < apiKeys.length - 1
+    ) {
       continue
     }
 

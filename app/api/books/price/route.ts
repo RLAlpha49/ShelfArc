@@ -561,7 +561,7 @@ const parseAmazonResult = (
     }))
   })
 
-  const best = candidates.reduce<typeof scoredResults[number] | null>(
+  const best = candidates.reduce<(typeof scoredResults)[number] | null>(
     (currentBest, item) => {
       if (!currentBest) return item
       if (item.matchScore > currentBest.matchScore) return item
@@ -619,9 +619,7 @@ const parseAmazonResult = (
   }
 
   const productUrl = extractProductUrl(best.result, context.host)
-  const imageUrl = options.includeImage
-    ? extractImageUrl(best.result)
-    : null
+  const imageUrl = options.includeImage ? extractImageUrl(best.result) : null
 
   return {
     resultTitle: best.resultTitle,
@@ -662,11 +660,10 @@ export async function GET(request: NextRequest) {
 
     const context = getSearchContext(request)
     const html = await fetchAmazonHtml(context.searchUrl)
-    const parsed = parseAmazonResult(
-      html,
-      context,
-      { includePrice, includeImage }
-    )
+    const parsed = parseAmazonResult(html, context, {
+      includePrice,
+      includeImage
+    })
 
     return NextResponse.json({
       searchUrl: context.searchUrl,
