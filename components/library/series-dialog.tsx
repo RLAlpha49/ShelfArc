@@ -123,6 +123,7 @@ export function SeriesDialog({
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [coverPreviewError, setCoverPreviewError] = useState(false)
   const [basisVolumeId, setBasisVolumeId] = useState<string | null>(null)
+  const [seedExpanded, setSeedExpanded] = useState(true)
   const formRef = useRef<HTMLFormElement | null>(null)
   const previewUrlRef = useRef<string | null>(null)
   const [formData, setFormData] = useState(() => buildSeriesFormData(series))
@@ -163,6 +164,15 @@ export function SeriesDialog({
     )
   }, [availableVolumes, basisVolumeId])
 
+  const basisVolumeLabel = useMemo(() => {
+    if (!basisVolume) return ""
+    const volumeTitle = basisVolume.title?.trim() ?? ""
+    const normalizedTitle = volumeTitle ? normalizeVolumeTitle(volumeTitle) : ""
+    const displayTitle =
+      normalizedTitle || volumeTitle || `Volume ${basisVolume.volume_number}`
+    return `${displayTitle} (Vol. ${basisVolume.volume_number})`
+  }, [basisVolume])
+
   useEffect(() => {
     return () => {
       if (previewUrlRef.current) {
@@ -179,6 +189,7 @@ export function SeriesDialog({
     if (!open) {
       wasOpenRef.current = false
       setBasisVolumeId(null)
+      setSeedExpanded(true)
       basisSeedRef.current = {
         title: "",
         description: "",
@@ -204,6 +215,7 @@ export function SeriesDialog({
       setFormData(nextFormData)
       seriesSnapshotRef.current = nextFormData
       setBasisVolumeId(null)
+      setSeedExpanded(true)
       basisSeedRef.current = {
         title: "",
         description: "",
@@ -485,6 +497,143 @@ export function SeriesDialog({
         >
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
             <div className="space-y-6">
+              {!isEditing && (
+                <fieldset className="glass-card space-y-4 rounded-2xl p-4">
+                  <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
+                    Seed Volume
+                  </legend>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground text-xs">
+                        Pick an unassigned volume to seed this series and add it
+                        automatically on creation.
+                      </p>
+                      {!seedExpanded && (
+                        <p className="text-muted-foreground text-xs">
+                          {basisVolume
+                            ? `Selected: ${basisVolumeLabel}`
+                            : "No seed selected."}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                      <span>{availableVolumes.length} unassigned</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2"
+                        onClick={() => setSeedExpanded((prev) => !prev)}
+                        aria-expanded={seedExpanded}
+                        aria-controls="seed-volume-options"
+                        data-prevent-enter-submit="true"
+                      >
+                        {seedExpanded ? "Collapse" : "Expand"}
+                      </Button>
+                      {basisVolumeId && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() => setBasisVolumeId(null)}
+                          data-prevent-enter-submit="true"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {seedExpanded && (
+                    <div id="seed-volume-options">
+                      {availableVolumes.length === 0 ? (
+                        <div className="text-muted-foreground text-xs">
+                          No unassigned volumes available yet.
+                        </div>
+                      ) : (
+                        <div className="max-h-60 overflow-y-auto pr-3">
+                          <RadioGroup
+                            value={basisVolumeId ?? ""}
+                            onValueChange={(value) =>
+                              setBasisVolumeId(value || null)
+                            }
+                            className="space-y-2"
+                          >
+                            {availableVolumes.map((volume) => {
+                              const volumeTitle = volume.title?.trim() ?? ""
+                              const normalizedTitle = volumeTitle
+                                ? normalizeVolumeTitle(volumeTitle)
+                                : ""
+                              const displayTitle =
+                                normalizedTitle ||
+                                volumeTitle ||
+                                `Volume ${volume.volume_number}`
+                              const subtitleParts = [
+                                `Vol. ${volume.volume_number}`
+                              ]
+
+                              if (
+                                volumeTitle &&
+                                normalizedTitle &&
+                                normalizedTitle !== volumeTitle
+                              ) {
+                                subtitleParts.push(volumeTitle)
+                              }
+                              if (!volumeTitle && volume.isbn) {
+                                subtitleParts.push(volume.isbn)
+                              }
+
+                              return (
+                                <div
+                                  key={volume.id}
+                                  className={`border-border/60 bg-card/70 hover:bg-accent/40 flex items-start gap-3 rounded-xl border px-3 py-2 transition ${basisVolumeId === volume.id ? "ring-primary/40 ring-2" : ""}`}
+                                >
+                                  <RadioGroupItem
+                                    value={volume.id}
+                                    id={`basis-${volume.id}`}
+                                    className="mt-1"
+                                  />
+                                  <Label
+                                    htmlFor={`basis-${volume.id}`}
+                                    className="flex flex-1 cursor-pointer items-start gap-3"
+                                  >
+                                    <div className="bg-muted relative aspect-2/3 w-10 overflow-hidden rounded-lg">
+                                      <CoverImage
+                                        isbn={volume.isbn}
+                                        coverImageUrl={volume.cover_image_url}
+                                        alt={displayTitle}
+                                        className="absolute inset-0 h-full w-full object-cover"
+                                        loading="lazy"
+                                        decoding="async"
+                                        fallback={
+                                          <div className="from-primary/5 to-copper/5 flex h-full items-center justify-center bg-linear-to-br">
+                                            <span className="text-muted-foreground text-[9px] font-semibold">
+                                              {volume.volume_number}
+                                            </span>
+                                          </div>
+                                        }
+                                      />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-display line-clamp-1 text-xs font-semibold">
+                                        {displayTitle}
+                                      </p>
+                                      <p className="text-muted-foreground line-clamp-1 text-[11px]">
+                                        {subtitleParts.join(" • ")}
+                                      </p>
+                                    </div>
+                                  </Label>
+                                </div>
+                              )
+                            })}
+                          </RadioGroup>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </fieldset>
+              )}
               <fieldset className="glass-card space-y-4 rounded-2xl p-4">
                 <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
                   Basics
@@ -519,114 +668,6 @@ export function SeriesDialog({
                   </div>
                 </div>
               </fieldset>
-
-              {!isEditing && (
-                <fieldset className="glass-card space-y-4 rounded-2xl p-4">
-                  <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
-                    Seed Volume
-                  </legend>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-muted-foreground text-xs">
-                        Pick an unassigned volume to seed this series and add it
-                        automatically on creation.
-                      </p>
-                    </div>
-                    <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                      <span>{availableVolumes.length} unassigned</span>
-                      {basisVolumeId && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2"
-                          onClick={() => setBasisVolumeId(null)}
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {availableVolumes.length === 0 ? (
-                    <div className="text-muted-foreground text-xs">
-                      No unassigned volumes available yet.
-                    </div>
-                  ) : (
-                    <RadioGroup
-                      value={basisVolumeId ?? ""}
-                      onValueChange={(value) => setBasisVolumeId(value || null)}
-                      className="space-y-2"
-                    >
-                      {availableVolumes.map((volume) => {
-                        const volumeTitle = volume.title?.trim() ?? ""
-                        const normalizedTitle = volumeTitle
-                          ? normalizeVolumeTitle(volumeTitle)
-                          : ""
-                        const displayTitle =
-                          normalizedTitle ||
-                          volumeTitle ||
-                          `Volume ${volume.volume_number}`
-                        const subtitleParts = [`Vol. ${volume.volume_number}`]
-
-                        if (
-                          volumeTitle &&
-                          normalizedTitle &&
-                          normalizedTitle !== volumeTitle
-                        ) {
-                          subtitleParts.push(volumeTitle)
-                        }
-                        if (!volumeTitle && volume.isbn) {
-                          subtitleParts.push(volume.isbn)
-                        }
-
-                        return (
-                          <div
-                            key={volume.id}
-                            className={`border-border/60 bg-card/70 hover:bg-accent/40 flex items-start gap-3 rounded-xl border px-3 py-2 transition ${basisVolumeId === volume.id ? "ring-primary/40 ring-2" : ""}`}
-                          >
-                            <RadioGroupItem
-                              value={volume.id}
-                              id={`basis-${volume.id}`}
-                              className="mt-1"
-                            />
-                            <Label
-                              htmlFor={`basis-${volume.id}`}
-                              className="flex flex-1 cursor-pointer items-start gap-3"
-                            >
-                              <div className="bg-muted relative aspect-2/3 w-10 overflow-hidden rounded-lg">
-                                <CoverImage
-                                  isbn={volume.isbn}
-                                  coverImageUrl={volume.cover_image_url}
-                                  alt={displayTitle}
-                                  className="absolute inset-0 h-full w-full object-cover"
-                                  loading="lazy"
-                                  decoding="async"
-                                  fallback={
-                                    <div className="from-primary/5 to-copper/5 flex h-full items-center justify-center bg-linear-to-br">
-                                      <span className="text-muted-foreground text-[9px] font-semibold">
-                                        {volume.volume_number}
-                                      </span>
-                                    </div>
-                                  }
-                                />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="font-display line-clamp-1 text-xs font-semibold">
-                                  {displayTitle}
-                                </p>
-                                <p className="text-muted-foreground line-clamp-1 text-[11px]">
-                                  {subtitleParts.join(" • ")}
-                                </p>
-                              </div>
-                            </Label>
-                          </div>
-                        )
-                      })}
-                    </RadioGroup>
-                  )}
-                </fieldset>
-              )}
 
               <fieldset className="glass-card space-y-4 rounded-2xl p-4">
                 <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">

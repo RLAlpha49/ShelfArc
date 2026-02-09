@@ -914,7 +914,11 @@ export function useLibrary() {
 
         const hasSeriesId = Object.hasOwn(data, "series_id")
         const nextSeriesId = hasSeriesId ? (data.series_id ?? null) : seriesId
-        if (nextSeriesId && !series.some((item) => item.id === nextSeriesId)) {
+        const seriesSnapshot = useLibraryStore.getState().series
+        if (
+          nextSeriesId &&
+          !seriesSnapshot.some((item) => item.id === nextSeriesId)
+        ) {
           throw new Error("Series not found")
         }
         const updatePayload = {
@@ -932,7 +936,7 @@ export function useLibrary() {
         if (error) throw error
 
         const currentVolume =
-          series
+          seriesSnapshot
             .flatMap((item) => item.volumes)
             .find((volume) => volume.id === volumeId) ??
           unassignedVolumes.find((volume) => volume.id === volumeId)
@@ -974,7 +978,6 @@ export function useLibrary() {
     },
     [
       supabase,
-      series,
       unassignedVolumes,
       updateVolume,
       updateUnassignedVolume,
