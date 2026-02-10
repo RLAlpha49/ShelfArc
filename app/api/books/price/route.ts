@@ -29,6 +29,7 @@ const BASE_TITLE_MATCH_THRESHOLD = 0.9
 const BASE_TITLE_WEIGHT = 0.2
 const VOLUME_TITLE_WEIGHT = 0.35
 const FORMAT_CONFLICT_PENALTY = 0.4
+const VOLUME_MISMATCH_PENALTY = 0.8
 const EXTRA_TOKEN_PENALTY = 0.08
 const MAX_EXTRA_TOKEN_PENALTY = 0.45
 const MAX_RESULTS_TO_SCORE = 12
@@ -237,6 +238,49 @@ const hasExactVolumeMatch = (title: string, volumeNumber: number) => {
   const standalonePattern = new RegExp(String.raw`\b${volumeNumber}\b`)
   const hasStandalone = standalonePattern.test(lower)
   return hasStandalone && !inRange
+}
+
+const extractExplicitVolumeIndicators = (title: string) => {
+  const numbers = new Set<number>()
+  const ranges: Array<{ start: number; end: number }> = []
+  const volumePattern =
+    /\b(?:vol(?:ume)?\.?|book|part)\s*(\d{1,3})(?:\s*(?:-|–|—|to)\s*(\d{1,3}))?/gi
+
+  for (const match of title.matchAll(volumePattern)) {
+    const start = Number.parseInt(match[1], 10)
+    const end = match[2] ? Number.parseInt(match[2], 10) : null
+    if (!Number.isFinite(start)) continue
+    if (end != null && Number.isFinite(end)) {
+      ranges.push({ start, end })
+    } else {
+      numbers.add(start)
+    }
+  }
+
+  return { numbers, ranges }
+}
+
+const getVolumeMismatchPenalty = (
+  context: SearchContext,
+  resultTitle: string
+) => {
+  if (context.volumeNumber == null) return 0
+  if (hasExactVolumeMatch(resultTitle, context.volumeNumber)) return 0
+
+  const { numbers, ranges } = extractExplicitVolumeIndicators(resultTitle)
+  if (numbers.size === 0 && ranges.length === 0) return 0
+
+  for (const range of ranges) {
+    const min = Math.min(range.start, range.end)
+    const max = Math.max(range.start, range.end)
+    if (context.volumeNumber >= min && context.volumeNumber <= max) {
+      return 0
+    }
+  }
+
+  if (numbers.has(context.volumeNumber)) return 0
+
+  return VOLUME_MISMATCH_PENALTY
 }
 
 const similarityScore = (expected: string, actual: string) => {
@@ -563,6 +607,7 @@ type ScoredResult = {
   modifierPenalty: number
   formatConflictPenalty: number
   extraTokenPenalty: number
+  volumeMismatchPenalty: number
   combinedScore: number
   hasVolumeMatch: boolean
   index: number
@@ -962,6 +1007,7 @@ const parseAmazonResult = (
       resultTitle
     )
     const extraTokenPenalty = getExtraTokenPenalty(context, resultTitle)
+    const volumeMismatchPenalty = getVolumeMismatchPenalty(context, resultTitle)
     const combinedScore =
       matchScore +
       subtitleScore * subtitleWeight -
@@ -969,7 +1015,8 @@ const parseAmazonResult = (
       baseTitleScore * BASE_TITLE_WEIGHT +
       volumeTitleScore * VOLUME_TITLE_WEIGHT -
       formatConflictPenalty -
-      extraTokenPenalty
+      extraTokenPenalty -
+      volumeMismatchPenalty
     const hasVolumeMatch = context.volumeNumber
       ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
       : true
@@ -986,6 +1033,7 @@ const parseAmazonResult = (
       modifierPenalty,
       formatConflictPenalty,
       extraTokenPenalty,
+      volumeMismatchPenalty,
       combinedScore,
       hasVolumeMatch,
       index
@@ -999,7 +1047,9 @@ const parseAmazonResult = (
   ) {
     candidates = scoredResults.filter(
       (item) =>
-        item.hasVolumeMatch || item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
+        item.hasVolumeMatch ||
+        item.volumeMismatchPenalty === 0 ||
+        item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
     )
   }
 
@@ -1015,6 +1065,7 @@ const parseAmazonResult = (
       modifierPenalty: item.modifierPenalty.toFixed(2),
       formatConflictPenalty: item.formatConflictPenalty.toFixed(2),
       extraTokenPenalty: item.extraTokenPenalty.toFixed(2),
+      volumeMismatchPenalty: item.volumeMismatchPenalty.toFixed(2),
       combinedScore: item.combinedScore.toFixed(2),
       index: item.index
     }))
@@ -1048,6 +1099,7 @@ const parseAmazonResult = (
     modifierPenalty: best.modifierPenalty,
     formatConflictPenalty: best.formatConflictPenalty,
     extraTokenPenalty: best.extraTokenPenalty,
+    volumeMismatchPenalty: best.volumeMismatchPenalty,
     combinedScore: best.combinedScore,
     index: best.index
   })
@@ -1110,6 +1162,7 @@ const parseAmazonResult = (
     modifierPenalty: selected.modifierPenalty,
     formatConflictPenalty: selected.formatConflictPenalty,
     extraTokenPenalty: selected.extraTokenPenalty,
+    volumeMismatchPenalty: selected.volumeMismatchPenalty,
     combinedScore: selected.combinedScore,
     index: selected.index,
     priceBinding,
