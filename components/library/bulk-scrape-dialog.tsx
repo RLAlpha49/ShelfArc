@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
@@ -225,6 +225,29 @@ export function BulkScrapeDialog({
     return Math.round((completed / summary.total) * 100)
   }, [summary])
 
+  const activeJobId = useMemo(
+    () => jobs.find((j) => j.status === "scraping")?.volumeId ?? null,
+    [jobs]
+  )
+
+  const activeRowRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    activeRowRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest"
+    })
+  }, [activeJobId])
+
+  const setActiveRef = useCallback(
+    (el: HTMLDivElement | null, volumeId: string) => {
+      if (volumeId === activeJobId) {
+        activeRowRef.current = el
+      }
+    },
+    [activeJobId]
+  )
+
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
@@ -416,6 +439,7 @@ export function BulkScrapeDialog({
                 {jobs.map((job) => (
                   <div
                     key={job.volumeId}
+                    ref={(el) => setActiveRef(el, job.volumeId)}
                     className={`border-border/40 flex items-center gap-3 rounded-xl border px-3 py-2 transition-colors ${jobRowBg(job.status)}`}
                   >
                     {/* Status indicator */}
