@@ -11,6 +11,7 @@ interface VolumeCardProps {
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly onToggleRead?: () => void
   readonly selected?: boolean
   readonly onSelect?: () => void
 }
@@ -33,15 +34,13 @@ export function VolumeCard({
   onClick,
   onEdit,
   onDelete,
+  onToggleRead,
   selected = false,
   onSelect
 }: VolumeCardProps) {
   const showReadingProgress = useSettingsStore((s) => s.showReadingProgress)
-  const progressPercent =
-    volume.page_count && volume.current_page
-      ? Math.round((volume.current_page / volume.page_count) * 100)
-      : null
   const showSelection = Boolean(onSelect)
+  const isCompleted = volume.reading_status === "completed"
 
   return (
     <div className="group relative w-full">
@@ -128,26 +127,71 @@ export function VolumeCard({
             </Badge>
           </div>
 
-          {/* Reading Progress */}
-          {showReadingProgress &&
-            progressPercent !== null &&
-            volume.reading_status === "reading" && (
-              <div className="space-y-1">
-                <div className="text-muted-foreground flex justify-between text-xs">
-                  <span>Progress</span>
-                  <span>{progressPercent}%</span>
-                </div>
-                <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
-                  <div
-                    className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
-            )}
+          {/* Reading Progress — shows a completed indicator */}
+          {showReadingProgress && isCompleted && (
+            <div className="text-copper flex items-center gap-1 text-xs font-medium">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3.5 w-3.5"
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              Completed
+            </div>
+          )}
         </div>
       </button>
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        {onToggleRead && (
+          <button
+            type="button"
+            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleRead()
+            }}
+            aria-label={
+              isCompleted
+                ? `Mark volume ${volume.volume_number} as unread`
+                : `Mark volume ${volume.volume_number} as read`
+            }
+          >
+            {isCompleted ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            )}
+          </button>
+        )}
         <button
           type="button"
           className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
