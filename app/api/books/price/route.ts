@@ -269,8 +269,7 @@ const addExplicitVolumeIndicators = (
     }
   }
 
-  const singlePattern =
-    /\b(?:vol(?:ume)?\.?|book|part)\s*0*(\d{1,3})\b/gi
+  const singlePattern = /\b(?:vol(?:ume)?\.?|book|part)\s*0*(\d{1,3})\b/gi
   for (const match of title.matchAll(singlePattern)) {
     const value = Number.parseInt(match[1], 10)
     if (Number.isFinite(value)) {
@@ -284,7 +283,9 @@ const addTrailingVolumeIndicators = (
   contextTitle: string | undefined,
   numbers: Set<number>
 ) => {
-  const contextTokens = contextTitle ? tokenize(contextTitle) : new Set<string>()
+  const contextTokens = contextTitle
+    ? tokenize(contextTitle)
+    : new Set<string>()
   const tokens = tokenizeOrdered(title)
   const lastIndex = tokens.length - 1
   for (const [index, token] of tokens.entries()) {
@@ -871,7 +872,11 @@ const fetchAmazonHtml = async (searchUrl: string) => {
   }
 
   if (!response.ok) {
-    console.error("Amazon response not ok", { searchUrl, status: response.status, statusText: response.statusText })
+    console.error("Amazon response not ok", {
+      searchUrl,
+      status: response.status,
+      statusText: response.statusText
+    })
     throw new ApiError(502, `Amazon request failed (${response.status})`)
   }
 
