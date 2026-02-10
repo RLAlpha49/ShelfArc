@@ -72,12 +72,14 @@ const defaultFormData = {
   cover_image_url: "",
   ownership_status: "owned" as OwnershipStatus,
   reading_status: "unread" as ReadingStatus,
-  current_page: "",
   page_count: "",
   rating: "",
   notes: "",
+  publish_date: "",
   purchase_date: "",
-  purchase_price: ""
+  purchase_price: "",
+  edition: "",
+  format: ""
 }
 
 const isValidOwnershipStatus = (
@@ -628,12 +630,14 @@ export function VolumeDialog({
         cover_image_url: volume.cover_image_url || "",
         ownership_status: ownershipStatus,
         reading_status: readingStatus,
-        current_page: volume.current_page?.toString() || "",
         page_count: volume.page_count?.toString() || "",
         rating: volume.rating?.toString() || "",
         notes: volume.notes || "",
+        publish_date: volume.publish_date || "",
         purchase_date: volume.purchase_date || "",
-        purchase_price: volume.purchase_price?.toString() || ""
+        purchase_price: volume.purchase_price?.toString() || "",
+        edition: volume.edition || "",
+        format: volume.format || ""
       })
     } else {
       setFormData({
@@ -681,18 +685,18 @@ export function VolumeDialog({
         cover_image_url: formData.cover_image_url || null,
         ownership_status: formData.ownership_status,
         reading_status: formData.reading_status,
-        current_page: formData.current_page
-          ? Number.parseInt(formData.current_page)
-          : null,
         page_count: formData.page_count
           ? Number.parseInt(formData.page_count)
           : null,
         rating: formData.rating ? Number.parseInt(formData.rating) : null,
         notes: formData.notes || null,
+        publish_date: formData.publish_date || null,
         purchase_date: formData.purchase_date || null,
         purchase_price: formData.purchase_price
           ? Number.parseFloat(formData.purchase_price)
-          : null
+          : null,
+        edition: formData.edition || null,
+        format: formData.format || null
       })
       onOpenChange(false)
     } finally {
@@ -1046,6 +1050,38 @@ export function VolumeDialog({
                     />
                   </div>
                 </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="publish_date">Publish Date</Label>
+                    <Input
+                      id="publish_date"
+                      type="date"
+                      value={formData.publish_date}
+                      onChange={(e) =>
+                        updateField("publish_date", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edition">Edition</Label>
+                    <Input
+                      id="edition"
+                      placeholder="e.g. 1st, Deluxe"
+                      value={formData.edition}
+                      onChange={(e) => updateField("edition", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="format">Format</Label>
+                    <Input
+                      id="format"
+                      placeholder="e.g. Paperback, Hardcover"
+                      value={formData.format}
+                      onChange={(e) => updateField("format", e.target.value)}
+                    />
+                  </div>
+                </div>
               </fieldset>
 
               {/* Status */}
@@ -1094,36 +1130,22 @@ export function VolumeDialog({
                 </div>
               </fieldset>
 
-              {/* Progress */}
+              {/* Pages */}
               <fieldset className="glass-card space-y-4 rounded-2xl p-4">
                 <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
-                  Progress
+                  Pages
                 </legend>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="current_page">Current Page</Label>
-                    <Input
-                      id="current_page"
-                      type="number"
-                      min={0}
-                      value={formData.current_page}
-                      onChange={(e) =>
-                        updateField("current_page", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="page_count">Total Pages</Label>
-                    <Input
-                      id="page_count"
-                      type="number"
-                      min={0}
-                      value={formData.page_count}
-                      onChange={(e) =>
-                        updateField("page_count", e.target.value)
-                      }
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="page_count">Total Pages</Label>
+                  <Input
+                    id="page_count"
+                    type="number"
+                    min={0}
+                    value={formData.page_count}
+                    onChange={(e) =>
+                      updateField("page_count", e.target.value)
+                    }
+                  />
                 </div>
               </fieldset>
 
