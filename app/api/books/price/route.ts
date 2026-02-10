@@ -21,6 +21,7 @@ const debugLog = (...args: Parameters<typeof console.debug>) => {
 const AMAZON_SEARCH_PATH = "/s"
 const DEFAULT_BINDING = "Paperback"
 const KINDLE_BINDING_LABELS = ["Kindle", "Kindle Edition"]
+const HARDCOVER_BINDING_LABELS = ["Hardcover", "Hardback"]
 const FETCH_TIMEOUT_MS = 12000
 const MATCH_THRESHOLD = 0.6
 const REQUIRED_MATCH_THRESHOLD = 0.8
@@ -111,6 +112,11 @@ const isKindleBinding = (bindingLabel: string) => {
   return normalized.includes("kindle")
 }
 
+const isPaperbackBinding = (bindingLabel: string) => {
+  const normalized = normalizeBindingLabel(bindingLabel)
+  return normalized.includes("paperback")
+}
+
 const resolveBindingLabels = (
   bindingLabel: string,
   fallbackToKindle: boolean
@@ -125,6 +131,12 @@ const resolveBindingLabels = (
   }
 
   addLabel(bindingLabel)
+
+  if (isPaperbackBinding(bindingLabel)) {
+    for (const label of HARDCOVER_BINDING_LABELS) {
+      addLabel(label)
+    }
+  }
 
   if (fallbackToKindle && !isKindleBinding(bindingLabel)) {
     for (const label of KINDLE_BINDING_LABELS) {
