@@ -365,6 +365,8 @@ export function BookSearchDialog({
     : "Adding book..."
   const showEmptyState =
     isQueryReady && !isLoading && !error && results.length === 0
+  const isDebouncing =
+    query.trim().length >= 2 && query.trim() !== debouncedQuery
   const shouldVirtualize = decoratedResults.length > VIRTUALIZE_THRESHOLD
 
   const renderResultCard = useCallback(
@@ -595,11 +597,20 @@ export function BookSearchDialog({
               </div>
             )}
 
+            {!isLoading && isDebouncing && (
+              <div className="flex items-center gap-2 py-2">
+                <div className="border-muted-foreground/40 border-t-copper h-4 w-4 animate-spin rounded-full border-2" />
+                <span className="text-muted-foreground text-sm">
+                  Searching...
+                </span>
+              </div>
+            )}
+
             {!isLoading && error && (
               <div className="text-destructive text-sm">{error}</div>
             )}
 
-            {showEmptyState && (
+            {showEmptyState && !isDebouncing && (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="from-copper/20 to-gold/20 mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br shadow-[0_0_30px_var(--warm-glow)]">
                   <span className="text-2xl">📚</span>
