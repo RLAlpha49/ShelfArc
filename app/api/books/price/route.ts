@@ -25,6 +25,8 @@ const MATCH_THRESHOLD = 0.6
 const REQUIRED_MATCH_THRESHOLD = 0.8
 const BASE_TITLE_MATCH_THRESHOLD = 0.9
 const BASE_TITLE_WEIGHT = 0.2
+const VOLUME_TITLE_WEIGHT = 0.35
+const FORMAT_CONFLICT_PENALTY = 0.4
 const MAX_RESULTS_TO_SCORE = 8
 const MAX_TITLE_LENGTH = 200
 const MAX_VOLUME_TITLE_LENGTH = 200
@@ -248,6 +250,29 @@ const getPrefixModifierPenalty = (
   return Math.min(0.45, extraTokens.length * 0.2)
 }
 
+const getFormatConflictPenalty = (format: string, resultTitle: string) => {
+  if (!format) return 0
+  const normalizedFormat = normalizeText(format)
+  if (!normalizedFormat) return 0
+
+  const normalizedTitle = normalizeText(resultTitle)
+  const isMangaFormat = normalizedFormat.includes("manga")
+  const isLightNovelFormat =
+    normalizedFormat.includes("light novel") ||
+    (normalizedFormat.includes("novel") &&
+      !normalizedFormat.includes("graphic"))
+
+  if (isMangaFormat && normalizedTitle.includes("light novel")) {
+    return FORMAT_CONFLICT_PENALTY
+  }
+
+  if (isLightNovelFormat && normalizedTitle.includes("manga")) {
+    return FORMAT_CONFLICT_PENALTY
+  }
+
+  return 0
+}
+
 const sanitizeInput = (value: string | null, maxLength: number) => {
   const trimmed = value?.trim() ?? ""
   return trimmed.slice(0, maxLength)
@@ -441,8 +466,10 @@ type ScoredResult = {
   requiredScore: number
   matchScore: number
   baseTitleScore: number
+  volumeTitleScore: number
   subtitleScore: number
   modifierPenalty: number
+  formatConflictPenalty: number
   combinedScore: number
   hasVolumeMatch: boolean
   index: number
@@ -699,15 +726,24 @@ const parseAmazonResult = (
     )
     const matchScore = Math.max(strictScore, requiredScore)
     const baseTitleScore = tokenCoverageScore(context.title, resultTitle)
+    const volumeTitleScore = context.volumeTitle
+      ? similarityScore(context.volumeTitle, resultTitle)
+      : 0
     const subtitleScore = context.volumeSubtitle
       ? tokenCoverageScore(context.volumeSubtitle, resultTitle)
       : 0
     const modifierPenalty = getPrefixModifierPenalty(context, resultTitle)
+    const formatConflictPenalty = getFormatConflictPenalty(
+      context.format,
+      resultTitle
+    )
     const combinedScore =
       matchScore +
       subtitleScore * subtitleWeight -
       modifierPenalty +
-      baseTitleScore * BASE_TITLE_WEIGHT
+      baseTitleScore * BASE_TITLE_WEIGHT +
+      volumeTitleScore * VOLUME_TITLE_WEIGHT -
+      formatConflictPenalty
     const hasVolumeMatch = context.volumeNumber
       ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
       : true
@@ -719,8 +755,10 @@ const parseAmazonResult = (
       requiredScore,
       matchScore,
       baseTitleScore,
+      volumeTitleScore,
       subtitleScore,
       modifierPenalty,
+      formatConflictPenalty,
       combinedScore,
       hasVolumeMatch,
       index
@@ -746,8 +784,10 @@ const parseAmazonResult = (
       requiredScore: item.requiredScore.toFixed(2),
       matchScore: item.matchScore.toFixed(2),
       baseTitleScore: item.baseTitleScore.toFixed(2),
+      volumeTitleScore: item.volumeTitleScore.toFixed(2),
       subtitleScore: item.subtitleScore.toFixed(2),
       modifierPenalty: item.modifierPenalty.toFixed(2),
+      formatConflictPenalty: item.formatConflictPenalty.toFixed(2),
       combinedScore: item.combinedScore.toFixed(2),
       index: item.index
     }))
@@ -776,8 +816,10 @@ const parseAmazonResult = (
     requiredScore: best.requiredScore,
     matchScore: best.matchScore,
     baseTitleScore: best.baseTitleScore,
+    volumeTitleScore: best.volumeTitleScore,
     subtitleScore: best.subtitleScore,
     modifierPenalty: best.modifierPenalty,
+    formatConflictPenalty: best.formatConflictPenalty,
     combinedScore: best.combinedScore,
     index: best.index
   })
@@ -838,8 +880,10 @@ const parseAmazonResult = (
     requiredScore: selected.requiredScore,
     matchScore: selected.matchScore,
     baseTitleScore: selected.baseTitleScore,
+    volumeTitleScore: selected.volumeTitleScore,
     subtitleScore: selected.subtitleScore,
     modifierPenalty: selected.modifierPenalty,
+    formatConflictPenalty: selected.formatConflictPenalty,
     combinedScore: selected.combinedScore,
     index: selected.index
   })
