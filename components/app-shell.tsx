@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { Header } from "@/components/header"
 import { cn } from "@/lib/utils"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 
 interface AppShellProps {
   readonly children: React.ReactNode
@@ -19,7 +19,8 @@ interface AppShellProps {
 
 export function AppShell({ children, user }: AppShellProps) {
   const navigationMode = useLibraryStore((state) => state.navigationMode)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)
+  const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed)
 
   let sidebarOffsetClass: string | null = null
   if (navigationMode === "sidebar") {
