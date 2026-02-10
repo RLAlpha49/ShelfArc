@@ -730,6 +730,27 @@ const resolvePriceSelection = ({
         priceError: null
       }
     }
+    const fallbackCandidates = eligibleCandidates.filter(
+      (candidate) =>
+        candidate.index !== selected.index &&
+        Math.abs(candidate.combinedScore - selected.combinedScore) < 0.000001
+    )
+    const fallback = findPricedCandidate(
+      $,
+      fallbackCandidates,
+      bindingLabels,
+      host
+    )
+    if (fallback) {
+      return {
+        selected: fallback.candidate,
+        priceText: fallback.priceText,
+        priceValue: fallback.priceValue,
+        currency: fallback.currency,
+        priceBinding: fallback.bindingLabel,
+        priceError: null
+      }
+    }
     return {
       selected,
       priceText: null,
