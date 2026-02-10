@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useLibrary } from "@/lib/hooks/use-library"
+import { useLibraryStore } from "@/lib/store/library-store"
 import { toast } from "sonner"
 
 type ExportFormat = "json" | "csv"
@@ -31,20 +32,27 @@ export default function ExportPage() {
         await fetchSeries()
       }
 
+      // Read from the store directly to avoid stale closure
+      const currentSeries = useLibraryStore.getState().series
+
       let content: string
       let filename: string
       let mimeType: string
 
       if (format === "json") {
-        content = JSON.stringify(series, null, 2)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const seriesData = currentSeries.map(({ volumes: _, ...rest }) => rest)
+        const volumesData = currentSeries.flatMap((s) => s.volumes)
+        content = JSON.stringify({ series: seriesData, volumes: volumesData }, null, 2)
         filename = `shelfarc-export-${new Date().toISOString().split("T")[0]}.json`
         mimeType = "application/json"
       } else {
-        // CSV export
-        const rows: string[] = []
+        // CSV export — two sections: Volumes and Series
+        const volumeRows: string[] = []
+        const seriesRows: string[] = []
 
-        // Headers
-        rows.push(
+        // Volume headers
+        volumeRows.push(
           [
             "Series Title",
             "Series Type",
@@ -54,11 +62,13 @@ export default function ExportPage() {
             "Volume Title",
             "Volume Description",
             "ISBN",
+            "Edition",
+            "Format",
             "Ownership Status",
             "Reading Status",
-            "Current Page",
             "Page Count",
             "Rating",
+            "Publish Date",
             "Purchase Date",
             "Purchase Price",
             "Notes"
@@ -67,16 +77,56 @@ export default function ExportPage() {
             .join(",")
         )
 
+        // Series headers
+        seriesRows.push(
+          [
+            "Title",
+            "Type",
+            "Author",
+            "Artist",
+            "Publisher",
+            "Description",
+            "Total Volumes",
+            "Tags",
+            "Notes",
+            "Created At",
+            "Updated At"
+          ]
+            .map((h) => `"${h}"`)
+            .join(",")
+        )
+
         // Data rows
-        for (const s of series) {
+        for (const s of currentSeries) {
+          // Series row
+          seriesRows.push(
+            [
+              s.title,
+              s.type,
+              s.author || "",
+              s.artist || "",
+              s.publisher || "",
+              s.description || "",
+              s.total_volumes?.toString() || "",
+              (s.tags ?? []).join("; "),
+              s.notes || "",
+              s.created_at || "",
+              s.updated_at || ""
+            ]
+              .map((v) => `"${String(v).replaceAll('"', '""')}"`)
+              .join(",")
+          )
+
           if (s.volumes.length === 0) {
-            // Series with no volumes
-            rows.push(
+            // Series with no volumes — one row with empty volume columns
+            volumeRows.push(
               [
                 s.title,
                 s.type,
                 s.author || "",
                 s.publisher || "",
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -94,9 +144,8 @@ export default function ExportPage() {
                 .join(",")
             )
           } else {
-            // Each volume as a row
             for (const v of s.volumes) {
-              rows.push(
+              volumeRows.push(
                 [
                   s.title,
                   s.type,
@@ -106,11 +155,13 @@ export default function ExportPage() {
                   v.title || "",
                   v.description || "",
                   v.isbn || "",
+                  v.edition || "",
+                  v.format || "",
                   v.ownership_status,
                   v.reading_status,
-                  v.current_page || "",
                   v.page_count || "",
                   v.rating || "",
+                  v.publish_date || "",
                   v.purchase_date || "",
                   v.purchase_price || "",
                   v.notes || ""
@@ -122,7 +173,14 @@ export default function ExportPage() {
           }
         }
 
-        content = rows.join("\n")
+        // Combine as two sections separated by a blank line
+        content = [
+          "--- Volumes ---",
+          ...volumeRows,
+          "",
+          "--- Series ---",
+          ...seriesRows
+        ].join("\n")
         filename = `shelfarc-export-${new Date().toISOString().split("T")[0]}.csv`
         mimeType = "text/csv"
       }
@@ -138,7 +196,7 @@ export default function ExportPage() {
       a.remove()
       URL.revokeObjectURL(url)
 
-      toast.success(`Exported ${series.length} series successfully`)
+      toast.success(`Exported ${currentSeries.length} series successfully`)
     } catch {
       toast.error("Failed to export data")
     } finally {
