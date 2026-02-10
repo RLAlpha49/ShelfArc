@@ -15,6 +15,7 @@ import {
 } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { formatDate } from "@/lib/format-date"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -170,6 +171,11 @@ export default function VolumeDetailPage() {
           (currentVolume.current_page / currentVolume.page_count) * 100
         )
       : null
+
+  const descriptionHtml = useMemo(
+    () => sanitizeHtml(currentVolume?.description ?? "").trim(),
+    [currentVolume?.description]
+  )
 
   if (isLoading && !currentVolume) {
     return (
@@ -445,7 +451,7 @@ export default function VolumeDetailPage() {
 
       <div className="my-10 border-t" />
 
-      {currentVolume.description && (
+      {descriptionHtml && (
         <div className="space-y-2">
           <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
             About
@@ -453,7 +459,10 @@ export default function VolumeDetailPage() {
           <h2 className="font-display text-xl font-semibold tracking-tight">
             Description
           </h2>
-          <p className="text-muted-foreground">{currentVolume.description}</p>
+          <div
+            className="text-muted-foreground"
+            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+          />
         </div>
       )}
 

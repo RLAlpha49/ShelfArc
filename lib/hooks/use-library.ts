@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import type { BookSearchResult } from "@/lib/books/search"
 import type {
   Series,
@@ -120,6 +121,12 @@ const SERIES_DESCRIPTOR_SET = new Set([
   "webcomic",
   "gn"
 ])
+
+const sanitizeOptionalHtml = (value?: string | null) => {
+  if (!value) return null
+  const sanitized = sanitizeHtml(value).trim()
+  return sanitized.length > 0 ? sanitized : null
+}
 
 type VolumeSuffixInfo = {
   number: number
@@ -651,10 +658,15 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
+        const sanitizedData: Omit<SeriesInsert, "user_id"> = {
+          ...data,
+          description: sanitizeOptionalHtml(data.description)
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: newSeries, error } = await (supabase as any)
           .from("series")
-          .insert({ ...data, user_id: user.id })
+          .insert({ ...sanitizedData, user_id: user.id })
           .select()
           .single()
 
@@ -683,16 +695,21 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
+        const sanitizedData = { ...data }
+        if (Object.hasOwn(data, "description")) {
+          sanitizedData.description = sanitizeOptionalHtml(data.description)
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await (supabase as any)
           .from("series")
-          .update(data)
+          .update(sanitizedData)
           .eq("id", id)
           .eq("user_id", user.id)
 
         if (error) throw error
 
-        updateSeries(id, data)
+        updateSeries(id, sanitizedData)
       } catch (error) {
         console.error("Error updating series:", error)
         throw error
@@ -869,8 +886,13 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
+        const sanitizedData: Omit<VolumeInsert, "user_id" | "series_id"> = {
+          ...data,
+          description: sanitizeOptionalHtml(data.description)
+        }
+
         const payload = {
-          ...normalizeVolumeDates(data),
+          ...normalizeVolumeDates(sanitizedData),
           series_id: seriesId,
           user_id: user.id
         }
@@ -921,8 +943,12 @@ export function useLibrary() {
         ) {
           throw new Error("Series not found")
         }
+        const sanitizedData = { ...data }
+        if (Object.hasOwn(data, "description")) {
+          sanitizedData.description = sanitizeOptionalHtml(data.description)
+        }
         const updatePayload = {
-          ...normalizeVolumeDates(data),
+          ...normalizeVolumeDates(sanitizedData),
           series_id: nextSeriesId
         }
 

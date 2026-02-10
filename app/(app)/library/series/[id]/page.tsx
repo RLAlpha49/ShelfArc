@@ -16,6 +16,7 @@ import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { formatDate } from "@/lib/format-date"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -609,6 +610,11 @@ export default function SeriesDetailPage() {
     [handleDeleteSeries]
   )
 
+  const descriptionHtml = useMemo(
+    () => sanitizeHtml(currentSeries?.description ?? "").trim(),
+    [currentSeries?.description]
+  )
+
   if (isLoading && !currentSeries) {
     return (
       <div className="px-6 py-8 lg:px-10">
@@ -795,10 +801,11 @@ export default function SeriesDetailPage() {
               </p>
             )}
 
-            {currentSeries.description && (
-              <p className="text-muted-foreground">
-                {currentSeries.description}
-              </p>
+            {descriptionHtml && (
+              <div
+                className="text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+              />
             )}
 
             {currentSeries.tags.length > 0 && (
