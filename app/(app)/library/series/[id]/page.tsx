@@ -355,6 +355,7 @@ export default function SeriesDetailPage() {
   const {
     series,
     fetchSeries,
+    createSeries,
     createVolume,
     editSeries,
     editVolume,
@@ -373,6 +374,7 @@ export default function SeriesDetailPage() {
   const [editingVolume, setEditingVolume] = useState<Volume | null>(null)
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null)
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
+  const [createSeriesDialogOpen, setCreateSeriesDialogOpen] = useState(false)
   const [deleteVolumeDialogOpen, setDeleteVolumeDialogOpen] = useState(false)
   const [deleteSeriesDialogOpen, setDeleteSeriesDialogOpen] = useState(false)
   const [bulkScrapeDialogOpen, setBulkScrapeDialogOpen] = useState(false)
@@ -469,6 +471,23 @@ export default function SeriesDetailPage() {
     } catch (err) {
       console.error(err)
       toast.error(`Failed to update series: ${getErrorMessage(err)}`)
+    }
+  }
+
+  const handleCreateNewSeries = async (
+    data: Omit<SeriesInsert, "user_id">
+  ) => {
+    try {
+      const newSeries = await createSeries(data)
+      toast.success("Series created successfully")
+      if (editingVolume) {
+        setSelectedSeriesId(newSeries.id)
+        setCreateSeriesDialogOpen(false)
+        setVolumeDialogOpen(true)
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error(`Failed to create series: ${getErrorMessage(err)}`)
     }
   }
 
@@ -584,6 +603,26 @@ export default function SeriesDetailPage() {
     [addVolumesFromSearchResults, seriesId]
   )
 
+  const handleToggleRead = useCallback(
+    async (volume: Volume) => {
+      if (!volume.series_id) return
+      const nextStatus =
+        volume.reading_status === "completed" ? "unread" : "completed"
+      try {
+        await editVolume(volume.series_id, volume.id, {
+          reading_status: nextStatus
+        })
+        toast.success(
+          nextStatus === "completed" ? "Marked as read" : "Marked as unread"
+        )
+      } catch (err) {
+        console.error(err)
+        toast.error(`Failed to update: ${getErrorMessage(err)}`)
+      }
+    },
+    [editVolume]
+  )
+
   const handleVolumeClick = useCallback(
     (volumeId: string) => {
       router.push(`/library/volume/${volumeId}`)
@@ -663,8 +702,28 @@ export default function SeriesDetailPage() {
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_30%_20%,var(--warm-glow-strong),transparent_70%)]" />
 
-      {/* Breadcrumb */}
-      <nav className="animate-fade-in-down mb-8 flex items-center gap-2 text-xs tracking-wider">
+      {/* Breadcrumb with Go Back */}
+      <nav className="animate-fade-in-down mb-8 flex items-center gap-3 text-xs tracking-wider">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5"
+          >
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+        <span className="text-muted-foreground">/</span>
         <Link
           href="/library"
           className="text-muted-foreground hover:text-foreground"
@@ -738,28 +797,6 @@ export default function SeriesDetailPage() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {currentSeries.volumes.length > 0 && (
-                  <Button
-                    variant="outline"
-                    className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
-                    onClick={() => setBulkScrapeDialogOpen(true)}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="mr-1.5 h-4 w-4"
-                    >
-                      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                      <path d="M21 3v5h-5" />
-                    </svg>
-                    Bulk Scrape
-                  </Button>
-                )}
                 <Button
                   variant="outline"
                   className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
@@ -880,10 +917,33 @@ export default function SeriesDetailPage() {
               Volumes
             </h2>
           </div>
-          <Button
-            className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
-            onClick={openAddDialog}
-          >
+          <div className="flex items-center gap-2">
+            {currentSeries.volumes.length > 0 && (
+              <Button
+                variant="outline"
+                className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+                onClick={() => setBulkScrapeDialogOpen(true)}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1.5 h-4 w-4"
+                >
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                </svg>
+                Bulk Scrape
+              </Button>
+            )}
+            <Button
+              className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+              onClick={openAddDialog}
+            >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -897,6 +957,7 @@ export default function SeriesDetailPage() {
             </svg>
             Add Volume
           </Button>
+          </div>
         </div>
 
         {currentSeries.volumes.length === 0 ? (
@@ -932,6 +993,7 @@ export default function SeriesDetailPage() {
                     onClick={() => handleVolumeClick(volume.id)}
                     onEdit={() => openEditDialog(volume)}
                     onDelete={() => openDeleteDialog(volume)}
+                    onToggleRead={() => handleToggleRead(volume)}
                   />
                 ))}
             </div>
@@ -966,6 +1028,14 @@ export default function SeriesDetailPage() {
         seriesOptions={editingVolume ? series : undefined}
         selectedSeriesId={editingVolume ? selectedSeriesId : undefined}
         onSeriesChange={editingVolume ? setSelectedSeriesId : undefined}
+        onCreateSeries={
+          editingVolume
+            ? () => {
+                setVolumeDialogOpen(false)
+                setCreateSeriesDialogOpen(true)
+              }
+            : undefined
+        }
         allowNoSeries={Boolean(editingVolume)}
       />
 
@@ -974,6 +1044,12 @@ export default function SeriesDetailPage() {
         onOpenChange={setSeriesDialogOpen}
         series={currentSeries}
         onSubmit={handleEditSeries}
+      />
+
+      <SeriesDialog
+        open={createSeriesDialogOpen}
+        onOpenChange={setCreateSeriesDialogOpen}
+        onSubmit={handleCreateNewSeries}
       />
 
       <BulkScrapeDialog
