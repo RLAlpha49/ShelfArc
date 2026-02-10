@@ -10,7 +10,7 @@ import {
 export const dynamic = "force-dynamic"
 
 // Set to `true` to enable detailed debug logging of the search result scoring process.
-const DEBUG = true
+const DEBUG = false
 
 const debugLog = (...args: Parameters<typeof console.debug>) => {
   if (DEBUG) {
@@ -23,7 +23,9 @@ const DEFAULT_BINDING = "Paperback"
 const FETCH_TIMEOUT_MS = 12000
 const MATCH_THRESHOLD = 0.6
 const REQUIRED_MATCH_THRESHOLD = 0.8
-const MAX_RESULTS_TO_SCORE = 5
+const BASE_TITLE_MATCH_THRESHOLD = 0.9
+const BASE_TITLE_WEIGHT = 0.2
+const MAX_RESULTS_TO_SCORE = 8
 const MAX_TITLE_LENGTH = 200
 const MAX_VOLUME_TITLE_LENGTH = 200
 const MAX_FORMAT_LENGTH = 80
@@ -438,6 +440,7 @@ type ScoredResult = {
   strictScore: number
   requiredScore: number
   matchScore: number
+  baseTitleScore: number
   subtitleScore: number
   modifierPenalty: number
   combinedScore: number
@@ -695,12 +698,16 @@ const parseAmazonResult = (
       resultTitle
     )
     const matchScore = Math.max(strictScore, requiredScore)
+    const baseTitleScore = tokenCoverageScore(context.title, resultTitle)
     const subtitleScore = context.volumeSubtitle
       ? tokenCoverageScore(context.volumeSubtitle, resultTitle)
       : 0
     const modifierPenalty = getPrefixModifierPenalty(context, resultTitle)
     const combinedScore =
-      matchScore + subtitleScore * subtitleWeight - modifierPenalty
+      matchScore +
+      subtitleScore * subtitleWeight -
+      modifierPenalty +
+      baseTitleScore * BASE_TITLE_WEIGHT
     const hasVolumeMatch = context.volumeNumber
       ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
       : true
@@ -711,6 +718,7 @@ const parseAmazonResult = (
       strictScore,
       requiredScore,
       matchScore,
+      baseTitleScore,
       subtitleScore,
       modifierPenalty,
       combinedScore,
@@ -724,7 +732,11 @@ const parseAmazonResult = (
     context.volumeNumber &&
     scoredResults.some((item) => item.hasVolumeMatch)
   ) {
-    candidates = scoredResults.filter((item) => item.hasVolumeMatch)
+    candidates = scoredResults.filter(
+      (item) =>
+        item.hasVolumeMatch ||
+        item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
+    )
   }
 
   debugLog("Scored Amazon results", {
@@ -733,6 +745,7 @@ const parseAmazonResult = (
       strictScore: item.strictScore.toFixed(2),
       requiredScore: item.requiredScore.toFixed(2),
       matchScore: item.matchScore.toFixed(2),
+      baseTitleScore: item.baseTitleScore.toFixed(2),
       subtitleScore: item.subtitleScore.toFixed(2),
       modifierPenalty: item.modifierPenalty.toFixed(2),
       combinedScore: item.combinedScore.toFixed(2),
@@ -762,26 +775,31 @@ const parseAmazonResult = (
     strictScore: best.strictScore,
     requiredScore: best.requiredScore,
     matchScore: best.matchScore,
+    baseTitleScore: best.baseTitleScore,
     subtitleScore: best.subtitleScore,
     modifierPenalty: best.modifierPenalty,
     combinedScore: best.combinedScore,
     index: best.index
   })
 
-  if (
-    best.strictScore < MATCH_THRESHOLD &&
-    best.requiredScore < REQUIRED_MATCH_THRESHOLD
-  ) {
+  const meetsMatchThreshold =
+    best.strictScore >= MATCH_THRESHOLD ||
+    best.requiredScore >= REQUIRED_MATCH_THRESHOLD ||
+    best.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
+
+  if (!meetsMatchThreshold) {
     debugLog("Match score below threshold", {
       strictScore: best.strictScore,
       requiredScore: best.requiredScore,
       matchScore: best.matchScore,
+      baseTitleScore: best.baseTitleScore,
       resultTitle: best.resultTitle
     })
     throw new ApiError(404, "Top result did not match expected title", {
       matchScore: best.matchScore,
       strictScore: best.strictScore,
       requiredScore: best.requiredScore,
+      baseTitleScore: best.baseTitleScore,
       resultTitle: best.resultTitle
     })
   }
@@ -789,7 +807,8 @@ const parseAmazonResult = (
   const eligibleCandidates = rankedCandidates.filter(
     (item) =>
       item.strictScore >= MATCH_THRESHOLD ||
-      item.requiredScore >= REQUIRED_MATCH_THRESHOLD
+      item.requiredScore >= REQUIRED_MATCH_THRESHOLD ||
+      item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
   )
 
   let selected = best
@@ -818,6 +837,7 @@ const parseAmazonResult = (
     strictScore: selected.strictScore,
     requiredScore: selected.requiredScore,
     matchScore: selected.matchScore,
+    baseTitleScore: selected.baseTitleScore,
     subtitleScore: selected.subtitleScore,
     modifierPenalty: selected.modifierPenalty,
     combinedScore: selected.combinedScore,
