@@ -10,7 +10,7 @@ import {
 export const dynamic = "force-dynamic"
 
 // Set to `true` to enable detailed debug logging of the search result scoring process.
-const DEBUG = false
+const DEBUG = true
 
 const debugLog = (...args: Parameters<typeof console.debug>) => {
   if (DEBUG) {
@@ -23,8 +23,9 @@ const DEFAULT_BINDING = "Paperback"
 const FETCH_TIMEOUT_MS = 12000
 const MATCH_THRESHOLD = 0.6
 const REQUIRED_MATCH_THRESHOLD = 0.8
-const MAX_RESULTS_TO_SCORE = 3
+const MAX_RESULTS_TO_SCORE = 5
 const MAX_TITLE_LENGTH = 200
+const MAX_VOLUME_TITLE_LENGTH = 200
 const MAX_FORMAT_LENGTH = 80
 const MAX_QUERY_LENGTH = 260
 
@@ -102,6 +103,41 @@ const tokenize = (value: string) => {
     .map((token) => token.trim())
     .filter((token) => token.length > 1 || /^\d+$/.test(token))
   return new Set(tokens)
+}
+
+const extractVolumeSubtitle = (
+  volumeTitle: string,
+  seriesTitle: string,
+  volumeNumber: number | null,
+  format: string,
+  binding: string
+) => {
+  if (!volumeTitle) return ""
+  const volumeTokens = tokenize(volumeTitle)
+  if (volumeTokens.size === 0) return ""
+
+  const blockedTokens = new Set<string>([
+    ...tokenize(seriesTitle),
+    ...tokenize(format),
+    ...tokenize(binding),
+    "volume",
+    "book",
+    "light",
+    "novel",
+    "manga",
+    "paperback",
+    "hardcover"
+  ])
+
+  if (volumeNumber != null) {
+    blockedTokens.add(volumeNumber.toString())
+  }
+
+  const subtitleTokens = [...volumeTokens].filter(
+    (token) => !blockedTokens.has(token)
+  )
+
+  return subtitleTokens.join(" ")
 }
 
 const hasExactVolumeMatch = (title: string, volumeNumber: number) => {
@@ -265,6 +301,11 @@ const getSearchContext = (request: NextRequest) => {
     throw new ApiError(400, "Missing title")
   }
 
+  const volumeTitle = sanitizeInput(
+    request.nextUrl.searchParams.get("volumeTitle"),
+    MAX_VOLUME_TITLE_LENGTH
+  )
+
   const domain = resolveAmazonDomain(request.nextUrl.searchParams.get("domain"))
   const host = AMAZON_DOMAINS[domain]
 
@@ -283,11 +324,20 @@ const getSearchContext = (request: NextRequest) => {
     ? `Volume ${resolvedVolumeNumber}`
     : null
   const bindingLabel = binding || DEFAULT_BINDING
+  const volumeSubtitle = extractVolumeSubtitle(
+    volumeTitle,
+    title,
+    resolvedVolumeNumber,
+    format,
+    bindingLabel
+  )
 
   const searchTokens = [title, volumeLabel, format, bindingLabel].filter(
     Boolean
   )
-  const expectedTokens = [title, volumeLabel, format].filter(Boolean)
+  const expectedTokens = [title, volumeLabel, format, volumeSubtitle].filter(
+    Boolean
+  )
   const requiredTokens = [title, volumeLabel].filter(Boolean)
   const searchQuery = searchTokens.join(" ").slice(0, MAX_QUERY_LENGTH)
   const expectedTitle = expectedTokens.join(" ")
@@ -300,6 +350,8 @@ const getSearchContext = (request: NextRequest) => {
     domain,
     host,
     title,
+    volumeTitle,
+    volumeSubtitle,
     volumeNumber: resolvedVolumeNumber,
     format,
     bindingLabel,
@@ -315,11 +367,66 @@ const getSearchContext = (request: NextRequest) => {
     requiredTitle,
     bindingLabel,
     volumeNumber: resolvedVolumeNumber,
+    volumeTitle,
+    volumeSubtitle,
     searchUrl: url.toString()
   }
 }
 
 type SearchContext = ReturnType<typeof getSearchContext>
+
+type ScoredResult = {
+  result: cheerio.Cheerio<Element>
+  resultTitle: string
+  strictScore: number
+  requiredScore: number
+  matchScore: number
+  subtitleScore: number
+  combinedScore: number
+  hasVolumeMatch: boolean
+  index: number
+}
+
+type PricedCandidate = {
+  candidate: ScoredResult
+  priceText: string
+  priceValue: number | null
+  currency: string | null
+}
+
+const findPricedCandidate = (
+  $: cheerio.CheerioAPI,
+  candidates: ScoredResult[],
+  bindingLabel: string,
+  host: string
+): PricedCandidate | null => {
+  for (const candidate of candidates) {
+    try {
+      const bindingLink = findBindingLink($, candidate.result, bindingLabel)
+      const priceText = extractPriceText(candidate.result, bindingLink)
+      const priceValue = parsePriceValue(priceText, host)
+      const currency = detectCurrency(priceText, host)
+      debugLog("Parsed Amazon price", {
+        title: candidate.resultTitle,
+        priceText,
+        priceValue,
+        currency
+      })
+      return { candidate, priceText, priceValue, currency }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        debugLog("Skipping Amazon result without price", {
+          title: candidate.resultTitle,
+          index: candidate.index,
+          message: error.message
+        })
+        continue
+      }
+      throw error
+    }
+  }
+  return null
+}
 
 const fetchAmazonHtml = async (searchUrl: string) => {
   let response: Response
@@ -506,6 +613,7 @@ const parseAmazonResult = (
   context: SearchContext,
   options: { includePrice: boolean; includeImage: boolean }
 ) => {
+  const subtitleWeight = context.volumeSubtitle ? 0.35 : 0
   const $ = cheerio.load(html)
   const resultElements = getSearchResults($)
   debugLog(
@@ -513,6 +621,7 @@ const parseAmazonResult = (
     {
       expectedTitle: context.expectedTitle,
       requiredTitle: context.requiredTitle,
+      volumeSubtitle: context.volumeSubtitle,
       results: resultElements.map((el) => extractResultTitle($(el)))
     }
   )
@@ -528,6 +637,10 @@ const parseAmazonResult = (
       resultTitle
     )
     const matchScore = Math.max(strictScore, requiredScore)
+    const subtitleScore = context.volumeSubtitle
+      ? tokenCoverageScore(context.volumeSubtitle, resultTitle)
+      : 0
+    const combinedScore = matchScore + subtitleScore * subtitleWeight
     const hasVolumeMatch = context.volumeNumber
       ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
       : true
@@ -538,6 +651,8 @@ const parseAmazonResult = (
       strictScore,
       requiredScore,
       matchScore,
+      subtitleScore,
+      combinedScore,
       hasVolumeMatch,
       index
     }
@@ -557,34 +672,33 @@ const parseAmazonResult = (
       strictScore: item.strictScore.toFixed(2),
       requiredScore: item.requiredScore.toFixed(2),
       matchScore: item.matchScore.toFixed(2),
+      subtitleScore: item.subtitleScore.toFixed(2),
+      combinedScore: item.combinedScore.toFixed(2),
       index: item.index
     }))
   })
 
-  const best = candidates.reduce<(typeof scoredResults)[number] | null>(
-    (currentBest, item) => {
-      if (!currentBest) return item
-      if (item.matchScore > currentBest.matchScore) return item
-      if (
-        item.matchScore === currentBest.matchScore &&
-        item.index < currentBest.index
-      ) {
-        return item
-      }
-      return currentBest
-    },
-    null
-  )
+  const rankedCandidates = [...candidates].sort((a, b) => {
+    if (b.combinedScore !== a.combinedScore) {
+      return b.combinedScore - a.combinedScore
+    }
+    if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore
+    return a.index - b.index
+  })
+
+  const best = rankedCandidates[0] ?? null
 
   if (!best) {
     throw new ApiError(404, "No search results found")
   }
 
-  debugLog("Selected Amazon result", {
+  debugLog("Top matched Amazon result", {
     title: best.resultTitle,
     strictScore: best.strictScore,
     requiredScore: best.requiredScore,
     matchScore: best.matchScore,
+    subtitleScore: best.subtitleScore,
+    combinedScore: best.combinedScore,
     index: best.index
   })
 
@@ -606,24 +720,49 @@ const parseAmazonResult = (
     })
   }
 
+  const eligibleCandidates = rankedCandidates.filter(
+    (item) =>
+      item.strictScore >= MATCH_THRESHOLD ||
+      item.requiredScore >= REQUIRED_MATCH_THRESHOLD
+  )
+
+  let selected = best
   let priceText: string | null = null
   let priceValue: number | null = null
   let currency: string | null = null
 
   if (options.includePrice) {
-    const bindingLink = findBindingLink($, best.result, context.bindingLabel)
-    priceText = extractPriceText(best.result, bindingLink)
-    priceValue = parsePriceValue(priceText, context.host)
-    currency = detectCurrency(priceText, context.host)
-    debugLog("Parsed Amazon price", { priceText, priceValue, currency })
+    const priced = findPricedCandidate(
+      $,
+      eligibleCandidates,
+      context.bindingLabel,
+      context.host
+    )
+    if (!priced) {
+      throw new ApiError(404, "Price not found")
+    }
+    selected = priced.candidate
+    priceText = priced.priceText
+    priceValue = priced.priceValue
+    currency = priced.currency
   }
 
-  const productUrl = extractProductUrl(best.result, context.host)
-  const imageUrl = options.includeImage ? extractImageUrl(best.result) : null
+  debugLog("Selected Amazon result", {
+    title: selected.resultTitle,
+    strictScore: selected.strictScore,
+    requiredScore: selected.requiredScore,
+    matchScore: selected.matchScore,
+    subtitleScore: selected.subtitleScore,
+    combinedScore: selected.combinedScore,
+    index: selected.index
+  })
+
+  const productUrl = extractProductUrl(selected.result, context.host)
+  const imageUrl = options.includeImage ? extractImageUrl(selected.result) : null
 
   return {
-    resultTitle: best.resultTitle,
-    matchScore: best.matchScore,
+    resultTitle: selected.resultTitle,
+    matchScore: selected.matchScore,
     priceText,
     priceValue,
     currency,

@@ -166,6 +166,7 @@ function finalize(setter: StateSetter) {
 function buildFetchUrl(
   seriesTitle: string,
   volumeNumber: number,
+  volumeTitle: string,
   formatHint: string,
   domain: string,
   includePrice: boolean,
@@ -174,6 +175,7 @@ function buildFetchUrl(
   const params = new URLSearchParams()
   params.set("title", seriesTitle)
   params.set("volume", String(volumeNumber))
+  if (volumeTitle.trim()) params.set("volumeTitle", volumeTitle)
   if (formatHint) params.set("format", formatHint)
   params.set("binding", "Paperback")
   params.set("domain", domain)
@@ -388,6 +390,7 @@ async function processJob(
   const url = buildFetchUrl(
     series.title,
     jobs[i].volumeNumber,
+    jobs[i].title,
     formatHint,
     amazonDomain,
     includePrice,

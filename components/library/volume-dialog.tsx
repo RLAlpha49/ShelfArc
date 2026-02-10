@@ -766,6 +766,9 @@ export function VolumeDialog({
     const formatHint = getFormatHint()
     if (formatHint) params.set("format", formatHint)
     params.set("binding", "Paperback")
+    if (seriesTitle && volumeTitle) {
+      params.set("volumeTitle", volumeTitle)
+    }
     return { params }
   }
 
