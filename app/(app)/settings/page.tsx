@@ -567,7 +567,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-sm font-medium">Avatar</p>
                   <p className="text-muted-foreground text-xs">
-                    Square images work best. Uploads are compressed to WebP.
+                    Square images work best.
                   </p>
                 </div>
                 {avatarUrl && (
