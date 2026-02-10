@@ -101,6 +101,8 @@ interface AmazonResponseData {
   result?: {
     priceText?: string
     priceValue?: number
+    priceError?: string | null
+    priceBinding?: string | null
     imageUrl?: string | null
   }
   error?: string
@@ -163,24 +165,42 @@ function finalize(setter: StateSetter) {
   })
 }
 
-function buildFetchUrl(
-  seriesTitle: string,
-  volumeNumber: number,
-  volumeTitle: string,
-  formatHint: string,
-  domain: string,
-  includePrice: boolean,
+interface FetchUrlOptions {
+  seriesTitle: string
+  volumeNumber: number
+  volumeTitle: string
+  formatHint: string
+  domain: string
+  bindingLabel: string
+  fallbackToKindle: boolean
+  includePrice: boolean
   includeImage: boolean
-): string {
+}
+
+function buildFetchUrl(options: FetchUrlOptions): string {
+  const {
+    seriesTitle,
+    volumeNumber,
+    volumeTitle,
+    formatHint,
+    domain,
+    bindingLabel,
+    fallbackToKindle,
+    includePrice,
+    includeImage
+  } = options
   const params = new URLSearchParams()
   params.set("title", seriesTitle)
   params.set("volume", String(volumeNumber))
   if (volumeTitle.trim()) params.set("volumeTitle", volumeTitle)
   if (formatHint) params.set("format", formatHint)
-  params.set("binding", "Paperback")
+  params.set("binding", bindingLabel)
   params.set("domain", domain)
   if (includeImage) params.set("includeImage", "true")
   if (!includePrice) params.set("includePrice", "false")
+  if (includePrice && fallbackToKindle) {
+    params.set("fallbackToKindle", "true")
+  }
   return `/api/books/price?${params}`
 }
 
@@ -219,20 +239,24 @@ function extractUpdates(
   updates: Partial<Volume>
   priceResult: number | null
   imageResult: string | null
+  priceError: string | null
 } {
   const updates: Partial<Volume> = {}
   let priceResult: number | null = null
   let imageResult: string | null = null
+  let priceError: string | null = null
 
   if (includePrice && data.result?.priceValue != null) {
     updates.purchase_price = data.result.priceValue
     priceResult = data.result.priceValue
+  } else if (includePrice && data.result?.priceError) {
+    priceError = data.result.priceError
   }
   if (includeImage && data.result?.imageUrl) {
     updates.cover_image_url = data.result.imageUrl
     imageResult = data.result.imageUrl
   }
-  return { updates, priceResult, imageResult }
+  return { updates, priceResult, imageResult, priceError }
 }
 
 /** Wait between requests, swallowing abort errors. */
@@ -254,6 +278,8 @@ interface JobContext {
   series: SeriesWithVolumes
   formatHint: string
   amazonDomain: string
+  bindingLabel: string
+  fallbackToKindle: boolean
   includePrice: boolean
   includeImage: boolean
   controller: AbortController
@@ -275,6 +301,10 @@ export function useBulkScrape(
 ) {
   const priceSource = useLibraryStore((s) => s.priceSource)
   const amazonDomain = useLibraryStore((s) => s.amazonDomain)
+  const amazonPreferKindle = useLibraryStore((s) => s.amazonPreferKindle)
+  const amazonFallbackToKindle = useLibraryStore(
+    (s) => s.amazonFallbackToKindle
+  )
   const abortRef = useRef<AbortController | null>(null)
 
   const [state, setState] = useState<BulkScrapeState>({
@@ -323,6 +353,8 @@ export function useBulkScrape(
       const formatHint = getFormatHint(series.type)
       const includePrice = mode === "price" || mode === "both"
       const includeImage = mode === "image" || mode === "both"
+      const bindingLabel = amazonPreferKindle ? "Kindle" : "Paperback"
+      const fallbackToKindle = !amazonPreferKindle && amazonFallbackToKindle
 
       for (let i = 0; i < jobs.length; i++) {
         if (controller.signal.aborted) break
@@ -336,6 +368,8 @@ export function useBulkScrape(
           series,
           formatHint,
           amazonDomain,
+          bindingLabel,
+          fallbackToKindle,
           includePrice,
           includeImage,
           controller,
@@ -351,7 +385,14 @@ export function useBulkScrape(
 
       finalize(setState)
     },
-    [series, priceSource, amazonDomain, editVolume]
+    [
+      series,
+      priceSource,
+      amazonDomain,
+      amazonPreferKindle,
+      amazonFallbackToKindle,
+      editVolume
+    ]
   )
 
   const cancel = useCallback(() => {
@@ -381,21 +422,25 @@ async function processJob(
     series,
     formatHint,
     amazonDomain,
+    bindingLabel,
+    fallbackToKindle,
     includePrice,
     includeImage,
     controller,
     setter
   } = ctx
   const isLast = i >= jobs.length - 1
-  const url = buildFetchUrl(
-    series.title,
-    jobs[i].volumeNumber,
-    jobs[i].title,
+  const url = buildFetchUrl({
+    seriesTitle: series.title,
+    volumeNumber: jobs[i].volumeNumber,
+    volumeTitle: jobs[i].title,
     formatHint,
-    amazonDomain,
+    domain: amazonDomain,
+    bindingLabel,
+    fallbackToKindle,
     includePrice,
     includeImage
-  )
+  })
 
   try {
     const response = await fetch(url, { signal: controller.signal })
@@ -455,7 +500,7 @@ async function handleSuccess(
     editVolume,
     setter
   } = ctx
-  const { updates, priceResult, imageResult } = extractUpdates(
+  const { updates, priceResult, imageResult, priceError } = extractUpdates(
     data,
     includePrice,
     includeImage
@@ -471,7 +516,16 @@ async function handleSuccess(
     }
   }
 
-  updateJob(i, { status: "done", priceResult, imageResult }, setter)
+  updateJob(
+    i,
+    {
+      status: "done",
+      priceResult,
+      imageResult,
+      errorMessage: priceError ?? undefined
+    },
+    setter
+  )
   const continued = await interRequestDelay(controller.signal, isLast)
   return continued ? "ok" : "abort"
 }

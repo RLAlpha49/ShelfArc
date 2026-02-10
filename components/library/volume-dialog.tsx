@@ -504,6 +504,12 @@ export function VolumeDialog({
   const [formData, setFormData] = useState(defaultFormData)
   const priceSource = useLibraryStore((state) => state.priceSource)
   const amazonDomain = useLibraryStore((state) => state.amazonDomain)
+  const amazonPreferKindle = useLibraryStore(
+    (state) => state.amazonPreferKindle
+  )
+  const amazonFallbackToKindle = useLibraryStore(
+    (state) => state.amazonFallbackToKindle
+  )
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
   )
@@ -765,7 +771,8 @@ export function VolumeDialog({
     params.set("volume", String(formData.volume_number))
     const formatHint = getFormatHint()
     if (formatHint) params.set("format", formatHint)
-    params.set("binding", "Paperback")
+    const bindingLabel = amazonPreferKindle ? "Kindle" : "Paperback"
+    params.set("binding", bindingLabel)
     if (seriesTitle && volumeTitle) {
       params.set("volumeTitle", volumeTitle)
     }
@@ -775,7 +782,9 @@ export function VolumeDialog({
   const parsePriceFromResult = (result?: {
     priceText?: string
     priceValue?: number
+    priceError?: string | null
   }) => {
+    if (result?.priceError) return ""
     const priceValue = result?.priceValue
     if (typeof priceValue === "number" && Number.isFinite(priceValue)) {
       return priceValue.toString()
@@ -789,11 +798,22 @@ export function VolumeDialog({
   const applyPriceResult = (result?: {
     priceText?: string
     priceValue?: number
+    priceError?: string | null
+    priceBinding?: string | null
   }) => {
+    if (result?.priceError) {
+      toast.warning(result.priceError)
+      return
+    }
     const parsedPrice = parsePriceFromResult(result)
     if (parsedPrice) {
       updateField("purchase_price", parsedPrice)
-      toast.success(`Price found: ${result?.priceText || parsedPrice}`)
+      const bindingNote = result?.priceBinding
+        ? ` (${result.priceBinding})`
+        : ""
+      toast.success(
+        `Price found${bindingNote}: ${result?.priceText || parsedPrice}`
+      )
     } else {
       toast.warning("Price not found in the Amazon result.")
     }
@@ -829,6 +849,9 @@ export function VolumeDialog({
     buildResult.params.set("domain", amazonDomain)
     if (options.includeImage) buildResult.params.set("includeImage", "true")
     if (!options.includePrice) buildResult.params.set("includePrice", "false")
+    if (options.includePrice && !amazonPreferKindle && amazonFallbackToKindle) {
+      buildResult.params.set("fallbackToKindle", "true")
+    }
 
     return `/api/books/price?${buildResult.params}`
   }
@@ -866,6 +889,8 @@ export function VolumeDialog({
           result?: {
             priceText?: string
             priceValue?: number
+            priceError?: string | null
+            priceBinding?: string | null
             imageUrl?: string | null
           }
           error?: string
@@ -885,6 +910,8 @@ export function VolumeDialog({
     [
       priceSource,
       amazonDomain,
+      amazonPreferKindle,
+      amazonFallbackToKindle,
       selectedSeriesOption,
       formData.title,
       formData.volume_number

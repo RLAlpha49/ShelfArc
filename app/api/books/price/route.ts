@@ -20,6 +20,7 @@ const debugLog = (...args: Parameters<typeof console.debug>) => {
 
 const AMAZON_SEARCH_PATH = "/s"
 const DEFAULT_BINDING = "Paperback"
+const KINDLE_BINDING_LABELS = ["Kindle", "Kindle Edition"]
 const FETCH_TIMEOUT_MS = 12000
 const MATCH_THRESHOLD = 0.6
 const REQUIRED_MATCH_THRESHOLD = 0.8
@@ -29,7 +30,7 @@ const VOLUME_TITLE_WEIGHT = 0.35
 const FORMAT_CONFLICT_PENALTY = 0.4
 const EXTRA_TOKEN_PENALTY = 0.08
 const MAX_EXTRA_TOKEN_PENALTY = 0.45
-const MAX_RESULTS_TO_SCORE = 8
+const MAX_RESULTS_TO_SCORE = 12
 const MAX_TITLE_LENGTH = 200
 const MAX_VOLUME_TITLE_LENGTH = 200
 const MAX_FORMAT_LENGTH = 80
@@ -103,6 +104,37 @@ const normalizeText = (value: string) => {
     .replaceAll(/\s+/g, " ")
 }
 
+const normalizeBindingLabel = (value: string) => normalizeText(value)
+
+const isKindleBinding = (bindingLabel: string) => {
+  const normalized = normalizeBindingLabel(bindingLabel)
+  return normalized.includes("kindle")
+}
+
+const resolveBindingLabels = (
+  bindingLabel: string,
+  fallbackToKindle: boolean
+) => {
+  const labels: string[] = []
+  const seen = new Set<string>()
+  const addLabel = (label: string) => {
+    const normalized = normalizeBindingLabel(label)
+    if (!normalized || seen.has(normalized)) return
+    seen.add(normalized)
+    labels.push(label)
+  }
+
+  addLabel(bindingLabel)
+
+  if (fallbackToKindle && !isKindleBinding(bindingLabel)) {
+    for (const label of KINDLE_BINDING_LABELS) {
+      addLabel(label)
+    }
+  }
+
+  return labels
+}
+
 const tokenize = (value: string) => {
   const tokens = normalizeText(value)
     .split(" ")
@@ -152,6 +184,7 @@ const extractVolumeSubtitle = (
     "novel",
     "manga",
     "paperback",
+    "kindle",
     "hardcover"
   ])
 
@@ -252,10 +285,7 @@ const getPrefixModifierPenalty = (
   return Math.min(0.45, extraTokens.length * 0.2)
 }
 
-const getExtraTokenPenalty = (
-  context: SearchContext,
-  resultTitle: string
-) => {
+const getExtraTokenPenalty = (context: SearchContext, resultTitle: string) => {
   const resultTokens = [...tokenize(resultTitle)]
   if (!resultTokens.length) return 0
 
@@ -441,6 +471,8 @@ const getSearchContext = (request: NextRequest) => {
     MAX_FORMAT_LENGTH
   )
   const binding = sanitizeInput(request.nextUrl.searchParams.get("binding"), 40)
+  const fallbackToKindle =
+    request.nextUrl.searchParams.get("fallbackToKindle") === "true"
 
   const volumeNumber = Number.parseInt(volumeParam, 10)
   const resolvedVolumeNumber = Number.isFinite(volumeNumber)
@@ -450,6 +482,7 @@ const getSearchContext = (request: NextRequest) => {
     ? `Volume ${resolvedVolumeNumber}`
     : null
   const bindingLabel = binding || DEFAULT_BINDING
+  const bindingLabels = resolveBindingLabels(bindingLabel, fallbackToKindle)
   const volumeSubtitle = extractVolumeSubtitle(
     volumeTitle,
     title,
@@ -481,6 +514,8 @@ const getSearchContext = (request: NextRequest) => {
     volumeNumber: resolvedVolumeNumber,
     format,
     bindingLabel,
+    bindingLabels,
+    fallbackToKindle,
     searchQuery,
     searchUrl: url.toString()
   })
@@ -493,6 +528,8 @@ const getSearchContext = (request: NextRequest) => {
     requiredTitle,
     format,
     bindingLabel,
+    bindingLabels,
+    fallbackToKindle,
     volumeNumber: resolvedVolumeNumber,
     volumeTitle,
     volumeSubtitle,
@@ -524,40 +561,148 @@ type PricedCandidate = {
   priceText: string
   priceValue: number | null
   currency: string | null
+  bindingLabel: string
+}
+
+type BindingMatch = {
+  link: cheerio.Cheerio<Element>
+  label: string
+}
+
+type PriceSelection = {
+  selected: ScoredResult
+  priceText: string | null
+  priceValue: number | null
+  currency: string | null
+  priceBinding: string | null
+  priceError: string | null
+}
+
+type PriceSelectionInput = {
+  $: cheerio.CheerioAPI
+  includePrice: boolean
+  includeImage: boolean
+  selected: ScoredResult
+  eligibleCandidates: ScoredResult[]
+  bindingLabels: string[]
+  host: string
+  priceErrorMessage: string
 }
 
 const findPricedCandidate = (
   $: cheerio.CheerioAPI,
   candidates: ScoredResult[],
-  bindingLabel: string,
+  bindingLabels: string[],
   host: string
 ): PricedCandidate | null => {
   for (const candidate of candidates) {
-    try {
-      const bindingLink = findBindingLink($, candidate.result, bindingLabel)
-      const priceText = extractPriceText(candidate.result, bindingLink)
-      const priceValue = parsePriceValue(priceText, host)
-      const currency = detectCurrency(priceText, host)
-      debugLog("Parsed Amazon price", {
-        title: candidate.resultTitle,
-        priceText,
-        priceValue,
-        currency
-      })
-      return { candidate, priceText, priceValue, currency }
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) {
-        debugLog("Skipping Amazon result without price", {
-          title: candidate.resultTitle,
-          index: candidate.index,
-          message: error.message
-        })
-        continue
-      }
-      throw error
-    }
+    const price = getPriceForCandidate($, candidate, bindingLabels, host)
+    if (!price) continue
+    return { candidate, ...price }
   }
   return null
+}
+
+const getPriceForCandidate = (
+  $: cheerio.CheerioAPI,
+  candidate: ScoredResult,
+  bindingLabels: string[],
+  host: string
+): Omit<PricedCandidate, "candidate"> | null => {
+  try {
+    const bindingMatch = findBindingLink($, candidate.result, bindingLabels)
+    const priceText = extractPriceText(candidate.result, bindingMatch.link)
+    const priceValue = parsePriceValue(priceText, host)
+    const currency = detectCurrency(priceText, host)
+    debugLog("Parsed Amazon price", {
+      title: candidate.resultTitle,
+      priceText,
+      priceValue,
+      currency,
+      bindingLabel: bindingMatch.label
+    })
+    return {
+      priceText,
+      priceValue,
+      currency,
+      bindingLabel: bindingMatch.label
+    }
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      debugLog("Amazon result missing price", {
+        title: candidate.resultTitle,
+        index: candidate.index,
+        message: error.message
+      })
+      return null
+    }
+    throw error
+  }
+}
+
+const resolvePriceSelection = ({
+  $,
+  includePrice,
+  includeImage,
+  selected,
+  eligibleCandidates,
+  bindingLabels,
+  host,
+  priceErrorMessage
+}: PriceSelectionInput): PriceSelection => {
+  if (!includePrice) {
+    return {
+      selected,
+      priceText: null,
+      priceValue: null,
+      currency: null,
+      priceBinding: null,
+      priceError: null
+    }
+  }
+
+  if (includeImage) {
+    const price = getPriceForCandidate($, selected, bindingLabels, host)
+    if (price) {
+      return {
+        selected,
+        priceText: price.priceText,
+        priceValue: price.priceValue,
+        currency: price.currency,
+        priceBinding: price.bindingLabel,
+        priceError: null
+      }
+    }
+    return {
+      selected,
+      priceText: null,
+      priceValue: null,
+      currency: null,
+      priceBinding: null,
+      priceError: priceErrorMessage
+    }
+  }
+
+  const priced = findPricedCandidate($, eligibleCandidates, bindingLabels, host)
+  if (priced) {
+    return {
+      selected: priced.candidate,
+      priceText: priced.priceText,
+      priceValue: priced.priceValue,
+      currency: priced.currency,
+      priceBinding: priced.bindingLabel,
+      priceError: null
+    }
+  }
+
+  return {
+    selected,
+    priceText: null,
+    priceValue: null,
+    currency: null,
+    priceBinding: null,
+    priceError: priceErrorMessage
+  }
 }
 
 const fetchAmazonHtml = async (searchUrl: string) => {
@@ -639,25 +784,39 @@ const extractResultTitle = (result: cheerio.Cheerio<Element>) => {
   return resultTitle
 }
 
+const matchesBindingLabel = (text: string, label: string) => {
+  const normalizedText = normalizeBindingLabel(text)
+  const normalizedLabel = normalizeBindingLabel(label)
+  if (!normalizedText || !normalizedLabel) return false
+  return (
+    normalizedText === normalizedLabel ||
+    normalizedText.startsWith(`${normalizedLabel} `)
+  )
+}
+
 const findBindingLink = (
   $: cheerio.CheerioAPI,
   result: cheerio.Cheerio<Element>,
-  bindingLabel: string
-) => {
-  const bindingLower = bindingLabel.toLowerCase()
-  const link = result
-    .find("a")
-    .filter((_: number, el: Element) => {
-      const text = $(el).text().replaceAll(/\s+/g, " ").trim().toLowerCase()
-      return text ? text === bindingLower : false
-    })
-    .first()
+  bindingLabels: string[]
+): BindingMatch => {
+  for (const bindingLabel of bindingLabels) {
+    const link = result
+      .find("a")
+      .filter((_: number, el: Element) => {
+        const text = $(el).text().replaceAll(/\s+/g, " ").trim()
+        return text ? matchesBindingLabel(text, bindingLabel) : false
+      })
+      .first()
 
-  if (!link.length) {
-    throw new ApiError(404, `No ${bindingLabel} option found`)
+    if (link.length) {
+      return { link, label: bindingLabel }
+    }
   }
 
-  return link
+  throw new ApiError(
+    404,
+    `No ${bindingLabels.length > 1 ? "matching" : bindingLabels[0]} option found`
+  )
 }
 
 const extractPriceText = (
@@ -746,6 +905,12 @@ const parseAmazonResult = (
   options: { includePrice: boolean; includeImage: boolean }
 ) => {
   const subtitleWeight = context.volumeSubtitle ? 0.35 : 0
+  const bindingLabels = context.bindingLabels.length
+    ? context.bindingLabels
+    : [context.bindingLabel]
+  const priceErrorMessage = bindingLabels.length
+    ? `No ${bindingLabels.join(" or ")} price found`
+    : "Price not found"
   const $ = cheerio.load(html)
   const resultElements = getSearchResults($)
   debugLog(
@@ -819,8 +984,7 @@ const parseAmazonResult = (
   ) {
     candidates = scoredResults.filter(
       (item) =>
-        item.hasVolumeMatch ||
-        item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
+        item.hasVolumeMatch || item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
     )
   }
 
@@ -902,26 +1066,23 @@ const parseAmazonResult = (
       item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
   )
 
-  let selected = best
-  let priceText: string | null = null
-  let priceValue: number | null = null
-  let currency: string | null = null
+  const priceSelection = resolvePriceSelection({
+    $,
+    includePrice: options.includePrice,
+    includeImage: options.includeImage,
+    selected: best,
+    eligibleCandidates,
+    bindingLabels,
+    host: context.host,
+    priceErrorMessage
+  })
 
-  if (options.includePrice) {
-    const priced = findPricedCandidate(
-      $,
-      eligibleCandidates,
-      context.bindingLabel,
-      context.host
-    )
-    if (!priced) {
-      throw new ApiError(404, "Price not found")
-    }
-    selected = priced.candidate
-    priceText = priced.priceText
-    priceValue = priced.priceValue
-    currency = priced.currency
-  }
+  const selected = priceSelection.selected
+  const priceText = priceSelection.priceText
+  const priceValue = priceSelection.priceValue
+  const currency = priceSelection.currency
+  const priceError = priceSelection.priceError
+  const priceBinding = priceSelection.priceBinding
 
   debugLog("Selected Amazon result", {
     title: selected.resultTitle,
@@ -935,11 +1096,15 @@ const parseAmazonResult = (
     formatConflictPenalty: selected.formatConflictPenalty,
     extraTokenPenalty: selected.extraTokenPenalty,
     combinedScore: selected.combinedScore,
-    index: selected.index
+    index: selected.index,
+    priceBinding,
+    priceError
   })
 
   const productUrl = extractProductUrl(selected.result, context.host)
-  const imageUrl = options.includeImage ? extractImageUrl(selected.result) : null
+  const imageUrl = options.includeImage
+    ? extractImageUrl(selected.result)
+    : null
 
   return {
     resultTitle: selected.resultTitle,
@@ -947,6 +1112,8 @@ const parseAmazonResult = (
     priceText,
     priceValue,
     currency,
+    priceBinding,
+    priceError,
     productUrl,
     imageUrl
   }
@@ -996,6 +1163,8 @@ export async function GET(request: NextRequest) {
         priceText: parsed.priceText,
         priceValue: parsed.priceValue,
         currency: parsed.currency,
+        priceBinding: parsed.priceBinding,
+        priceError: parsed.priceError,
         url: parsed.productUrl,
         imageUrl: parsed.imageUrl
       }

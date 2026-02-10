@@ -172,10 +172,14 @@ export default function SettingsPage() {
     setDeleteSeriesVolumes,
     priceSource,
     amazonDomain,
+    amazonPreferKindle,
+    amazonFallbackToKindle,
     priceDisplayCurrency,
     showAmazonDisclaimer,
     setPriceSource,
     setAmazonDomain,
+    setAmazonPreferKindle,
+    setAmazonFallbackToKindle,
     setPriceDisplayCurrency,
     setShowAmazonDisclaimer,
     navigationMode,
@@ -1118,84 +1122,127 @@ export default function SettingsPage() {
                 displayed
               </p>
             </div>
+            <div className="space-y-6">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="price-source">Default price source</Label>
+                  <Select
+                    value={priceSource}
+                    onValueChange={(value) => {
+                      if (isValidOption(value, priceSourceOptions)) {
+                        setPriceSource(value)
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="price-source">
+                      <SelectValue placeholder="Choose a source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {priceSourceOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-muted-foreground text-xs">
+                    Used when fetching prices for volumes.
+                  </p>
+                </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="price-source">Default price source</Label>
-                <Select
-                  value={priceSource}
-                  onValueChange={(value) => {
-                    if (isValidOption(value, priceSourceOptions)) {
-                      setPriceSource(value)
+                <div className="space-y-2">
+                  <Label htmlFor="amazon-domain">Amazon domain</Label>
+                  <Select
+                    value={amazonDomain}
+                    onValueChange={(value) =>
+                      setAmazonDomain(value as AmazonDomain)
                     }
-                  }}
-                >
-                  <SelectTrigger id="price-source">
-                    <SelectValue placeholder="Choose a source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priceSourceOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-muted-foreground text-xs">
-                  Used when fetching prices for volumes.
-                </p>
+                  >
+                    <SelectTrigger id="amazon-domain">
+                      <SelectValue placeholder="Select a domain" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {amazonDomainOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-muted-foreground text-xs">
+                    Used for Amazon price lookups.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="display-currency">Display currency</Label>
+                  <Select
+                    value={priceDisplayCurrency}
+                    onValueChange={(value) =>
+                      setPriceDisplayCurrency(value as CurrencyCode)
+                    }
+                  >
+                    <SelectTrigger id="display-currency">
+                      <SelectValue placeholder="Choose currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-muted-foreground text-xs">
+                    Controls how prices are formatted across the app.
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="amazon-domain">Amazon domain</Label>
-                <Select
-                  value={amazonDomain}
-                  onValueChange={(value) =>
-                    setAmazonDomain(value as AmazonDomain)
-                  }
-                >
-                  <SelectTrigger id="amazon-domain">
-                    <SelectValue placeholder="Select a domain" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {amazonDomainOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-muted-foreground text-xs">
-                  Used for Amazon price lookups.
-                </p>
+              <div className="border-t" />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="amazon-prefer-kindle" className="font-medium">
+                    Prefer Kindle pricing
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Use Kindle as the primary Amazon price lookup (and search
+                    query).
+                  </p>
+                </div>
+                <Switch
+                  id="amazon-prefer-kindle"
+                  checked={amazonPreferKindle}
+                  onCheckedChange={setAmazonPreferKindle}
+                />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="display-currency">Display currency</Label>
-                <Select
-                  value={priceDisplayCurrency}
-                  onValueChange={(value) =>
-                    setPriceDisplayCurrency(value as CurrencyCode)
-                  }
-                >
-                  <SelectTrigger id="display-currency">
-                    <SelectValue placeholder="Choose currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencyOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-muted-foreground text-xs">
-                  Controls how prices are formatted across the app.
-                </p>
-              </div>
-            </div>
+              <div className="border-t" />
 
-            <div className="border-t pt-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="amazon-fallback-kindle"
+                    className="font-medium"
+                  >
+                    Fallback to Kindle pricing
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    If Paperback pricing is missing, try the Kindle price
+                    instead.
+                  </p>
+                </div>
+                <Switch
+                  id="amazon-fallback-kindle"
+                  checked={amazonFallbackToKindle}
+                  onCheckedChange={setAmazonFallbackToKindle}
+                  disabled={amazonPreferKindle}
+                />
+              </div>
+
+              <div className="border-t" />
+
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
                   <Label

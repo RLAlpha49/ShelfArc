@@ -449,6 +449,20 @@ export function BulkScrapeDialog({
                           Image
                         </span>
                       )}
+                      {job.status === "done" && job.errorMessage && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className="bg-gold/15 text-gold cursor-help rounded-lg px-2 py-0.5 text-[10px] font-medium">
+                                Price missing
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-xs">
+                              <p className="text-xs">{job.errorMessage}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                       {job.status === "failed" && job.errorMessage && (
                         <TooltipProvider>
                           <Tooltip>

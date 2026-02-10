@@ -47,6 +47,8 @@ interface LibraryState {
   deleteSeriesVolumes: boolean
   priceSource: PriceSource
   amazonDomain: AmazonDomain
+  amazonPreferKindle: boolean
+  amazonFallbackToKindle: boolean
   priceDisplayCurrency: CurrencyCode
   showAmazonDisclaimer: boolean
   navigationMode: NavigationMode
@@ -81,6 +83,8 @@ interface LibraryState {
   setDeleteSeriesVolumes: (value: boolean) => void
   setPriceSource: (value: PriceSource) => void
   setAmazonDomain: (value: AmazonDomain) => void
+  setAmazonPreferKindle: (value: boolean) => void
+  setAmazonFallbackToKindle: (value: boolean) => void
   setPriceDisplayCurrency: (value: CurrencyCode) => void
   setShowAmazonDisclaimer: (value: boolean) => void
   setNavigationMode: (value: NavigationMode) => void
@@ -110,6 +114,8 @@ export const useLibraryStore = create<LibraryState>()(
       deleteSeriesVolumes: false,
       priceSource: "amazon",
       amazonDomain: "amazon.com",
+      amazonPreferKindle: false,
+      amazonFallbackToKindle: false,
       priceDisplayCurrency: "USD",
       showAmazonDisclaimer: true,
       navigationMode: "sidebar",
@@ -225,6 +231,9 @@ export const useLibraryStore = create<LibraryState>()(
       setDeleteSeriesVolumes: (value) => set({ deleteSeriesVolumes: value }),
       setPriceSource: (value) => set({ priceSource: value }),
       setAmazonDomain: (value) => set({ amazonDomain: value }),
+      setAmazonPreferKindle: (value) => set({ amazonPreferKindle: value }),
+      setAmazonFallbackToKindle: (value) =>
+        set({ amazonFallbackToKindle: value }),
       setPriceDisplayCurrency: (value) => set({ priceDisplayCurrency: value }),
       setShowAmazonDisclaimer: (value) => set({ showAmazonDisclaimer: value }),
       setNavigationMode: (value) => set({ navigationMode: value }),
@@ -240,6 +249,8 @@ export const useLibraryStore = create<LibraryState>()(
         deleteSeriesVolumes: state.deleteSeriesVolumes,
         priceSource: state.priceSource,
         amazonDomain: state.amazonDomain,
+        amazonPreferKindle: state.amazonPreferKindle,
+        amazonFallbackToKindle: state.amazonFallbackToKindle,
         priceDisplayCurrency: state.priceDisplayCurrency,
         showAmazonDisclaimer: state.showAmazonDisclaimer,
         navigationMode: state.navigationMode
