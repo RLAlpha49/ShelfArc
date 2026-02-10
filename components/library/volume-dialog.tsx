@@ -322,7 +322,7 @@ function SeriesPicker({
             </div>
 
             <div className="bg-muted/20 border-border/60 rounded-xl border p-2">
-              <div className="no-scrollbar max-h-80 space-y-2 overflow-y-auto">
+              <div className="max-h-100 space-y-2 overflow-y-auto p-2">
                 {allowNoSeries && (
                   <button
                     type="button"
