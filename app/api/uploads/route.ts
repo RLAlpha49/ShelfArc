@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto"
 import { Readable } from "node:stream"
 import { ReadableStream } from "node:stream/web"
 import sharp from "sharp"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createUserClient } from "@/lib/supabase/server"
 
 export const runtime = "nodejs"
 
@@ -62,7 +63,7 @@ type ProcessImageResult =
   | { ok: false; response: Response }
 
 const enqueueFailedDeletion = async (
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: ReturnType<typeof createAdminClient>,
   record: FailedDeletionRecord
 ) => {
   try {
@@ -130,7 +131,7 @@ const processImage = async (
 }
 
 const handleReplaceCleanup = async (params: {
-  supabase: Awaited<ReturnType<typeof createClient>>
+  supabase: ReturnType<typeof createAdminClient>
   shouldReplace: boolean
   replacePathValue: string
   fileName: string
@@ -231,10 +232,10 @@ const getUploadData = (formData: FormData, userId: string) => {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
+  const userClient = await createUserClient()
   const {
     data: { user }
-  } = await supabase.auth.getUser()
+  } = await userClient.auth.getUser()
 
   if (!user) {
     return buildError("Unauthorized", 401)
@@ -267,7 +268,10 @@ export async function POST(request: Request) {
 
     const fileName = `${user.id}/${spec.folder}/${randomUUID()}.webp`
 
-    const { error: uploadError } = await supabase.storage
+    const adminClient = createAdminClient({
+      reason: "Upload user-owned media to storage"
+    })
+    const { error: uploadError } = await adminClient.storage
       .from(STORAGE_BUCKET)
       .upload(fileName, optimizedBuffer, {
         contentType: "image/webp",
@@ -281,7 +285,7 @@ export async function POST(request: Request) {
     }
 
     await handleReplaceCleanup({
-      supabase,
+      supabase: adminClient,
       shouldReplace,
       replacePathValue,
       fileName,

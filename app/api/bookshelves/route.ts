@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createUserClient } from "@/lib/supabase/server"
 import type { Bookshelf, BookshelfInsert } from "@/lib/types/database"
 
 export async function GET() {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
 
   const {
     data: { user },
@@ -43,7 +43,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
 
   const {
     data: { user },

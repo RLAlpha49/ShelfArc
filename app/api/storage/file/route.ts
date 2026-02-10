@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createUserClient } from "@/lib/supabase/server"
 
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media"
 
@@ -51,10 +52,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid path" }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  const userClient = await createUserClient()
   const {
     data: { user }
-  } = await supabase.auth.getUser()
+  } = await userClient.auth.getUser()
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -64,7 +65,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const { data, error } = await supabase.storage
+  const adminClient = createAdminClient({
+    reason: "Download user-owned storage file"
+  })
+  const { data, error } = await adminClient.storage
     .from(STORAGE_BUCKET)
     .download(path)
 

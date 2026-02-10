@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createUserClient } from "@/lib/supabase/server"
 import type { BookshelfUpdate } from "@/lib/types/database"
 
 interface RouteContext {
@@ -9,7 +9,7 @@ interface RouteContext {
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
   const { id } = await params
 
   const {
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
   const { id } = await params
 
   const {
@@ -133,7 +133,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
   const { id } = await params
 
   const {

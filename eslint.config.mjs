@@ -23,6 +23,27 @@ const eslintConfig = defineConfig([
             {
               name: "next/image",
               message: "Use the native <img> element instead of next/image."
+            },
+            {
+              name: "@/lib/supabase/admin",
+              message:
+                "Admin client is privileged. Prefer createUserClient; only use in server routes after explicit authorization."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["app/api/**", "supabase/functions/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/image",
+              message: "Use the native <img> element instead of next/image."
             }
           ]
         }

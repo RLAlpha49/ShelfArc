@@ -4,28 +4,35 @@ import type { SetAllCookies } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import type { Database } from "@/lib/types/database"
 
-export async function createClient() {
+const getSupabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL
+const getAnonKey = () =>
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+
+const buildMissingEnvMessage = (values: Array<string | undefined>) =>
+  values.filter((value): value is string => Boolean(value)).join(", ")
+
+export async function createUserClient() {
   const cookieStore = await cookies()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.SUPABASE_SECRET_KEY
+  const supabaseUrl = getSupabaseUrl()
+  const supabaseKey = getAnonKey()
 
-  const missingEnvVars = [
+  const missingEnvVars = buildMissingEnvMessage([
     supabaseUrl ? undefined : "NEXT_PUBLIC_SUPABASE_URL",
-    supabaseKey ? undefined : "SUPABASE_SECRET_KEY"
-  ].filter((value): value is string => Boolean(value))
+    supabaseKey
+      ? undefined
+      : "NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+  ])
 
-  if (missingEnvVars.length > 0) {
-    throw new Error(`Missing ${missingEnvVars.join(", ")}`)
+  if (missingEnvVars) {
+    throw new Error(`Missing ${missingEnvVars}`)
   }
-
-  const supabaseUrlValue = supabaseUrl as string
-  const supabaseKeyValue = supabaseKey as string
 
   type CookiesToSet = Parameters<SetAllCookies>[0]
 
   return createServerClient<Database, "public">(
-    supabaseUrlValue,
-    supabaseKeyValue,
+    supabaseUrl as string,
+    supabaseKey as string,
     {
       cookies: {
         getAll() {

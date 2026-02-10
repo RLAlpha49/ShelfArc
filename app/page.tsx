@@ -1,9 +1,9 @@
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/server"
+import { createUserClient } from "@/lib/supabase/server"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export default async function HomePage() {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
   const {
     data: { user }
   } = await supabase.auth.getUser()

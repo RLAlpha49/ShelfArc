@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createUserClient } from "@/lib/supabase/server"
 import type {
   ShelfItem,
   ShelfItemInsert,
@@ -14,7 +14,7 @@ interface RouteContext {
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
   const { id: bookshelfId } = await params
 
   const {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
   const { id: bookshelfId } = await params
 
   const {
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
 // Batch update positions (for drag-and-drop efficiency)
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
   const { id: bookshelfId } = await params
 
   const {
@@ -331,7 +331,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient()
+  const supabase = await createUserClient()
   const { id: bookshelfId } = await params
 
   const {
