@@ -735,20 +735,19 @@ const fetchAmazonHtml = async (searchUrl: string) => {
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
+    console.error("Error fetching Amazon search page", { searchUrl, message })
     throw new ApiError(502, `Amazon request failed: ${message}`)
   }
 
   if (!response.ok) {
-    debugLog("Amazon response not ok", {
-      status: response.status,
-      statusText: response.statusText
-    })
+    console.error("Amazon response not ok", { searchUrl, status: response.status, statusText: response.statusText })
     throw new ApiError(502, `Amazon request failed (${response.status})`)
   }
 
   const html = await response.text()
   debugLog("Fetched Amazon HTML", { length: html.length })
   if (isLikelyBotGate(html)) {
+    console.error("Amazon bot detection triggered", { searchUrl })
     throw new ApiError(429, "Amazon blocked the request (captcha/robot check)")
   }
 
@@ -758,6 +757,7 @@ const fetchAmazonHtml = async (searchUrl: string) => {
 const getSearchResults = ($: cheerio.CheerioAPI) => {
   const searchRoot = $("#search")
   if (!searchRoot.length) {
+    console.error("Amazon search root not found")
     throw new ApiError(502, "Amazon search results not found")
   }
 
@@ -790,6 +790,9 @@ const extractResultTitle = (result: cheerio.Cheerio<Element>) => {
   const resultTitle = fallbackNode.text().replaceAll(/\s+/g, " ").trim()
 
   if (!resultTitle) {
+    console.error("Could not extract title from Amazon result", {
+      html: result.html()
+    })
     throw new ApiError(502, "Could not extract result title")
   }
 
