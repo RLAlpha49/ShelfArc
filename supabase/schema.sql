@@ -79,6 +79,7 @@ CREATE TABLE volumes (
   ownership_status ownership_status DEFAULT 'owned' NOT NULL,
   reading_status reading_status DEFAULT 'unread' NOT NULL,
   current_page INTEGER,
+  amazon_url TEXT,
   rating INTEGER CHECK (rating >= 1 AND rating <= 5),
   notes TEXT,
   started_at TIMESTAMPTZ,

@@ -912,8 +912,7 @@ export default function SettingsPage() {
                   </Label>
                   <p className="text-muted-foreground text-sm">
                     Automatically set the purchase date to today when a
-                    volume&apos;s ownership status changes to
-                    &quot;Owned&quot;.
+                    volume&apos;s ownership status changes to &quot;Owned&quot;.
                   </p>
                 </div>
                 <Switch

@@ -474,9 +474,7 @@ export default function SeriesDetailPage() {
     }
   }
 
-  const handleCreateNewSeries = async (
-    data: Omit<SeriesInsert, "user_id">
-  ) => {
+  const handleCreateNewSeries = async (data: Omit<SeriesInsert, "user_id">) => {
     try {
       const newSeries = await createSeries(data)
       toast.success("Series created successfully")
@@ -944,19 +942,19 @@ export default function SeriesDetailPage() {
               className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
               onClick={openAddDialog}
             >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="mr-2 h-4 w-4"
-            >
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            Add Volume
-          </Button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="mr-2 h-4 w-4"
+              >
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+              Add Volume
+            </Button>
           </div>
         </div>
 

@@ -80,7 +80,8 @@ const defaultFormData = {
   purchase_date: "",
   purchase_price: "",
   edition: "",
-  format: ""
+  format: "",
+  amazon_url: ""
 }
 
 const isValidOwnershipStatus = (
@@ -522,9 +523,7 @@ export function VolumeDialog({
   const setShowAmazonDisclaimer = useLibraryStore(
     (state) => state.setShowAmazonDisclaimer
   )
-  const autoPurchaseDate = useSettingsStore(
-    (state) => state.autoPurchaseDate
-  )
+  const autoPurchaseDate = useSettingsStore((state) => state.autoPurchaseDate)
 
   const priceCurrencySymbol = useMemo(() => {
     const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
@@ -641,7 +640,8 @@ export function VolumeDialog({
         purchase_date: volume.purchase_date || "",
         purchase_price: volume.purchase_price?.toString() || "",
         edition: volume.edition || "",
-        format: volume.format || ""
+        format: volume.format || "",
+        amazon_url: volume.amazon_url || ""
       })
     } else {
       setFormData({
@@ -700,7 +700,8 @@ export function VolumeDialog({
           ? Number.parseFloat(formData.purchase_price)
           : null,
         edition: formData.edition || null,
-        format: formData.format || null
+        format: formData.format || null,
+        amazon_url: formData.amazon_url || null
       })
       onOpenChange(false)
     } finally {
@@ -785,6 +786,36 @@ export function VolumeDialog({
       params.set("volumeTitle", volumeTitle)
     }
     return { params }
+  }
+
+  const getAmazonSearchUrl = () => {
+    const buildResult = buildPriceParams()
+    if ("error" in buildResult) return ""
+    const title = buildResult.params.get("title") || ""
+    const volume = buildResult.params.get("volume")
+    const format = buildResult.params.get("format")
+    const binding = buildResult.params.get("binding")
+    const searchTokens = [
+      title,
+      volume ? `Volume ${volume}` : null,
+      format,
+      binding
+    ].filter(Boolean)
+    const searchQuery = searchTokens.join(" ")
+    if (!searchQuery) return ""
+    return `https://www.${amazonDomain}/s?k=${encodeURIComponent(searchQuery)}`
+  }
+
+  const handleOpenAmazonSearch = () => {
+    const url = getAmazonSearchUrl()
+    if (!url) return
+    window.open(url, "_blank", "noopener,noreferrer")
+  }
+
+  const handleOpenAmazonPage = () => {
+    const url = formData.amazon_url || getAmazonSearchUrl()
+    if (!url) return
+    window.open(url, "_blank", "noopener,noreferrer")
   }
 
   const parsePriceFromResult = (result?: {
@@ -900,6 +931,7 @@ export function VolumeDialog({
             priceError?: string | null
             priceBinding?: string | null
             imageUrl?: string | null
+            url?: string | null
           }
           error?: string
         }
@@ -908,6 +940,7 @@ export function VolumeDialog({
 
         if (options.includePrice) applyPriceResult(data.result)
         if (options.includeImage) applyImageResult(data.result?.imageUrl)
+        if (data.result?.url) updateField("amazon_url", data.result.url)
       } catch (error) {
         handleAmazonError(error)
       } finally {
@@ -1161,9 +1194,7 @@ export function VolumeDialog({
                     type="number"
                     min={0}
                     value={formData.page_count}
-                    onChange={(e) =>
-                      updateField("page_count", e.target.value)
-                    }
+                    onChange={(e) => updateField("page_count", e.target.value)}
                   />
                 </div>
               </fieldset>
@@ -1246,10 +1277,57 @@ export function VolumeDialog({
                       "Fetch Amazon Price"
                     )}
                   </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 rounded-xl p-0"
+                    onClick={handleOpenAmazonSearch}
+                    disabled={!getAmazonSearchUrl()}
+                    title="Open Amazon search in new tab"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3.5 w-3.5"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                  </Button>
                   <span className="text-muted-foreground text-[11px]">
                     Price only
                   </span>
                 </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={handleOpenAmazonPage}
+                  disabled={!formData.amazon_url && !getAmazonSearchUrl()}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-1.5 h-3.5 w-3.5"
+                  >
+                    <path d="M15 3h6v6" />
+                    <path d="M10 14 21 3" />
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  </svg>
+                  {formData.amazon_url ? "Open on Amazon" : "Search on Amazon"}
+                </Button>
               </fieldset>
             </div>
 
@@ -1320,76 +1398,126 @@ export function VolumeDialog({
 
               {/* Action buttons */}
               <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full rounded-xl"
-                  onClick={handleFetchAmazonImage}
-                  disabled={isBusy}
-                >
-                  {isFetchingImage && isFetchingPrice ? (
-                    <>
-                      <svg
-                        className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                        />
-                      </svg>
-                      Fetching image &amp; price...
-                    </>
-                  ) : (
-                    "Fetch Amazon Image & Price"
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full rounded-xl"
-                  onClick={handleFetchAmazonImageOnly}
-                  disabled={isBusy}
-                >
-                  {isFetchingImage && !isFetchingPrice ? (
-                    <>
-                      <svg
-                        className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                        />
-                      </svg>
-                      Fetching image...
-                    </>
-                  ) : (
-                    "Fetch Amazon Image Only"
-                  )}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 rounded-xl"
+                    onClick={handleFetchAmazonImage}
+                    disabled={isBusy}
+                  >
+                    {isFetchingImage && isFetchingPrice ? (
+                      <>
+                        <svg
+                          className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                        Fetching image &amp; price...
+                      </>
+                    ) : (
+                      "Fetch Amazon Image & Price"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 shrink-0 rounded-xl p-0"
+                    onClick={handleOpenAmazonSearch}
+                    disabled={!getAmazonSearchUrl()}
+                    title="Open Amazon search in new tab"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3.5 w-3.5"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 rounded-xl"
+                    onClick={handleFetchAmazonImageOnly}
+                    disabled={isBusy}
+                  >
+                    {isFetchingImage && !isFetchingPrice ? (
+                      <>
+                        <svg
+                          className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                        Fetching image...
+                      </>
+                    ) : (
+                      "Fetch Amazon Image Only"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 shrink-0 rounded-xl p-0"
+                    onClick={handleOpenAmazonSearch}
+                    disabled={!getAmazonSearchUrl()}
+                    title="Open Amazon search in new tab"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3.5 w-3.5"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                  </Button>
+                </div>
                 <div className="text-muted-foreground space-y-1 text-[11px] leading-snug">
                   <p>
                     Grabs the cover image and price from the top Amazon search

@@ -43,7 +43,11 @@ export default function ExportPage() {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const seriesData = currentSeries.map(({ volumes: _, ...rest }) => rest)
         const volumesData = currentSeries.flatMap((s) => s.volumes)
-        content = JSON.stringify({ series: seriesData, volumes: volumesData }, null, 2)
+        content = JSON.stringify(
+          { series: seriesData, volumes: volumesData },
+          null,
+          2
+        )
         filename = `shelfarc-export-${new Date().toISOString().split("T")[0]}.json`
         mimeType = "application/json"
       } else {

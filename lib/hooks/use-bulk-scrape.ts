@@ -104,6 +104,7 @@ interface AmazonResponseData {
     priceError?: string | null
     priceBinding?: string | null
     imageUrl?: string | null
+    url?: string | null
   }
   error?: string
   cooldownMs?: number
@@ -255,6 +256,9 @@ function extractUpdates(
   if (includeImage && data.result?.imageUrl) {
     updates.cover_image_url = data.result.imageUrl
     imageResult = data.result.imageUrl
+  }
+  if (data.result?.url) {
+    updates.amazon_url = data.result.url
   }
   return { updates, priceResult, imageResult, priceError }
 }

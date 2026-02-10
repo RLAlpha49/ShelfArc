@@ -131,6 +131,7 @@ export interface Database {
           ownership_status: OwnershipStatus
           reading_status: ReadingStatus
           current_page: number | null
+          amazon_url: string | null
           rating: number | null
           notes: string | null
           started_at: string | null
@@ -156,6 +157,7 @@ export interface Database {
           ownership_status?: OwnershipStatus
           reading_status?: ReadingStatus
           current_page?: number | null
+          amazon_url?: string | null
           rating?: number | null
           notes?: string | null
           started_at?: string | null
@@ -181,6 +183,7 @@ export interface Database {
           ownership_status?: OwnershipStatus
           reading_status?: ReadingStatus
           current_page?: number | null
+          amazon_url?: string | null
           rating?: number | null
           notes?: string | null
           started_at?: string | null
