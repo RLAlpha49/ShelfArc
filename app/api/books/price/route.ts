@@ -32,7 +32,7 @@ const FORMAT_CONFLICT_PENALTY = 0.4
 const VOLUME_MISMATCH_PENALTY = 0.8
 const EXTRA_TOKEN_PENALTY = 0.08
 const MAX_EXTRA_TOKEN_PENALTY = 0.45
-const MAX_RESULTS_TO_SCORE = 12
+const MAX_RESULTS_TO_SCORE = 16
 const MAX_TITLE_LENGTH = 200
 const MAX_VOLUME_TITLE_LENGTH = 200
 const MAX_FORMAT_LENGTH = 80
@@ -163,6 +163,18 @@ const tokenizeOrdered = (value: string) => {
     .filter((token) => token.length > 1 || /^\d+$/.test(token))
 }
 
+const getVolumeTokenVariants = (volumeNumber: number) => {
+  const raw = volumeNumber.toString()
+  const variants = new Set([raw])
+  if (volumeNumber >= 0 && raw.length < 2) {
+    variants.add(raw.padStart(2, "0"))
+  }
+  if (volumeNumber >= 0 && raw.length < 3) {
+    variants.add(raw.padStart(3, "0"))
+  }
+  return variants
+}
+
 const PREFIX_IGNORED_TOKENS = new Set([
   "the",
   "of",
@@ -202,7 +214,9 @@ const extractVolumeSubtitle = (
   ])
 
   if (volumeNumber != null) {
-    blockedTokens.add(volumeNumber.toString())
+    for (const token of getVolumeTokenVariants(volumeNumber)) {
+      blockedTokens.add(token)
+    }
   }
 
   const subtitleTokens = [...volumeTokens].filter(
@@ -215,7 +229,7 @@ const extractVolumeSubtitle = (
 const hasExactVolumeMatch = (title: string, volumeNumber: number) => {
   const lower = title.toLowerCase()
   const explicitPattern = new RegExp(
-    String.raw`\bvol(?:ume)?\.?\s*${volumeNumber}\b(?!\s*(?:-|–|—|to)\s*\d)`,
+    String.raw`\bvol(?:ume)?\.?\s*0*${volumeNumber}\b(?!\s*(?:-|–|—|to)\s*\d)`,
     "i"
   )
   if (explicitPattern.test(lower)) return true
@@ -235,27 +249,63 @@ const hasExactVolumeMatch = (title: string, volumeNumber: number) => {
     }
   }
 
-  const standalonePattern = new RegExp(String.raw`\b${volumeNumber}\b`)
+  const standalonePattern = new RegExp(String.raw`\b0*${volumeNumber}\b`)
   const hasStandalone = standalonePattern.test(lower)
   return hasStandalone && !inRange
 }
 
-const extractExplicitVolumeIndicators = (title: string) => {
-  const numbers = new Set<number>()
-  const ranges: Array<{ start: number; end: number }> = []
-  const volumePattern =
-    /\b(?:vol(?:ume)?\.?|book|part)\s*(\d{1,3})(?:\s*(?:-|–|—|to)\s*(\d{1,3}))?/gi
-
-  for (const match of title.matchAll(volumePattern)) {
+const addExplicitVolumeIndicators = (
+  title: string,
+  numbers: Set<number>,
+  ranges: Array<{ start: number; end: number }>
+) => {
+  const rangePattern =
+    /\b(?:vol(?:ume)?\.?|book|part)\s*0*(\d{1,3})\s*(?:-|–|—|to)\s*0*(\d{1,3})/gi
+  for (const match of title.matchAll(rangePattern)) {
     const start = Number.parseInt(match[1], 10)
-    const end = match[2] ? Number.parseInt(match[2], 10) : null
-    if (!Number.isFinite(start)) continue
-    if (end != null && Number.isFinite(end)) {
+    const end = Number.parseInt(match[2], 10)
+    if (Number.isFinite(start) && Number.isFinite(end)) {
       ranges.push({ start, end })
-    } else {
-      numbers.add(start)
     }
   }
+
+  const singlePattern =
+    /\b(?:vol(?:ume)?\.?|book|part)\s*0*(\d{1,3})\b/gi
+  for (const match of title.matchAll(singlePattern)) {
+    const value = Number.parseInt(match[1], 10)
+    if (Number.isFinite(value)) {
+      numbers.add(value)
+    }
+  }
+}
+
+const addTrailingVolumeIndicators = (
+  title: string,
+  contextTitle: string | undefined,
+  numbers: Set<number>
+) => {
+  const contextTokens = contextTitle ? tokenize(contextTitle) : new Set<string>()
+  const tokens = tokenizeOrdered(title)
+  const lastIndex = tokens.length - 1
+  for (const [index, token] of tokens.entries()) {
+    if (!/^\d{1,3}$/.test(token)) continue
+    if (contextTokens.has(token)) continue
+    if (index < Math.max(0, lastIndex - 2)) continue
+    const value = Number.parseInt(token, 10)
+    if (Number.isFinite(value)) {
+      numbers.add(value)
+    }
+  }
+}
+
+const extractExplicitVolumeIndicators = (
+  title: string,
+  contextTitle?: string
+) => {
+  const numbers = new Set<number>()
+  const ranges: Array<{ start: number; end: number }> = []
+  addExplicitVolumeIndicators(title, numbers, ranges)
+  addTrailingVolumeIndicators(title, contextTitle, numbers)
 
   return { numbers, ranges }
 }
@@ -267,7 +317,10 @@ const getVolumeMismatchPenalty = (
   if (context.volumeNumber == null) return 0
   if (hasExactVolumeMatch(resultTitle, context.volumeNumber)) return 0
 
-  const { numbers, ranges } = extractExplicitVolumeIndicators(resultTitle)
+  const { numbers, ranges } = extractExplicitVolumeIndicators(
+    resultTitle,
+    context.title
+  )
   if (numbers.size === 0 && ranges.length === 0) return 0
 
   for (const range of ranges) {
@@ -312,8 +365,14 @@ const getPrefixModifierPenalty = (
   if (!context.volumeNumber) return 0
 
   const tokens = tokenizeOrdered(resultTitle)
-  const volumeToken = context.volumeNumber.toString()
-  const volumeIndex = tokens.indexOf(volumeToken)
+  const volumeTokens = getVolumeTokenVariants(context.volumeNumber)
+  let volumeIndex = -1
+  for (const token of volumeTokens) {
+    const index = tokens.indexOf(token)
+    if (index !== -1 && (volumeIndex === -1 || index < volumeIndex)) {
+      volumeIndex = index
+    }
+  }
   if (volumeIndex <= 0) return 0
 
   const prefixTokens = tokens.slice(0, volumeIndex)
@@ -331,6 +390,10 @@ const getPrefixModifierPenalty = (
     "book",
     "part"
   ])
+
+  for (const token of volumeTokens) {
+    allowedTokens.add(token)
+  }
 
   const extraTokens = prefixTokens.filter(
     (token) => !allowedTokens.has(token) && !PREFIX_IGNORED_TOKENS.has(token)
@@ -364,7 +427,9 @@ const getExtraTokenPenalty = (context: SearchContext, resultTitle: string) => {
   }
 
   if (context.volumeNumber != null) {
-    allowedTokens.add(context.volumeNumber.toString())
+    for (const token of getVolumeTokenVariants(context.volumeNumber)) {
+      allowedTokens.add(token)
+    }
   }
 
   const extraTokens = resultTokens.filter(
