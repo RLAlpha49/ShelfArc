@@ -165,13 +165,6 @@ export default function VolumeDetailPage() {
     }
   }, [priceDisplayCurrency])
 
-  const progressPercent =
-    currentVolume?.page_count && currentVolume.current_page
-      ? Math.round(
-          (currentVolume.current_page / currentVolume.page_count) * 100
-        )
-      : null
-
   const descriptionHtml = useMemo(
     () => sanitizeHtml(currentVolume?.description ?? "").trim(),
     [currentVolume?.description]
@@ -289,7 +282,27 @@ export default function VolumeDetailPage() {
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_30%_20%,var(--warm-glow-strong),transparent_70%)]" />
 
-      <nav className="animate-fade-in-down mb-8 flex flex-wrap items-center gap-2 text-xs tracking-wider">
+      <nav className="animate-fade-in-down mb-8 flex flex-wrap items-center gap-3 text-xs tracking-wider">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5"
+          >
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+        <span className="text-muted-foreground">/</span>
         <Link
           href="/library"
           className="text-muted-foreground hover:text-foreground"
@@ -393,14 +406,6 @@ export default function VolumeDetailPage() {
                 Pages
               </div>
             </div>
-            <div className="flex-1 px-5 py-4 text-center">
-              <div className="font-display text-primary text-2xl font-bold">
-                {currentVolume.current_page ?? "—"}
-              </div>
-              <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                Current Page
-              </div>
-            </div>
             {currentVolume.rating && (
               <div className="flex-1 px-5 py-4 text-center">
                 <div className="font-display text-primary text-2xl font-bold">
@@ -412,22 +417,6 @@ export default function VolumeDetailPage() {
               </div>
             )}
           </div>
-
-          {progressPercent !== null &&
-            currentVolume.reading_status === "reading" && (
-              <div className="space-y-2">
-                <div className="text-muted-foreground flex items-center justify-between text-sm">
-                  <span>Reading progress</span>
-                  <span>{progressPercent}%</span>
-                </div>
-                <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
-                  <div
-                    className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
-            )}
 
           <div className="glass-card rounded-2xl p-5">
             <span className="text-muted-foreground text-xs tracking-widest uppercase">
