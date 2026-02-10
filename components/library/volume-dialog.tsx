@@ -39,6 +39,7 @@ import {
   DEFAULT_CURRENCY_CODE,
   useLibraryStore
 } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import { cn } from "@/lib/utils"
 import type {
   SeriesWithVolumes,
@@ -520,6 +521,9 @@ export function VolumeDialog({
   )
   const setShowAmazonDisclaimer = useLibraryStore(
     (state) => state.setShowAmazonDisclaimer
+  )
+  const autoPurchaseDate = useSettingsStore(
+    (state) => state.autoPurchaseDate
   )
 
   const priceCurrencySymbol = useMemo(() => {
@@ -1095,7 +1099,22 @@ export function VolumeDialog({
                     <Select
                       value={formData.ownership_status}
                       onValueChange={(value) => {
-                        if (value) updateField("ownership_status", value)
+                        if (value) {
+                          const updates: Partial<typeof formData> = {
+                            ownership_status: value as OwnershipStatus
+                          }
+                          if (
+                            autoPurchaseDate &&
+                            value === "owned" &&
+                            formData.ownership_status !== "owned" &&
+                            !formData.purchase_date
+                          ) {
+                            updates.purchase_date = new Date()
+                              .toISOString()
+                              .split("T")[0]
+                          }
+                          setFormData((prev) => ({ ...prev, ...updates }))
+                        }
                       }}
                     >
                       <SelectTrigger id="ownership_status">

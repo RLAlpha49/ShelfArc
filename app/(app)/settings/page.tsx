@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { toast } from "sonner"
 import { uploadImage } from "@/lib/uploads/upload-image"
 import {
@@ -207,9 +208,15 @@ export default function SettingsPage() {
     sidebarCollapsed,
     setSidebarCollapsed,
     dateFormat,
-    setDateFormat
+    setDateFormat,
+    autoPurchaseDate,
+    setAutoPurchaseDate
   } = useSettingsStore()
   const [activeSection, setActiveSection] = useState("profile")
+
+  const hasProfileChanges =
+    displayName !== (profile?.display_name || "") ||
+    avatarUrl !== (profile?.avatar_url || "")
 
   useEffect(() => {
     async function loadProfile() {
@@ -625,7 +632,7 @@ export default function SettingsPage() {
             <div className="mt-6">
               <Button
                 onClick={handleSaveProfile}
-                disabled={isSaving || isUploadingAvatar}
+                disabled={isSaving || isUploadingAvatar || !hasProfileChanges}
                 className="rounded-xl px-6"
               >
                 {isSaving ? "Saving..." : "Save Changes"}
@@ -895,6 +902,26 @@ export default function SettingsPage() {
                   onCheckedChange={setSidebarCollapsed}
                 />
               </div>
+
+              <div className="border-t" />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="auto-purchase-date" className="font-medium">
+                    Auto-set purchase date
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Automatically set the purchase date to today when a
+                    volume&apos;s ownership status changes to
+                    &quot;Owned&quot;.
+                  </p>
+                </div>
+                <Switch
+                  id="auto-purchase-date"
+                  checked={autoPurchaseDate}
+                  onCheckedChange={setAutoPurchaseDate}
+                />
+              </div>
             </div>
           </section>
 
@@ -912,6 +939,18 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label className="font-medium">Theme</Label>
+                  <p className="text-muted-foreground text-sm">
+                    Choose your preferred color scheme
+                  </p>
+                </div>
+                <ThemeToggle />
+              </div>
+
+              <div className="border-t" />
+
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="enable-animations" className="font-medium">

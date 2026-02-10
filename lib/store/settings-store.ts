@@ -18,6 +18,7 @@ interface SettingsState {
   confirmBeforeDelete: boolean
   defaultOwnershipStatus: DefaultOwnershipStatus
   defaultSearchSource: SearchSource
+  autoPurchaseDate: boolean
 
   // Layout
   sidebarCollapsed: boolean
@@ -35,6 +36,7 @@ interface SettingsState {
   setConfirmBeforeDelete: (value: boolean) => void
   setDefaultOwnershipStatus: (value: DefaultOwnershipStatus) => void
   setDefaultSearchSource: (value: SearchSource) => void
+  setAutoPurchaseDate: (value: boolean) => void
   setSidebarCollapsed: (value: boolean) => void
   setEnableAnimations: (value: boolean) => void
   setDisplayFont: (value: DisplayFont) => void
@@ -68,6 +70,7 @@ export const useSettingsStore = create<SettingsState>()(
       confirmBeforeDelete: true,
       defaultOwnershipStatus: "owned",
       defaultSearchSource: "google_books",
+      autoPurchaseDate: false,
 
       // Layout
       sidebarCollapsed: false,
@@ -87,6 +90,7 @@ export const useSettingsStore = create<SettingsState>()(
       setDefaultOwnershipStatus: (value) =>
         set({ defaultOwnershipStatus: value }),
       setDefaultSearchSource: (value) => set({ defaultSearchSource: value }),
+      setAutoPurchaseDate: (value) => set({ autoPurchaseDate: value }),
       setSidebarCollapsed: (value) => set({ sidebarCollapsed: value }),
       setEnableAnimations: (value) => set({ enableAnimations: value }),
       setDisplayFont: (value) => set({ displayFont: value }),
@@ -102,6 +106,7 @@ export const useSettingsStore = create<SettingsState>()(
         confirmBeforeDelete: state.confirmBeforeDelete,
         defaultOwnershipStatus: state.defaultOwnershipStatus,
         defaultSearchSource: state.defaultSearchSource,
+        autoPurchaseDate: state.autoPurchaseDate,
         sidebarCollapsed: state.sidebarCollapsed,
         enableAnimations: state.enableAnimations,
         displayFont: state.displayFont,
