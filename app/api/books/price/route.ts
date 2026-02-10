@@ -27,6 +27,8 @@ const BASE_TITLE_MATCH_THRESHOLD = 0.9
 const BASE_TITLE_WEIGHT = 0.2
 const VOLUME_TITLE_WEIGHT = 0.35
 const FORMAT_CONFLICT_PENALTY = 0.4
+const EXTRA_TOKEN_PENALTY = 0.08
+const MAX_EXTRA_TOKEN_PENALTY = 0.45
 const MAX_RESULTS_TO_SCORE = 8
 const MAX_TITLE_LENGTH = 200
 const MAX_VOLUME_TITLE_LENGTH = 200
@@ -250,6 +252,47 @@ const getPrefixModifierPenalty = (
   return Math.min(0.45, extraTokens.length * 0.2)
 }
 
+const getExtraTokenPenalty = (
+  context: SearchContext,
+  resultTitle: string
+) => {
+  const resultTokens = [...tokenize(resultTitle)]
+  if (!resultTokens.length) return 0
+
+  const allowedTokens = new Set<string>([
+    ...tokenize(context.title),
+    ...tokenize(context.volumeTitle),
+    ...tokenize(context.volumeSubtitle),
+    ...tokenize(context.bindingLabel),
+    "volume",
+    "vol",
+    "vols",
+    "book",
+    "part"
+  ])
+
+  if (context.format) {
+    for (const token of tokenize(context.format)) {
+      allowedTokens.add(token)
+    }
+  }
+
+  if (context.volumeNumber != null) {
+    allowedTokens.add(context.volumeNumber.toString())
+  }
+
+  const extraTokens = resultTokens.filter(
+    (token) => !allowedTokens.has(token) && !PREFIX_IGNORED_TOKENS.has(token)
+  )
+
+  if (!extraTokens.length) return 0
+
+  return Math.min(
+    MAX_EXTRA_TOKEN_PENALTY,
+    extraTokens.length * EXTRA_TOKEN_PENALTY
+  )
+}
+
 const getFormatConflictPenalty = (format: string, resultTitle: string) => {
   if (!format) return 0
   const normalizedFormat = normalizeText(format)
@@ -470,6 +513,7 @@ type ScoredResult = {
   subtitleScore: number
   modifierPenalty: number
   formatConflictPenalty: number
+  extraTokenPenalty: number
   combinedScore: number
   hasVolumeMatch: boolean
   index: number
@@ -737,13 +781,15 @@ const parseAmazonResult = (
       context.format,
       resultTitle
     )
+    const extraTokenPenalty = getExtraTokenPenalty(context, resultTitle)
     const combinedScore =
       matchScore +
       subtitleScore * subtitleWeight -
       modifierPenalty +
       baseTitleScore * BASE_TITLE_WEIGHT +
       volumeTitleScore * VOLUME_TITLE_WEIGHT -
-      formatConflictPenalty
+      formatConflictPenalty -
+      extraTokenPenalty
     const hasVolumeMatch = context.volumeNumber
       ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
       : true
@@ -759,6 +805,7 @@ const parseAmazonResult = (
       subtitleScore,
       modifierPenalty,
       formatConflictPenalty,
+      extraTokenPenalty,
       combinedScore,
       hasVolumeMatch,
       index
@@ -788,6 +835,7 @@ const parseAmazonResult = (
       subtitleScore: item.subtitleScore.toFixed(2),
       modifierPenalty: item.modifierPenalty.toFixed(2),
       formatConflictPenalty: item.formatConflictPenalty.toFixed(2),
+      extraTokenPenalty: item.extraTokenPenalty.toFixed(2),
       combinedScore: item.combinedScore.toFixed(2),
       index: item.index
     }))
@@ -820,6 +868,7 @@ const parseAmazonResult = (
     subtitleScore: best.subtitleScore,
     modifierPenalty: best.modifierPenalty,
     formatConflictPenalty: best.formatConflictPenalty,
+    extraTokenPenalty: best.extraTokenPenalty,
     combinedScore: best.combinedScore,
     index: best.index
   })
@@ -884,6 +933,7 @@ const parseAmazonResult = (
     subtitleScore: selected.subtitleScore,
     modifierPenalty: selected.modifierPenalty,
     formatConflictPenalty: selected.formatConflictPenalty,
+    extraTokenPenalty: selected.extraTokenPenalty,
     combinedScore: selected.combinedScore,
     index: selected.index
   })
