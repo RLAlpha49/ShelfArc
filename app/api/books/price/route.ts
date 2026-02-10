@@ -105,6 +105,26 @@ const tokenize = (value: string) => {
   return new Set(tokens)
 }
 
+const tokenizeOrdered = (value: string) => {
+  return normalizeText(value)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1 || /^\d+$/.test(token))
+}
+
+const PREFIX_IGNORED_TOKENS = new Set([
+  "the",
+  "of",
+  "and",
+  "for",
+  "to",
+  "in",
+  "on",
+  "with",
+  "from",
+  "by"
+])
+
 const extractVolumeSubtitle = (
   volumeTitle: string,
   seriesTitle: string,
@@ -188,6 +208,42 @@ const tokenCoverageScore = (expected: string, actual: string) => {
     if (actualTokens.has(token)) intersection += 1
   }
   return intersection / expectedTokens.size
+}
+
+const getPrefixModifierPenalty = (
+  context: SearchContext,
+  resultTitle: string
+) => {
+  if (!context.volumeNumber) return 0
+
+  const tokens = tokenizeOrdered(resultTitle)
+  const volumeToken = context.volumeNumber.toString()
+  const volumeIndex = tokens.indexOf(volumeToken)
+  if (volumeIndex <= 0) return 0
+
+  const prefixTokens = tokens.slice(0, volumeIndex)
+  if (!prefixTokens.length) return 0
+
+  const allowedTokens = new Set<string>([
+    ...tokenize(context.title),
+    ...tokenize(context.volumeTitle),
+    ...tokenize(context.volumeSubtitle),
+    ...tokenize(context.format),
+    ...tokenize(context.bindingLabel),
+    "volume",
+    "vol",
+    "vols",
+    "book",
+    "part"
+  ])
+
+  const extraTokens = prefixTokens.filter(
+    (token) => !allowedTokens.has(token) && !PREFIX_IGNORED_TOKENS.has(token)
+  )
+
+  if (!extraTokens.length) return 0
+
+  return Math.min(0.45, extraTokens.length * 0.2)
 }
 
 const sanitizeInput = (value: string | null, maxLength: number) => {
@@ -365,6 +421,7 @@ const getSearchContext = (request: NextRequest) => {
     title,
     expectedTitle,
     requiredTitle,
+    format,
     bindingLabel,
     volumeNumber: resolvedVolumeNumber,
     volumeTitle,
@@ -382,6 +439,7 @@ type ScoredResult = {
   requiredScore: number
   matchScore: number
   subtitleScore: number
+  modifierPenalty: number
   combinedScore: number
   hasVolumeMatch: boolean
   index: number
@@ -640,7 +698,9 @@ const parseAmazonResult = (
     const subtitleScore = context.volumeSubtitle
       ? tokenCoverageScore(context.volumeSubtitle, resultTitle)
       : 0
-    const combinedScore = matchScore + subtitleScore * subtitleWeight
+    const modifierPenalty = getPrefixModifierPenalty(context, resultTitle)
+    const combinedScore =
+      matchScore + subtitleScore * subtitleWeight - modifierPenalty
     const hasVolumeMatch = context.volumeNumber
       ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
       : true
@@ -652,6 +712,7 @@ const parseAmazonResult = (
       requiredScore,
       matchScore,
       subtitleScore,
+      modifierPenalty,
       combinedScore,
       hasVolumeMatch,
       index
@@ -673,6 +734,7 @@ const parseAmazonResult = (
       requiredScore: item.requiredScore.toFixed(2),
       matchScore: item.matchScore.toFixed(2),
       subtitleScore: item.subtitleScore.toFixed(2),
+      modifierPenalty: item.modifierPenalty.toFixed(2),
       combinedScore: item.combinedScore.toFixed(2),
       index: item.index
     }))
@@ -681,6 +743,9 @@ const parseAmazonResult = (
   const rankedCandidates = [...candidates].sort((a, b) => {
     if (b.combinedScore !== a.combinedScore) {
       return b.combinedScore - a.combinedScore
+    }
+    if (a.modifierPenalty !== b.modifierPenalty) {
+      return a.modifierPenalty - b.modifierPenalty
     }
     if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore
     return a.index - b.index
@@ -698,6 +763,7 @@ const parseAmazonResult = (
     requiredScore: best.requiredScore,
     matchScore: best.matchScore,
     subtitleScore: best.subtitleScore,
+    modifierPenalty: best.modifierPenalty,
     combinedScore: best.combinedScore,
     index: best.index
   })
@@ -753,6 +819,7 @@ const parseAmazonResult = (
     requiredScore: selected.requiredScore,
     matchScore: selected.matchScore,
     subtitleScore: selected.subtitleScore,
+    modifierPenalty: selected.modifierPenalty,
     combinedScore: selected.combinedScore,
     index: selected.index
   })
