@@ -66,7 +66,6 @@ const normalizeVolumeTitle = (title: string) => {
 
 const defaultFormData = {
   title: "",
-  original_title: "",
   description: "",
   notes: "",
   author: "",
@@ -82,7 +81,6 @@ const defaultFormData = {
 const buildSeriesFormData = (series?: SeriesWithVolumes | null) => ({
   ...defaultFormData,
   title: series?.title ?? "",
-  original_title: series?.original_title ?? "",
   description: series?.description ?? "",
   notes: series?.notes ?? "",
   author: series?.author ?? "",
@@ -99,7 +97,6 @@ type SeriesFormData = ReturnType<typeof buildSeriesFormData>
 
 const areSeriesFormDataEqual = (left: SeriesFormData, right: SeriesFormData) =>
   left.title === right.title &&
-  left.original_title === right.original_title &&
   left.description === right.description &&
   left.notes === right.notes &&
   left.author === right.author &&
@@ -327,7 +324,6 @@ export function SeriesDialog({
       await onSubmit(
         {
           title: formData.title,
-          original_title: formData.original_title || null,
           description: formData.description || null,
           notes: formData.notes || null,
           author: formData.author || null,
@@ -638,34 +634,17 @@ export function SeriesDialog({
                 <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
                   Basics
                 </legend>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Title *</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) =>
-                        setFormData({ ...formData, title: e.target.value })
-                      }
-                      placeholder="Series title"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="original_title">Original Title</Label>
-                    <Input
-                      id="original_title"
-                      value={formData.original_title}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          original_title: e.target.value
-                        })
-                      }
-                      placeholder="Japanese/original title"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                    placeholder="Series title"
+                    required
+                  />
                 </div>
               </fieldset>
 
