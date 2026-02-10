@@ -1,11 +1,89 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
+import { isValidBookOrientation } from "@/lib/validation"
 import type {
   ShelfItem,
   ShelfItemInsert,
   ShelfItemUpdate,
   ShelfItemWithVolume
 } from "@/lib/types/database"
+
+function validateShelfItemInput(
+  item: Partial<ShelfItemInsert>,
+  index: number
+): string | null {
+  if (!item.volume_id) return `items[${index}].volume_id is required`
+  if (item.row_index === undefined)
+    return `items[${index}].row_index is required`
+  if (item.position_x === undefined)
+    return `items[${index}].position_x is required`
+  if (
+    typeof item.row_index !== "number" ||
+    !Number.isInteger(item.row_index) ||
+    item.row_index < 0
+  ) {
+    return `items[${index}].row_index must be a non-negative integer`
+  }
+  if (
+    typeof item.position_x !== "number" ||
+    !Number.isFinite(item.position_x) ||
+    item.position_x < 0
+  ) {
+    return `items[${index}].position_x must be a non-negative number`
+  }
+  if (
+    item.orientation !== undefined &&
+    !isValidBookOrientation(item.orientation)
+  ) {
+    return `items[${index}].orientation must be 'vertical' or 'horizontal'`
+  }
+  if (
+    item.z_index !== undefined &&
+    (typeof item.z_index !== "number" ||
+      !Number.isInteger(item.z_index) ||
+      item.z_index < 0)
+  ) {
+    return `items[${index}].z_index must be a non-negative integer`
+  }
+  return null
+}
+
+function validateShelfItemUpdate(
+  update: ShelfItemUpdate,
+  index: number
+): string | null {
+  if (
+    update.row_index !== undefined &&
+    (typeof update.row_index !== "number" ||
+      !Number.isInteger(update.row_index) ||
+      update.row_index < 0)
+  ) {
+    return `updates[${index}].row_index must be a non-negative integer`
+  }
+  if (
+    update.position_x !== undefined &&
+    (typeof update.position_x !== "number" ||
+      !Number.isFinite(update.position_x) ||
+      update.position_x < 0)
+  ) {
+    return `updates[${index}].position_x must be a non-negative number`
+  }
+  if (
+    update.orientation !== undefined &&
+    !isValidBookOrientation(update.orientation)
+  ) {
+    return `updates[${index}].orientation must be 'vertical' or 'horizontal'`
+  }
+  if (
+    update.z_index !== undefined &&
+    (typeof update.z_index !== "number" ||
+      !Number.isInteger(update.z_index) ||
+      update.z_index < 0)
+  ) {
+    return `updates[${index}].z_index must be a non-negative integer`
+  }
+  return null
+}
 
 interface RouteContext {
   params: Promise<{
@@ -82,33 +160,26 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const body = (await request.json()) as
-    | Partial<ShelfItemInsert>
-    | Partial<ShelfItemInsert>[]
+  let body: Partial<ShelfItemInsert> | Partial<ShelfItemInsert>[]
+  try {
+    body = (await request.json()) as
+      | Partial<ShelfItemInsert>
+      | Partial<ShelfItemInsert>[]
+  } catch {
+    return NextResponse.json(
+      { error: "Malformed JSON in request body" },
+      { status: 400 }
+    )
+  }
 
   // Handle single or batch insert
   const items = Array.isArray(body) ? body : [body]
 
   // Validate all items
   for (let i = 0; i < items.length; i += 1) {
-    const item = items[i]
-    if (!item.volume_id) {
-      return NextResponse.json(
-        { error: `items[${i}].volume_id is required` },
-        { status: 400 }
-      )
-    }
-    if (item.row_index === undefined) {
-      return NextResponse.json(
-        { error: `items[${i}].row_index is required` },
-        { status: 400 }
-      )
-    }
-    if (item.position_x === undefined) {
-      return NextResponse.json(
-        { error: `items[${i}].position_x is required` },
-        { status: 400 }
-      )
+    const validationError = validateShelfItemInput(items[i], i)
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
     }
   }
 
@@ -168,8 +239,16 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = (await request.json()) as {
-    updates: Array<{ id: string } & ShelfItemUpdate>
+  let body: { updates: Array<{ id: string } & ShelfItemUpdate> }
+  try {
+    body = (await request.json()) as {
+      updates: Array<{ id: string } & ShelfItemUpdate>
+    }
+  } catch {
+    return NextResponse.json(
+      { error: "Malformed JSON in request body" },
+      { status: 400 }
+    )
   }
 
   if (
@@ -181,6 +260,13 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       { error: "updates array is required" },
       { status: 400 }
     )
+  }
+
+  for (let i = 0; i < body.updates.length; i += 1) {
+    const validationError = validateShelfItemUpdate(body.updates[i], i)
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
+    }
   }
 
   const updatesWithPayload = body.updates.map(({ id, ...updateData }) => {

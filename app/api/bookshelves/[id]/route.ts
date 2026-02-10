@@ -1,6 +1,86 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
+import { sanitizeOptionalPlainText } from "@/lib/sanitize-html"
+import { HEX_COLOR_PATTERN } from "@/lib/validation"
 import type { BookshelfUpdate } from "@/lib/types/database"
+
+function isIntegerInRange(value: unknown, min: number, max: number): boolean {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= min &&
+    value <= max
+  )
+}
+
+function validateBookshelfName(name: string): string | null {
+  const trimmed = name.trim()
+  if (!trimmed) return "Bookshelf name cannot be empty"
+  if (trimmed.length > 200)
+    return "Bookshelf name must be 200 characters or fewer"
+  return null
+}
+
+function validateHexColor(color: string | null | undefined): string | null {
+  const trimmed = color?.trim() || null
+  if (trimmed && !HEX_COLOR_PATTERN.test(trimmed)) {
+    return "shelf_color must be a valid hex color"
+  }
+  return null
+}
+
+function validateDimensionFields(
+  body: BookshelfUpdate,
+  updateData: BookshelfUpdate
+): string | null {
+  if (body.row_count !== undefined) {
+    if (!isIntegerInRange(body.row_count, 1, 10))
+      return "row_count must be an integer between 1 and 10"
+    updateData.row_count = body.row_count
+  }
+  if (body.row_height !== undefined) {
+    if (!isIntegerInRange(body.row_height, 50, 2000))
+      return "row_height must be an integer between 50 and 2000"
+    updateData.row_height = body.row_height
+  }
+  if (body.row_width !== undefined) {
+    if (!isIntegerInRange(body.row_width, 100, 4000))
+      return "row_width must be an integer between 100 and 4000"
+    updateData.row_width = body.row_width
+  }
+  return null
+}
+
+function validateBookshelfUpdate(
+  body: BookshelfUpdate
+): { data: BookshelfUpdate } | { error: string } {
+  const updateData: BookshelfUpdate = {}
+
+  if (typeof body.name === "string") {
+    const nameError = validateBookshelfName(body.name)
+    if (nameError) return { error: nameError }
+    updateData.name = body.name.trim()
+  }
+
+  if (body.description !== undefined) {
+    updateData.description = sanitizeOptionalPlainText(body.description, 2000)
+  }
+
+  const dimensionError = validateDimensionFields(body, updateData)
+  if (dimensionError) return { error: dimensionError }
+
+  if (body.shelf_color !== undefined) {
+    const colorError = validateHexColor(body.shelf_color)
+    if (colorError) return { error: colorError }
+    updateData.shelf_color = body.shelf_color?.trim() || null
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { error: "No fields to update" }
+  }
+
+  return { data: updateData }
+}
 
 interface RouteContext {
   params: Promise<{
@@ -76,28 +156,11 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     )
   }
 
-  const updateData: BookshelfUpdate = {}
-  if (typeof body.name === "string") {
-    const trimmedName = body.name.trim()
-    if (!trimmedName) {
-      return NextResponse.json(
-        { error: "Bookshelf name cannot be empty" },
-        { status: 400 }
-      )
-    }
-    updateData.name = trimmedName
+  const result = validateBookshelfUpdate(body)
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 400 })
   }
-  if (body.description !== undefined)
-    updateData.description = body.description?.trim() || null
-  if (body.row_count !== undefined) updateData.row_count = body.row_count
-  if (body.row_height !== undefined) updateData.row_height = body.row_height
-  if (body.row_width !== undefined) updateData.row_width = body.row_width
-  if (body.shelf_color !== undefined)
-    updateData.shelf_color = body.shelf_color?.trim() || null
-
-  if (Object.keys(updateData).length === 0) {
-    return NextResponse.json({ error: "No fields to update" }, { status: 400 })
-  }
+  const updateData = result.data
 
   const { data: bookshelf, error } = await supabase
     .from("bookshelves")

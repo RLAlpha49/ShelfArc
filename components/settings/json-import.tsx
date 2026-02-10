@@ -5,10 +5,24 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { createClient } from "@/lib/supabase/client"
+import {
+  sanitizeOptionalHtml,
+  sanitizeOptionalPlainText,
+  sanitizePlainText
+} from "@/lib/sanitize-html"
+import {
+  isValidTitleType,
+  isValidOwnershipStatus,
+  isValidReadingStatus,
+  isPositiveInteger,
+  isNonNegativeInteger,
+  isNonNegativeFinite
+} from "@/lib/validation"
 import { toast } from "sonner"
 import type {
   SeriesWithVolumes,
   SeriesInsert,
+  Volume,
   VolumeInsert
 } from "@/lib/types/database"
 
@@ -18,6 +32,169 @@ interface ImportPreview {
   seriesCount: number
   volumeCount: number
   data: SeriesWithVolumes[]
+}
+
+function validateImportVolumes(volumes: unknown[], seriesIndex: number): void {
+  for (let j = 0; j < volumes.length; j++) {
+    const v = volumes[j] as Record<string, unknown>
+    if (!v || typeof v !== "object") {
+      throw new TypeError(
+        `Invalid volume at series ${seriesIndex}, volume ${j}`
+      )
+    }
+    if (
+      typeof v.volume_number !== "number" ||
+      !Number.isFinite(v.volume_number)
+    ) {
+      throw new TypeError(
+        `Invalid volume_number at series ${seriesIndex}, volume ${j}`
+      )
+    }
+  }
+}
+
+function validateImportStructure(data: unknown[]): void {
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i] as Record<string, unknown>
+    if (!item || typeof item !== "object") {
+      throw new TypeError(`Invalid item at index ${i}: expected an object`)
+    }
+    if (!item.title || typeof item.title !== "string") {
+      throw new TypeError(`Invalid item at index ${i}: title is required`)
+    }
+    if (item.volumes !== undefined && !Array.isArray(item.volumes)) {
+      throw new TypeError(
+        `Invalid item at index ${i}: volumes must be an array`
+      )
+    }
+    if (Array.isArray(item.volumes)) {
+      validateImportVolumes(item.volumes, i)
+    }
+  }
+}
+
+function sanitizeSeriesImport(
+  s: SeriesWithVolumes,
+  userId: string
+): SeriesInsert | null {
+  const sanitizedTitle = sanitizePlainText(s.title || "", 500)
+  if (!sanitizedTitle) return null
+
+  return {
+    user_id: userId,
+    title: sanitizedTitle,
+    type: isValidTitleType(s.type) ? s.type : "other",
+    original_title: sanitizeOptionalPlainText(s.original_title, 500),
+    description: sanitizeOptionalHtml(s.description),
+    author: sanitizeOptionalPlainText(s.author, 1000),
+    artist: sanitizeOptionalPlainText(s.artist, 1000),
+    publisher: sanitizeOptionalPlainText(s.publisher, 1000),
+    cover_image_url:
+      s.cover_image_url && typeof s.cover_image_url === "string"
+        ? s.cover_image_url
+        : null,
+    total_volumes:
+      s.total_volumes != null && isPositiveInteger(s.total_volumes)
+        ? s.total_volumes
+        : null,
+    status: sanitizeOptionalPlainText(s.status, 200),
+    tags: Array.isArray(s.tags)
+      ? s.tags
+          .map((tag: unknown) => sanitizePlainText(String(tag ?? ""), 100))
+          .filter(Boolean)
+      : []
+  }
+}
+
+function sanitizeVolumeImport(
+  v: Volume,
+  seriesId: string,
+  userId: string
+): VolumeInsert | null {
+  if (
+    typeof v.volume_number !== "number" ||
+    !Number.isFinite(v.volume_number) ||
+    v.volume_number < 0
+  ) {
+    return null
+  }
+  return {
+    series_id: seriesId,
+    user_id: userId,
+    volume_number: v.volume_number,
+    title: sanitizeOptionalPlainText(v.title, 500),
+    description: sanitizeOptionalHtml(v.description),
+    isbn: sanitizeOptionalPlainText(v.isbn, 20),
+    cover_image_url:
+      v.cover_image_url && typeof v.cover_image_url === "string"
+        ? v.cover_image_url
+        : null,
+    ownership_status: isValidOwnershipStatus(v.ownership_status)
+      ? v.ownership_status
+      : "owned",
+    reading_status: isValidReadingStatus(v.reading_status)
+      ? v.reading_status
+      : "unread",
+    current_page:
+      v.current_page != null && isNonNegativeInteger(v.current_page)
+        ? v.current_page
+        : null,
+    page_count:
+      v.page_count != null && isPositiveInteger(v.page_count)
+        ? v.page_count
+        : null,
+    rating:
+      v.rating != null &&
+      typeof v.rating === "number" &&
+      v.rating >= 0 &&
+      v.rating <= 10
+        ? v.rating
+        : null,
+    notes: sanitizeOptionalPlainText(v.notes, 5000),
+    purchase_date: v.purchase_date ?? null,
+    purchase_price:
+      v.purchase_price != null && isNonNegativeFinite(v.purchase_price)
+        ? v.purchase_price
+        : null
+  }
+}
+
+async function importSeriesWithVolumes(
+  s: SeriesWithVolumes,
+  userId: string,
+  seriesTable: {
+    insert: (data: SeriesInsert) => {
+      select: () => {
+        single: () => Promise<{
+          data: { id: string } | null
+          error: Error | null
+        }>
+      }
+    }
+  },
+  volumesTable: {
+    insert: (data: VolumeInsert[]) => Promise<{ error: Error | null }>
+  }
+): Promise<void> {
+  const seriesInsert = sanitizeSeriesImport(s, userId)
+  if (!seriesInsert) return
+
+  const { data: newSeries, error: seriesError } = await seriesTable
+    .insert(seriesInsert)
+    .select()
+    .single()
+
+  if (seriesError || !newSeries) return
+
+  if (s.volumes && s.volumes.length > 0) {
+    const volumeInserts: VolumeInsert[] = s.volumes
+      .map((v) => sanitizeVolumeImport(v, newSeries.id, userId))
+      .filter((v): v is VolumeInsert => v !== null)
+
+    if (volumeInserts.length > 0) {
+      await volumesTable.insert(volumeInserts)
+    }
+  }
 }
 
 export function JsonImport() {
@@ -43,6 +220,8 @@ export function JsonImport() {
       if (!Array.isArray(data)) {
         throw new TypeError("Invalid JSON format: expected an array of series")
       }
+
+      validateImportStructure(data)
 
       const volumeCount = data.reduce(
         (acc, s) => acc + (s.volumes?.length || 0),
@@ -94,49 +273,7 @@ export function JsonImport() {
       }
 
       for (const s of preview.data) {
-        const seriesInsert: SeriesInsert = {
-          user_id: user.id,
-          title: s.title,
-          type: s.type,
-          original_title: s.original_title,
-          description: s.description,
-          author: s.author,
-          artist: s.artist,
-          publisher: s.publisher,
-          cover_image_url: s.cover_image_url,
-          total_volumes: s.total_volumes,
-          status: s.status,
-          tags: s.tags || []
-        }
-
-        const { data: newSeries, error: seriesError } = await seriesTable
-          .insert(seriesInsert)
-          .select()
-          .single()
-
-        if (seriesError || !newSeries) continue
-
-        if (s.volumes && s.volumes.length > 0) {
-          const volumeInserts: VolumeInsert[] = s.volumes.map((v) => ({
-            series_id: newSeries.id,
-            user_id: user.id,
-            volume_number: v.volume_number,
-            title: v.title,
-            description: v.description,
-            isbn: v.isbn,
-            cover_image_url: v.cover_image_url,
-            ownership_status: v.ownership_status,
-            reading_status: v.reading_status,
-            current_page: v.current_page,
-            page_count: v.page_count,
-            rating: v.rating,
-            notes: v.notes,
-            purchase_date: v.purchase_date,
-            purchase_price: v.purchase_price
-          }))
-
-          await volumesTable.insert(volumeInserts)
-        }
+        await importSeriesWithVolumes(s, user.id, seriesTable, volumesTable)
       }
 
       toast.success(

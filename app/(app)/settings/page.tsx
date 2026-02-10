@@ -14,6 +14,7 @@ import type {
   SearchSource
 } from "@/lib/store/settings-store"
 import { cn } from "@/lib/utils"
+import { sanitizePlainText } from "@/lib/sanitize-html"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -261,13 +262,16 @@ export default function SettingsPage() {
 
     setIsSaving(true)
     try {
+      const sanitizedDisplayName = sanitizePlainText(displayName, 100)
+      setDisplayName(sanitizedDisplayName)
+
       const profilesTable = supabase.from("profiles") as unknown as {
         update: (data: Record<string, unknown>) => {
           eq: (field: string, value: string) => Promise<{ error: Error | null }>
         }
       }
       const nextProfileValues = {
-        display_name: displayName || null,
+        display_name: sanitizedDisplayName || null,
         avatar_url: avatarUrl || null
       }
       const previousProfileValues = {

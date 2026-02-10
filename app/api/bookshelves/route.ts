@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
+import { sanitizeOptionalPlainText } from "@/lib/sanitize-html"
+import { HEX_COLOR_PATTERN } from "@/lib/validation"
 import type { Bookshelf, BookshelfInsert } from "@/lib/types/database"
 
 export async function GET() {
@@ -71,6 +73,21 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  if (body.name.trim().length > 200) {
+    return NextResponse.json(
+      { error: "Bookshelf name must be 200 characters or fewer" },
+      { status: 400 }
+    )
+  }
+
+  const shelfColor = body.shelf_color?.trim() || null
+  if (shelfColor && !HEX_COLOR_PATTERN.test(shelfColor)) {
+    return NextResponse.json(
+      { error: "shelf_color must be a valid hex color" },
+      { status: 400 }
+    )
+  }
+
   const rowCount = body.row_count ?? 3
   if (
     typeof rowCount !== "number" ||
@@ -113,11 +130,11 @@ export async function POST(request: NextRequest) {
   const bookshelfData: BookshelfInsert = {
     user_id: user.id,
     name: body.name.trim(),
-    description: body.description?.trim() || null,
+    description: sanitizeOptionalPlainText(body.description, 2000),
     row_count: rowCount,
     row_height: rowHeight,
     row_width: rowWidth,
-    shelf_color: body.shelf_color?.trim() || null
+    shelf_color: shelfColor
   }
 
   const { data: bookshelf, error } = await supabase

@@ -3,7 +3,19 @@
 import { useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useLibraryStore } from "@/lib/store/library-store"
-import { sanitizeHtml } from "@/lib/sanitize-html"
+import {
+  sanitizeOptionalHtml,
+  sanitizeOptionalPlainText,
+  sanitizePlainText
+} from "@/lib/sanitize-html"
+import {
+  isValidTitleType,
+  isValidOwnershipStatus,
+  isValidReadingStatus,
+  isPositiveInteger,
+  isNonNegativeInteger,
+  isNonNegativeFinite
+} from "@/lib/validation"
 import type { BookSearchResult } from "@/lib/books/search"
 import type {
   Series,
@@ -121,12 +133,6 @@ const SERIES_DESCRIPTOR_SET = new Set([
   "webcomic",
   "gn"
 ])
-
-const sanitizeOptionalHtml = (value?: string | null) => {
-  if (!value) return null
-  const sanitized = sanitizeHtml(value).trim()
-  return sanitized.length > 0 ? sanitized : null
-}
 
 type VolumeSuffixInfo = {
   number: number
@@ -300,6 +306,176 @@ const normalizeVolumeDates = <T extends VolumeDateFields>(data: T) => {
 export interface VolumeWithSeries {
   volume: Volume
   series: SeriesWithVolumes
+}
+
+const sanitizeSeriesTextFields = (
+  data: Partial<Series>,
+  sanitized: Partial<Series>
+): void => {
+  if (Object.hasOwn(data, "title") && data.title != null) {
+    const cleaned = sanitizePlainText(data.title, 500)
+    if (!cleaned) throw new Error("Series title cannot be empty")
+    sanitized.title = cleaned
+  }
+  if (Object.hasOwn(data, "original_title")) {
+    sanitized.original_title = sanitizeOptionalPlainText(
+      data.original_title,
+      500
+    )
+  }
+  if (Object.hasOwn(data, "description")) {
+    sanitized.description = sanitizeOptionalHtml(data.description)
+  }
+  if (Object.hasOwn(data, "author")) {
+    sanitized.author = sanitizeOptionalPlainText(data.author, 1000)
+  }
+  if (Object.hasOwn(data, "artist")) {
+    sanitized.artist = sanitizeOptionalPlainText(data.artist, 1000)
+  }
+  if (Object.hasOwn(data, "publisher")) {
+    sanitized.publisher = sanitizeOptionalPlainText(data.publisher, 1000)
+  }
+  if (Object.hasOwn(data, "notes")) {
+    sanitized.notes = sanitizeOptionalPlainText(data.notes, 5000)
+  }
+}
+
+const sanitizeSeriesUpdate = (data: Partial<Series>): Partial<Series> => {
+  const sanitized = { ...data }
+  sanitizeSeriesTextFields(data, sanitized)
+  if (Object.hasOwn(data, "type")) {
+    sanitized.type = isValidTitleType(data.type) ? data.type : "other"
+  }
+  if (Object.hasOwn(data, "tags") && Array.isArray(data.tags)) {
+    sanitized.tags = data.tags
+      .map((tag) => sanitizePlainText(String(tag), 100))
+      .filter(Boolean)
+  }
+  if (Object.hasOwn(data, "total_volumes")) {
+    sanitized.total_volumes =
+      data.total_volumes != null && isPositiveInteger(data.total_volumes)
+        ? data.total_volumes
+        : null
+  }
+  return sanitized
+}
+
+const sanitizeVolumeTextFields = (
+  data: Partial<Volume>,
+  sanitized: Partial<Volume>
+): void => {
+  if (Object.hasOwn(data, "description")) {
+    sanitized.description = sanitizeOptionalHtml(data.description)
+  }
+  if (Object.hasOwn(data, "title")) {
+    sanitized.title = sanitizeOptionalPlainText(data.title, 500)
+  }
+  if (Object.hasOwn(data, "isbn")) {
+    sanitized.isbn = sanitizeOptionalPlainText(data.isbn, 20)
+  }
+  if (Object.hasOwn(data, "notes")) {
+    sanitized.notes = sanitizeOptionalPlainText(data.notes, 5000)
+  }
+  if (Object.hasOwn(data, "edition")) {
+    sanitized.edition = sanitizeOptionalPlainText(data.edition, 200)
+  }
+  if (Object.hasOwn(data, "format")) {
+    sanitized.format = sanitizeOptionalPlainText(data.format, 200)
+  }
+}
+
+const isValidRating = (value: unknown): value is number =>
+  typeof value === "number" && value >= 0 && value <= 10
+
+const coerceNullable = <T>(
+  value: T | null | undefined,
+  validator: (v: T) => boolean
+): T | null => (value != null && validator(value) ? value : null)
+
+const sanitizeVolumeNumericFields = (
+  data: Partial<Volume>,
+  sanitized: Partial<Volume>
+): void => {
+  if (Object.hasOwn(data, "page_count")) {
+    sanitized.page_count = coerceNullable(data.page_count, isPositiveInteger)
+  }
+  if (Object.hasOwn(data, "rating")) {
+    sanitized.rating = coerceNullable(data.rating, isValidRating)
+  }
+  if (Object.hasOwn(data, "current_page")) {
+    sanitized.current_page = coerceNullable(
+      data.current_page,
+      isNonNegativeInteger
+    )
+  }
+  if (Object.hasOwn(data, "purchase_price")) {
+    sanitized.purchase_price = coerceNullable(
+      data.purchase_price,
+      isNonNegativeFinite
+    )
+  }
+}
+
+const sanitizeVolumeUpdate = (data: Partial<Volume>): Partial<Volume> => {
+  const sanitized = { ...data }
+  sanitizeVolumeTextFields(data, sanitized)
+  if (Object.hasOwn(data, "ownership_status")) {
+    sanitized.ownership_status = isValidOwnershipStatus(data.ownership_status)
+      ? data.ownership_status
+      : "owned"
+  }
+  if (Object.hasOwn(data, "reading_status")) {
+    sanitized.reading_status = isValidReadingStatus(data.reading_status)
+      ? data.reading_status
+      : "unread"
+  }
+  sanitizeVolumeNumericFields(data, sanitized)
+  return sanitized
+}
+
+const buildSanitizedVolumeInsert = (
+  data: Omit<VolumeInsert, "user_id" | "series_id">
+): Omit<VolumeInsert, "user_id" | "series_id"> => {
+  if (
+    typeof data.volume_number !== "number" ||
+    !Number.isFinite(data.volume_number) ||
+    data.volume_number < 0
+  ) {
+    throw new Error("Invalid volume number")
+  }
+  return {
+    ...data,
+    description: sanitizeOptionalHtml(data.description),
+    title: sanitizeOptionalPlainText(data.title, 500),
+    isbn: sanitizeOptionalPlainText(data.isbn, 20),
+    notes: sanitizeOptionalPlainText(data.notes, 5000),
+    edition: sanitizeOptionalPlainText(data.edition, 200),
+    format: sanitizeOptionalPlainText(data.format, 200),
+    ownership_status: isValidOwnershipStatus(data.ownership_status)
+      ? data.ownership_status
+      : "owned",
+    reading_status: isValidReadingStatus(data.reading_status)
+      ? data.reading_status
+      : "unread",
+    page_count:
+      data.page_count != null && isPositiveInteger(data.page_count)
+        ? data.page_count
+        : null,
+    rating:
+      data.rating != null && isValidRating(data.rating) ? data.rating : null,
+    current_page:
+      data.current_page != null && isNonNegativeInteger(data.current_page)
+        ? data.current_page
+        : null,
+    purchase_price:
+      data.purchase_price != null && isNonNegativeFinite(data.purchase_price)
+        ? data.purchase_price
+        : null,
+    cover_image_url:
+      data.cover_image_url && typeof data.cover_image_url === "string"
+        ? data.cover_image_url
+        : null
+  }
 }
 
 export function useLibrary() {
@@ -658,9 +834,32 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
+        const sanitizedTitle = sanitizePlainText(data.title, 500)
+        if (!sanitizedTitle) throw new Error("Series title is required")
+
         const sanitizedData: Omit<SeriesInsert, "user_id"> = {
           ...data,
-          description: sanitizeOptionalHtml(data.description)
+          title: sanitizedTitle,
+          original_title: sanitizeOptionalPlainText(data.original_title, 500),
+          description: sanitizeOptionalHtml(data.description),
+          author: sanitizeOptionalPlainText(data.author, 1000),
+          artist: sanitizeOptionalPlainText(data.artist, 1000),
+          publisher: sanitizeOptionalPlainText(data.publisher, 1000),
+          notes: sanitizeOptionalPlainText(data.notes, 5000),
+          type: isValidTitleType(data.type) ? data.type : "other",
+          tags: Array.isArray(data.tags)
+            ? data.tags
+                .map((tag) => sanitizePlainText(String(tag), 100))
+                .filter(Boolean)
+            : [],
+          total_volumes:
+            data.total_volumes != null && isPositiveInteger(data.total_volumes)
+              ? data.total_volumes
+              : null,
+          cover_image_url:
+            data.cover_image_url && typeof data.cover_image_url === "string"
+              ? data.cover_image_url
+              : null
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -695,10 +894,7 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
-        const sanitizedData = { ...data }
-        if (Object.hasOwn(data, "description")) {
-          sanitizedData.description = sanitizeOptionalHtml(data.description)
-        }
+        const sanitizedData = sanitizeSeriesUpdate(data)
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await (supabase as any)
@@ -886,10 +1082,7 @@ export function useLibrary() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
-        const sanitizedData: Omit<VolumeInsert, "user_id" | "series_id"> = {
-          ...data,
-          description: sanitizeOptionalHtml(data.description)
-        }
+        const sanitizedData = buildSanitizedVolumeInsert(data)
 
         const payload = {
           ...normalizeVolumeDates(sanitizedData),
@@ -943,10 +1136,7 @@ export function useLibrary() {
         ) {
           throw new Error("Series not found")
         }
-        const sanitizedData = { ...data }
-        if (Object.hasOwn(data, "description")) {
-          sanitizedData.description = sanitizeOptionalHtml(data.description)
-        }
+        const sanitizedData = sanitizeVolumeUpdate(data)
         const updatePayload = {
           ...normalizeVolumeDates(sanitizedData),
           series_id: nextSeriesId
