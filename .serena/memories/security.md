@@ -27,43 +27,37 @@
 
 ### Field conventions (max lengths)
 
-| Field                        | Max length | Sanitizer                                     |
-| ---------------------------- | ---------- | --------------------------------------------- |
-| name, title                  | 200-500    | `sanitizePlainText`                           |
-| author, publisher, artist    | 1000       | `sanitizeOptionalPlainText`                   |
-| description (series/volumes) | unlimited  | `sanitizeOptionalHtml` (allows limited HTML)  |
-| description (bookshelves)    | 2000       | `sanitizeOptionalPlainText` (plain text only) |
-| notes                        | 5000       | `sanitizeOptionalPlainText`                   |
-| isbn                         | 20         | `sanitizeOptionalPlainText`                   |
-| edition, format              | 200        | `sanitizeOptionalPlainText`                   |
-| display_name                 | 100        | `sanitizePlainText`                           |
-| tags (each)                  | 100        | `sanitizePlainText`                           |
-| shelf_color                  | —          | `HEX_COLOR_PATTERN` validation                |
+| Field                        | Max length | Sanitizer                                    |
+| ---------------------------- | ---------- | -------------------------------------------- |
+| name, title                  | 200-500    | `sanitizePlainText`                          |
+| author, publisher, artist    | 1000       | `sanitizeOptionalPlainText`                  |
+| description (series/volumes) | unlimited  | `sanitizeOptionalHtml` (allows limited HTML) |
+| notes                        | 5000       | `sanitizeOptionalPlainText`                  |
+| isbn                         | 20         | `sanitizeOptionalPlainText`                  |
+| edition, format              | 200        | `sanitizeOptionalPlainText`                  |
+| display_name                 | 100        | `sanitizePlainText`                          |
+| tags (each)                  | 100        | `sanitizePlainText`                          |
+| shelf_color                  | —          | `HEX_COLOR_PATTERN` validation               |
 
 ### Write path coverage
 
 All database write paths are validated and sanitized:
 
-1. **API routes (server-side):**
-   - `app/api/bookshelves/route.ts` POST — name length, description sanitized, shelf_color hex validated, row dimensions range-checked.
-   - `app/api/bookshelves/[id]/route.ts` PATCH — via `validateBookshelfUpdate()` helper.
-   - `app/api/bookshelves/[id]/items/route.ts` POST/PATCH — `validateShelfItemInput()` / `validateShelfItemUpdate()` validate row_index, position_x, orientation enum, z_index. Malformed JSON caught.
-
-2. **Auth actions (`app/auth/actions.ts`):**
+1. **Auth actions (`app/auth/actions.ts`):**
    - `login` — email trimmed + basic format check, password non-empty.
    - `signup` — email validated, password min 6 chars, displayName sanitized (100 char limit).
 
-3. **Client-side hooks (`lib/hooks/use-library.ts`):**
+2. **Client-side hooks (`lib/hooks/use-library.ts`):**
    - `createSeries` — all text fields sanitized, type/tags/total_volumes validated.
    - `editSeries` — `sanitizeSeriesUpdate()` helper.
    - `createVolume` — `buildSanitizedVolumeInsert()` helper.
    - `editVolume` — `sanitizeVolumeUpdate()` helper.
 
-4. **JSON import (`components/settings/json-import.tsx`):**
+3. **JSON import (`components/settings/json-import.tsx`):**
    - `validateImportStructure()` — structural validation.
    - `sanitizeSeriesImport()` / `sanitizeVolumeImport()` — field sanitization.
 
-5. **Settings profile (`app/(app)/settings/page.tsx`):**
+4. **Settings profile (`app/(app)/settings/page.tsx`):**
    - `handleSaveProfile` — display_name sanitized.
 
 ### Defense in depth

@@ -116,7 +116,6 @@ const dateFormatOptions: Array<{
 const settingsNav = [
   { id: "profile", label: "Profile" },
   { id: "preferences", label: "Preferences" },
-  { id: "bookshelf", label: "Bookshelf" },
   { id: "appearance", label: "Appearance" },
   { id: "pricing", label: "Pricing" },
   { id: "data", label: "Data" }
@@ -187,10 +186,6 @@ export default function SettingsPage() {
     setNavigationMode
   } = useLibraryStore()
   const {
-    showSpineCovers,
-    setShowSpineCovers,
-    showSpineLabels,
-    setShowSpineLabels,
     showReadingProgress,
     setShowReadingProgress,
     showSeriesProgressBar,
@@ -898,57 +893,6 @@ export default function SettingsPage() {
                   id="sidebar-collapsed"
                   checked={sidebarCollapsed}
                   onCheckedChange={setSidebarCollapsed}
-                />
-              </div>
-            </div>
-          </section>
-
-          <div className="border-t" />
-
-          {/* ── Bookshelf ──────────────────────────── */}
-          <section id="bookshelf" className="scroll-mt-24 py-10">
-            <div className="mb-6">
-              <h2 className="font-display text-xl font-semibold tracking-tight">
-                Bookshelf
-              </h2>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Customize how books appear on the bookshelf canvas
-              </p>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="show-spine-covers" className="font-medium">
-                    Show cover images on spines
-                  </Label>
-                  <p className="text-muted-foreground text-sm">
-                    Display volume cover art on book spines. When disabled,
-                    spines show a solid color derived from the cover.
-                  </p>
-                </div>
-                <Switch
-                  id="show-spine-covers"
-                  checked={showSpineCovers}
-                  onCheckedChange={setShowSpineCovers}
-                />
-              </div>
-
-              <div className="border-t" />
-
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="show-spine-labels" className="font-medium">
-                    Show title labels on spines
-                  </Label>
-                  <p className="text-muted-foreground text-sm">
-                    Overlay the volume title or number on each book spine.
-                  </p>
-                </div>
-                <Switch
-                  id="show-spine-labels"
-                  checked={showSpineLabels}
-                  onCheckedChange={setShowSpineLabels}
                 />
               </div>
             </div>

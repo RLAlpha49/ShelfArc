@@ -9,10 +9,6 @@ export type DefaultOwnershipStatus = "owned" | "wishlist"
 export type SearchSource = "google_books" | "open_library"
 
 interface SettingsState {
-  // Bookshelf appearance
-  showSpineCovers: boolean
-  showSpineLabels: boolean
-
   // Library display
   showReadingProgress: boolean
   showSeriesProgressBar: boolean
@@ -33,8 +29,6 @@ interface SettingsState {
   dateFormat: DateFormat
 
   // Actions
-  setShowSpineCovers: (value: boolean) => void
-  setShowSpineLabels: (value: boolean) => void
   setShowReadingProgress: (value: boolean) => void
   setShowSeriesProgressBar: (value: boolean) => void
   setCardSize: (value: CardSize) => void
@@ -65,10 +59,6 @@ export const BODY_FONT_MAP: Record<BodyFont, string> = {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      // Bookshelf appearance
-      showSpineCovers: true,
-      showSpineLabels: true,
-
       // Library display
       showReadingProgress: true,
       showSeriesProgressBar: true,
@@ -89,8 +79,6 @@ export const useSettingsStore = create<SettingsState>()(
       dateFormat: "relative",
 
       // Actions
-      setShowSpineCovers: (value) => set({ showSpineCovers: value }),
-      setShowSpineLabels: (value) => set({ showSpineLabels: value }),
       setShowReadingProgress: (value) => set({ showReadingProgress: value }),
       setShowSeriesProgressBar: (value) =>
         set({ showSeriesProgressBar: value }),
@@ -108,8 +96,6 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: "shelfarc-settings",
       partialize: (state) => ({
-        showSpineCovers: state.showSpineCovers,
-        showSpineLabels: state.showSpineLabels,
         showReadingProgress: state.showReadingProgress,
         showSeriesProgressBar: state.showSeriesProgressBar,
         cardSize: state.cardSize,
