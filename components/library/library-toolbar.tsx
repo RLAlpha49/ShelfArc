@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,18 +20,38 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { useLibraryStore } from "@/lib/store/library-store"
+import type { SortField, SortOrder } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
   TitleType,
   OwnershipStatus,
   ReadingStatus
 } from "@/lib/types/database"
 
+const SORT_LABELS: Record<string, string> = {
+  "title-asc": "Title \u2191",
+  "title-desc": "Title \u2193",
+  "author-asc": "Author \u2191",
+  "author-desc": "Author \u2193",
+  "created_at-asc": "Added \u2191",
+  "created_at-desc": "Added \u2193",
+  "updated_at-asc": "Updated \u2191",
+  "updated_at-desc": "Updated \u2193"
+}
+
+function isSortActive(
+  field: SortField,
+  order: SortOrder,
+  currentField: SortField,
+  currentOrder: SortOrder
+) {
+  return field === currentField && order === currentOrder
+}
+
 /** Props for the {@link LibraryToolbar} component. @source */
 interface LibraryToolbarProps {
   readonly onAddBook: () => void
   readonly onAddSeries: () => void
-  readonly selectionMode: boolean
-  readonly onToggleSelectionMode: () => void
 }
 
 /**
@@ -40,21 +61,33 @@ interface LibraryToolbarProps {
  */
 export function LibraryToolbar({
   onAddBook,
-  onAddSeries,
-  selectionMode,
-  onToggleSelectionMode
+  onAddSeries
 }: LibraryToolbarProps) {
   const {
     collectionView,
     setCollectionView,
     viewMode,
     setViewMode,
+    sortField,
+    sortOrder,
     setSortField,
     setSortOrder,
     filters,
     setFilters,
-    resetFilters
+    resetFilters,
+    series
   } = useLibraryStore()
+  const { cardSize, setCardSize } = useSettingsStore()
+
+  const sortLabel = SORT_LABELS[`${sortField}-${sortOrder}`] ?? "Sort"
+
+  const availableTags = useMemo(() => {
+    const tagSet = new Set<string>()
+    for (const s of series) {
+      for (const tag of s.tags ?? []) tagSet.add(tag)
+    }
+    return [...tagSet].sort((a, b) => a.localeCompare(b))
+  }, [series])
 
   const searchPlaceholder = "Search by title, author, or ISBN..."
 
@@ -132,92 +165,103 @@ export function LibraryToolbar({
               <span className="hidden sm:inline">Add Series</span>
             </Button>
 
-            <Button
-              variant={selectionMode ? "secondary" : "ghost"}
-              onClick={onToggleSelectionMode}
-              className="shrink-0 rounded-xl text-xs shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
-              aria-pressed={selectionMode}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2 h-4 w-4"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              {selectionMode ? "Done" : "Select"}
-            </Button>
           </div>
 
           {/* Row 2: Filters + View controls */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground hidden text-[11px] font-medium sm:inline">
-              Filters
-            </span>
-
+          <div className="flex flex-wrap items-end gap-2">
             {/* Type Filter */}
-            <Select
-              value={filters.type}
-              onValueChange={(value) => {
-                if (value) setFilters({ type: value as TitleType | "all" })
-              }}
-            >
-              <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="manga">Manga</SelectItem>
-                <SelectItem value="light_novel">Light Novel</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-1">
+              <span className="text-muted-foreground text-[11px] font-medium">Type</span>
+              <Select
+                value={filters.type}
+                onValueChange={(value) => {
+                  if (value) setFilters({ type: value as TitleType | "all" })
+                }}
+              >
+                <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="manga">Manga</SelectItem>
+                  <SelectItem value="light_novel">Light Novel</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Ownership Filter */}
-            <Select
-              value={filters.ownershipStatus}
-              onValueChange={(value) => {
-                if (value)
-                  setFilters({
-                    ownershipStatus: value as OwnershipStatus | "all"
-                  })
-              }}
-            >
-              <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
-                <SelectValue placeholder="Ownership" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="owned">Owned</SelectItem>
-                <SelectItem value="wishlist">Wishlist</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-1">
+              <span className="text-muted-foreground text-[11px] font-medium">Ownership</span>
+              <Select
+                value={filters.ownershipStatus}
+                onValueChange={(value) => {
+                  if (value)
+                    setFilters({
+                      ownershipStatus: value as OwnershipStatus | "all"
+                    })
+                }}
+              >
+                <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
+                  <SelectValue placeholder="Ownership" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="owned">Owned</SelectItem>
+                  <SelectItem value="wishlist">Wishlist</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Reading Status Filter */}
-            <Select
-              value={filters.readingStatus}
-              onValueChange={(value) => {
-                if (value)
-                  setFilters({ readingStatus: value as ReadingStatus | "all" })
-              }}
-            >
-              <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
-                <SelectValue placeholder="Reading" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="unread">Unread</SelectItem>
-                <SelectItem value="reading">Reading</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="on_hold">On Hold</SelectItem>
-                <SelectItem value="dropped">Dropped</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-1">
+              <span className="text-muted-foreground text-[11px] font-medium">Reading</span>
+              <Select
+                value={filters.readingStatus}
+                onValueChange={(value) => {
+                  if (value)
+                    setFilters({ readingStatus: value as ReadingStatus | "all" })
+                }}
+              >
+                <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
+                  <SelectValue placeholder="Reading" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="unread">Unread</SelectItem>
+                  <SelectItem value="reading">Reading</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="on_hold">On Hold</SelectItem>
+                  <SelectItem value="dropped">Dropped</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tags Filter */}
+            {availableTags.length > 0 && (
+              <div className="space-y-1">
+                <span className="text-muted-foreground text-[11px] font-medium">Tags</span>
+                <Select
+                  value={filters.tags.length > 0 ? filters.tags[0] : "all"}
+                  onValueChange={(value) => {
+                    if (value)
+                      setFilters({ tags: value === "all" ? [] : [value] })
+                  }}
+                >
+                  <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
+                    <SelectValue placeholder="Tags" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="all">All</SelectItem>
+                    {availableTags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>
+                        {tag}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Sort */}
             <DropdownMenu>
@@ -237,7 +281,7 @@ export function LibraryToolbar({
                   <path d="m21 8-4-4-4 4" />
                   <path d="M17 4v16" />
                 </svg>
-                Sort
+                Sort: {sortLabel}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
                 <DropdownMenuGroup>
@@ -248,7 +292,11 @@ export function LibraryToolbar({
                       setSortField("title")
                       setSortOrder("asc")
                     }}
+                    className={isSortActive("title", "asc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
                   >
+                    {isSortActive("title", "asc", sortField, sortOrder) && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    )}
                     Title (A-Z)
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -256,7 +304,11 @@ export function LibraryToolbar({
                       setSortField("title")
                       setSortOrder("desc")
                     }}
+                    className={isSortActive("title", "desc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
                   >
+                    {isSortActive("title", "desc", sortField, sortOrder) && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    )}
                     Title (Z-A)
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -264,7 +316,11 @@ export function LibraryToolbar({
                       setSortField("author")
                       setSortOrder("asc")
                     }}
+                    className={isSortActive("author", "asc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
                   >
+                    {isSortActive("author", "asc", sortField, sortOrder) && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    )}
                     Author (A-Z)
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -272,7 +328,11 @@ export function LibraryToolbar({
                       setSortField("created_at")
                       setSortOrder("desc")
                     }}
+                    className={isSortActive("created_at", "desc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
                   >
+                    {isSortActive("created_at", "desc", sortField, sortOrder) && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    )}
                     Recently Added
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -280,7 +340,11 @@ export function LibraryToolbar({
                       setSortField("updated_at")
                       setSortOrder("desc")
                     }}
+                    className={isSortActive("updated_at", "desc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
                   >
+                    {isSortActive("updated_at", "desc", sortField, sortOrder) && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    )}
                     Recently Updated
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
@@ -291,7 +355,8 @@ export function LibraryToolbar({
             {(filters.search ||
               filters.type !== "all" ||
               filters.ownershipStatus !== "all" ||
-              filters.readingStatus !== "all") && (
+              filters.readingStatus !== "all" ||
+              filters.tags.length > 0) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -332,6 +397,31 @@ export function LibraryToolbar({
                 Volumes
               </button>
             </div>
+
+            {/* Card Size (grid only) */}
+            {viewMode === "grid" && (
+              <div className="border-input flex items-center overflow-hidden rounded-xl border">
+                {(["compact", "default", "large"] as const).map((size) => {
+                  const sizeLabels = { compact: "S", default: "M", large: "L" } as const
+                  const label = sizeLabels[size]
+                  return (
+                    <button
+                      key={size}
+                      className={`px-2 py-1.5 text-xs transition-colors ${
+                        cardSize === size
+                          ? "bg-primary text-primary-foreground font-medium"
+                          : "hover:bg-accent"
+                      }`}
+                      onClick={() => setCardSize(size)}
+                      aria-label={`${size} card size`}
+                      type="button"
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
             {/* View Toggle */}
             <div className="border-input flex items-center overflow-hidden rounded-xl border">
