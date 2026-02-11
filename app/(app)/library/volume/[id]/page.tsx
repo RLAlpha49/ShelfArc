@@ -14,6 +14,7 @@ import {
   useLibraryStore
 } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { formatDate } from "@/lib/format-date"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import { toast } from "sonner"
@@ -30,24 +31,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Volume, VolumeInsert } from "@/lib/types/database"
 
-/** Regex matching common volume/book number tokens (e.g. "Vol. 3"). @source */
-const VOLUME_TOKEN_PATTERN =
-  /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
 
-/**
- * Strips volume-number tokens from a title for cleaner display.
- * @param title - The raw volume title.
- * @returns The cleaned title string.
- * @source
- */
-const normalizeVolumeTitle = (title: string) => {
-  const withoutToken = title.replaceAll(VOLUME_TOKEN_PATTERN, " ")
-  const cleaned = withoutToken
-    .replaceAll(/\s*[-–—:]\s*$/g, "")
-    .replaceAll(/\s+/g, " ")
-    .trim()
-  return cleaned || title.trim()
-}
 
 /**
  * Converts a snake_case reading status to a capitalized label.

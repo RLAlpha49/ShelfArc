@@ -16,6 +16,7 @@ import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { CardSize } from "@/lib/store/settings-store"
+import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { toast } from "sonner"
 import {
   DropdownMenu,
@@ -55,11 +56,11 @@ import { normalizeIsbn } from "@/lib/books/isbn"
 function getGridClasses(cardSize: CardSize): string {
   switch (cardSize) {
     case "compact":
-      return "grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
+      return "grid items-stretch grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8"
     case "large":
-      return "grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+      return "grid items-stretch grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
     default:
-      return "grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+      return "grid items-stretch grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
   }
 }
 
@@ -149,13 +150,14 @@ function SeriesListItem({
       >
         {showSelection && (
           <div
-            className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
           >
             <Checkbox
               checked={selected}
               onCheckedChange={() => onSelect?.()}
               onClick={(event) => event.stopPropagation()}
               aria-label={`Select ${series.title}`}
+              className="h-4 w-4"
             />
           </div>
         )}
@@ -229,24 +231,7 @@ type VolumeWithSeries = {
   series: SeriesWithVolumes
 }
 
-/** Regex matching common volume/book number tokens (e.g. "Vol. 3", "Book 1"). @source */
-const VOLUME_TOKEN_PATTERN =
-  /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
 
-/**
- * Strips volume-number tokens from a title for cleaner display.
- * @param title - The raw volume title.
- * @returns The cleaned title string.
- * @source
- */
-const normalizeVolumeTitle = (title: string) => {
-  const withoutToken = title.replaceAll(VOLUME_TOKEN_PATTERN, " ")
-  const cleaned = withoutToken
-    .replaceAll(/\s*[-–—:]\s*$/g, "")
-    .replaceAll(/\s+/g, " ")
-    .trim()
-  return cleaned || title.trim()
-}
 
 /** Supported Amazon binding labels for search queries. @source */
 const AMAZON_BINDING_LABELS = ["Paperback", "Kindle"] as const
@@ -358,13 +343,14 @@ function VolumeGridItem({
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
           {showSelection && (
             <div
-              className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+              className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
             >
               <Checkbox
                 checked={selected}
                 onCheckedChange={() => onSelect?.()}
                 onClick={(event) => event.stopPropagation()}
                 aria-label={`Select ${coverAlt}`}
+                className="h-4 w-4"
               />
             </div>
           )}
@@ -551,13 +537,14 @@ function VolumeListItem({
       >
         {showSelection && (
           <div
-            className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
           >
             <Checkbox
               checked={selected}
               onCheckedChange={() => onSelect?.()}
               onClick={(event) => event.stopPropagation()}
               aria-label={`Select ${coverAlt}`}
+              className="h-4 w-4"
             />
           </div>
         )}
@@ -761,7 +748,6 @@ export default function LibraryPage() {
     useState<SeriesWithVolumes | null>(null)
   const [deleteVolumeDialogOpen, setDeleteVolumeDialogOpen] = useState(false)
   const [deletingVolume, setDeletingVolume] = useState<Volume | null>(null)
-  const [selectionMode, setSelectionMode] = useState(false)
   const [selectedSeriesIds, setSelectedSeriesIds] = useState<Set<string>>(
     () => new Set()
   )
@@ -778,15 +764,6 @@ export default function LibraryPage() {
     setSelectedSeriesIds(new Set())
     setSelectedVolumeIds(new Set())
   }, [])
-
-  const toggleSelectionMode = useCallback(() => {
-    setSelectionMode((prev) => {
-      if (prev) {
-        clearSelection()
-      }
-      return !prev
-    })
-  }, [clearSelection])
 
   const existingEntries = useMemo(() => {
     const assigned = series.flatMap((seriesItem) =>
@@ -835,8 +812,6 @@ export default function LibraryPage() {
       : filteredVolumes.length + filteredUnassignedVolumes.length
   const isAllSelected =
     totalSelectableCount > 0 && selectedCount === totalSelectableCount
-  const isSeriesSelectionMode = selectionMode && collectionView === "series"
-  const isVolumeSelectionMode = selectionMode && collectionView === "volumes"
 
   const getNextVolumeNumber = useCallback(
     (seriesId: string | null) => {
@@ -1260,24 +1235,16 @@ export default function LibraryPage() {
 
   const handleSeriesItemClick = useCallback(
     (seriesItem: SeriesWithVolumes) => {
-      if (isSeriesSelectionMode) {
-        toggleSeriesSelection(seriesItem.id)
-        return
-      }
       handleSeriesClick(seriesItem)
     },
-    [isSeriesSelectionMode, toggleSeriesSelection, handleSeriesClick]
+    [handleSeriesClick]
   )
 
   const handleVolumeItemClick = useCallback(
     (volumeId: string) => {
-      if (isVolumeSelectionMode) {
-        toggleVolumeSelection(volumeId)
-        return
-      }
       handleVolumeClick(volumeId)
     },
-    [isVolumeSelectionMode, toggleVolumeSelection, handleVolumeClick]
+    [handleVolumeClick]
   )
 
   const handleToggleRead = useCallback(
@@ -1386,14 +1353,8 @@ export default function LibraryPage() {
               onEdit={() => openEditVolumeDialog(volume)}
               onDelete={() => openDeleteVolumeDialog(volume)}
               onToggleRead={() => handleToggleRead(volume)}
-              selected={
-                isVolumeSelectionMode && selectedVolumeIds.has(volume.id)
-              }
-              onSelect={
-                isVolumeSelectionMode
-                  ? () => toggleVolumeSelection(volume.id)
-                  : undefined
-              }
+              selected={selectedVolumeIds.has(volume.id)}
+              onSelect={() => toggleVolumeSelection(volume.id)}
             />
           ))}
         </div>
@@ -1453,15 +1414,8 @@ export default function LibraryPage() {
                       onToggleRead={() => handleToggleRead(item.volume)}
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
-                      selected={
-                        isVolumeSelectionMode &&
-                        selectedVolumeIds.has(item.volume.id)
-                      }
-                      onSelect={
-                        isVolumeSelectionMode
-                          ? () => toggleVolumeSelection(item.volume.id)
-                          : undefined
-                      }
+                      selected={selectedVolumeIds.has(item.volume.id)}
+                      onSelect={() => toggleVolumeSelection(item.volume.id)}
                     />
                   ))}
                 </div>
@@ -1479,15 +1433,8 @@ export default function LibraryPage() {
                       onToggleRead={() => handleToggleRead(item.volume)}
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
-                      selected={
-                        isVolumeSelectionMode &&
-                        selectedVolumeIds.has(item.volume.id)
-                      }
-                      onSelect={
-                        isVolumeSelectionMode
-                          ? () => toggleVolumeSelection(item.volume.id)
-                          : undefined
-                      }
+                      selected={selectedVolumeIds.has(item.volume.id)}
+                      onSelect={() => toggleVolumeSelection(item.volume.id)}
                     />
                   ))}
                 </div>
@@ -1539,14 +1486,8 @@ export default function LibraryPage() {
                     onEdit={() => openEditDialog(series)}
                     onDelete={() => openDeleteDialog(series)}
                     onClick={() => handleSeriesItemClick(series)}
-                    selected={
-                      isSeriesSelectionMode && selectedSeriesIds.has(series.id)
-                    }
-                    onSelect={
-                      isSeriesSelectionMode
-                        ? () => toggleSeriesSelection(series.id)
-                        : undefined
-                    }
+                    selected={selectedSeriesIds.has(series.id)}
+                    onSelect={() => toggleSeriesSelection(series.id)}
                   />
                 ))}
               </div>
@@ -1568,14 +1509,8 @@ export default function LibraryPage() {
                 onClick={() => handleSeriesItemClick(series)}
                 onEdit={() => openEditDialog(series)}
                 onDelete={() => openDeleteDialog(series)}
-                selected={
-                  isSeriesSelectionMode && selectedSeriesIds.has(series.id)
-                }
-                onSelect={
-                  isSeriesSelectionMode
-                    ? () => toggleSeriesSelection(series.id)
-                    : undefined
-                }
+                selected={selectedSeriesIds.has(series.id)}
+                onSelect={() => toggleSeriesSelection(series.id)}
               />
             ))}
           </div>
@@ -1650,11 +1585,9 @@ export default function LibraryPage() {
       <LibraryToolbar
         onAddBook={openAddDialog}
         onAddSeries={openAddSeriesDialog}
-        selectionMode={selectionMode}
-        onToggleSelectionMode={toggleSelectionMode}
       />
 
-      {selectionMode && (
+      {selectedCount > 0 && (
         <div className="glass-card animate-fade-in stagger-2 mt-4 rounded-2xl p-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-3">
@@ -1686,7 +1619,6 @@ export default function LibraryPage() {
             </Button>
 
             <div className="flex-1" />
-
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={buttonVariants({
@@ -1776,6 +1708,14 @@ export default function LibraryPage() {
               className="rounded-xl"
             >
               Delete
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => clearSelection()}
+              className="rounded-xl"
+            >
+              Cancel
             </Button>
           </div>
         </div>

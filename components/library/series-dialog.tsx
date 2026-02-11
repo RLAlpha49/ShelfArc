@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
+import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Input } from "@/components/ui/input"
@@ -54,24 +55,7 @@ interface SeriesDialogProps {
 /** Maximum upload size for cover images (5 MB). @source */
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 
-/** Regex matching common volume/book number tokens (e.g. "Vol. 3", "Book 1"). @source */
-const VOLUME_TOKEN_PATTERN =
-  /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
 
-/**
- * Strips volume-number tokens from a title to derive a clean series name.
- * @param title - Raw volume title.
- * @returns Cleaned title or the original if stripping would produce an empty string.
- * @source
- */
-const normalizeVolumeTitle = (title: string) => {
-  const withoutToken = title.replaceAll(VOLUME_TOKEN_PATTERN, " ")
-  const cleaned = withoutToken
-    .replaceAll(/\s*[-–—:]\s*$/g, "")
-    .replaceAll(/\s+/g, " ")
-    .trim()
-  return cleaned || title.trim()
-}
 
 /** Default values for the series form fields. @source */
 const defaultFormData = {
