@@ -1040,38 +1040,38 @@ const extractPriceText = (
 
 const extractProductUrl = (result: cheerio.Cheerio<Element>, host: string) => {
   const productPath = result.find("h2 a").first().attr("href")
-    const asin = result.attr("data-asin")?.trim()
-    if (asin) {
-      return `https://${host}/dp/${asin}`
-    }
+  const asin = result.attr("data-asin")?.trim()
+  if (asin) {
+    return `https://${host}/dp/${asin}`
+  }
 
-    if (productPath) {
-      try {
-        const url = new URL(productPath, `https://${host}`)
-        if (url.protocol === "http:" || url.protocol === "https:") {
-          return url.toString()
-        }
-      } catch {
-        // fall through to alternative selectors
-      }
-    }
-
-    const fallbackPath = result
-      .find("a.a-link-normal.s-no-outline, a.a-link-normal")
-      .first()
-      .attr("href")
-    if (!fallbackPath) return null
-
+  if (productPath) {
     try {
-      const url = new URL(fallbackPath, `https://${host}`)
+      const url = new URL(productPath, `https://${host}`)
       if (url.protocol === "http:" || url.protocol === "https:") {
         return url.toString()
       }
     } catch {
-      // ignore invalid URLs
+      // fall through to alternative selectors
     }
+  }
 
-    return null
+  const fallbackPath = result
+    .find("a.a-link-normal.s-no-outline, a.a-link-normal")
+    .first()
+    .attr("href")
+  if (!fallbackPath) return null
+
+  try {
+    const url = new URL(fallbackPath, `https://${host}`)
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url.toString()
+    }
+  } catch {
+    // ignore invalid URLs
+  }
+
+  return null
 }
 
 const extractImageUrl = (result: cheerio.Cheerio<Element>) => {

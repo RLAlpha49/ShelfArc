@@ -988,6 +988,7 @@ export default function SeriesDetailPage() {
                   <VolumeCard
                     key={volume.id}
                     volume={volume}
+                    seriesTitle={currentSeries.title}
                     onClick={() => handleVolumeClick(volume.id)}
                     onEdit={() => openEditDialog(volume)}
                     onDelete={() => openDeleteDialog(volume)}

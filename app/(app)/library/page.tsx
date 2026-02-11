@@ -219,11 +219,42 @@ const normalizeVolumeTitle = (title: string) => {
   return cleaned || title.trim()
 }
 
+const AMAZON_BINDING_LABELS = ["Paperback", "Kindle"] as const
+
+const buildAmazonSearchUrl = (options: {
+  amazonDomain: string
+  isbn?: string | null
+  seriesTitle?: string | null
+  volumeTitle?: string | null
+  volumeNumber: number
+  format?: string | null
+  bindingLabel?: string | null
+}) => {
+  const domain = options.amazonDomain?.trim() || "amazon.com"
+  const isbn = options.isbn?.trim()
+  if (isbn) {
+    return `https://www.${domain}/s?k=${encodeURIComponent(isbn)}`
+  }
+  const tokens = [options.seriesTitle, options.volumeTitle]
+    .map((value) => value?.trim())
+    .filter(Boolean) as string[]
+  if (Number.isFinite(options.volumeNumber)) {
+    tokens.push(`Volume ${options.volumeNumber}`)
+  }
+  if (options.format?.trim()) tokens.push(options.format.trim())
+  if (options.bindingLabel) tokens.push(options.bindingLabel)
+  const query = tokens.join(" ").trim()
+  return `https://www.${domain}/s?k=${encodeURIComponent(query)}`
+}
+
 function VolumeGridItem({
   item,
   onClick,
   onEdit,
   onDelete,
+  onToggleRead,
+  amazonDomain,
+  bindingLabel,
   selected = false,
   onSelect
 }: {
@@ -231,6 +262,9 @@ function VolumeGridItem({
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly onToggleRead?: () => void
+  readonly amazonDomain: string
+  readonly bindingLabel: string
   readonly selected?: boolean
   readonly onSelect?: () => void
 }) {
@@ -240,6 +274,20 @@ function VolumeGridItem({
     : volumeLabel
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
   const showSelection = Boolean(onSelect)
+  const isCompleted = item.volume.reading_status === "completed"
+  const amazonSearchUrl = buildAmazonSearchUrl({
+    amazonDomain,
+    isbn: item.volume.isbn,
+    seriesTitle: item.series.title,
+    volumeTitle: item.volume.title,
+    volumeNumber: item.volume.volume_number,
+    format: item.volume.format,
+    bindingLabel
+  })
+  const amazonLink = item.volume.amazon_url || amazonSearchUrl
+  const amazonLabel = item.volume.amazon_url
+    ? `Open ${coverAlt} on Amazon`
+    : `Search Amazon for ${coverAlt}`
 
   return (
     <div className="group relative">
@@ -299,6 +347,92 @@ function VolumeGridItem({
           className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
           onClick={(event) => {
             event.stopPropagation()
+            if (amazonLink) {
+              window.open(amazonLink, "_blank", "noopener,noreferrer")
+            }
+          }}
+          aria-label={amazonLabel}
+        >
+          {item.volume.amazon_url ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <path d="M15 3h6v6" />
+              <path d="M10 14 21 3" />
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            </svg>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          )}
+        </button>
+        {onToggleRead && (
+          <button
+            type="button"
+            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleRead()
+            }}
+            aria-label={
+              isCompleted
+                ? `Mark ${coverAlt} as unread`
+                : `Mark ${coverAlt} as read`
+            }
+          >
+            {isCompleted ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            )}
+          </button>
+        )}
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
             onEdit()
           }}
           aria-label={`Edit ${coverAlt}`}
@@ -326,6 +460,9 @@ function VolumeListItem({
   onClick,
   onEdit,
   onDelete,
+  onToggleRead,
+  amazonDomain,
+  bindingLabel,
   selected = false,
   onSelect
 }: {
@@ -333,6 +470,9 @@ function VolumeListItem({
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly onToggleRead?: () => void
+  readonly amazonDomain: string
+  readonly bindingLabel: string
   readonly selected?: boolean
   readonly onSelect?: () => void
 }) {
@@ -342,6 +482,20 @@ function VolumeListItem({
     : volumeLabel
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
   const showSelection = Boolean(onSelect)
+  const isCompleted = item.volume.reading_status === "completed"
+  const amazonSearchUrl = buildAmazonSearchUrl({
+    amazonDomain,
+    isbn: item.volume.isbn,
+    seriesTitle: item.series.title,
+    volumeTitle: item.volume.title,
+    volumeNumber: item.volume.volume_number,
+    format: item.volume.format,
+    bindingLabel
+  })
+  const amazonLink = item.volume.amazon_url || amazonSearchUrl
+  const amazonLabel = item.volume.amazon_url
+    ? `Open ${coverAlt} on Amazon`
+    : `Search Amazon for ${coverAlt}`
 
   return (
     <div className="group relative">
@@ -405,6 +559,92 @@ function VolumeListItem({
           className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
           onClick={(event) => {
             event.stopPropagation()
+            if (amazonLink) {
+              window.open(amazonLink, "_blank", "noopener,noreferrer")
+            }
+          }}
+          aria-label={amazonLabel}
+        >
+          {item.volume.amazon_url ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <path d="M15 3h6v6" />
+              <path d="M10 14 21 3" />
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            </svg>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          )}
+        </button>
+        {onToggleRead && (
+          <button
+            type="button"
+            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleRead()
+            }}
+            aria-label={
+              isCompleted
+                ? `Mark ${coverAlt} as unread`
+                : `Mark ${coverAlt} as read`
+            }
+          >
+            {isCompleted ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            )}
+          </button>
+        )}
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
             onEdit()
           }}
           aria-label={`Edit ${coverAlt}`}
@@ -447,10 +687,17 @@ export default function LibraryPage() {
     addBooksFromSearchResults
   } = useLibrary()
 
-  const { viewMode, setSelectedSeries, collectionView, deleteSeriesVolumes } =
-    useLibraryStore()
+  const {
+    viewMode,
+    setSelectedSeries,
+    collectionView,
+    deleteSeriesVolumes,
+    amazonDomain,
+    amazonPreferKindle
+  } = useLibraryStore()
   const cardSize = useSettingsStore((s) => s.cardSize)
   const confirmBeforeDelete = useSettingsStore((s) => s.confirmBeforeDelete)
+  const amazonBindingLabel = AMAZON_BINDING_LABELS[Number(amazonPreferKindle)]
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
@@ -985,6 +1232,24 @@ export default function LibraryPage() {
     [isVolumeSelectionMode, toggleVolumeSelection, handleVolumeClick]
   )
 
+  const handleToggleRead = useCallback(
+    async (volume: Volume) => {
+      const nextStatus =
+        volume.reading_status === "completed" ? "unread" : "completed"
+      try {
+        await editVolume(volume.series_id ?? null, volume.id, {
+          reading_status: nextStatus
+        })
+        toast.success(
+          nextStatus === "completed" ? "Marked as read" : "Marked as unread"
+        )
+      } catch {
+        toast.error("Failed to update reading status")
+      }
+    },
+    [editVolume]
+  )
+
   const openAddDialog = useCallback(() => {
     setEditingSeries(null)
     setSearchDialogOpen(true)
@@ -1072,6 +1337,7 @@ export default function LibraryPage() {
               onClick={() => handleVolumeItemClick(volume.id)}
               onEdit={() => openEditVolumeDialog(volume)}
               onDelete={() => openDeleteVolumeDialog(volume)}
+              onToggleRead={() => handleToggleRead(volume)}
               selected={
                 isVolumeSelectionMode && selectedVolumeIds.has(volume.id)
               }
@@ -1136,6 +1402,9 @@ export default function LibraryPage() {
                       onClick={() => handleVolumeItemClick(item.volume.id)}
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
+                      onToggleRead={() => handleToggleRead(item.volume)}
+                      amazonDomain={amazonDomain}
+                      bindingLabel={amazonBindingLabel}
                       selected={
                         isVolumeSelectionMode &&
                         selectedVolumeIds.has(item.volume.id)
@@ -1159,6 +1428,9 @@ export default function LibraryPage() {
                       onClick={() => handleVolumeItemClick(item.volume.id)}
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
+                      onToggleRead={() => handleToggleRead(item.volume)}
+                      amazonDomain={amazonDomain}
+                      bindingLabel={amazonBindingLabel}
                       selected={
                         isVolumeSelectionMode &&
                         selectedVolumeIds.has(item.volume.id)

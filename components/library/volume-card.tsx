@@ -4,10 +4,12 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import { useLibraryStore } from "@/lib/store/library-store"
 import type { Volume } from "@/lib/types/database"
 
 interface VolumeCardProps {
   readonly volume: Volume
+  readonly seriesTitle?: string
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
@@ -29,8 +31,35 @@ const READING_COLORS: Record<string, string> = {
   dropped: "bg-destructive/10 text-destructive"
 }
 
+const buildAmazonSearchUrl = (options: {
+  amazonDomain: string
+  isbn?: string | null
+  seriesTitle?: string | null
+  volumeTitle?: string | null
+  volumeNumber: number
+  format?: string | null
+  bindingLabel?: string | null
+}) => {
+  const domain = options.amazonDomain?.trim() || "amazon.com"
+  const isbn = options.isbn?.trim()
+  if (isbn) {
+    return `https://www.${domain}/s?k=${encodeURIComponent(isbn)}`
+  }
+  const tokens = [options.seriesTitle, options.volumeTitle]
+    .map((value) => value?.trim())
+    .filter(Boolean) as string[]
+  if (Number.isFinite(options.volumeNumber)) {
+    tokens.push(`Volume ${options.volumeNumber}`)
+  }
+  if (options.format?.trim()) tokens.push(options.format.trim())
+  if (options.bindingLabel) tokens.push(options.bindingLabel)
+  const query = tokens.join(" ").trim()
+  return `https://www.${domain}/s?k=${encodeURIComponent(query)}`
+}
+
 export function VolumeCard({
   volume,
+  seriesTitle,
   onClick,
   onEdit,
   onDelete,
@@ -39,8 +68,23 @@ export function VolumeCard({
   onSelect
 }: VolumeCardProps) {
   const showReadingProgress = useSettingsStore((s) => s.showReadingProgress)
+  const amazonDomain = useLibraryStore((s) => s.amazonDomain)
+  const amazonPreferKindle = useLibraryStore((s) => s.amazonPreferKindle)
   const showSelection = Boolean(onSelect)
   const isCompleted = volume.reading_status === "completed"
+  const amazonSearchUrl = buildAmazonSearchUrl({
+    amazonDomain,
+    isbn: volume.isbn,
+    seriesTitle,
+    volumeTitle: volume.title,
+    volumeNumber: volume.volume_number,
+    format: volume.format,
+    bindingLabel: amazonPreferKindle ? "Kindle" : "Paperback"
+  })
+  const amazonLink = volume.amazon_url || amazonSearchUrl
+  const amazonLabel = volume.amazon_url
+    ? `Open volume ${volume.volume_number} on Amazon`
+    : `Search Amazon for volume ${volume.volume_number}`
 
   return (
     <div className="group relative w-full">
@@ -148,18 +192,18 @@ export function VolumeCard({
         </div>
       </button>
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        {volume.amazon_url && (
-          <button
-            type="button"
-            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-            onClick={(event) => {
-              event.stopPropagation()
-              if (volume.amazon_url) {
-                window.open(volume.amazon_url, "_blank", "noopener,noreferrer")
-              }
-            }}
-            aria-label={`Open volume ${volume.volume_number} on Amazon`}
-          >
+        <button
+          type="button"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          onClick={(event) => {
+            event.stopPropagation()
+            if (amazonLink) {
+              window.open(amazonLink, "_blank", "noopener,noreferrer")
+            }
+          }}
+          aria-label={amazonLabel}
+        >
+          {volume.amazon_url ? (
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -174,8 +218,22 @@ export function VolumeCard({
               <path d="M10 14 21 3" />
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
             </svg>
-          </button>
-        )}
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          )}
+        </button>
         {onToggleRead && (
           <button
             type="button"
