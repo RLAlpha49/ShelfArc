@@ -288,17 +288,25 @@ const normalizeDateInput = (value?: string | null) => {
   return trimmed
 }
 
+const sanitizeDateField = (value?: string | null): string | null => {
+  if (!value) return null
+  const sanitized = sanitizePlainText(String(value), 20)
+  return sanitized || null
+}
+
 const normalizeVolumeDates = <T extends VolumeDateFields>(data: T) => {
   const next = { ...data }
   if (data.publish_date === undefined) {
     // no-op
   } else {
-    next.publish_date = normalizeDateInput(data.publish_date)
+    next.publish_date = normalizeDateInput(sanitizeDateField(data.publish_date))
   }
   if (data.purchase_date === undefined) {
     // no-op
   } else {
-    next.purchase_date = normalizeDateInput(data.purchase_date)
+    next.purchase_date = normalizeDateInput(
+      sanitizeDateField(data.purchase_date)
+    )
   }
   return next
 }
@@ -337,6 +345,15 @@ const sanitizeSeriesTextFields = (
   }
   if (Object.hasOwn(data, "notes")) {
     sanitized.notes = sanitizeOptionalPlainText(data.notes, 5000)
+  }
+  if (Object.hasOwn(data, "cover_image_url")) {
+    sanitized.cover_image_url = sanitizeOptionalPlainText(
+      data.cover_image_url,
+      2000
+    )
+  }
+  if (Object.hasOwn(data, "status")) {
+    sanitized.status = sanitizeOptionalPlainText(data.status, 100)
   }
 }
 
@@ -381,6 +398,15 @@ const sanitizeVolumeTextFields = (
   }
   if (Object.hasOwn(data, "format")) {
     sanitized.format = sanitizeOptionalPlainText(data.format, 200)
+  }
+  if (Object.hasOwn(data, "cover_image_url")) {
+    sanitized.cover_image_url = sanitizeOptionalPlainText(
+      data.cover_image_url,
+      2000
+    )
+  }
+  if (Object.hasOwn(data, "amazon_url")) {
+    sanitized.amazon_url = sanitizeOptionalPlainText(data.amazon_url, 2000)
   }
 }
 
@@ -429,6 +455,15 @@ const sanitizeVolumeUpdate = (data: Partial<Volume>): Partial<Volume> => {
       ? data.reading_status
       : "unread"
   }
+  if (Object.hasOwn(data, "volume_number")) {
+    if (
+      typeof data.volume_number !== "number" ||
+      !Number.isFinite(data.volume_number) ||
+      data.volume_number < 0
+    ) {
+      throw new Error("Invalid volume number")
+    }
+  }
   sanitizeVolumeNumericFields(data, sanitized)
   return sanitized
 }
@@ -471,10 +506,8 @@ const buildSanitizedVolumeInsert = (
       data.purchase_price != null && isNonNegativeFinite(data.purchase_price)
         ? data.purchase_price
         : null,
-    cover_image_url:
-      data.cover_image_url && typeof data.cover_image_url === "string"
-        ? data.cover_image_url
-        : null
+    cover_image_url: sanitizeOptionalPlainText(data.cover_image_url, 2000),
+    amazon_url: sanitizeOptionalPlainText(data.amazon_url, 2000)
   }
 }
 
@@ -856,10 +889,11 @@ export function useLibrary() {
             data.total_volumes != null && isPositiveInteger(data.total_volumes)
               ? data.total_volumes
               : null,
-          cover_image_url:
-            data.cover_image_url && typeof data.cover_image_url === "string"
-              ? data.cover_image_url
-              : null
+          cover_image_url: sanitizeOptionalPlainText(
+            data.cover_image_url,
+            2000
+          ),
+          status: sanitizeOptionalPlainText(data.status, 100)
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

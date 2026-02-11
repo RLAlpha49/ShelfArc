@@ -89,10 +89,7 @@ function sanitizeSeriesImport(
     author: sanitizeOptionalPlainText(s.author, 1000),
     artist: sanitizeOptionalPlainText(s.artist, 1000),
     publisher: sanitizeOptionalPlainText(s.publisher, 1000),
-    cover_image_url:
-      s.cover_image_url && typeof s.cover_image_url === "string"
-        ? s.cover_image_url
-        : null,
+    cover_image_url: sanitizeOptionalPlainText(s.cover_image_url, 2000),
     total_volumes:
       s.total_volumes != null && isPositiveInteger(s.total_volumes)
         ? s.total_volumes
@@ -125,10 +122,7 @@ function sanitizeVolumeImport(
     title: sanitizeOptionalPlainText(v.title, 500),
     description: sanitizeOptionalHtml(v.description),
     isbn: sanitizeOptionalPlainText(v.isbn, 20),
-    cover_image_url:
-      v.cover_image_url && typeof v.cover_image_url === "string"
-        ? v.cover_image_url
-        : null,
+    cover_image_url: sanitizeOptionalPlainText(v.cover_image_url, 2000),
     ownership_status: isValidOwnershipStatus(v.ownership_status)
       ? v.ownership_status
       : "owned",
@@ -151,11 +145,15 @@ function sanitizeVolumeImport(
         ? v.rating
         : null,
     notes: sanitizeOptionalPlainText(v.notes, 5000),
-    purchase_date: v.purchase_date ?? null,
+    publish_date: sanitizeOptionalPlainText(v.publish_date, 20),
+    purchase_date: sanitizeOptionalPlainText(v.purchase_date, 20),
     purchase_price:
       v.purchase_price != null && isNonNegativeFinite(v.purchase_price)
         ? v.purchase_price
-        : null
+        : null,
+    edition: sanitizeOptionalPlainText(v.edition, 200),
+    format: sanitizeOptionalPlainText(v.format, 200),
+    amazon_url: sanitizeOptionalPlainText(v.amazon_url, 2000)
   }
 }
 
