@@ -187,50 +187,176 @@ function sanitizeVolumeImport(
   }
 }
 
+/** Typed handle for the `series` Supabase table used during import. @source */
+type SeriesTableHandle = {
+  delete: () => {
+    eq: (field: string, value: string) => Promise<{ error: Error | null }>
+  }
+  insert: (data: SeriesInsert[]) => {
+    select: () => Promise<{
+      data: { id: string }[] | null
+      error: Error | null
+    }>
+  }
+  select: (columns: string) => {
+    eq: (
+      field: string,
+      value: string
+    ) => Promise<{
+      data: { id: string; title: string; type: string }[] | null
+      error: Error | null
+    }>
+  }
+}
+
+/** Typed handle for the `volumes` Supabase table used during import. @source */
+type VolumesTableHandle = {
+  delete: () => {
+    eq: (field: string, value: string) => Promise<{ error: Error | null }>
+  }
+  insert: (data: VolumeInsert[]) => Promise<{ error: Error | null }>
+  upsert: (
+    data: VolumeInsert[],
+    options: { onConflict: string }
+  ) => Promise<{ error: Error | null }>
+}
+
+/** A sanitised series insert paired with its original import data. @source */
+type SeriesPair = { insert: SeriesInsert; original: SeriesWithVolumes }
+
 /**
- * Inserts a single series and its volumes into the database.
- * @param s - Series record with nested volumes.
- * @param userId - Authenticated user's ID.
- * @param seriesTable - Supabase `series` table handle.
- * @param volumesTable - Supabase `volumes` table handle.
+ * Collects sanitised volume inserts for a list of series,
+ * mapping each volume to the given series ID.
  * @source
  */
-async function importSeriesWithVolumes(
-  s: SeriesWithVolumes,
+function collectVolumes(
+  pairs: { seriesId: string; original: SeriesWithVolumes }[],
+  userId: string
+): VolumeInsert[] {
+  const result: VolumeInsert[] = []
+  for (const { seriesId, original } of pairs) {
+    if (!original.volumes?.length) continue
+    for (const v of original.volumes) {
+      const vi = sanitizeVolumeImport(v, seriesId, userId)
+      if (vi) result.push(vi)
+    }
+  }
+  return result
+}
+
+/**
+ * Replace-mode import: deletes all existing data, then batch-inserts
+ * all series and volumes in two requests.
+ * @source
+ */
+async function importReplace(
+  seriesPairs: SeriesPair[],
   userId: string,
-  seriesTable: {
-    insert: (data: SeriesInsert) => {
-      select: () => {
-        single: () => Promise<{
-          data: { id: string } | null
-          error: Error | null
-        }>
-      }
-    }
-  },
-  volumesTable: {
-    insert: (data: VolumeInsert[]) => Promise<{ error: Error | null }>
-  }
-): Promise<void> {
-  const seriesInsert = sanitizeSeriesImport(s, userId)
-  if (!seriesInsert) return
+  seriesTable: SeriesTableHandle,
+  volumesTable: VolumesTableHandle,
+  onPhase: (index: number, label?: string) => void
+): Promise<string> {
+  onPhase(0)
+  await volumesTable.delete().eq("user_id", userId)
+  await seriesTable.delete().eq("user_id", userId)
 
-  const { data: newSeries, error: seriesError } = await seriesTable
-    .insert(seriesInsert)
+  onPhase(1, `Importing ${seriesPairs.length} series...`)
+  const { data: insertedSeries, error: seriesError } = await seriesTable
+    .insert(seriesPairs.map((p) => p.insert))
     .select()
-    .single()
 
-  if (seriesError || !newSeries) return
+  if (seriesError || !insertedSeries) {
+    throw new Error("Failed to insert series")
+  }
 
-  if (s.volumes && s.volumes.length > 0) {
-    const volumeInserts: VolumeInsert[] = s.volumes
-      .map((v) => sanitizeVolumeImport(v, newSeries.id, userId))
-      .filter((v): v is VolumeInsert => v !== null)
+  const allVolumes = collectVolumes(
+    insertedSeries.map((s, i) => ({
+      seriesId: s.id,
+      original: seriesPairs[i].original
+    })),
+    userId
+  )
 
-    if (volumeInserts.length > 0) {
-      await volumesTable.insert(volumeInserts)
+  onPhase(2, `Importing ${allVolumes.length} volumes...`)
+  if (allVolumes.length > 0) {
+    const { error: volError } = await volumesTable.insert(allVolumes)
+    if (volError) throw new Error("Failed to insert volumes")
+  }
+
+  return `Imported ${insertedSeries.length} series with ${allVolumes.length} volumes`
+}
+
+/**
+ * Merge-mode import: matches existing series by title + type,
+ * batch-inserts new series, and upserts all volumes.
+ * @source
+ */
+async function importMerge(
+  seriesPairs: SeriesPair[],
+  userId: string,
+  seriesTable: SeriesTableHandle,
+  volumesTable: VolumesTableHandle,
+  onPhase: (index: number, label?: string) => void
+): Promise<string> {
+  onPhase(0)
+  const { data: existingSeries, error: fetchError } = await seriesTable
+    .select("id, title, type")
+    .eq("user_id", userId)
+
+  if (fetchError) throw new Error("Failed to fetch existing series")
+
+  const existingMap = new Map<string, string>()
+  for (const s of existingSeries ?? []) {
+    existingMap.set(`${s.title.toLowerCase()}::${s.type}`, s.id)
+  }
+
+  const newPairs: SeriesPair[] = []
+  const matchedPairs: { existingId: string; original: SeriesWithVolumes }[] = []
+
+  for (const pair of seriesPairs) {
+    const key = `${pair.insert.title.toLowerCase()}::${pair.insert.type}`
+    const existingId = existingMap.get(key)
+    if (existingId) {
+      matchedPairs.push({ existingId, original: pair.original })
+    } else {
+      newPairs.push(pair)
     }
   }
+
+  onPhase(
+    1,
+    `Importing ${newPairs.length} new series, merging ${matchedPairs.length} existing...`
+  )
+  let newSeriesIds: { id: string }[] = []
+  if (newPairs.length > 0) {
+    const { data, error } = await seriesTable
+      .insert(newPairs.map((p) => p.insert))
+      .select()
+    if (error || !data) throw new Error("Failed to insert new series")
+    newSeriesIds = data
+  }
+
+  const volumeSources = [
+    ...newSeriesIds.map((s, i) => ({
+      seriesId: s.id,
+      original: newPairs[i].original
+    })),
+    ...matchedPairs.map((m) => ({
+      seriesId: m.existingId,
+      original: m.original
+    }))
+  ]
+  const allVolumes = collectVolumes(volumeSources, userId)
+
+  onPhase(2, `Processing ${allVolumes.length} volumes...`)
+  if (allVolumes.length > 0) {
+    const { error: volError } = await volumesTable.upsert(allVolumes, {
+      onConflict: "series_id,volume_number,edition"
+    })
+    if (volError) throw new Error("Failed to upsert volumes")
+  }
+
+  return `Imported ${newPairs.length} new series, merged ${matchedPairs.length} existing (${allVolumes.length} volumes processed)`
 }
 
 /**
@@ -291,6 +417,131 @@ function parseImportJson(content: string): SeriesWithVolumes[] {
   )
 }
 
+/** Single phase in the import progress indicator. @source */
+interface ImportPhase {
+  label: string
+  status: "pending" | "active" | "complete"
+}
+
+/** Inline SVG spinner used for active import phases. @source */
+function PhaseSpinner({ className = "" }: { readonly className?: string }) {
+  return (
+    <svg
+      className={`h-4 w-4 shrink-0 animate-spin ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      />
+    </svg>
+  )
+}
+
+/** Inline SVG checkmark used for completed import phases. @source */
+function PhaseCheck({ className = "" }: { readonly className?: string }) {
+  return (
+    <svg
+      className={`h-4 w-4 shrink-0 ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  )
+}
+
+/** Resolves the icon element for a given import phase status. @source */
+function PhaseIcon({ status }: { readonly status: ImportPhase["status"] }) {
+  if (status === "active") {
+    return (
+      <div className="animate-pulse-glow rounded-full">
+        <PhaseSpinner className="text-copper" />
+      </div>
+    )
+  }
+  if (status === "complete") {
+    return <PhaseCheck className="text-copper" />
+  }
+  return (
+    <div className="border-muted-foreground/30 h-4 w-4 rounded-full border-2" />
+  )
+}
+
+/** Returns the text style class for a given import phase status. @source */
+function phaseTextClass(status: ImportPhase["status"]): string {
+  if (status === "active") return "text-foreground font-medium"
+  if (status === "complete") return "text-muted-foreground"
+  return "text-muted-foreground/50"
+}
+
+/**
+ * Progress stepper displayed during JSON import operations.
+ * Shows a vertical list of phases with spinner/checkmark status icons.
+ * @source
+ */
+function ImportProgress({
+  phases,
+  resultMessage
+}: {
+  readonly phases: ImportPhase[]
+  readonly resultMessage: string | null
+}) {
+  const isComplete = phases.every((p) => p.status === "complete")
+
+  return (
+    <div className="glass-card animate-fade-in-up rounded-2xl p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="from-copper to-gold h-1.5 w-6 rounded-full bg-linear-to-r" />
+        <h4 className="text-sm font-semibold tracking-wide uppercase">
+          Import Progress
+        </h4>
+      </div>
+
+      <div className="space-y-1">
+        {phases.map((phase, i) => (
+          <div
+            key={`phase-${String(i)}`}
+            className={`flex items-center gap-3 rounded-lg px-2 py-2 transition-all duration-300 ${
+              phase.status === "active" ? "bg-copper/5" : ""
+            }`}
+          >
+            <div className="shrink-0">
+              <PhaseIcon status={phase.status} />
+            </div>
+
+            <span
+              className={`text-sm transition-all duration-300 ${phaseTextClass(phase.status)}`}
+            >
+              {phase.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {isComplete && resultMessage && (
+        <div className="from-copper/10 to-gold/10 animate-fade-in mt-4 rounded-xl bg-linear-to-r p-3">
+          <p className="text-copper text-sm font-medium">{resultMessage}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * JSON import form for restoring a ShelfArc backup (merge or replace mode).
  * @source
@@ -301,12 +552,16 @@ export function JsonImport() {
   const [mode, setMode] = useState<ImportMode>("merge")
   const [isImporting, setIsImporting] = useState(false)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [importPhases, setImportPhases] = useState<ImportPhase[]>([])
+  const [resultMessage, setResultMessage] = useState<string | null>(null)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     try {
+      setImportPhases([])
+      setResultMessage(null)
       const content = await file.text()
 
       if (!file.name.endsWith(".json")) {
@@ -333,6 +588,40 @@ export function JsonImport() {
     if (!preview) return
 
     setIsImporting(true)
+    setResultMessage(null)
+
+    const phaseLabels =
+      mode === "replace"
+        ? [
+            "Clearing existing data...",
+            "Importing series...",
+            "Importing volumes...",
+            "Complete!"
+          ]
+        : [
+            "Checking existing collection...",
+            "Importing series...",
+            "Processing volumes...",
+            "Complete!"
+          ]
+    setImportPhases(
+      phaseLabels.map((label) => ({ label, status: "pending" as const }))
+    )
+
+    const onPhase = (index: number, label?: string) => {
+      setImportPhases((prev) =>
+        prev.map((p, i) => {
+          let status: ImportPhase["status"] = "pending"
+          if (i < index) status = "complete"
+          else if (i === index) status = "active"
+          return {
+            ...p,
+            label: i === index && label ? label : p.label,
+            status
+          }
+        })
+      )
+    }
 
     try {
       const {
@@ -340,46 +629,53 @@ export function JsonImport() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
 
-      const seriesTable = supabase.from("series") as unknown as {
-        delete: () => {
-          eq: (field: string, value: string) => Promise<{ error: Error | null }>
-        }
-        insert: (data: SeriesInsert) => {
-          select: () => {
-            single: () => Promise<{
-              data: { id: string } | null
-              error: Error | null
-            }>
-          }
-        }
-      }
+      const seriesTable = supabase.from(
+        "series"
+      ) as unknown as SeriesTableHandle
+      const volumesTable = supabase.from(
+        "volumes"
+      ) as unknown as VolumesTableHandle
 
-      const volumesTable = supabase.from("volumes") as unknown as {
-        delete: () => {
-          eq: (field: string, value: string) => Promise<{ error: Error | null }>
-        }
-        insert: (data: VolumeInsert[]) => Promise<{ error: Error | null }>
-      }
-
-      if (mode === "replace") {
-        await volumesTable.delete().eq("user_id", user.id)
-        await seriesTable.delete().eq("user_id", user.id)
-      }
-
+      const seriesPairs: SeriesPair[] = []
       for (const s of preview.data) {
-        await importSeriesWithVolumes(s, user.id, seriesTable, volumesTable)
+        const insert = sanitizeSeriesImport(s, user.id)
+        if (insert) seriesPairs.push({ insert, original: s })
       }
 
-      toast.success(
-        `Imported ${preview.seriesCount} series with ${preview.volumeCount} volumes`
-      )
+      if (seriesPairs.length === 0) {
+        toast.success("No valid series to import")
+        return
+      }
 
+      const message =
+        mode === "replace"
+          ? await importReplace(
+              seriesPairs,
+              user.id,
+              seriesTable,
+              volumesTable,
+              onPhase
+            )
+          : await importMerge(
+              seriesPairs,
+              user.id,
+              seriesTable,
+              volumesTable,
+              onPhase
+            )
+
+      setImportPhases((prev) =>
+        prev.map((p) => ({ ...p, status: "complete" as const }))
+      )
+      setResultMessage(message)
+      toast.success(message)
       setPreview(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to import data")
+      setImportPhases([])
     } finally {
       setIsImporting(false)
     }
@@ -466,6 +762,10 @@ export function JsonImport() {
           {isImporting ? "Importing..." : "Import"}
         </Button>
       </div>
+
+      {importPhases.length > 0 && (
+        <ImportProgress phases={importPhases} resultMessage={resultMessage} />
+      )}
     </div>
   )
 }
