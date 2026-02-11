@@ -331,7 +331,11 @@ const SeriesInsightsPanel = ({
             <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
               <div
                 className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
-                style={{ width: `${insights.collectionPercent}%` }}
+                style={
+                  {
+                    "--target-width": `${insights.collectionPercent}%`
+                  } as React.CSSProperties
+                }
               />
             </div>
           </div>
@@ -343,7 +347,11 @@ const SeriesInsightsPanel = ({
             <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
               <div
                 className="progress-animate from-primary to-gold h-full rounded-full bg-linear-to-r"
-                style={{ width: `${insights.readPercent}%` }}
+                style={
+                  {
+                    "--target-width": `${insights.readPercent}%`
+                  } as React.CSSProperties
+                }
               />
             </div>
           </div>
@@ -995,7 +1003,7 @@ export default function SeriesDetailPage() {
 
             {/* Stats strip */}
             <div className="animate-fade-in-up stagger-1 mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-6">
-              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Volumes
                 </span>
@@ -1007,7 +1015,7 @@ export default function SeriesDetailPage() {
                 </div>
                 <div className="text-muted-foreground text-[10px]">owned</div>
               </div>
-              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Reading
                 </span>
@@ -1021,7 +1029,7 @@ export default function SeriesDetailPage() {
                   {insights.readPercent}% complete
                 </div>
               </div>
-              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Total Spent
                 </span>
@@ -1032,7 +1040,7 @@ export default function SeriesDetailPage() {
                   {insights.pricedVolumes} priced
                 </div>
               </div>
-              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Avg Price
                 </span>
@@ -1045,7 +1053,7 @@ export default function SeriesDetailPage() {
                   per volume
                 </div>
               </div>
-              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Pages
                 </span>
@@ -1056,7 +1064,7 @@ export default function SeriesDetailPage() {
                 </div>
                 <div className="text-muted-foreground text-[10px]">total</div>
               </div>
-              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Wishlist
                 </span>

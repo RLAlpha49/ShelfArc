@@ -335,7 +335,7 @@ export function BulkScrapeDialog({
                   {MODE_OPTIONS.map((opt) => (
                     <div
                       key={opt.value}
-                      className={`border-border/60 bg-card/70 hover:bg-accent/40 flex items-start gap-3 rounded-xl border px-3 py-2.5 transition ${
+                      className={`border-border/60 bg-card/70 hover:bg-accent/60 flex items-start gap-3 rounded-xl border px-3 py-2.5 transition ${
                         mode === opt.value ? "ring-primary/40 ring-2" : ""
                       }`}
                     >
@@ -419,7 +419,11 @@ export function BulkScrapeDialog({
               <div className="bg-primary/10 h-2.5 overflow-hidden rounded-full">
                 <div
                   className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
-                  style={{ width: `${progressPercent}%` }}
+                  style={
+                    {
+                      "--target-width": `${progressPercent}%`
+                    } as React.CSSProperties
+                  }
                 />
               </div>
 

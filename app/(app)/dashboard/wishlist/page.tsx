@@ -165,7 +165,7 @@ export default function WishlistPage() {
                 <Link
                   key={v.id}
                   href={`/library/volume/${v.id}`}
-                  className="bg-card group hover:bg-accent/40 flex items-center justify-between p-4 transition-colors"
+                  className="bg-card group hover:bg-accent/60 flex items-center justify-between p-4 transition-colors"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">

@@ -274,7 +274,7 @@ export function LibraryToolbar({
 
             {/* Sort */}
             <DropdownMenu>
-              <DropdownMenuTrigger className="focus-visible:ring-ring bg-background border-input hover:bg-accent inline-flex h-9 items-center justify-center rounded-xl border px-3 text-xs font-medium shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
+              <DropdownMenuTrigger className="focus-visible:ring-ring bg-background border-input hover:bg-accent inline-flex h-9 items-center justify-center rounded-xl border px-3 text-xs font-medium shadow-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -467,10 +467,10 @@ export function LibraryToolbar({
             {/* Collection View */}
             <div className="border-input flex items-center overflow-hidden rounded-xl border">
               <button
-                className={`px-2.5 py-1.5 text-xs transition-colors ${
+                className={`px-2.5 py-1.5 text-xs transition-all ${
                   collectionView === "series"
                     ? "bg-primary text-primary-foreground font-medium"
-                    : "hover:bg-accent"
+                    : "hover:bg-accent hover:text-foreground"
                 }`}
                 onClick={() => setCollectionView("series")}
                 aria-label="Series view"
@@ -479,10 +479,10 @@ export function LibraryToolbar({
                 Series
               </button>
               <button
-                className={`px-2.5 py-1.5 text-xs transition-colors ${
+                className={`px-2.5 py-1.5 text-xs transition-all ${
                   collectionView === "volumes"
                     ? "bg-primary text-primary-foreground font-medium"
-                    : "hover:bg-accent"
+                    : "hover:bg-accent hover:text-foreground"
                 }`}
                 onClick={() => setCollectionView("volumes")}
                 aria-label="Volumes view"
@@ -505,10 +505,10 @@ export function LibraryToolbar({
                   return (
                     <button
                       key={size}
-                      className={`px-2 py-1.5 text-xs transition-colors ${
+                      className={`px-2 py-1.5 text-xs transition-all ${
                         cardSize === size
                           ? "bg-primary text-primary-foreground font-medium"
-                          : "hover:bg-accent"
+                          : "hover:bg-accent hover:text-foreground"
                       }`}
                       onClick={() => setCardSize(size)}
                       aria-label={`${size} card size`}
@@ -524,7 +524,7 @@ export function LibraryToolbar({
             {/* View Toggle */}
             <div className="border-input flex items-center overflow-hidden rounded-xl border">
               <button
-                className={`p-1.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                className={`p-1.5 transition-all ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-foreground"}`}
                 onClick={() => setViewMode("grid")}
                 aria-label="Grid view"
                 type="button"
@@ -546,7 +546,7 @@ export function LibraryToolbar({
                 </svg>
               </button>
               <button
-                className={`p-1.5 transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                className={`p-1.5 transition-all ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-foreground"}`}
                 onClick={() => setViewMode("list")}
                 aria-label="List view"
                 type="button"

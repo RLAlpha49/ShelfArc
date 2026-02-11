@@ -104,10 +104,10 @@ export function Header({ user }: HeaderProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "relative flex items-center gap-1.5 px-3 py-1.5 text-sm transition-all duration-200 active:scale-[0.97]",
+                  "relative flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-all duration-200 active:scale-[0.97]",
                   pathname === item.href
                     ? "text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-sm"
                 )}
               >
                 <span className="transition-transform duration-200 group-hover:scale-110">
@@ -188,13 +188,13 @@ export function Header({ user }: HeaderProps) {
             <div className="flex items-center gap-1.5">
               <Link
                 href="/login"
-                className="text-muted-foreground hover:text-foreground inline-flex h-8 items-center justify-center px-3 text-sm font-medium transition-colors"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-medium transition-all hover:shadow-sm"
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-8 items-center justify-center rounded-md px-3.5 text-sm font-medium transition-colors"
+                className="bg-primary text-primary-foreground hover:bg-primary/80 inline-flex h-8 items-center justify-center rounded-md px-3.5 text-sm font-medium transition-all hover:shadow-md"
               >
                 Get Started
               </Link>

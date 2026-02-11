@@ -65,7 +65,7 @@ export function SeriesCard({
     <div className="card-hover hover-lift group relative h-full w-full">
       <button
         type="button"
-        className={`press-effect bg-card hover:bg-accent/40 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`press-effect bg-card hover:bg-accent/50 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-all hover:shadow-lg ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
@@ -78,7 +78,7 @@ export function SeriesCard({
               onCheckedChange={() => onSelect?.()}
               onClick={(event) => event.stopPropagation()}
               aria-label={`Select ${series.title}`}
-              className="h-4 w-4"
+              className="h-5 w-5 border-2"
             />
           </div>
         )}
@@ -126,7 +126,11 @@ export function SeriesCard({
             <div className="bg-primary/10 mt-2.5 h-1.5 w-full overflow-hidden rounded-full">
               <div
                 className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
-                style={{ width: `${(ownedVolumes / totalVolumes) * 100}%` }}
+                style={
+                  {
+                    "--target-width": `${(ownedVolumes / totalVolumes) * 100}%`
+                  } as React.CSSProperties
+                }
               />
             </div>
           )}
@@ -162,10 +166,10 @@ export function SeriesCard({
         </div>
       </button>
 
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 overflow-hidden opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
         <button
           type="button"
-          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
           onClick={(event) => {
             event.stopPropagation()
             onEdit()
@@ -176,7 +180,7 @@ export function SeriesCard({
         </button>
         <button
           type="button"
-          className="bg-background/80 hover:bg-destructive/10 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          className="bg-background/80 hover:bg-destructive/15 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
           onClick={(event) => {
             event.stopPropagation()
             onDelete()

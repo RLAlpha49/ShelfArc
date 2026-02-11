@@ -105,6 +105,7 @@ export function SidebarNav({
   const router = useRouter()
   const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)
   const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed)
+  const hydrated = useSettingsStore((s) => s._hydrated)
   const collapsed = collapsedProp ?? sidebarCollapsed
   const setCollapsed = onCollapsedChange ?? setSidebarCollapsed
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -117,7 +118,7 @@ export function SidebarNav({
         <button
           type="button"
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="hover:bg-accent mr-3 inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+          className="hover:bg-accent mr-3 inline-flex h-9 w-9 items-center justify-center rounded-lg transition-all hover:shadow-sm"
           aria-label="Toggle navigation"
         >
           <svg
@@ -175,7 +176,10 @@ export function SidebarNav({
       {/* Sidebar */}
       <aside
         className={cn(
-          "bg-sidebar fixed top-0 left-0 z-50 flex h-screen flex-col border-r transition-[width,transform] duration-300 ease-in-out",
+          "bg-sidebar fixed top-0 left-0 z-50 flex h-screen flex-col border-r",
+          hydrated
+            ? "transition-[width,transform] duration-300 ease-in-out"
+            : "transition-transform duration-300 ease-in-out",
           collapsed ? "w-17" : "w-60",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
@@ -228,7 +232,7 @@ export function SidebarNav({
                     "group relative flex items-center justify-start gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.97]",
                     isActive
                       ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-sm"
                   )}
                 >
                   {isActive && (
@@ -268,7 +272,7 @@ export function SidebarNav({
               type="button"
               onClick={() => setCollapsed(!collapsed)}
               className={cn(
-                "text-muted-foreground hover:text-foreground hover:bg-accent hidden h-8 w-8 items-center justify-center rounded-lg transition-colors md:inline-flex",
+                "text-muted-foreground hover:text-foreground hover:bg-accent hidden h-8 w-8 items-center justify-center rounded-lg transition-all hover:shadow-sm md:inline-flex",
                 collapsed ? "self-start" : "ml-auto"
               )}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}

@@ -16,6 +16,8 @@ export type SearchSource = "google_books" | "open_library"
 
 /** Combined settings state and actions for the settings Zustand store. @source */
 interface SettingsState {
+  // Hydration
+  _hydrated: boolean
   // Library display
   showReadingProgress: boolean
   showSeriesProgressBar: boolean
@@ -70,6 +72,9 @@ export const BODY_FONT_MAP: Record<BodyFont, string> = {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
+      // Hydration
+      _hydrated: false,
+
       // Library display
       showReadingProgress: true,
       showSeriesProgressBar: true,
@@ -108,6 +113,9 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "shelfarc-settings",
+      onRehydrateStorage: () => () => {
+        useSettingsStore.setState({ _hydrated: true })
+      },
       partialize: (state) => ({
         showReadingProgress: state.showReadingProgress,
         showSeriesProgressBar: state.showSeriesProgressBar,

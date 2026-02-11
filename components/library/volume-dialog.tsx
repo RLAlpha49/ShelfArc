@@ -356,7 +356,7 @@ function SeriesPicker({
                     onClick={() => handleSeriesSelection(null)}
                     disabled={seriesSelectionDisabled}
                     className={cn(
-                      "group bg-card/70 hover:bg-accent/40 border-border/60 flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition",
+                      "group bg-card/70 hover:bg-accent/60 border-border/60 flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition",
                       selectedSeriesId === null && "ring-primary/40 ring-2",
                       seriesSelectionDisabled && "cursor-not-allowed opacity-60"
                     )}
@@ -403,7 +403,7 @@ function SeriesPicker({
                       onClick={() => handleSeriesSelection(series.id)}
                       disabled={seriesSelectionDisabled}
                       className={cn(
-                        "group bg-card/70 hover:bg-accent/40 border-border/60 flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition",
+                        "group bg-card/70 hover:bg-accent/60 border-border/60 flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition",
                         selected && "ring-primary/40 ring-2",
                         seriesSelectionDisabled &&
                           "cursor-not-allowed opacity-60"

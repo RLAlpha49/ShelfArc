@@ -79,7 +79,7 @@ const VolumeStatsStrip = ({
   purchaseDateLabel
 }: VolumeStatsStripProps) => (
   <div className="animate-fade-in-up grid-stagger mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-4">
-    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Progress
       </span>
@@ -103,7 +103,11 @@ const VolumeStatsStrip = ({
           <div className="bg-primary/10 mx-auto mt-1 h-1.5 w-full max-w-16 overflow-hidden rounded-full">
             <div
               className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
-              style={{ width: `${readingProgress.percent}%` }}
+              style={
+                {
+                  "--target-width": `${readingProgress.percent}%`
+                } as React.CSSProperties
+              }
             />
           </div>
         </>
@@ -112,7 +116,7 @@ const VolumeStatsStrip = ({
         <div className="text-muted-foreground text-[10px]">pages</div>
       )}
     </div>
-    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Rating
       </span>
@@ -134,7 +138,7 @@ const VolumeStatsStrip = ({
           : "not rated"}
       </div>
     </div>
-    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Format
       </span>
@@ -143,7 +147,7 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">type</div>
     </div>
-    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Edition
       </span>
@@ -152,7 +156,7 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">release</div>
     </div>
-    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Price
       </span>
@@ -163,7 +167,7 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">purchase</div>
     </div>
-    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Purchased
       </span>
@@ -172,7 +176,7 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">date</div>
     </div>
-    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Published
       </span>
@@ -181,7 +185,7 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">date</div>
     </div>
-    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         ISBN
       </span>

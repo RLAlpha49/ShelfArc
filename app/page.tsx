@@ -329,7 +329,7 @@ export default async function HomePage() {
               ].map((feature, featureIndex) => (
                 <div
                   key={feature.id}
-                  className="bg-card group feature-card-reveal hover:bg-accent/40 icon-hover-bob p-6 md:p-8"
+                  className="bg-card group feature-card-reveal hover:bg-accent/60 icon-hover-bob p-6 md:p-8"
                   style={{ animationDelay: `${featureIndex * 100}ms` }}
                 >
                   <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors">
