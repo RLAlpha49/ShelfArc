@@ -63,6 +63,139 @@ export const readingColors: Record<string, string> = {
   dropped: "bg-destructive/10 text-destructive"
 }
 
+/** Props for the volume stats strip component. @source */
+type VolumeStatsStripProps = {
+  readonly volume: Volume
+  readonly readingProgress: { current: number; total: number; percent: number }
+  readonly priceFormatter: Intl.NumberFormat
+  readonly publishedLabel: string
+  readonly purchaseDateLabel: string
+}
+
+/** Grid of volume metrics displayed below the header. @source */
+const VolumeStatsStrip = ({
+  volume,
+  readingProgress,
+  priceFormatter,
+  publishedLabel,
+  purchaseDateLabel
+}: VolumeStatsStripProps) => (
+  <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-4">
+    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+      <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        Progress
+      </span>
+      <div className="font-display text-xl font-bold">
+        {readingProgress.total > 0 ? (
+          <>
+            {readingProgress.current}
+            <span className="text-muted-foreground text-sm font-normal">
+              /{readingProgress.total}
+            </span>
+          </>
+        ) : (
+          "—"
+        )}
+      </div>
+      {readingProgress.total > 0 && (
+        <>
+          <div className="text-muted-foreground text-[10px]">
+            {readingProgress.percent}% read
+          </div>
+          <div className="bg-primary/10 mx-auto mt-1 h-1.5 w-full max-w-16 overflow-hidden rounded-full">
+            <div
+              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all"
+              style={{ width: `${readingProgress.percent}%` }}
+            />
+          </div>
+        </>
+      )}
+      {readingProgress.total === 0 && (
+        <div className="text-muted-foreground text-[10px]">pages</div>
+      )}
+    </div>
+    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+      <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        Rating
+      </span>
+      <div className="font-display text-xl font-bold">
+        {volume.rating !== null && volume.rating !== undefined ? (
+          <>
+            {volume.rating}
+            <span className="text-muted-foreground text-sm font-normal">
+              /10
+            </span>
+          </>
+        ) : (
+          "—"
+        )}
+      </div>
+      <div className="text-muted-foreground text-[10px]">
+        {volume.rating !== null && volume.rating !== undefined
+          ? `${"★".repeat(Math.round(volume.rating / 2))}${"☆".repeat(5 - Math.round(volume.rating / 2))}`
+          : "not rated"}
+      </div>
+    </div>
+    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+      <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        Format
+      </span>
+      <div className="font-display text-xl font-bold">
+        {volume.format ?? "—"}
+      </div>
+      <div className="text-muted-foreground text-[10px]">type</div>
+    </div>
+    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+      <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        Edition
+      </span>
+      <div className="font-display text-xl font-bold">
+        {volume.edition ?? "—"}
+      </div>
+      <div className="text-muted-foreground text-[10px]">release</div>
+    </div>
+    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+      <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        Price
+      </span>
+      <div className="font-display text-xl font-bold">
+        {volume.purchase_price !== null &&
+        volume.purchase_price !== undefined
+          ? priceFormatter.format(volume.purchase_price)
+          : "—"}
+      </div>
+      <div className="text-muted-foreground text-[10px]">purchase</div>
+    </div>
+    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+      <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        Purchased
+      </span>
+      <div className="font-display text-lg font-bold">
+        {purchaseDateLabel || "—"}
+      </div>
+      <div className="text-muted-foreground text-[10px]">date</div>
+    </div>
+    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+      <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        Published
+      </span>
+      <div className="font-display text-lg font-bold">
+        {publishedLabel || "—"}
+      </div>
+      <div className="text-muted-foreground text-[10px]">date</div>
+    </div>
+    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+      <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+        ISBN
+      </span>
+      <div className="font-display break-all text-sm font-bold">
+        {volume.isbn ?? "—"}
+      </div>
+      <div className="text-muted-foreground text-[10px]">identifier</div>
+    </div>
+  </div>
+)
+
 /**
  * Volume detail page displaying cover, metadata, description, and editing controls.
  * @source
@@ -173,6 +306,15 @@ export default function VolumeDetailPage() {
     [currentVolume?.description]
   )
 
+  const readingProgress = useMemo(() => {
+    if (!currentVolume) return { current: 0, total: 0, percent: 0 }
+    const current = currentVolume.current_page ?? 0
+    const total = currentVolume.page_count ?? 0
+    if (total === 0) return { current, total, percent: 0 }
+    const percent = Math.round((current / total) * 100)
+    return { current, total, percent }
+  }, [currentVolume])
+
   if (isLoading && !currentVolume) {
     return (
       <div className="relative px-6 py-8 lg:px-10">
@@ -239,43 +381,26 @@ export default function VolumeDetailPage() {
       show: true
     },
     {
-      label: "ISBN",
-      value: currentVolume.isbn,
-      show: Boolean(currentVolume.isbn)
+      label: "Pages",
+      value: currentVolume.page_count?.toLocaleString() ?? "—",
+      show: true
     },
+    { label: "Started", value: startedLabel || "—", show: Boolean(startedLabel) },
+    { label: "Finished", value: finishedLabel || "—", show: Boolean(finishedLabel) },
     {
-      label: "Edition",
-      value: currentVolume.edition,
-      show: Boolean(currentVolume.edition)
+      label: "Amazon",
+      value: currentVolume.amazon_url ? (
+        <a
+          href={currentVolume.amazon_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground hover:text-primary"
+        >
+          View ↗
+        </a>
+      ) : null,
+      show: Boolean(currentVolume.amazon_url)
     },
-    {
-      label: "Format",
-      value: currentVolume.format,
-      show: Boolean(currentVolume.format)
-    },
-    {
-      label: "Published",
-      value: publishedLabel,
-      show: Boolean(publishedLabel)
-    },
-    {
-      label: "Purchased",
-      value: purchaseDateLabel,
-      show: Boolean(purchaseDateLabel)
-    },
-    {
-      label: "Price",
-      value:
-        currentVolume.purchase_price !== null &&
-        currentVolume.purchase_price !== undefined
-          ? priceFormatter.format(currentVolume.purchase_price)
-          : null,
-      show:
-        currentVolume.purchase_price !== null &&
-        currentVolume.purchase_price !== undefined
-    },
-    { label: "Started", value: startedLabel, show: Boolean(startedLabel) },
-    { label: "Finished", value: finishedLabel, show: Boolean(finishedLabel) },
     { label: "Added", value: addedLabel || "—", show: true },
     { label: "Updated", value: updatedLabel || "—", show: true }
   ]
@@ -327,150 +452,150 @@ export default function VolumeDetailPage() {
         <span className="font-medium">{breadcrumbLabel}</span>
       </nav>
 
-      <div className="mb-8 grid items-start gap-6 lg:grid-cols-12">
-        <div className="animate-fade-in-up lg:col-span-8">
-          <span className="text-muted-foreground mb-2 block text-xs tracking-widest uppercase">
-            {currentVolume.isbn
-              ? `ISBN ${currentVolume.isbn}`
-              : "Volume Details"}
-          </span>
-          <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-            {heading}
-          </h1>
-        </div>
-        <div className="animate-fade-in-up stagger-2 flex items-start justify-end gap-2 lg:col-span-4">
-          <Button
-            variant="outline"
-            onClick={openEditDialog}
-            className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
-          >
-            Edit Volume
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => setDeleteDialogOpen(true)}
-            className="rounded-xl shadow-sm"
-          >
-            Delete Volume
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-5">
-          <div className="relative">
-            <div className="absolute -inset-4 rounded-3xl bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)]" />
-            <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-2xl shadow-lg">
-              <CoverImage
-                isbn={currentVolume.isbn}
-                coverImageUrl={currentVolume.cover_image_url}
-                alt={heading}
-                className="absolute inset-0 h-full w-full object-cover"
-                loading="eager"
-                decoding="async"
-                fetchPriority="high"
-                fallback={
-                  <div className="flex h-full items-center justify-center">
-                    <span className="text-muted-foreground/40 text-4xl font-semibold">
-                      {currentVolume.volume_number}
-                    </span>
-                  </div>
-                }
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 lg:col-span-7">
-          <div className="flex flex-wrap gap-2">
-            <Badge
-              variant="secondary"
-              className={`text-xs ${ownershipColors[currentVolume.ownership_status]}`}
-            >
-              {currentVolume.ownership_status}
-            </Badge>
-            <Badge
-              variant="secondary"
-              className={`text-xs ${readingColors[currentVolume.reading_status]}`}
-            >
-              {formatReadingStatus(currentVolume.reading_status)}
-            </Badge>
-            {currentVolume.rating && (
-              <Badge variant="outline">Rating {currentVolume.rating}/10</Badge>
-            )}
-          </div>
-
-          <div className="glass-card flex items-center divide-x rounded-2xl">
-            <div className="flex-1 px-5 py-4 text-center">
-              <div className="font-display text-primary text-2xl font-bold">
-                {currentVolume.page_count ?? "—"}
-              </div>
-              <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                Pages
+      {/* Series-style header + content */}
+      <div className="relative mb-10">
+        <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-[radial-gradient(ellipse_at_30%_50%,var(--warm-glow-strong),transparent_70%)]" />
+        <div className="animate-fade-in-up grid grid-cols-1 gap-8 lg:grid-cols-12">
+          {/* Cover */}
+          <div className="lg:col-span-4">
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-3xl bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)]" />
+              <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-2xl shadow-lg">
+                <CoverImage
+                  isbn={currentVolume.isbn}
+                  coverImageUrl={currentVolume.cover_image_url}
+                  alt={heading}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                  fallback={
+                    <div className="flex h-full items-center justify-center">
+                      <span className="text-muted-foreground/40 text-4xl font-semibold">
+                        {currentVolume.volume_number}
+                      </span>
+                    </div>
+                  }
+                />
               </div>
             </div>
-            {currentVolume.rating && (
-              <div className="flex-1 px-5 py-4 text-center">
-                <div className="font-display text-primary text-2xl font-bold">
-                  {currentVolume.rating}/10
+          </div>
+
+          {/* Info */}
+          <div className="space-y-4 lg:col-span-8">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="secondary"
+                    className={`text-xs ${ownershipColors[currentVolume.ownership_status]}`}
+                  >
+                    {currentVolume.ownership_status}
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className={`text-xs ${readingColors[currentVolume.reading_status]}`}
+                  >
+                    {formatReadingStatus(currentVolume.reading_status)}
+                  </Badge>
+                  {currentVolume.format && (
+                    <Badge variant="outline">{currentVolume.format}</Badge>
+                  )}
                 </div>
-                <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                  Rating
-                </div>
+                <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+                  {heading}
+                </h1>
+                {currentSeries && (
+                  <p className="text-muted-foreground mt-1 text-lg">
+                    from{" "}
+                    <Link
+                      href={`/library/series/${currentSeries.id}`}
+                      className="text-foreground hover:text-primary font-medium"
+                    >
+                      {currentSeries.title}
+                    </Link>
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={openEditDialog}
+                  className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+                >
+                  Edit Volume
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="rounded-xl shadow-sm"
+                >
+                  Delete Volume
+                </Button>
+              </div>
+            </div>
+
+            {/* Stats strip */}
+            <VolumeStatsStrip
+              volume={currentVolume}
+              readingProgress={readingProgress}
+              priceFormatter={priceFormatter}
+              publishedLabel={publishedLabel}
+              purchaseDateLabel={purchaseDateLabel}
+            />
+
+            {/* Details panel */}
+            <div className="glass-card rounded-2xl p-5">
+              <span className="text-muted-foreground text-xs tracking-widest uppercase">
+                Details
+              </span>
+              <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+                {detailItems
+                  .filter((item) => item.show)
+                  .map((item) => (
+                    <div key={item.label}>
+                      <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+                        {item.label}
+                      </dt>
+                      <dd className="font-medium">{item.value}</dd>
+                    </div>
+                  ))}
+              </dl>
+            </div>
+
+            {/* Description */}
+            {descriptionHtml && (
+              <div className="border-border/60 bg-card/60 rounded-2xl border p-5">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  About
+                </span>
+                <h2 className="font-display mt-2 text-lg font-semibold tracking-tight">
+                  Description
+                </h2>
+                <div
+                  className="text-muted-foreground mt-2"
+                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                />
+              </div>
+            )}
+
+            {/* Notes */}
+            {currentVolume.notes && (
+              <div className="border-border/60 bg-card/60 rounded-2xl border p-5">
+                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+                  Personal
+                </span>
+                <h2 className="font-display mt-2 text-lg font-semibold tracking-tight">
+                  Notes
+                </h2>
+                <p className="text-muted-foreground mt-2 whitespace-pre-line">
+                  {currentVolume.notes}
+                </p>
               </div>
             )}
           </div>
-
-          <div className="glass-card rounded-2xl p-5">
-            <span className="text-muted-foreground text-xs tracking-widest uppercase">
-              Details
-            </span>
-            <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-              {detailItems
-                .filter((item) => item.show)
-                .map((item) => (
-                  <div key={item.label}>
-                    <dt className="text-muted-foreground text-xs tracking-widest uppercase">
-                      {item.label}
-                    </dt>
-                    <dd className="font-medium">{item.value}</dd>
-                  </div>
-                ))}
-            </dl>
-          </div>
         </div>
       </div>
-
-      <div className="my-10 border-t" />
-
-      {descriptionHtml && (
-        <div className="space-y-2">
-          <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
-            About
-          </span>
-          <h2 className="font-display text-xl font-semibold tracking-tight">
-            Description
-          </h2>
-          <div
-            className="text-muted-foreground"
-            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-          />
-        </div>
-      )}
-
-      {currentVolume.notes && (
-        <div className="mt-8 space-y-2 border-t pt-8">
-          <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
-            Personal
-          </span>
-          <h2 className="font-display text-xl font-semibold tracking-tight">
-            Notes
-          </h2>
-          <p className="text-muted-foreground whitespace-pre-line">
-            {currentVolume.notes}
-          </p>
-        </div>
-      )}
 
       <VolumeDialog
         open={volumeDialogOpen}
