@@ -877,7 +877,7 @@ export default function DashboardPage() {
                   ? recentSeries.length > 0
                   : recentVolumes.length > 0) && (
                   <Link
-                    href="/library"
+                    href="/dashboard/recent"
                     className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
                   >
                     View all
@@ -908,10 +908,10 @@ export default function DashboardPage() {
               </div>
               {suggestedNextBuys.length > 0 && (
                 <Link
-                  href="/library"
+                  href="/dashboard/suggestions"
                   className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
                 >
-                  Browse library
+                  View all
                 </Link>
               )}
             </div>
@@ -1327,10 +1327,12 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="text-muted-foreground/60 pt-1 text-center text-[10px]">
-                  {priceBreakdown.trackedCount} of {totalVolumes} volumes
-                  tracked
-                </div>
+                <Link
+                  href="/dashboard/tracked"
+                  className="text-primary hover:text-primary/80 block pt-1 text-center text-xs font-medium transition-colors"
+                >
+                  {priceBreakdown.trackedCount} of {totalVolumes} volumes tracked
+                </Link>
               </div>
             )}
           </div>
@@ -1442,10 +1444,12 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="text-muted-foreground/60 pt-1 text-center text-[10px]">
-                  {wishlistStats.wishlistPricedCount} of {wishlistCount} volumes
-                  priced
-                </div>
+                <Link
+                  href="/dashboard/wishlist"
+                  className="text-primary hover:text-primary/80 block pt-1 text-center text-xs font-medium transition-colors"
+                >
+                  {wishlistStats.wishlistPricedCount} of {wishlistCount} volumes priced
+                </Link>
               </div>
             )}
           </div>
