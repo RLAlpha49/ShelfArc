@@ -1226,6 +1226,20 @@ export function useLibrary() {
 
         const sanitizedData = buildSanitizedVolumeInsert(data)
 
+        if (!sanitizedData.format && seriesId) {
+          const parentSeries = useLibraryStore
+            .getState()
+            .series.find((s) => s.id === seriesId)
+          if (parentSeries) {
+            const formatFromType: Record<string, string> = {
+              light_novel: "Light Novel",
+              manga: "Manga"
+            }
+            sanitizedData.format =
+              formatFromType[parentSeries.type] ?? null
+          }
+        }
+
         const payload = {
           ...normalizeVolumeDates(sanitizedData),
           series_id: seriesId,

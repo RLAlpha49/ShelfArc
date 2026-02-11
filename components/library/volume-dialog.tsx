@@ -675,10 +675,15 @@ export function VolumeDialog({
     } else {
       setFormData({
         ...defaultFormData,
-        volume_number: nextVolumeNumber
+        volume_number: nextVolumeNumber,
+        format: (() => {
+          if (selectedSeriesOption?.type === "light_novel") return "Light Novel"
+          if (selectedSeriesOption?.type === "manga") return "Manga"
+          return ""
+        })()
       })
     }
-  }, [open, volume, nextVolumeNumber])
+  }, [open, volume, nextVolumeNumber, selectedSeriesOption?.type])
 
   useEffect(() => {
     isMountedRef.current = true
