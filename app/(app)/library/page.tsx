@@ -10,6 +10,7 @@ import { LibraryToolbar } from "@/components/library/library-toolbar"
 import { VolumeCard } from "@/components/library/volume-card"
 import { CoverImage } from "@/components/library/cover-image"
 import { EmptyState } from "@/components/empty-state"
+import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useLibrary } from "@/lib/hooks/use-library"
@@ -62,6 +63,28 @@ function getGridClasses(cardSize: CardSize): string {
     default:
       return "grid items-stretch grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
   }
+}
+
+/** Badge color mapping per series title type. @source */
+const SERIES_TYPE_COLORS: Record<TitleType, string> = {
+  light_novel: "bg-gold/10 text-gold",
+  manga: "bg-copper/10 text-copper",
+  other: "bg-muted text-muted-foreground"
+}
+
+/** Badge color mapping per reading status. @source */
+const READING_STATUS_COLORS: Record<ReadingStatus, string> = {
+  unread: "bg-muted text-muted-foreground",
+  reading: "bg-primary/10 text-primary",
+  completed: "bg-copper/10 text-copper",
+  on_hold: "bg-gold/10 text-gold",
+  dropped: "bg-destructive/10 text-destructive"
+}
+
+/** Badge color mapping per ownership status. @source */
+const OWNERSHIP_STATUS_COLORS: Record<OwnershipStatus, string> = {
+  owned: "bg-copper/10 text-copper",
+  wishlist: "bg-gold/10 text-gold"
 }
 
 /**
@@ -126,6 +149,9 @@ function SeriesListItem({
   const ownedCount = series.volumes.filter(
     (v) => v.ownership_status === "owned"
   ).length
+  const readCount = series.volumes.filter(
+    (v) => v.reading_status === "completed"
+  ).length
   const totalCount = series.total_volumes || series.volumes.length
   const { primaryIsbn, volumeFallbackUrl } = useMemo(() => {
     const primaryVolume = series.volumes.find((volume) => volume.isbn)
@@ -139,12 +165,13 @@ function SeriesListItem({
     }
   }, [series.volumes])
   const showSelection = Boolean(onSelect)
+  const showSeriesProgressBar = useSettingsStore((s) => s.showSeriesProgressBar)
 
   return (
     <div className="group relative">
       <button
         type="button"
-        className={`group glass-card hover:bg-accent flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`group glass-card hover:bg-accent flex w-full cursor-pointer items-start gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
@@ -161,7 +188,7 @@ function SeriesListItem({
             />
           </div>
         )}
-        <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-xl">
+        <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-xl">
           <CoverImage
             isbn={primaryIsbn}
             coverImageUrl={series.cover_image_url}
@@ -187,14 +214,49 @@ function SeriesListItem({
           />
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-display truncate font-medium">{series.title}</h3>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <h3 className="font-display min-w-0 truncate font-medium">{series.title}</h3>
+            <Badge
+              variant="secondary"
+              className={`shrink-0 rounded-lg text-xs ${SERIES_TYPE_COLORS[series.type] ?? SERIES_TYPE_COLORS.other}`}
+            >
+              {series.type === "light_novel" && "LN"}
+              {series.type === "manga" && "Manga"}
+              {series.type === "other" && "Other"}
+            </Badge>
+          </div>
           <p className="text-muted-foreground truncate text-sm">
             {series.author || "Unknown Author"}
           </p>
+          {series.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {series.tags.slice(0, 3).map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="border-primary/15 rounded-lg text-xs"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="text-muted-foreground text-sm">
-          {ownedCount}/{totalCount} volumes
+        <div className="hidden shrink-0 space-y-2 text-right sm:block">
+          <div className="text-muted-foreground flex items-center justify-end gap-3 text-xs">
+            <span>{ownedCount}/{totalCount} owned</span>
+            <span className="bg-border h-3 w-px" />
+            <span>{readCount} read</span>
+          </div>
+          {showSeriesProgressBar && totalCount > 0 && (
+            <div className="bg-primary/10 ml-auto h-1.5 w-24 overflow-hidden rounded-full">
+              <div
+                className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+                style={{ width: `${(ownedCount / totalCount) * 100}%` }}
+              />
+            </div>
+          )}
         </div>
       </button>
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
@@ -355,16 +417,43 @@ function VolumeGridItem({
             </div>
           )}
         </div>
-        <div className="mt-2.5 space-y-1 px-1 pb-2">
+        <div className="mt-2.5 space-y-1.5 px-1 pb-2">
           <p className="font-display line-clamp-1 font-medium">
             {item.series.title}
           </p>
-          <p className="text-muted-foreground line-clamp-2 text-xs">
+          <p className="text-muted-foreground line-clamp-1 text-xs">
             Vol. {item.volume.volume_number}
             {item.volume.title
               ? ` • ${normalizeVolumeTitle(item.volume.title)}`
               : ""}
           </p>
+          <div className="flex flex-wrap gap-1">
+            <Badge
+              variant="secondary"
+              className={`rounded-lg text-xs ${OWNERSHIP_STATUS_COLORS[item.volume.ownership_status] ?? "bg-muted text-muted-foreground"}`}
+            >
+              {item.volume.ownership_status}
+            </Badge>
+            <Badge
+              variant="secondary"
+              className={`rounded-lg text-xs ${READING_STATUS_COLORS[item.volume.reading_status]}`}
+            >
+              {item.volume.reading_status.replace("_", " ")}
+            </Badge>
+          </div>
+          {item.volume.rating != null && (
+            <div className="text-muted-foreground flex items-center gap-1 text-xs">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="text-gold h-3 w-3"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              {item.volume.rating}/10
+            </div>
+          )}
         </div>
       </button>
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
@@ -531,7 +620,7 @@ function VolumeListItem({
     <div className="group relative">
       <button
         type="button"
-        className={`glass-card hover:bg-accent group-hover:bg-accent relative flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4 text-left shadow-sm transition-all group-hover:-translate-y-0.5 group-hover:shadow-md hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`glass-card hover:bg-accent group-hover:bg-accent relative flex w-full cursor-pointer items-start gap-4 rounded-2xl p-4 text-left shadow-sm transition-all group-hover:-translate-y-0.5 group-hover:shadow-md hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
@@ -548,7 +637,7 @@ function VolumeListItem({
             />
           </div>
         )}
-        <div className="bg-muted relative h-16 w-12 shrink-0 overflow-hidden rounded-lg">
+        <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-xl">
           <CoverImage
             isbn={item.volume.isbn}
             coverImageUrl={item.volume.cover_image_url}
@@ -568,20 +657,68 @@ function VolumeListItem({
           />
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate font-medium">{item.series.title}</h3>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <h3 className="font-display truncate font-medium">{item.series.title}</h3>
           <p className="text-muted-foreground truncate text-sm">
             Vol. {item.volume.volume_number}
-            {item.volume.title ? ` • ${item.volume.title}` : ""}
+            {item.volume.title
+              ? ` • ${normalizeVolumeTitle(item.volume.title)}`
+              : ""}
           </p>
           {item.series.author && (
             <p className="text-muted-foreground truncate text-xs">
               {item.series.author}
             </p>
           )}
+          <div className="flex flex-wrap gap-1">
+            <Badge
+              variant="secondary"
+              className={`rounded-lg text-xs ${OWNERSHIP_STATUS_COLORS[item.volume.ownership_status] ?? "bg-muted text-muted-foreground"}`}
+            >
+              {item.volume.ownership_status}
+            </Badge>
+            <Badge
+              variant="secondary"
+              className={`rounded-lg text-xs ${READING_STATUS_COLORS[item.volume.reading_status]}`}
+            >
+              {item.volume.reading_status.replace("_", " ")}
+            </Badge>
+            {item.volume.format && (
+              <Badge
+                variant="outline"
+                className="border-primary/15 rounded-lg text-xs"
+              >
+                {item.volume.format}
+              </Badge>
+            )}
+          </div>
         </div>
-        <div className="text-muted-foreground text-xs capitalize">
-          {item.volume.ownership_status}
+        <div className="hidden shrink-0 space-y-1 text-right sm:block">
+          {item.volume.rating != null && (
+            <div className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="text-gold h-3 w-3"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              {item.volume.rating}/10
+            </div>
+          )}
+          {item.volume.reading_status === "reading" &&
+            item.volume.current_page != null &&
+            item.volume.page_count != null && (
+              <p className="text-muted-foreground text-xs">
+                p.{item.volume.current_page}/{item.volume.page_count}
+              </p>
+            )}
+          {item.volume.purchase_price != null && (
+            <p className="text-muted-foreground text-xs">
+              ${item.volume.purchase_price.toFixed(2)}
+            </p>
+          )}
         </div>
       </button>
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
