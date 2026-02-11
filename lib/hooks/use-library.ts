@@ -1235,8 +1235,7 @@ export function useLibrary() {
               light_novel: "Light Novel",
               manga: "Manga"
             }
-            sanitizedData.format =
-              formatFromType[parentSeries.type] ?? null
+            sanitizedData.format = formatFromType[parentSeries.type] ?? null
           }
         }
 

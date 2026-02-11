@@ -151,7 +151,8 @@ export default function SuggestionsPage() {
 
   const filtered = useMemo(() => {
     return allSuggestions.filter((buy) => {
-      if (formatFilter !== "all" && buy.seriesType !== formatFilter) return false
+      if (formatFilter !== "all" && buy.seriesType !== formatFilter)
+        return false
       if (priorityFilter === "gaps" && !buy.isGap) return false
       if (priorityFilter === "next" && buy.isGap) return false
       if (priorityFilter === "reading" && !buy.isReading) return false
@@ -240,7 +241,10 @@ export default function SuggestionsPage() {
           <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
             Format
           </span>
-          <Select value={formatFilter} onValueChange={(v) => setFormatFilter(v as FormatFilter)}>
+          <Select
+            value={formatFilter}
+            onValueChange={(v) => setFormatFilter(v as FormatFilter)}
+          >
             <SelectTrigger className="h-9 w-36">
               <SelectValue />
             </SelectTrigger>
@@ -257,7 +261,10 @@ export default function SuggestionsPage() {
           <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
             Priority
           </span>
-          <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as PriorityFilter)}>
+          <Select
+            value={priorityFilter}
+            onValueChange={(v) => setPriorityFilter(v as PriorityFilter)}
+          >
             <SelectTrigger className="h-9 w-40">
               <SelectValue />
             </SelectTrigger>
@@ -274,7 +281,10 @@ export default function SuggestionsPage() {
           <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
             Wishlist
           </span>
-          <Select value={wishlistFilter} onValueChange={(v) => setWishlistFilter(v as WishlistFilter)}>
+          <Select
+            value={wishlistFilter}
+            onValueChange={(v) => setWishlistFilter(v as WishlistFilter)}
+          >
             <SelectTrigger className="h-9 w-36">
               <SelectValue />
             </SelectTrigger>
@@ -305,7 +315,7 @@ export default function SuggestionsPage() {
             {priceFormatter.format(stats.totalCost)}
           </div>
         </div>
-        <div className="from-amber-500/12 to-amber-500/4 rounded-xl border bg-linear-to-br p-4">
+        <div className="rounded-xl border bg-linear-to-br from-amber-500/12 to-amber-500/4 p-4">
           <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
             Gaps
           </span>

@@ -216,7 +216,9 @@ function SeriesListItem({
         </div>
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-center gap-2">
-            <h3 className="font-display min-w-0 truncate font-medium">{series.title}</h3>
+            <h3 className="font-display min-w-0 truncate font-medium">
+              {series.title}
+            </h3>
             <Badge
               variant="secondary"
               className={`shrink-0 rounded-lg text-xs ${SERIES_TYPE_COLORS[series.type] ?? SERIES_TYPE_COLORS.other}`}
@@ -245,14 +247,16 @@ function SeriesListItem({
         </div>
         <div className="hidden shrink-0 space-y-2 text-right sm:block">
           <div className="text-muted-foreground flex items-center justify-end gap-3 text-xs">
-            <span>{ownedCount}/{totalCount} owned</span>
+            <span>
+              {ownedCount}/{totalCount} owned
+            </span>
             <span className="bg-border h-3 w-px" />
             <span>{readCount} read</span>
           </div>
           {showSeriesProgressBar && totalCount > 0 && (
             <div className="bg-primary/10 ml-auto h-1.5 w-24 overflow-hidden rounded-full">
               <div
-                className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+                className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
                 style={{ width: `${(ownedCount / totalCount) * 100}%` }}
               />
             </div>
@@ -292,8 +296,6 @@ type VolumeWithSeries = {
   volume: Volume
   series: SeriesWithVolumes
 }
-
-
 
 /** Supported Amazon binding labels for search queries. @source */
 const AMAZON_BINDING_LABELS = ["Paperback", "Kindle"] as const
@@ -658,7 +660,9 @@ function VolumeListItem({
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
         <div className="min-w-0 flex-1 space-y-1.5">
-          <h3 className="font-display truncate font-medium">{item.series.title}</h3>
+          <h3 className="font-display truncate font-medium">
+            {item.series.title}
+          </h3>
           <p className="text-muted-foreground truncate text-sm">
             Vol. {item.volume.volume_number}
             {item.volume.title
@@ -1481,7 +1485,7 @@ export default function LibraryPage() {
             </h2>
           </div>
         </div>
-        <div className={getGridClasses(cardSize)}>
+        <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
           {filteredUnassignedVolumes.map((volume) => (
             <VolumeCard
               key={volume.id}
@@ -1540,7 +1544,7 @@ export default function LibraryPage() {
           {hasAssignedVolumes &&
             (viewMode === "grid" ? (
               <div className="animate-fade-in-up">
-                <div className={getGridClasses(cardSize)}>
+                <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
                   {filteredVolumes.map((item) => (
                     <VolumeGridItem
                       key={item.volume.id}
@@ -1559,7 +1563,7 @@ export default function LibraryPage() {
               </div>
             ) : (
               <div className="animate-fade-in-up">
-                <div className="space-y-2">
+                <div className="list-stagger space-y-2">
                   {filteredVolumes.map((item) => (
                     <VolumeListItem
                       key={item.volume.id}
@@ -1615,7 +1619,7 @@ export default function LibraryPage() {
           <div className="animate-fade-in-up">
             <div className="overflow-hidden rounded-2xl">
               {" "}
-              <div className={getGridClasses(cardSize)}>
+              <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
                 {filteredSeries.map((series) => (
                   <SeriesCard
                     key={series.id}
@@ -1638,7 +1642,7 @@ export default function LibraryPage() {
     return (
       <div className="space-y-8">
         <div className="animate-fade-in-up">
-          <div className="space-y-2">
+          <div className="list-stagger space-y-2">
             {filteredSeries.map((series) => (
               <SeriesListItem
                 key={series.id}

@@ -101,10 +101,10 @@ export function VolumeCard({
     : `Search Amazon for volume ${volume.volume_number}`
 
   return (
-    <div className="group relative h-full w-full">
+    <div className="card-hover hover-lift group relative h-full w-full">
       <button
         type="button"
-        className={`group bg-card hover:bg-accent/40 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`press-effect group bg-card hover:bg-accent/40 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >

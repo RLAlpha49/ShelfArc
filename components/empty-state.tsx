@@ -25,11 +25,11 @@ export function EmptyState({
   return (
     <div className="animate-fade-in-up relative flex flex-col items-center justify-center px-4 py-24 text-center">
       {icon && (
-        <div className="from-copper/20 to-gold/20 bg-primary/10 text-primary relative mb-6 flex h-18 w-18 items-center justify-center rounded-2xl bg-linear-to-br shadow-[0_0_40px_var(--warm-glow-strong)]">
+        <div className="from-copper/20 to-gold/20 bg-primary/10 text-primary icon-float relative mb-6 flex h-18 w-18 items-center justify-center rounded-2xl bg-linear-to-br shadow-[0_0_40px_var(--warm-glow-strong)]">
           {icon}
         </div>
       )}
-      <h3 className="font-display mb-2 text-2xl font-bold tracking-tight">
+      <h3 className="font-display animate-blur-in mb-2 text-2xl font-bold tracking-tight">
         {title}
       </h3>
       <p className="text-muted-foreground mb-10 max-w-sm leading-relaxed">

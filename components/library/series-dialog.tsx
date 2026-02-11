@@ -55,8 +55,6 @@ interface SeriesDialogProps {
 /** Maximum upload size for cover images (5 MB). @source */
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 
-
-
 /** Default values for the series form fields. @source */
 const defaultFormData = {
   title: "",

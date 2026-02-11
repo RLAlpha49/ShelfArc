@@ -68,10 +68,7 @@ function SeriesList({
             <div className="text-muted-foreground mt-0.5 text-xs">
               {s.volumes.length} vol{s.volumes.length === 1 ? "" : "s"}
               {s.author && (
-                <span className="text-muted-foreground/60">
-                  {" "}
-                  · {s.author}
-                </span>
+                <span className="text-muted-foreground/60"> · {s.author}</span>
               )}
               <span className="text-muted-foreground/60">
                 {" "}
@@ -309,7 +306,10 @@ export default function RecentPage() {
           <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
             Format
           </span>
-          <Select value={formatFilter} onValueChange={(v) => setFormatFilter(v as FormatFilter)}>
+          <Select
+            value={formatFilter}
+            onValueChange={(v) => setFormatFilter(v as FormatFilter)}
+          >
             <SelectTrigger className="h-9 w-36">
               <SelectValue />
             </SelectTrigger>
@@ -326,7 +326,10 @@ export default function RecentPage() {
           <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
             Period
           </span>
-          <Select value={periodFilter} onValueChange={(v) => setPeriodFilter(v as PeriodFilter)}>
+          <Select
+            value={periodFilter}
+            onValueChange={(v) => setPeriodFilter(v as PeriodFilter)}
+          >
             <SelectTrigger className="h-9 w-36">
               <SelectValue />
             </SelectTrigger>

@@ -225,16 +225,18 @@ export function SidebarNav({
                   onClick={() => setMobileOpen(false)}
                   aria-label={collapsed ? item.label : undefined}
                   className={cn(
-                    "group relative flex items-center justify-start gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    "group relative flex items-center justify-start gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.97]",
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   )}
                 >
                   {isActive && (
-                    <span className="bg-primary absolute top-1/2 -left-3 h-5 w-1 -translate-y-1/2 rounded-r-full" />
+                    <span className="bg-primary animate-scale-in absolute top-1/2 -left-3 h-5 w-1 -translate-y-1/2 rounded-r-full" />
                   )}
-                  <span className="shrink-0">{item.icon}</span>
+                  <span className="shrink-0 transition-transform duration-200 group-hover:scale-110">
+                    {item.icon}
+                  </span>
                   <span
                     className={cn(
                       "overflow-hidden whitespace-nowrap transition-all duration-300",

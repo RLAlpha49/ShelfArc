@@ -825,7 +825,7 @@ export default function DashboardPage() {
                       {progress !== null && (
                         <div className="bg-primary/8 mt-3 h-1.5 overflow-hidden rounded-full">
                           <div
-                            className="from-primary to-gold h-full rounded-full bg-linear-to-r transition-all duration-700 ease-out"
+                            className="progress-animate from-primary to-gold h-full rounded-full bg-linear-to-r"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -1010,7 +1010,7 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid-stagger grid grid-cols-2 gap-3">
               {[
                 {
                   id: "ln",
@@ -1315,7 +1315,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="bg-primary/8 mt-1 h-1.5 overflow-hidden rounded-full">
                             <div
-                              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+                              className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
                               style={{
                                 width: `${priceBreakdown.maxSeriesSpent > 0 ? Math.round((s.total / priceBreakdown.maxSeriesSpent) * 100) : 0}%`
                               }}
@@ -1331,7 +1331,8 @@ export default function DashboardPage() {
                   href="/dashboard/tracked"
                   className="text-primary hover:text-primary/80 block pt-1 text-center text-xs font-medium transition-colors"
                 >
-                  {priceBreakdown.trackedCount} of {totalVolumes} volumes tracked
+                  {priceBreakdown.trackedCount} of {totalVolumes} volumes
+                  tracked
                 </Link>
               </div>
             )}
@@ -1432,7 +1433,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="bg-gold/10 mt-1 h-1.5 overflow-hidden rounded-full">
                             <div
-                              className="from-gold to-copper h-full rounded-full bg-linear-to-r transition-all duration-500"
+                              className="progress-animate from-gold to-copper h-full rounded-full bg-linear-to-r"
                               style={{
                                 width: `${wishlistStats.maxWishlistSeriesCount > 0 ? Math.round((s.count / wishlistStats.maxWishlistSeriesCount) * 100) : 0}%`
                               }}
@@ -1448,7 +1449,8 @@ export default function DashboardPage() {
                   href="/dashboard/wishlist"
                   className="text-primary hover:text-primary/80 block pt-1 text-center text-xs font-medium transition-colors"
                 >
-                  {wishlistStats.wishlistPricedCount} of {wishlistCount} volumes priced
+                  {wishlistStats.wishlistPricedCount} of {wishlistCount} volumes
+                  priced
                 </Link>
               </div>
             )}

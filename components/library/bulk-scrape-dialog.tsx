@@ -418,7 +418,7 @@ export function BulkScrapeDialog({
               </div>
               <div className="bg-primary/10 h-2.5 overflow-hidden rounded-full">
                 <div
-                  className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500 ease-out"
+                  className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>

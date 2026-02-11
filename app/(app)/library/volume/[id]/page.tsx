@@ -31,8 +31,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Volume, VolumeInsert } from "@/lib/types/database"
 
-
-
 /**
  * Converts a snake_case reading status to a capitalized label.
  * @param status - The raw reading status string.
@@ -80,8 +78,8 @@ const VolumeStatsStrip = ({
   publishedLabel,
   purchaseDateLabel
 }: VolumeStatsStripProps) => (
-  <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-4">
-    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+  <div className="animate-fade-in-up grid-stagger mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-4">
+    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Progress
       </span>
@@ -104,7 +102,7 @@ const VolumeStatsStrip = ({
           </div>
           <div className="bg-primary/10 mx-auto mt-1 h-1.5 w-full max-w-16 overflow-hidden rounded-full">
             <div
-              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all"
+              className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
               style={{ width: `${readingProgress.percent}%` }}
             />
           </div>
@@ -114,7 +112,7 @@ const VolumeStatsStrip = ({
         <div className="text-muted-foreground text-[10px]">pages</div>
       )}
     </div>
-    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Rating
       </span>
@@ -136,7 +134,7 @@ const VolumeStatsStrip = ({
           : "not rated"}
       </div>
     </div>
-    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Format
       </span>
@@ -145,7 +143,7 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">type</div>
     </div>
-    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Edition
       </span>
@@ -154,19 +152,18 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">release</div>
     </div>
-    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Price
       </span>
       <div className="font-display text-xl font-bold">
-        {volume.purchase_price !== null &&
-        volume.purchase_price !== undefined
+        {volume.purchase_price !== null && volume.purchase_price !== undefined
           ? priceFormatter.format(volume.purchase_price)
           : "—"}
       </div>
       <div className="text-muted-foreground text-[10px]">purchase</div>
     </div>
-    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Purchased
       </span>
@@ -175,7 +172,7 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">date</div>
     </div>
-    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Published
       </span>
@@ -184,11 +181,11 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">date</div>
     </div>
-    <div className="bg-card flex flex-col gap-1 p-4 text-center">
+    <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         ISBN
       </span>
-      <div className="font-display break-all text-sm font-bold">
+      <div className="font-display text-sm font-bold break-all">
         {volume.isbn ?? "—"}
       </div>
       <div className="text-muted-foreground text-[10px]">identifier</div>
@@ -385,8 +382,16 @@ export default function VolumeDetailPage() {
       value: currentVolume.page_count?.toLocaleString() ?? "—",
       show: true
     },
-    { label: "Started", value: startedLabel || "—", show: Boolean(startedLabel) },
-    { label: "Finished", value: finishedLabel || "—", show: Boolean(finishedLabel) },
+    {
+      label: "Started",
+      value: startedLabel || "—",
+      show: Boolean(startedLabel)
+    },
+    {
+      label: "Finished",
+      value: finishedLabel || "—",
+      show: Boolean(finishedLabel)
+    },
     {
       label: "Amazon",
       value: currentVolume.amazon_url ? (
@@ -517,7 +522,7 @@ export default function VolumeDetailPage() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="animate-fade-in stagger-3 flex items-center gap-2">
                 <Button
                   variant="outline"
                   onClick={openEditDialog}
@@ -536,16 +541,18 @@ export default function VolumeDetailPage() {
             </div>
 
             {/* Stats strip */}
-            <VolumeStatsStrip
-              volume={currentVolume}
-              readingProgress={readingProgress}
-              priceFormatter={priceFormatter}
-              publishedLabel={publishedLabel}
-              purchaseDateLabel={purchaseDateLabel}
-            />
+            <div className="animate-fade-in-up stagger-2">
+              <VolumeStatsStrip
+                volume={currentVolume}
+                readingProgress={readingProgress}
+                priceFormatter={priceFormatter}
+                publishedLabel={publishedLabel}
+                purchaseDateLabel={purchaseDateLabel}
+              />
+            </div>
 
             {/* Details panel */}
-            <div className="glass-card rounded-2xl p-5">
+            <div className="animate-fade-in-up stagger-3 glass-card rounded-2xl p-5">
               <span className="text-muted-foreground text-xs tracking-widest uppercase">
                 Details
               </span>
@@ -565,7 +572,7 @@ export default function VolumeDetailPage() {
 
             {/* Description */}
             {descriptionHtml && (
-              <div className="border-border/60 bg-card/60 rounded-2xl border p-5">
+              <div className="animate-fade-in-up stagger-4 border-border/60 bg-card/60 rounded-2xl border p-5">
                 <span className="text-muted-foreground block text-xs tracking-widest uppercase">
                   About
                 </span>
@@ -581,7 +588,7 @@ export default function VolumeDetailPage() {
 
             {/* Notes */}
             {currentVolume.notes && (
-              <div className="border-border/60 bg-card/60 rounded-2xl border p-5">
+              <div className="animate-fade-in-up stagger-5 border-border/60 bg-card/60 rounded-2xl border p-5">
                 <span className="text-muted-foreground block text-xs tracking-widest uppercase">
                   Personal
                 </span>

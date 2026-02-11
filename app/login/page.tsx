@@ -31,10 +31,13 @@ export default function LoginPage() {
   return (
     <div className="bg-hero-mesh noise-overlay relative flex min-h-screen">
       {/* Left: Decorative panel */}
-      <div className="bg-primary relative hidden w-[45%] overflow-hidden lg:block">
+      <div className="bg-primary animate-slide-in-left relative hidden w-[45%] overflow-hidden lg:block">
         <div className="from-copper to-gold absolute inset-0 bg-linear-to-br opacity-90" />
         <div className="relative z-10 flex h-full flex-col justify-between p-12">
-          <Link href="/" className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="animate-fade-in stagger-1 flex items-center gap-3"
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -54,7 +57,7 @@ export default function LoginPage() {
             </span>
           </Link>
 
-          <div className="space-y-6">
+          <div className="animate-fade-in-up stagger-2 space-y-6">
             <h2 className="font-display text-4xl leading-tight font-bold text-white">
               Welcome back to your library
             </h2>
@@ -64,7 +67,7 @@ export default function LoginPage() {
           </div>
 
           {/* Decorative book spines */}
-          <div className="flex items-end gap-2">
+          <div className="animate-fade-in-up stagger-3 flex items-end gap-2">
             {[
               { h: "h-32", bg: "bg-white/15" },
               { h: "h-40", bg: "bg-white/10" },
@@ -73,10 +76,14 @@ export default function LoginPage() {
               { h: "h-44", bg: "bg-white/8" },
               { h: "h-34", bg: "bg-white/15" },
               { h: "h-38", bg: "bg-white/10" }
-            ].map((spine) => (
+            ].map((spine, i) => (
               <div
                 key={spine.h}
-                className={`${spine.h} ${spine.bg} w-6 rounded-t-sm backdrop-blur-sm`}
+                className={`${spine.h} ${spine.bg} animate-fade-in-up w-6 rounded-t-sm backdrop-blur-sm`}
+                style={{
+                  animationDelay: `${i * 100}ms`,
+                  animationFillMode: "both"
+                }}
               />
             ))}
           </div>
@@ -84,10 +91,10 @@ export default function LoginPage() {
       </div>
 
       {/* Right: Login form */}
-      <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-12">
+      <div className="animate-slide-in-right relative z-10 flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
-          <div className="mb-10 lg:hidden">
+          <div className="animate-fade-in mb-10 lg:hidden">
             <Link href="/" className="flex items-center gap-3">
               <div className="bg-primary flex h-9 w-9 items-center justify-center rounded-lg">
                 <svg
@@ -107,7 +114,7 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <div className="mb-8">
+          <div className="animate-fade-in-up mb-8">
             <h1 className="font-display text-3xl font-bold tracking-tight">
               Sign in
             </h1>
@@ -123,7 +130,10 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div className="space-y-2">
+            <div
+              className="animate-fade-in-up space-y-2"
+              style={{ animationDelay: "100ms", animationFillMode: "both" }}
+            >
               <Label htmlFor="email" className="text-sm font-medium">
                 Email
               </Label>
@@ -138,7 +148,10 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div
+              className="animate-fade-in-up space-y-2"
+              style={{ animationDelay: "200ms", animationFillMode: "both" }}
+            >
               <Label htmlFor="password" className="text-sm font-medium">
                 Password
               </Label>
@@ -155,14 +168,15 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="h-11 w-full rounded-xl text-base font-semibold"
+              className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
               disabled={loading}
+              style={{ animationDelay: "300ms", animationFillMode: "both" }}
             >
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
-          <p className="text-muted-foreground mt-8 text-center text-sm">
+          <p className="text-muted-foreground animate-fade-in stagger-4 mt-8 text-center text-sm">
             Don&apos;t have an account?{" "}
             <Link
               href="/signup"

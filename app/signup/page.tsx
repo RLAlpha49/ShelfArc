@@ -31,10 +31,13 @@ export default function SignupPage() {
   return (
     <div className="bg-hero-mesh noise-overlay relative flex min-h-screen">
       {/* Left: Decorative panel */}
-      <div className="bg-primary relative hidden w-[45%] overflow-hidden lg:block">
+      <div className="bg-primary animate-slide-in-left relative hidden w-[45%] overflow-hidden lg:block">
         <div className="from-copper to-gold absolute inset-0 bg-linear-to-br opacity-90" />
         <div className="relative z-10 flex h-full flex-col justify-between p-12">
-          <Link href="/" className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="animate-fade-in stagger-1 flex items-center gap-3"
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -54,7 +57,7 @@ export default function SignupPage() {
             </span>
           </Link>
 
-          <div className="space-y-6">
+          <div className="animate-fade-in-up stagger-2 space-y-6">
             <h2 className="font-display text-4xl leading-tight font-bold text-white">
               Start building your library today
             </h2>
@@ -65,7 +68,7 @@ export default function SignupPage() {
           </div>
 
           {/* Decorative book spines */}
-          <div className="flex items-end gap-2">
+          <div className="animate-fade-in-up stagger-3 flex items-end gap-2">
             {[
               { h: "h-36", bg: "bg-white/12" },
               { h: "h-28", bg: "bg-white/18" },
@@ -74,10 +77,14 @@ export default function SignupPage() {
               { h: "h-40", bg: "bg-white/10" },
               { h: "h-30", bg: "bg-white/20" },
               { h: "h-38", bg: "bg-white/12" }
-            ].map((spine) => (
+            ].map((spine, i) => (
               <div
                 key={spine.h}
-                className={`${spine.h} ${spine.bg} w-6 rounded-t-sm backdrop-blur-sm`}
+                className={`${spine.h} ${spine.bg} animate-fade-in-up w-6 rounded-t-sm backdrop-blur-sm`}
+                style={{
+                  animationDelay: `${i * 100}ms`,
+                  animationFillMode: "both"
+                }}
               />
             ))}
           </div>
@@ -85,10 +92,10 @@ export default function SignupPage() {
       </div>
 
       {/* Right: Signup form */}
-      <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-12">
+      <div className="animate-slide-in-right relative z-10 flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
-          <div className="mb-10 lg:hidden">
+          <div className="animate-fade-in mb-10 lg:hidden">
             <Link href="/" className="flex items-center gap-3">
               <div className="bg-primary flex h-9 w-9 items-center justify-center rounded-lg">
                 <svg
@@ -108,7 +115,7 @@ export default function SignupPage() {
             </Link>
           </div>
 
-          <div className="mb-8">
+          <div className="animate-fade-in-up mb-8">
             <h1 className="font-display text-3xl font-bold tracking-tight">
               Create your account
             </h1>
@@ -124,7 +131,10 @@ export default function SignupPage() {
               </div>
             )}
 
-            <div className="space-y-2">
+            <div
+              className="animate-fade-in-up space-y-2"
+              style={{ animationDelay: "100ms", animationFillMode: "both" }}
+            >
               <Label htmlFor="displayName" className="text-sm font-medium">
                 Display Name
               </Label>
@@ -138,7 +148,10 @@ export default function SignupPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div
+              className="animate-fade-in-up space-y-2"
+              style={{ animationDelay: "200ms", animationFillMode: "both" }}
+            >
               <Label htmlFor="email" className="text-sm font-medium">
                 Email
               </Label>
@@ -153,7 +166,10 @@ export default function SignupPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div
+              className="animate-fade-in-up space-y-2"
+              style={{ animationDelay: "300ms", animationFillMode: "both" }}
+            >
               <Label htmlFor="password" className="text-sm font-medium">
                 Password
               </Label>
@@ -174,14 +190,15 @@ export default function SignupPage() {
 
             <Button
               type="submit"
-              className="h-11 w-full rounded-xl text-base font-semibold"
+              className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
               disabled={loading}
+              style={{ animationDelay: "400ms", animationFillMode: "both" }}
             >
               {loading ? "Creating account..." : "Create Account"}
             </Button>
           </form>
 
-          <p className="text-muted-foreground mt-8 text-center text-sm">
+          <p className="text-muted-foreground animate-fade-in stagger-5 mt-8 text-center text-sm">
             Already have an account?{" "}
             <Link
               href="/login"

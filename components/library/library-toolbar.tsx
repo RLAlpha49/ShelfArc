@@ -164,14 +164,15 @@ export function LibraryToolbar({
               </svg>
               <span className="hidden sm:inline">Add Series</span>
             </Button>
-
           </div>
 
           {/* Row 2: Filters + View controls */}
           <div className="flex flex-wrap items-end gap-2">
             {/* Type Filter */}
             <div className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">Type</span>
+              <span className="text-muted-foreground text-[11px] font-medium">
+                Type
+              </span>
               <Select
                 value={filters.type}
                 onValueChange={(value) => {
@@ -192,7 +193,9 @@ export function LibraryToolbar({
 
             {/* Ownership Filter */}
             <div className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">Ownership</span>
+              <span className="text-muted-foreground text-[11px] font-medium">
+                Ownership
+              </span>
               <Select
                 value={filters.ownershipStatus}
                 onValueChange={(value) => {
@@ -215,12 +218,16 @@ export function LibraryToolbar({
 
             {/* Reading Status Filter */}
             <div className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">Reading</span>
+              <span className="text-muted-foreground text-[11px] font-medium">
+                Reading
+              </span>
               <Select
                 value={filters.readingStatus}
                 onValueChange={(value) => {
                   if (value)
-                    setFilters({ readingStatus: value as ReadingStatus | "all" })
+                    setFilters({
+                      readingStatus: value as ReadingStatus | "all"
+                    })
                 }}
               >
                 <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
@@ -240,7 +247,9 @@ export function LibraryToolbar({
             {/* Tags Filter */}
             {availableTags.length > 0 && (
               <div className="space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium">Tags</span>
+                <span className="text-muted-foreground text-[11px] font-medium">
+                  Tags
+                </span>
                 <Select
                   value={filters.tags.length > 0 ? filters.tags[0] : "all"}
                   onValueChange={(value) => {
@@ -292,10 +301,25 @@ export function LibraryToolbar({
                       setSortField("title")
                       setSortOrder("asc")
                     }}
-                    className={isSortActive("title", "asc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
+                    className={
+                      isSortActive("title", "asc", sortField, sortOrder)
+                        ? "bg-accent font-medium"
+                        : ""
+                    }
                   >
                     {isSortActive("title", "asc", sortField, sortOrder) && (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-1.5 h-3.5 w-3.5"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
                     )}
                     Title (A-Z)
                   </DropdownMenuItem>
@@ -304,10 +328,25 @@ export function LibraryToolbar({
                       setSortField("title")
                       setSortOrder("desc")
                     }}
-                    className={isSortActive("title", "desc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
+                    className={
+                      isSortActive("title", "desc", sortField, sortOrder)
+                        ? "bg-accent font-medium"
+                        : ""
+                    }
                   >
                     {isSortActive("title", "desc", sortField, sortOrder) && (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-1.5 h-3.5 w-3.5"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
                     )}
                     Title (Z-A)
                   </DropdownMenuItem>
@@ -316,10 +355,25 @@ export function LibraryToolbar({
                       setSortField("author")
                       setSortOrder("asc")
                     }}
-                    className={isSortActive("author", "asc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
+                    className={
+                      isSortActive("author", "asc", sortField, sortOrder)
+                        ? "bg-accent font-medium"
+                        : ""
+                    }
                   >
                     {isSortActive("author", "asc", sortField, sortOrder) && (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-1.5 h-3.5 w-3.5"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
                     )}
                     Author (A-Z)
                   </DropdownMenuItem>
@@ -328,10 +382,30 @@ export function LibraryToolbar({
                       setSortField("created_at")
                       setSortOrder("desc")
                     }}
-                    className={isSortActive("created_at", "desc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
+                    className={
+                      isSortActive("created_at", "desc", sortField, sortOrder)
+                        ? "bg-accent font-medium"
+                        : ""
+                    }
                   >
-                    {isSortActive("created_at", "desc", sortField, sortOrder) && (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    {isSortActive(
+                      "created_at",
+                      "desc",
+                      sortField,
+                      sortOrder
+                    ) && (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-1.5 h-3.5 w-3.5"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
                     )}
                     Recently Added
                   </DropdownMenuItem>
@@ -340,10 +414,30 @@ export function LibraryToolbar({
                       setSortField("updated_at")
                       setSortOrder("desc")
                     }}
-                    className={isSortActive("updated_at", "desc", sortField, sortOrder) ? "bg-accent font-medium" : ""}
+                    className={
+                      isSortActive("updated_at", "desc", sortField, sortOrder)
+                        ? "bg-accent font-medium"
+                        : ""
+                    }
                   >
-                    {isSortActive("updated_at", "desc", sortField, sortOrder) && (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5 h-3.5 w-3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                    {isSortActive(
+                      "updated_at",
+                      "desc",
+                      sortField,
+                      sortOrder
+                    ) && (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-1.5 h-3.5 w-3.5"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
                     )}
                     Recently Updated
                   </DropdownMenuItem>
@@ -402,7 +496,11 @@ export function LibraryToolbar({
             {viewMode === "grid" && (
               <div className="border-input flex items-center overflow-hidden rounded-xl border">
                 {(["compact", "default", "large"] as const).map((size) => {
-                  const sizeLabels = { compact: "S", default: "M", large: "L" } as const
+                  const sizeLabels = {
+                    compact: "S",
+                    default: "M",
+                    large: "L"
+                  } as const
                   const label = sizeLabels[size]
                   return (
                     <button

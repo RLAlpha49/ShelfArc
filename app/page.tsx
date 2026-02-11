@@ -46,7 +46,7 @@ export default async function HomePage() {
             {user ? (
               <Link
                 href="/library"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 glow-ring inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
               >
                 Go to Library
               </Link>
@@ -60,7 +60,7 @@ export default async function HomePage() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 glow-ring inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
                 >
                   Get Started
                 </Link>
@@ -220,7 +220,7 @@ export default async function HomePage() {
       <section className="relative z-10">
         <div className="border-t">
           <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
-            <div className="mb-14">
+            <div className="animate-fade-in-up mb-14">
               <span className="text-muted-foreground mb-3 block text-xs tracking-widest uppercase">
                 Features
               </span>
@@ -326,10 +326,11 @@ export default async function HomePage() {
                   description:
                     "Log purchase prices, fetch current retail prices, and keep track of how much you have invested in your growing collection."
                 }
-              ].map((feature) => (
+              ].map((feature, featureIndex) => (
                 <div
                   key={feature.id}
-                  className="bg-card group hover:bg-accent/40 p-6 transition-colors md:p-8"
+                  className="bg-card group feature-card-reveal hover:bg-accent/40 icon-hover-bob p-6 md:p-8"
+                  style={{ animationDelay: `${featureIndex * 100}ms` }}
                 >
                   <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors">
                     {feature.icon}
@@ -350,7 +351,7 @@ export default async function HomePage() {
       {/* CTA Section */}
       <section className="relative z-10 border-t">
         <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
-          <div className="mx-auto max-w-2xl text-center">
+          <div className="animate-blur-in mx-auto max-w-2xl text-center">
             <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
               Ready to organize
               <br />
@@ -386,7 +387,7 @@ export default async function HomePage() {
       </section>
 
       {/* Footer — minimal */}
-      <footer className="relative z-10 border-t">
+      <footer className="animate-fade-in relative z-10 border-t">
         <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2">

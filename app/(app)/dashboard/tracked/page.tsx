@@ -47,7 +47,11 @@ export default function TrackedPage() {
         .sort((a, b) => b.purchase_price! - a.purchase_price!),
       unpriced: owned
         .filter((v) => v.purchase_price == null || v.purchase_price <= 0)
-        .sort((a, b) => a.seriesTitle.localeCompare(b.seriesTitle) || a.volume_number - b.volume_number)
+        .sort(
+          (a, b) =>
+            a.seriesTitle.localeCompare(b.seriesTitle) ||
+            a.volume_number - b.volume_number
+        )
     }
   }, [series])
 
@@ -98,7 +102,8 @@ export default function TrackedPage() {
           Volumes
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          {priced.length} priced · {unpriced.length} unpriced · {priced.length + unpriced.length} total owned
+          {priced.length} priced · {unpriced.length} unpriced ·{" "}
+          {priced.length + unpriced.length} total owned
         </p>
       </section>
 
@@ -174,7 +179,10 @@ export default function TrackedPage() {
                         Vol. {v.volume_number}
                       </span>
                       {v.format && (
-                        <Badge variant="outline" className="shrink-0 text-[10px]">
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 text-[10px]"
+                        >
                           {v.format}
                         </Badge>
                       )}

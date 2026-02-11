@@ -62,10 +62,10 @@ export function SeriesCard({
   const showSelection = Boolean(onSelect)
 
   return (
-    <div className="group relative h-full w-full">
+    <div className="card-hover hover-lift group relative h-full w-full">
       <button
         type="button"
-        className={`bg-card hover:bg-accent/40 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`press-effect bg-card hover:bg-accent/40 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
@@ -125,7 +125,7 @@ export function SeriesCard({
           {showSeriesProgressBar && totalVolumes > 0 && (
             <div className="bg-primary/10 mt-2.5 h-1.5 w-full overflow-hidden rounded-full">
               <div
-                className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all duration-500"
+                className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
                 style={{ width: `${(ownedVolumes / totalVolumes) * 100}%` }}
               />
             </div>

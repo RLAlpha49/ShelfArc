@@ -551,10 +551,34 @@ export default function SettingsPage() {
                       )}
                       {section.id === "appearance" && (
                         <>
-                          <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
-                          <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" stroke="none" />
-                          <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
-                          <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
+                          <circle
+                            cx="13.5"
+                            cy="6.5"
+                            r="1.5"
+                            fill="currentColor"
+                            stroke="none"
+                          />
+                          <circle
+                            cx="17.5"
+                            cy="10.5"
+                            r="1.5"
+                            fill="currentColor"
+                            stroke="none"
+                          />
+                          <circle
+                            cx="8.5"
+                            cy="7.5"
+                            r="1.5"
+                            fill="currentColor"
+                            stroke="none"
+                          />
+                          <circle
+                            cx="6.5"
+                            cy="12.5"
+                            r="1.5"
+                            fill="currentColor"
+                            stroke="none"
+                          />
                           <path d="M12 2a10 10 0 0 0 0 20 1.7 1.7 0 0 0 1.7-1.7c0-.5-.2-.8-.4-1.1a1.7 1.7 0 0 1 1.3-2.8H16a5.5 5.5 0 0 0 5.5-5.5C21.5 6 17.2 2 12 2z" />
                         </>
                       )}
@@ -583,139 +607,156 @@ export default function SettingsPage() {
         {/* Content sections */}
         <div className="min-w-0">
           {/* ── Profile ───────────────────────────── */}
-          <section id="profile" className="animate-fade-in-up scroll-mt-24 pb-8" style={{ animationDelay: "0ms", animationFillMode: "both" }}>
+          <section
+            id="profile"
+            className="animate-fade-in-up scroll-mt-24 pb-8"
+            style={{ animationDelay: "0ms", animationFillMode: "both" }}
+          >
             <div className="mb-5 flex items-center gap-3">
               <div className="bg-primary/8 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4.5 w-4.5"
+                >
                   <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
               </div>
               <div>
-                <h2 className="font-display text-xl font-semibold tracking-tight">Profile</h2>
-                <p className="text-muted-foreground text-sm">Manage your account information</p>
+                <h2 className="font-display text-xl font-semibold tracking-tight">
+                  Profile
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Manage your account information
+                </p>
               </div>
             </div>
 
             <div className="bg-muted/30 rounded-2xl border p-6">
-            <div className="mb-6 flex flex-col items-start gap-6 sm:flex-row">
-              {/* Avatar preview */}
-              <div className="relative shrink-0">
-                <Avatar className="ring-border h-20 w-20 ring-2">
-                  {avatarPreview && !avatarPreviewError && (
-                    <AvatarImage
-                      src={avatarPreview}
-                      alt="Avatar preview"
-                      onError={() => setAvatarPreviewError(true)}
-                      onLoad={() => setAvatarPreviewError(false)}
-                    />
-                  )}
-                  {!(avatarPreview && !avatarPreviewError) &&
-                    resolvedAvatarUrl && (
-                      <AvatarImage src={resolvedAvatarUrl} alt="Avatar" />
+              <div className="mb-6 flex flex-col items-start gap-6 sm:flex-row">
+                {/* Avatar preview */}
+                <div className="relative shrink-0">
+                  <Avatar className="ring-border h-20 w-20 ring-2">
+                    {avatarPreview && !avatarPreviewError && (
+                      <AvatarImage
+                        src={avatarPreview}
+                        alt="Avatar preview"
+                        onError={() => setAvatarPreviewError(true)}
+                        onLoad={() => setAvatarPreviewError(false)}
+                      />
                     )}
-                  <AvatarFallback className="bg-primary/10 text-primary font-display text-2xl font-semibold">
-                    {(displayName || profile?.email || "U")
-                      .charAt(0)
-                      .toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                {isUploadingAvatar && (
-                  <div className="bg-background/80 absolute inset-0 flex items-center justify-center rounded-full backdrop-blur-sm">
-                    <div className="border-primary h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" />
+                    {!(avatarPreview && !avatarPreviewError) &&
+                      resolvedAvatarUrl && (
+                        <AvatarImage src={resolvedAvatarUrl} alt="Avatar" />
+                      )}
+                    <AvatarFallback className="bg-primary/10 text-primary font-display text-2xl font-semibold">
+                      {(displayName || profile?.email || "U")
+                        .charAt(0)
+                        .toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isUploadingAvatar && (
+                    <div className="bg-background/80 absolute inset-0 flex items-center justify-center rounded-full backdrop-blur-sm">
+                      <div className="border-primary h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Name + email */}
+                <div className="flex-1 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="displayName">Display Name</Label>
+                    <Input
+                      id="displayName"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="How should we call you?"
+                      className="max-w-sm"
+                    />
                   </div>
-                )}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={profile?.email || ""}
+                      disabled
+                      className="bg-muted max-w-sm"
+                    />
+                    <p className="text-muted-foreground text-xs">
+                      Email cannot be changed
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              {/* Name + email */}
-              <div className="flex-1 space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="displayName">Display Name</Label>
-                  <Input
-                    id="displayName"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="How should we call you?"
-                    className="max-w-sm"
-                  />
+              {/* Avatar controls */}
+              <div className="bg-background/50 space-y-3 rounded-xl border p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Avatar</p>
+                    <p className="text-muted-foreground text-xs">
+                      Square images work best.
+                    </p>
+                  </div>
+                  {avatarUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setAvatarUrl("")
+                        setPreviewUrl(null)
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profile?.email || ""}
-                    disabled
-                    className="bg-muted max-w-sm"
-                  />
-                  <p className="text-muted-foreground text-xs">
-                    Email cannot be changed
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Avatar controls */}
-            <div className="bg-background/50 space-y-3 rounded-xl border p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Avatar</p>
-                  <p className="text-muted-foreground text-xs">
-                    Square images work best.
-                  </p>
-                </div>
-                {avatarUrl && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setAvatarUrl("")
-                      setPreviewUrl(null)
-                    }}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="avatarUrl"
-                    className="text-muted-foreground text-xs"
-                  >
-                    Image URL
-                  </Label>
-                  <Input
-                    id="avatarUrl"
-                    type="url"
-                    value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    placeholder="https://..."
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="avatarUpload"
-                    className="text-muted-foreground text-xs"
-                  >
-                    Upload file
-                  </Label>
-                  <Input
-                    id="avatarUpload"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        void handleAvatarFileChange(file)
-                      }
-                      e.currentTarget.value = ""
-                    }}
-                  />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="avatarUrl"
+                      className="text-muted-foreground text-xs"
+                    >
+                      Image URL
+                    </Label>
+                    <Input
+                      id="avatarUrl"
+                      type="url"
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="avatarUpload"
+                      className="text-muted-foreground text-xs"
+                    >
+                      Upload file
+                    </Label>
+                    <Input
+                      id="avatarUpload"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          void handleAvatarFileChange(file)
+                        }
+                        e.currentTarget.value = ""
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
             </div>
 
             <div className="mt-5">
@@ -730,10 +771,23 @@ export default function SettingsPage() {
           </section>
 
           {/* ── Preferences ────────────────────────── */}
-          <section id="preferences" className="animate-fade-in-up scroll-mt-24 py-8" style={{ animationDelay: "75ms", animationFillMode: "both" }}>
+          <section
+            id="preferences"
+            className="animate-fade-in-up scroll-mt-24 py-8"
+            style={{ animationDelay: "75ms", animationFillMode: "both" }}
+          >
             <div className="mb-5 flex items-center gap-3">
               <div className="bg-primary/8 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4.5 w-4.5"
+                >
                   <path d="M20 7h-9" />
                   <path d="M14 17H5" />
                   <circle cx="14" cy="7" r="3" />
@@ -741,23 +795,33 @@ export default function SettingsPage() {
                 </svg>
               </div>
               <div>
-                <h2 className="font-display text-xl font-semibold tracking-tight">Preferences</h2>
-                <p className="text-muted-foreground text-sm">Customize your experience</p>
+                <h2 className="font-display text-xl font-semibold tracking-tight">
+                  Preferences
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Customize your experience
+                </p>
               </div>
             </div>
 
             <div className="grid gap-4">
               {/* Library Display */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Library Display</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Library Display
+                </p>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="show-reading-progress" className="font-medium">
+                      <Label
+                        htmlFor="show-reading-progress"
+                        className="font-medium"
+                      >
                         Show reading progress
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        Display reading progress bars on volume cards in the library.
+                        Display reading progress bars on volume cards in the
+                        library.
                       </p>
                     </div>
                     <Switch
@@ -769,11 +833,15 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="show-series-progress" className="font-medium">
+                      <Label
+                        htmlFor="show-series-progress"
+                        className="font-medium"
+                      >
                         Show collection progress
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        Display the ownership progress bar on series cards in the library.
+                        Display the ownership progress bar on series cards in
+                        the library.
                       </p>
                     </div>
                     <Switch
@@ -817,15 +885,21 @@ export default function SettingsPage() {
 
               {/* Behavior */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Behavior</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Behavior
+                </p>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="delete-series-volumes" className="font-medium">
+                      <Label
+                        htmlFor="delete-series-volumes"
+                        className="font-medium"
+                      >
                         Delete volumes with series
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        When enabled, deleting a series also deletes its volumes.
+                        When enabled, deleting a series also deletes its
+                        volumes.
                       </p>
                     </div>
                     <Switch
@@ -837,11 +911,15 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="confirm-before-delete" className="font-medium">
+                      <Label
+                        htmlFor="confirm-before-delete"
+                        className="font-medium"
+                      >
                         Confirm before deleting
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        Show a confirmation dialog before deleting series or volumes.
+                        Show a confirmation dialog before deleting series or
+                        volumes.
                       </p>
                     </div>
                     <Switch
@@ -853,11 +931,15 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="auto-purchase-date" className="font-medium">
+                      <Label
+                        htmlFor="auto-purchase-date"
+                        className="font-medium"
+                      >
                         Auto-set purchase date
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        Automatically set the purchase date to today when ownership changes to &quot;Owned&quot;.
+                        Automatically set the purchase date to today when
+                        ownership changes to &quot;Owned&quot;.
                       </p>
                     </div>
                     <Switch
@@ -871,15 +953,21 @@ export default function SettingsPage() {
 
               {/* Defaults */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Defaults</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Defaults
+                </p>
                 <div className="space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="default-ownership" className="font-medium">
+                      <Label
+                        htmlFor="default-ownership"
+                        className="font-medium"
+                      >
                         Default ownership status
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        The default ownership status when adding books via search.
+                        The default ownership status when adding books via
+                        search.
                       </p>
                     </div>
                     <Select
@@ -905,7 +993,10 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="default-search-source" className="font-medium">
+                      <Label
+                        htmlFor="default-search-source"
+                        className="font-medium"
+                      >
                         Default search source
                       </Label>
                       <p className="text-muted-foreground text-sm">
@@ -920,7 +1011,10 @@ export default function SettingsPage() {
                         }
                       }}
                     >
-                      <SelectTrigger id="default-search-source" className="sm:w-48">
+                      <SelectTrigger
+                        id="default-search-source"
+                        className="sm:w-48"
+                      >
                         <SelectValue placeholder="Select source" />
                       </SelectTrigger>
                       <SelectContent>
@@ -937,7 +1031,9 @@ export default function SettingsPage() {
 
               {/* Layout */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Layout</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Layout
+                </p>
                 <div className="space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-0.5">
@@ -945,7 +1041,8 @@ export default function SettingsPage() {
                         Navigation
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        Choose whether navigation lives in the sidebar or top header.
+                        Choose whether navigation lives in the sidebar or top
+                        header.
                       </p>
                     </div>
                     <Select
@@ -971,11 +1068,15 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="sidebar-collapsed" className="font-medium">
+                      <Label
+                        htmlFor="sidebar-collapsed"
+                        className="font-medium"
+                      >
                         Start sidebar collapsed
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        Open the sidebar in its collapsed state by default. Only applies in &quot;Sidebar&quot; mode.
+                        Open the sidebar in its collapsed state by default. Only
+                        applies in &quot;Sidebar&quot; mode.
                       </p>
                     </div>
                     <Switch
@@ -990,27 +1091,70 @@ export default function SettingsPage() {
           </section>
 
           {/* ── Appearance ─────────────────────────── */}
-          <section id="appearance" className="animate-fade-in-up scroll-mt-24 py-8" style={{ animationDelay: "150ms", animationFillMode: "both" }}>
+          <section
+            id="appearance"
+            className="animate-fade-in-up scroll-mt-24 py-8"
+            style={{ animationDelay: "150ms", animationFillMode: "both" }}
+          >
             <div className="mb-5 flex items-center gap-3">
               <div className="bg-primary/8 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
-                  <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
-                  <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" stroke="none" />
-                  <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
-                  <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4.5 w-4.5"
+                >
+                  <circle
+                    cx="13.5"
+                    cy="6.5"
+                    r="1.5"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="17.5"
+                    cy="10.5"
+                    r="1.5"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="8.5"
+                    cy="7.5"
+                    r="1.5"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                  <circle
+                    cx="6.5"
+                    cy="12.5"
+                    r="1.5"
+                    fill="currentColor"
+                    stroke="none"
+                  />
                   <path d="M12 2a10 10 0 0 0 0 20 1.7 1.7 0 0 0 1.7-1.7c0-.5-.2-.8-.4-1.1a1.7 1.7 0 0 1 1.3-2.8H16a5.5 5.5 0 0 0 5.5-5.5C21.5 6 17.2 2 12 2z" />
                 </svg>
               </div>
               <div>
-                <h2 className="font-display text-xl font-semibold tracking-tight">Appearance</h2>
-                <p className="text-muted-foreground text-sm">Theme, fonts, and visual preferences</p>
+                <h2 className="font-display text-xl font-semibold tracking-tight">
+                  Appearance
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Theme, fonts, and visual preferences
+                </p>
               </div>
             </div>
 
             <div className="grid gap-4">
               {/* Theme & Motion */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Theme & Motion</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Theme & Motion
+                </p>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
@@ -1024,11 +1168,15 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="enable-animations" className="font-medium">
+                      <Label
+                        htmlFor="enable-animations"
+                        className="font-medium"
+                      >
                         Animations
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        Enable transitions and micro-animations throughout the app.
+                        Enable transitions and micro-animations throughout the
+                        app.
                       </p>
                     </div>
                     <Switch
@@ -1042,7 +1190,9 @@ export default function SettingsPage() {
 
               {/* Typography */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Typography</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Typography
+                </p>
                 <div className="space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-0.5">
@@ -1121,10 +1271,15 @@ export default function SettingsPage() {
               {/* Live font preview */}
               <div className="bg-card rounded-2xl border p-6 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Live Preview</p>
+                  <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                    Live Preview
+                  </p>
                   <div className="flex gap-2">
                     <span className="bg-primary/10 text-primary rounded-full px-2.5 py-0.5 text-[11px] font-medium">
-                      {displayFontOptions.find((o) => o.value === displayFont)?.label}
+                      {
+                        displayFontOptions.find((o) => o.value === displayFont)
+                          ?.label
+                      }
                     </span>
                     <span className="bg-muted text-muted-foreground rounded-full px-2.5 py-0.5 text-[11px] font-medium">
                       {bodyFontOptions.find((o) => o.value === bodyFont)?.label}
@@ -1143,7 +1298,9 @@ export default function SettingsPage() {
 
               {/* Formatting */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Formatting</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Formatting
+                </p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="date-format" className="font-medium">
@@ -1181,24 +1338,43 @@ export default function SettingsPage() {
           </section>
 
           {/* ── Pricing ────────────────────────────── */}
-          <section id="pricing" className="animate-fade-in-up scroll-mt-24 py-8" style={{ animationDelay: "225ms", animationFillMode: "both" }}>
+          <section
+            id="pricing"
+            className="animate-fade-in-up scroll-mt-24 py-8"
+            style={{ animationDelay: "225ms", animationFillMode: "both" }}
+          >
             <div className="mb-5 flex items-center gap-3">
               <div className="bg-primary/8 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4.5 w-4.5"
+                >
                   <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
                   <path d="M7 7h.01" />
                 </svg>
               </div>
               <div>
-                <h2 className="font-display text-xl font-semibold tracking-tight">Pricing</h2>
-                <p className="text-muted-foreground text-sm">Price sources, currency, and display settings</p>
+                <h2 className="font-display text-xl font-semibold tracking-tight">
+                  Pricing
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Price sources, currency, and display settings
+                </p>
               </div>
             </div>
 
             <div className="grid gap-4">
               {/* Source & Currency */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Source & Currency</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Source & Currency
+                </p>
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="price-source">Price source</Label>
@@ -1278,11 +1454,16 @@ export default function SettingsPage() {
 
               {/* Amazon Options */}
               <div className="bg-muted/30 rounded-2xl border p-5">
-                <p className="text-muted-foreground mb-4 text-xs font-semibold uppercase tracking-wider">Amazon Options</p>
+                <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+                  Amazon Options
+                </p>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="amazon-prefer-kindle" className="font-medium">
+                      <Label
+                        htmlFor="amazon-prefer-kindle"
+                        className="font-medium"
+                      >
                         Prefer Kindle pricing
                       </Label>
                       <p className="text-muted-foreground text-sm">
@@ -1298,11 +1479,15 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="amazon-fallback-kindle" className="font-medium">
+                      <Label
+                        htmlFor="amazon-fallback-kindle"
+                        className="font-medium"
+                      >
                         Fallback to Kindle pricing
                       </Label>
                       <p className="text-muted-foreground text-sm">
-                        If Paperback pricing is missing, try the Kindle price instead.
+                        If Paperback pricing is missing, try the Kindle price
+                        instead.
                       </p>
                     </div>
                     <Switch
@@ -1315,7 +1500,10 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label htmlFor="show-amazon-disclaimer" className="font-medium">
+                      <Label
+                        htmlFor="show-amazon-disclaimer"
+                        className="font-medium"
+                      >
                         Show Amazon data disclaimer
                       </Label>
                       <p className="text-muted-foreground text-sm">
@@ -1334,49 +1522,86 @@ export default function SettingsPage() {
           </section>
 
           {/* ── Data Management ────────────────────── */}
-          <section id="data" className="animate-fade-in-up scroll-mt-24 py-8" style={{ animationDelay: "300ms", animationFillMode: "both" }}>
+          <section
+            id="data"
+            className="animate-fade-in-up scroll-mt-24 py-8"
+            style={{ animationDelay: "300ms", animationFillMode: "both" }}
+          >
             <div className="mb-5 flex items-center gap-3">
               <div className="bg-primary/8 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4.5 w-4.5"
+                >
                   <ellipse cx="12" cy="5" rx="9" ry="3" />
                   <path d="M3 5v14a9 3 0 0 0 18 0V5" />
                   <path d="M3 12a9 3 0 0 0 18 0" />
                 </svg>
               </div>
               <div>
-                <h2 className="font-display text-xl font-semibold tracking-tight">Data Management</h2>
-                <p className="text-muted-foreground text-sm">Export or import your library data</p>
+                <h2 className="font-display text-xl font-semibold tracking-tight">
+                  Data Management
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Export or import your library data
+                </p>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid-stagger grid gap-4 sm:grid-cols-2">
               <Link href="/settings/export" className="group">
-                <div className="bg-muted/30 hover:bg-accent/40 rounded-2xl border p-5 transition-colors">
+                <div className="bg-muted/30 hover:bg-accent/40 hover-lift rounded-2xl border p-5 transition-colors">
                   <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-5 w-5"
+                    >
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="7 10 12 15 17 10" />
                       <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
                   </div>
-                  <h3 className="font-display mb-1 text-base font-semibold">Export Data</h3>
+                  <h3 className="font-display mb-1 text-base font-semibold">
+                    Export Data
+                  </h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    Download your collection as JSON or CSV for backup or migration.
+                    Download your collection as JSON or CSV for backup or
+                    migration.
                   </p>
                 </div>
               </Link>
               <Link href="/settings/import" className="group">
-                <div className="bg-muted/30 hover:bg-accent/40 rounded-2xl border p-5 transition-colors">
+                <div className="bg-muted/30 hover:bg-accent/40 hover-lift rounded-2xl border p-5 transition-colors">
                   <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-5 w-5"
+                    >
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
                   </div>
-                  <h3 className="font-display mb-1 text-base font-semibold">Import Data</h3>
+                  <h3 className="font-display mb-1 text-base font-semibold">
+                    Import Data
+                  </h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    Import books from CSV (ISBN list) or restore from a ShelfArc JSON backup.
+                    Import books from CSV (ISBN list) or restore from a ShelfArc
+                    JSON backup.
                   </p>
                 </div>
               </Link>

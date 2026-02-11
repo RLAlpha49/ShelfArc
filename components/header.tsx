@@ -104,16 +104,18 @@ export function Header({ user }: HeaderProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "relative flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors",
+                  "relative flex items-center gap-1.5 px-3 py-1.5 text-sm transition-all duration-200 active:scale-[0.97]",
                   pathname === item.href
                     ? "text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {item.icon}
+                <span className="transition-transform duration-200 group-hover:scale-110">
+                  {item.icon}
+                </span>
                 {item.label}
                 {pathname === item.href && (
-                  <span className="bg-primary absolute inset-x-2 -bottom-3 h-0.5" />
+                  <span className="bg-primary animate-scale-in absolute inset-x-2 -bottom-3 h-0.5" />
                 )}
               </Link>
             ))}

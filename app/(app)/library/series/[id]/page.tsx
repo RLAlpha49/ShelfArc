@@ -259,7 +259,10 @@ const SeriesInsightsPanel = ({
   readonly insights: SeriesInsightData
 }) => (
   <div className="mt-6 grid gap-4 lg:grid-cols-2">
-    <div className="glass-card rounded-2xl p-5">
+    <div
+      className="animate-fade-in-up glass-card rounded-2xl p-5"
+      style={{ animationDelay: "200ms", animationFillMode: "both" }}
+    >
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-xs tracking-widest uppercase">
           Collection breakdown
@@ -327,7 +330,7 @@ const SeriesInsightsPanel = ({
             </div>
             <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
               <div
-                className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all"
+                className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
                 style={{ width: `${insights.collectionPercent}%` }}
               />
             </div>
@@ -339,7 +342,7 @@ const SeriesInsightsPanel = ({
             </div>
             <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
               <div
-                className="from-primary to-gold h-full rounded-full bg-linear-to-r transition-all"
+                className="progress-animate from-primary to-gold h-full rounded-full bg-linear-to-r"
                 style={{ width: `${insights.readPercent}%` }}
               />
             </div>
@@ -348,7 +351,10 @@ const SeriesInsightsPanel = ({
       )}
     </div>
 
-    <div className="glass-card rounded-2xl p-5">
+    <div
+      className="animate-fade-in-up glass-card rounded-2xl p-5"
+      style={{ animationDelay: "300ms", animationFillMode: "both" }}
+    >
       <span className="text-muted-foreground text-xs tracking-widest uppercase">
         Series details
       </span>
@@ -974,12 +980,12 @@ export default function SeriesDetailPage() {
             )}
 
             {currentSeries.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <div className="animate-fade-in stagger-2 flex flex-wrap gap-2">
                 {currentSeries.tags.map((tag) => (
                   <Badge
                     key={tag}
                     variant="outline"
-                    className="border-primary/15 rounded-lg"
+                    className="badge-pop border-primary/15 rounded-lg"
                   >
                     {tag}
                   </Badge>
@@ -988,8 +994,8 @@ export default function SeriesDetailPage() {
             )}
 
             {/* Stats strip */}
-            <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-6">
-              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+            <div className="animate-fade-in-up stagger-1 mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-6">
+              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Volumes
                 </span>
@@ -1001,7 +1007,7 @@ export default function SeriesDetailPage() {
                 </div>
                 <div className="text-muted-foreground text-[10px]">owned</div>
               </div>
-              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Reading
                 </span>
@@ -1015,7 +1021,7 @@ export default function SeriesDetailPage() {
                   {insights.readPercent}% complete
                 </div>
               </div>
-              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Total Spent
                 </span>
@@ -1026,7 +1032,7 @@ export default function SeriesDetailPage() {
                   {insights.pricedVolumes} priced
                 </div>
               </div>
-              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Avg Price
                 </span>
@@ -1039,7 +1045,7 @@ export default function SeriesDetailPage() {
                   per volume
                 </div>
               </div>
-              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Pages
                 </span>
@@ -1050,7 +1056,7 @@ export default function SeriesDetailPage() {
                 </div>
                 <div className="text-muted-foreground text-[10px]">total</div>
               </div>
-              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+              <div className="bg-card hover:bg-accent/30 flex flex-col gap-1 p-4 text-center transition-colors">
                 <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
                   Wishlist
                 </span>
@@ -1062,7 +1068,10 @@ export default function SeriesDetailPage() {
             </div>
             <SeriesInsightsPanel insights={insights} />
             {currentSeries.notes && (
-              <div className="border-border/60 bg-card/60 mt-6 rounded-2xl border p-5">
+              <div
+                className="animate-fade-in-up border-border/60 bg-card/60 mt-6 rounded-2xl border p-5"
+                style={{ animationDelay: "400ms", animationFillMode: "both" }}
+              >
                 <span className="text-muted-foreground block text-xs tracking-widest uppercase">
                   Personal
                 </span>
@@ -1157,7 +1166,7 @@ export default function SeriesDetailPage() {
           />
         ) : (
           <div className="animate-fade-in-up">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="grid-stagger grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {currentSeries.volumes
                 .toSorted((a, b) => a.volume_number - b.volume_number)
                 .map((volume) => (

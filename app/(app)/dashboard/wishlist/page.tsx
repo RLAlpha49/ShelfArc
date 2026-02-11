@@ -39,10 +39,18 @@ export default function WishlistPage() {
     return {
       wishlist: all
         .filter((v) => v.ownership_status === "wishlist")
-        .sort((a, b) => a.seriesTitle.localeCompare(b.seriesTitle) || a.volume_number - b.volume_number),
+        .sort(
+          (a, b) =>
+            a.seriesTitle.localeCompare(b.seriesTitle) ||
+            a.volume_number - b.volume_number
+        ),
       owned: all
         .filter((v) => v.ownership_status === "owned")
-        .sort((a, b) => a.seriesTitle.localeCompare(b.seriesTitle) || a.volume_number - b.volume_number)
+        .sort(
+          (a, b) =>
+            a.seriesTitle.localeCompare(b.seriesTitle) ||
+            a.volume_number - b.volume_number
+        )
     }
   }, [series])
 
@@ -168,7 +176,10 @@ export default function WishlistPage() {
                         Vol. {v.volume_number}
                       </span>
                       {v.format && (
-                        <Badge variant="outline" className="shrink-0 text-[10px]">
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 text-[10px]"
+                        >
                           {v.format}
                         </Badge>
                       )}
