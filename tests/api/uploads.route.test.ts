@@ -19,6 +19,18 @@ mock.module("node:stream", () => ({
     fromWeb: () => ({
       pipe: () => transformerMock
     })
+  },
+  // Provide a minimal Writable export so other modules importing
+  // { Writable } from "node:stream" don't fail during import-time.
+  Writable: class {
+    write(_chunk: unknown, _encoding?: string, callback?: () => void) {
+      if (callback) callback()
+      return true
+    }
+    end() {
+      // noop
+      return undefined
+    }
   }
 }))
 
