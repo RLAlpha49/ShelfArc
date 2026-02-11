@@ -62,22 +62,23 @@ export function SeriesCard({
   const showSelection = Boolean(onSelect)
 
   return (
-    <div className="group relative w-full">
+    <div className="group relative h-full w-full">
       <button
         type="button"
-        className={`bg-card hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`bg-card hover:bg-accent/40 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
         {showSelection && (
           <div
-            className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
           >
             <Checkbox
               checked={selected}
               onCheckedChange={() => onSelect?.()}
               onClick={(event) => event.stopPropagation()}
               aria-label={`Select ${series.title}`}
+              className="h-4 w-4"
             />
           </div>
         )}
