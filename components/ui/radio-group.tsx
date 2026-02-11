@@ -7,7 +7,11 @@ import { cn } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { CircleIcon } from "@hugeicons/core-free-icons"
 
-function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
+/** Container for a group of radio items. @source */
+function RadioGroup({
+  className,
+  ...props
+}: Readonly<RadioGroupPrimitive.Props>) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
@@ -17,12 +21,16 @@ function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   )
 }
 
-function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
+/** Individual radio button with indicator circle. @source */
+function RadioGroupItem({
+  className,
+  ...props
+}: Readonly<RadioPrimitive.Root.Props>) {
   return (
     <RadioPrimitive.Root
       data-slot="radio-group-item"
       className={cn(
-        "border-input text-primary dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 data-checked:bg-primary data-checked:border-primary group/radio-group-item peer relative flex aspect-square size-4 shrink-0 rounded-full border transition-none outline-none after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:ring-[2px] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-[2px]",
+        "border-input text-primary dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 data-checked:bg-primary data-checked:border-primary group/radio-group-item peer relative flex aspect-square size-4 shrink-0 rounded-full border transition-none outline-none after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-2",
         className
       )}
       {...props}

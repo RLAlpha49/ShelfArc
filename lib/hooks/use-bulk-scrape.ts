@@ -4,8 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 import { useLibraryStore } from "@/lib/store/library-store"
 
+/** Scraping mode: price only, image only, or both. @source */
 export type BulkScrapeMode = "price" | "image" | "both"
 
+/** Status of a single volume scraping job. @source */
 export type VolumeJobStatus =
   | "pending"
   | "scraping"
@@ -14,6 +16,7 @@ export type VolumeJobStatus =
   | "skipped"
   | "cancelled"
 
+/** Tracks state and results for a single volume's scrape job. @source */
 export interface VolumeJob {
   volumeId: string
   volumeNumber: number
@@ -24,6 +27,7 @@ export interface VolumeJob {
   imageResult?: string | null
 }
 
+/** Aggregate counts for a bulk scrape run. @source */
 export interface BulkScrapeSummary {
   total: number
   done: number
@@ -32,6 +36,7 @@ export interface BulkScrapeSummary {
   cancelled: number
 }
 
+/** Internal state for the bulk scrape hook. @source */
 interface BulkScrapeState {
   jobs: VolumeJob[]
   isRunning: boolean
@@ -40,12 +45,21 @@ interface BulkScrapeState {
   cooldownMessage: string | null
 }
 
+/** Minimum inter-request delay in milliseconds. @source */
 const MIN_DELAY_MS = 2000
+/** Maximum inter-request delay in milliseconds. @source */
 const MAX_DELAY_MS = 5000
 
+/** Returns a random delay between `MIN_DELAY_MS` and `MAX_DELAY_MS`. @source */
 const randomDelay = () =>
   Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS)) + MIN_DELAY_MS
 
+/**
+ * Returns a promise that resolves after `ms` or rejects on abort.
+ * @param ms - Delay in milliseconds.
+ * @param signal - AbortSignal for cancellation.
+ * @source
+ */
 const abortableDelay = (ms: number, signal: AbortSignal): Promise<void> =>
   new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -60,12 +74,24 @@ const abortableDelay = (ms: number, signal: AbortSignal): Promise<void> =>
     signal.addEventListener("abort", onAbort, { once: true })
   })
 
+/**
+ * Maps a series type to a human-readable format hint for the price API.
+ * @param seriesType - The series type string.
+ * @returns A format hint like "Light Novel" or "Manga".
+ * @source
+ */
 const getFormatHint = (seriesType: string): string => {
   if (seriesType === "light_novel") return "Light Novel"
   if (seriesType === "manga") return "Manga"
   return ""
 }
 
+/**
+ * Builds an aggregate summary from the current jobs array.
+ * @param jobs - The array of volume jobs.
+ * @returns A `BulkScrapeSummary` with counts by status.
+ * @source
+ */
 const buildSummary = (jobs: VolumeJob[]): BulkScrapeSummary => {
   const summary: BulkScrapeSummary = {
     total: jobs.length,
@@ -83,6 +109,13 @@ const buildSummary = (jobs: VolumeJob[]): BulkScrapeSummary => {
   return summary
 }
 
+/**
+ * Determines whether a volume should be skipped based on existing data.
+ * @param volume - The volume to check.
+ * @param mode - The scrape mode.
+ * @param skipExisting - Whether to skip volumes with existing data.
+ * @source
+ */
 const shouldSkipVolume = (
   volume: Volume,
   mode: BulkScrapeMode,
@@ -97,6 +130,7 @@ const shouldSkipVolume = (
   return hasPrice && hasImage
 }
 
+/** Shape of the price API JSON response. @source */
 interface AmazonResponseData {
   result?: {
     priceText?: string
@@ -110,8 +144,10 @@ interface AmazonResponseData {
   cooldownMs?: number
 }
 
+/** React state setter alias. @source */
 type StateSetter = React.Dispatch<React.SetStateAction<BulkScrapeState>>
 
+/** Initial empty summary. @source */
 const EMPTY_SUMMARY: BulkScrapeSummary = {
   total: 0,
   done: 0,
@@ -120,6 +156,13 @@ const EMPTY_SUMMARY: BulkScrapeSummary = {
   cancelled: 0
 }
 
+/**
+ * Patches a single job in state and recalculates the summary.
+ * @param index - Job index to update.
+ * @param patch - Partial job fields to merge.
+ * @param setter - React state setter.
+ * @source
+ */
 function updateJob(
   index: number,
   patch: Partial<VolumeJob>,
@@ -132,6 +175,12 @@ function updateJob(
   })
 }
 
+/**
+ * Marks all pending jobs from `startIdx` onward as cancelled.
+ * @param startIdx - First index to cancel.
+ * @param setter - React state setter.
+ * @source
+ */
 function cancelRemaining(startIdx: number, setter: StateSetter) {
   setter((prev) => {
     const nextJobs = prev.jobs.map((job, idx) => {
@@ -149,6 +198,11 @@ function cancelRemaining(startIdx: number, setter: StateSetter) {
   })
 }
 
+/**
+ * Marks any remaining pending/scraping jobs as cancelled and stops the run.
+ * @param setter - React state setter.
+ * @source
+ */
 function finalize(setter: StateSetter) {
   setter((prev) => {
     const nextJobs = prev.jobs.map((job) => {
@@ -166,6 +220,7 @@ function finalize(setter: StateSetter) {
   })
 }
 
+/** Options for building the price API fetch URL. @source */
 interface FetchUrlOptions {
   seriesTitle: string
   volumeNumber: number
@@ -178,6 +233,12 @@ interface FetchUrlOptions {
   includeImage: boolean
 }
 
+/**
+ * Constructs the price API URL from the given options.
+ * @param options - Fetch URL configuration.
+ * @returns The fully-qualified API URL string.
+ * @source
+ */
 function buildFetchUrl(options: FetchUrlOptions): string {
   const {
     seriesTitle,
@@ -205,6 +266,12 @@ function buildFetchUrl(options: FetchUrlOptions): string {
   return `/api/books/price?${params}`
 }
 
+/**
+ * Builds a user-facing cooldown message from a rate-limited response.
+ * @param data - The API response data.
+ * @returns A human-readable cooldown message.
+ * @source
+ */
 function buildCooldownMessage(data: AmazonResponseData): string {
   if (data.cooldownMs) {
     const minutes = Math.ceil(data.cooldownMs / 60_000)
@@ -213,7 +280,13 @@ function buildCooldownMessage(data: AmazonResponseData): string {
   return data.error ?? "Amazon blocked the request. Try again later."
 }
 
-/** Handle a 429 response — marks fail + cancels remaining. Returns true. */
+/**
+ * Handles a 429 response by failing the job and cancelling remaining jobs.
+ * @param i - Job index that was rate-limited.
+ * @param data - The API response data.
+ * @param setter - React state setter.
+ * @source
+ */
 function handleRateLimit(
   i: number,
   data: AmazonResponseData,
@@ -231,7 +304,14 @@ function handleRateLimit(
   }))
 }
 
-/** Extract volume updates from a successful response. */
+/**
+ * Extracts volume update fields from a successful price API response.
+ * @param data - The API response data.
+ * @param includePrice - Whether to extract price.
+ * @param includeImage - Whether to extract image.
+ * @returns Parsed updates, price/image results, and any price error.
+ * @source
+ */
 function extractUpdates(
   data: AmazonResponseData,
   includePrice: boolean,
@@ -263,7 +343,13 @@ function extractUpdates(
   return { updates, priceResult, imageResult, priceError }
 }
 
-/** Wait between requests, swallowing abort errors. */
+/**
+ * Waits between requests, swallowing abort errors.
+ * @param signal - AbortSignal for cancellation.
+ * @param isLast - Whether this is the last job (skip delay).
+ * @returns `true` if the delay completed or was skipped.
+ * @source
+ */
 async function interRequestDelay(
   signal: AbortSignal,
   isLast: boolean
@@ -277,6 +363,7 @@ async function interRequestDelay(
   }
 }
 
+/** Shared context passed to each job processor. @source */
 interface JobContext {
   jobs: VolumeJob[]
   series: SeriesWithVolumes
@@ -295,6 +382,13 @@ interface JobContext {
   setter: StateSetter
 }
 
+/**
+ * React hook for bulk-scraping price and/or cover image data for a series.
+ * @param series - The series whose volumes will be scraped.
+ * @param editVolume - Callback to persist volume updates.
+ * @returns State, start/cancel/reset actions for the bulk scrape.
+ * @source
+ */
 export function useBulkScrape(
   series: SeriesWithVolumes,
   editVolume: (
@@ -417,6 +511,13 @@ export function useBulkScrape(
   return { ...state, start, cancel, reset }
 }
 
+/**
+ * Processes a single volume job: fetches data, saves updates, and handles errors.
+ * @param i - Job index.
+ * @param ctx - Shared job context.
+ * @returns `"ok"` to continue, `"halt"` on rate-limit, or `"abort"` on cancellation.
+ * @source
+ */
 async function processJob(
   i: number,
   ctx: JobContext
@@ -489,6 +590,15 @@ async function processJob(
   }
 }
 
+/**
+ * Handles a successful API response by extracting updates and persisting them.
+ * @param i - Job index.
+ * @param data - The API response data.
+ * @param isLast - Whether this is the last job.
+ * @param ctx - Shared job context.
+ * @returns `"ok"` to continue or `"abort"` on cancellation.
+ * @source
+ */
 async function handleSuccess(
   i: number,
   data: AmazonResponseData,

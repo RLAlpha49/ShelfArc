@@ -1,13 +1,20 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+/** Available display (heading) font families. @source */
 export type DisplayFont = "playfair" | "lora" | "crimson-text" | "source-serif"
+/** Available body text font families. @source */
 export type BodyFont = "plus-jakarta" | "inter" | "dm-sans"
+/** Library card size preset. @source */
 export type CardSize = "compact" | "default" | "large"
+/** Date formatting mode. @source */
 export type DateFormat = "relative" | "short" | "long" | "iso"
+/** Default ownership status for new volumes. @source */
 export type DefaultOwnershipStatus = "owned" | "wishlist"
+/** Supported book search providers. @source */
 export type SearchSource = "google_books" | "open_library"
 
+/** Combined settings state and actions for the settings Zustand store. @source */
 interface SettingsState {
   // Library display
   showReadingProgress: boolean
@@ -44,7 +51,7 @@ interface SettingsState {
   setDateFormat: (value: DateFormat) => void
 }
 
-/** Maps font setting keys to the CSS variable references loaded by next/font */
+/** Maps display font keys to their CSS variable references loaded by next/font. @source */
 export const DISPLAY_FONT_MAP: Record<DisplayFont, string> = {
   playfair: "var(--font-playfair)",
   lora: "var(--font-lora)",
@@ -52,12 +59,14 @@ export const DISPLAY_FONT_MAP: Record<DisplayFont, string> = {
   "source-serif": "var(--font-source-serif)"
 }
 
+/** Maps body font keys to their CSS variable references loaded by next/font. @source */
 export const BODY_FONT_MAP: Record<BodyFont, string> = {
   "plus-jakarta": "var(--font-plus-jakarta)",
   inter: "var(--font-inter)",
   "dm-sans": "var(--font-dm-sans)"
 }
 
+/** Zustand store managing user preferences with localStorage persistence. @source */
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({

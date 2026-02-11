@@ -30,9 +30,16 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Volume, VolumeInsert } from "@/lib/types/database"
 
+/** Regex matching common volume/book number tokens (e.g. "Vol. 3"). @source */
 const VOLUME_TOKEN_PATTERN =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
 
+/**
+ * Strips volume-number tokens from a title for cleaner display.
+ * @param title - The raw volume title.
+ * @returns The cleaned title string.
+ * @source
+ */
 const normalizeVolumeTitle = (title: string) => {
   const withoutToken = title.replaceAll(VOLUME_TOKEN_PATTERN, " ")
   const cleaned = withoutToken
@@ -42,12 +49,19 @@ const normalizeVolumeTitle = (title: string) => {
   return cleaned || title.trim()
 }
 
+/**
+ * Converts a snake_case reading status to a capitalized label.
+ * @param status - The raw reading status string.
+ * @returns A human-readable label.
+ * @source
+ */
 const formatReadingStatus = (status: string) => {
   const normalized = status.replaceAll("_", " ")
   if (!normalized) return normalized
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
+/** Tailwind badge color classes keyed by ownership status. @source */
 export const ownershipColors: Record<string, string> = {
   owned: "bg-copper/10 text-copper",
   wishlist: "bg-gold/10 text-gold",
@@ -56,6 +70,7 @@ export const ownershipColors: Record<string, string> = {
   dropped: "bg-destructive/10 text-destructive"
 }
 
+/** Tailwind badge color classes keyed by reading status. @source */
 export const readingColors: Record<string, string> = {
   unread: "bg-muted text-muted-foreground",
   reading: "bg-primary/10 text-primary",
@@ -64,6 +79,10 @@ export const readingColors: Record<string, string> = {
   dropped: "bg-destructive/10 text-destructive"
 }
 
+/**
+ * Volume detail page displaying cover, metadata, description, and editing controls.
+ * @source
+ */
 export default function VolumeDetailPage() {
   const params = useParams()
   const router = useRouter()

@@ -7,38 +7,80 @@ import {
   getCooldownRemaining
 } from "@/lib/rate-limit"
 
+/** Forces dynamic (uncached) rendering for this route. @source */
 export const dynamic = "force-dynamic"
 
 // Set to `true` to enable detailed debug logging of the search result scoring process.
 const DEBUG = false
 
+/** Conditional debug logger; only emits output when `DEBUG` is `true`. @source */
 const debugLog = (...args: Parameters<typeof console.debug>) => {
   if (DEBUG) {
     console.debug(...args)
   }
 }
 
+/** Amazon search endpoint path. @source */
 const AMAZON_SEARCH_PATH = "/s"
+
+/** Fallback binding label when none is supplied. @source */
 const DEFAULT_BINDING = "Paperback"
+
+/** Labels considered Kindle editions. @source */
 const KINDLE_BINDING_LABELS = ["Kindle", "Kindle Edition"]
+
+/** Labels considered hardcover editions. @source */
 const HARDCOVER_BINDING_LABELS = ["Hardcover", "Hardback"]
+
+/** Timeout in milliseconds for outbound Amazon requests. @source */
 const FETCH_TIMEOUT_MS = 12000
+
+/** Minimum Jaccard-style similarity to accept a result. @source */
 const MATCH_THRESHOLD = 0.6
+
+/** Token-coverage threshold for required title tokens. @source */
 const REQUIRED_MATCH_THRESHOLD = 0.8
+
+/** Token-coverage threshold for the base series title. @source */
 const BASE_TITLE_MATCH_THRESHOLD = 0.9
+
+/** Weight applied to the base title score in combined ranking. @source */
 const BASE_TITLE_WEIGHT = 0.2
+
+/** Weight applied to the volume title score in combined ranking. @source */
 const VOLUME_TITLE_WEIGHT = 0.35
+
+/** Penalty applied when a result's format conflicts with the request. @source */
 const FORMAT_CONFLICT_PENALTY = 0.4
+
+/** Penalty applied when a result targets a different volume number. @source */
 const VOLUME_MISMATCH_PENALTY = 0.8
+
+/** Per-extra-token penalty for unexpected tokens in a result title. @source */
 const EXTRA_TOKEN_PENALTY = 0.08
+
+/** Maximum cumulative extra-token penalty. @source */
 const MAX_EXTRA_TOKEN_PENALTY = 0.45
+
+/** Maximum number of Amazon search results to score. @source */
 const MAX_RESULTS_TO_SCORE = 16
+
+/** Maximum allowed character length for the series title input. @source */
 const MAX_TITLE_LENGTH = 200
+
+/** Maximum allowed character length for the volume title input. @source */
 const MAX_VOLUME_TITLE_LENGTH = 200
+
+/** Maximum allowed character length for the format input. @source */
 const MAX_FORMAT_LENGTH = 80
+
+/** Maximum allowed character length for the constructed search query. @source */
 const MAX_QUERY_LENGTH = 260
 
+/** Rate-limit key identifying the Amazon scrape circuit breaker. @source */
 const RATE_LIMIT_KEY = "amazon-scrape"
+
+/** Rate-limit configuration for Amazon anti-bot cooldowns. @source */
 const RATE_LIMIT_CONFIG = {
   maxFailures: 3,
   failureWindowMs: 5 * 60 * 1000, // 5 minutes
@@ -46,8 +88,10 @@ const RATE_LIMIT_CONFIG = {
 } as const
 
 /**
- * Amazon product image URLs contain a suffix like `._AC_UY218_.jpg`.
- * Stripping everything after the ASIN-style image ID yields the full-res image.
+ * Strips Amazon CDN resizing suffixes to yield the full-resolution image URL.
+ * @param thumbnailUrl - Thumbnail URL from Amazon search results.
+ * @returns Full-size image URL, or `null` if the URL is not a valid Amazon media URL.
+ * @source
  */
 const getFullSizeImageUrl = (thumbnailUrl: string): string | null => {
   try {
@@ -61,6 +105,7 @@ const getFullSizeImageUrl = (thumbnailUrl: string): string | null => {
   }
 }
 
+/** Mapping of short Amazon domain keys to their fully-qualified hostnames. @source */
 const AMAZON_DOMAINS = {
   "amazon.com": "www.amazon.com",
   "amazon.co.uk": "www.amazon.co.uk",
@@ -69,10 +114,13 @@ const AMAZON_DOMAINS = {
   "amazon.co.jp": "www.amazon.co.jp"
 } as const
 
+/** Amazon hosts that format prices with comma as the decimal separator. @source */
 const COMMA_DECIMAL_HOSTS = new Set<string>(["www.amazon.de"])
 
+/** Key of the `AMAZON_DOMAINS` map. @source */
 type AmazonDomain = keyof typeof AMAZON_DOMAINS
 
+/** Typed API error carrying an HTTP status and optional detail payload. @source */
 class ApiError extends Error {
   status: number
   details?: Record<string, unknown>
@@ -88,6 +136,12 @@ class ApiError extends Error {
   }
 }
 
+/**
+ * Serializes an `ApiError` into a JSON `NextResponse`.
+ * @param error - The API error to serialize.
+ * @returns A `NextResponse` with the error payload.
+ * @source
+ */
 const jsonError = (error: ApiError) => {
   const payload = error.details
     ? { error: error.message, ...error.details }
@@ -95,6 +149,12 @@ const jsonError = (error: ApiError) => {
   return NextResponse.json(payload, { status: error.status })
 }
 
+/**
+ * Unicode-normalizes, lowercases, and tokenizes text for fuzzy comparison.
+ * @param value - Raw text to normalize.
+ * @returns Cleaned, whitespace-collapsed, lowercase string.
+ * @source
+ */
 const normalizeText = (value: string) => {
   return value
     .normalize("NFKD")
@@ -106,18 +166,28 @@ const normalizeText = (value: string) => {
     .replaceAll(/\s+/g, " ")
 }
 
+/** Normalizes a binding label for comparison. @source */
 const normalizeBindingLabel = (value: string) => normalizeText(value)
 
+/** Returns `true` if the binding label represents a Kindle edition. @source */
 const isKindleBinding = (bindingLabel: string) => {
   const normalized = normalizeBindingLabel(bindingLabel)
   return normalized.includes("kindle")
 }
 
+/** Returns `true` if the binding label represents a paperback edition. @source */
 const isPaperbackBinding = (bindingLabel: string) => {
   const normalized = normalizeBindingLabel(bindingLabel)
   return normalized.includes("paperback")
 }
 
+/**
+ * Builds an ordered list of binding labels to try, with optional Kindle/hardcover fallbacks.
+ * @param bindingLabel - Primary requested binding label.
+ * @param fallbackToKindle - Whether to include Kindle labels as a last resort.
+ * @returns Deduplicated list of binding labels.
+ * @source
+ */
 const resolveBindingLabels = (
   bindingLabel: string,
   fallbackToKindle: boolean
@@ -148,6 +218,12 @@ const resolveBindingLabels = (
   return labels
 }
 
+/**
+ * Splits normalized text into a set of unique tokens for fuzzy matching.
+ * @param value - Raw text to tokenize.
+ * @returns A `Set` of lowercase tokens.
+ * @source
+ */
 const tokenize = (value: string) => {
   const tokens = normalizeText(value)
     .split(" ")
@@ -156,6 +232,12 @@ const tokenize = (value: string) => {
   return new Set(tokens)
 }
 
+/**
+ * Splits normalized text into an ordered array of tokens, preserving duplicates.
+ * @param value - Raw text to tokenize.
+ * @returns An ordered array of lowercase tokens.
+ * @source
+ */
 const tokenizeOrdered = (value: string) => {
   return normalizeText(value)
     .split(" ")
@@ -163,6 +245,12 @@ const tokenizeOrdered = (value: string) => {
     .filter((token) => token.length > 1 || /^\d+$/.test(token))
 }
 
+/**
+ * Generates zero-padded string variants of a volume number for matching.
+ * @param volumeNumber - The numeric volume to generate variants of.
+ * @returns A `Set` of string representations (e.g. `"1"`, `"01"`, `"001"`).
+ * @source
+ */
 const getVolumeTokenVariants = (volumeNumber: number) => {
   const raw = volumeNumber.toString()
   const variants = new Set([raw])
@@ -175,6 +263,7 @@ const getVolumeTokenVariants = (volumeNumber: number) => {
   return variants
 }
 
+/** Common stop-words ignored when computing prefix modifier penalties. @source */
 const PREFIX_IGNORED_TOKENS = new Set([
   "the",
   "of",
@@ -188,6 +277,16 @@ const PREFIX_IGNORED_TOKENS = new Set([
   "by"
 ])
 
+/**
+ * Extracts subtitle tokens from a volume title by removing series, format, and binding tokens.
+ * @param volumeTitle - Full volume title.
+ * @param seriesTitle - Parent series title to exclude.
+ * @param volumeNumber - Volume number to exclude.
+ * @param format - Media format label to exclude.
+ * @param binding - Binding label to exclude.
+ * @returns Space-joined subtitle tokens.
+ * @source
+ */
 const extractVolumeSubtitle = (
   volumeTitle: string,
   seriesTitle: string,
@@ -226,6 +325,13 @@ const extractVolumeSubtitle = (
   return subtitleTokens.join(" ")
 }
 
+/**
+ * Checks whether a title explicitly references the exact volume number (not as part of a range).
+ * @param title - Result title to inspect.
+ * @param volumeNumber - Volume number to look for.
+ * @returns `true` if the title contains an explicit match.
+ * @source
+ */
 const hasExactVolumeMatch = (title: string, volumeNumber: number) => {
   const lower = title.toLowerCase()
   const explicitPattern = new RegExp(
@@ -254,6 +360,13 @@ const hasExactVolumeMatch = (title: string, volumeNumber: number) => {
   return hasStandalone && !inRange
 }
 
+/**
+ * Populates explicit volume indicators ("Vol 3", "Book 1-5") from a title string.
+ * @param title - Title text to scan.
+ * @param numbers - Set to populate with single volume numbers.
+ * @param ranges - Array to populate with volume ranges.
+ * @source
+ */
 const addExplicitVolumeIndicators = (
   title: string,
   numbers: Set<number>,
@@ -278,6 +391,13 @@ const addExplicitVolumeIndicators = (
   }
 }
 
+/**
+ * Detects trailing bare numbers in a title that likely represent volume numbers.
+ * @param title - Title text to scan.
+ * @param contextTitle - Optional context title whose tokens are excluded.
+ * @param numbers - Set to populate with detected volume numbers.
+ * @source
+ */
 const addTrailingVolumeIndicators = (
   title: string,
   contextTitle: string | undefined,
@@ -299,6 +419,13 @@ const addTrailingVolumeIndicators = (
   }
 }
 
+/**
+ * Extracts all volume number indicators (explicit and trailing) from a title.
+ * @param title - Title text to scan.
+ * @param contextTitle - Optional series title for disambiguation.
+ * @returns An object with `numbers` (Set) and `ranges` (Array).
+ * @source
+ */
 const extractExplicitVolumeIndicators = (
   title: string,
   contextTitle?: string
@@ -311,6 +438,13 @@ const extractExplicitVolumeIndicators = (
   return { numbers, ranges }
 }
 
+/**
+ * Computes a penalty when a result's volume number conflicts with the expected volume.
+ * @param context - Current search context.
+ * @param resultTitle - Title of the Amazon search result.
+ * @returns `0` if the volume matches, otherwise `VOLUME_MISMATCH_PENALTY`.
+ * @source
+ */
 const getVolumeMismatchPenalty = (
   context: SearchContext,
   resultTitle: string
@@ -337,6 +471,13 @@ const getVolumeMismatchPenalty = (
   return VOLUME_MISMATCH_PENALTY
 }
 
+/**
+ * Computes Jaccard-style token similarity between two strings.
+ * @param expected - Expected text.
+ * @param actual - Actual text to compare.
+ * @returns Similarity score between 0 and 1.
+ * @source
+ */
 const similarityScore = (expected: string, actual: string) => {
   const expectedTokens = tokenize(expected)
   const actualTokens = tokenize(actual)
@@ -348,6 +489,13 @@ const similarityScore = (expected: string, actual: string) => {
   return intersection / Math.max(expectedTokens.size, actualTokens.size)
 }
 
+/**
+ * Measures how many expected tokens appear in the actual text (recall-oriented).
+ * @param expected - Expected text.
+ * @param actual - Actual text to compare.
+ * @returns Coverage score between 0 and 1.
+ * @source
+ */
 const tokenCoverageScore = (expected: string, actual: string) => {
   const expectedTokens = tokenize(expected)
   const actualTokens = tokenize(actual)
@@ -359,6 +507,13 @@ const tokenCoverageScore = (expected: string, actual: string) => {
   return intersection / expectedTokens.size
 }
 
+/**
+ * Penalizes results with unexpected tokens appearing before the volume number.
+ * @param context - Current search context.
+ * @param resultTitle - Result title to inspect.
+ * @returns Penalty value between 0 and 0.45.
+ * @source
+ */
 const getPrefixModifierPenalty = (
   context: SearchContext,
   resultTitle: string
@@ -405,6 +560,13 @@ const getPrefixModifierPenalty = (
   return Math.min(0.45, extraTokens.length * 0.2)
 }
 
+/**
+ * Penalizes results containing unrecognized extra tokens.
+ * @param context - Current search context.
+ * @param resultTitle - Result title to inspect.
+ * @returns Penalty value up to `MAX_EXTRA_TOKEN_PENALTY`.
+ * @source
+ */
 const getExtraTokenPenalty = (context: SearchContext, resultTitle: string) => {
   const resultTokens = [...tokenize(resultTitle)]
   if (!resultTokens.length) return 0
@@ -445,6 +607,13 @@ const getExtraTokenPenalty = (context: SearchContext, resultTitle: string) => {
   )
 }
 
+/**
+ * Penalizes results whose format (manga vs. light novel) conflicts with the expected format.
+ * @param format - Expected format string.
+ * @param resultTitle - Result title to inspect.
+ * @returns `FORMAT_CONFLICT_PENALTY` on conflict, otherwise `0`.
+ * @source
+ */
 const getFormatConflictPenalty = (format: string, resultTitle: string) => {
   if (!format) return 0
   const normalizedFormat = normalizeText(format)
@@ -468,11 +637,24 @@ const getFormatConflictPenalty = (format: string, resultTitle: string) => {
   return 0
 }
 
+/**
+ * Truncates and trims a nullable input string to the given max length.
+ * @param value - Raw input value.
+ * @param maxLength - Maximum allowed character length.
+ * @returns Sanitized string, empty if `null`.
+ * @source
+ */
 const sanitizeInput = (value: string | null, maxLength: number) => {
   const trimmed = value?.trim() ?? ""
   return trimmed.slice(0, maxLength)
 }
 
+/**
+ * Resolves a user-supplied Amazon domain string to a valid `AmazonDomain` key.
+ * @param value - Raw domain input (e.g. `"amazon.co.uk"`).
+ * @returns Resolved domain key, defaulting to `"amazon.com"`.
+ * @source
+ */
 const resolveAmazonDomain = (value: string | null): AmazonDomain => {
   const normalized = (value ?? "")
     .trim()
@@ -485,6 +667,14 @@ const resolveAmazonDomain = (value: string | null): AmazonDomain => {
   return "amazon.com"
 }
 
+/**
+ * Fetches a URL with an abort-signal timeout.
+ * @param url - Target URL.
+ * @param options - Standard `RequestInit` options.
+ * @param timeoutMs - Timeout in milliseconds.
+ * @returns The upstream `Response`.
+ * @source
+ */
 const fetchWithTimeout = async (
   url: string,
   options: RequestInit,
@@ -500,6 +690,12 @@ const fetchWithTimeout = async (
   }
 }
 
+/**
+ * Detects whether HTML contains Amazon captcha / bot-gate markers.
+ * @param html - Raw HTML string.
+ * @returns `true` if the page appears to be a bot challenge.
+ * @source
+ */
 const isLikelyBotGate = (html: string) => {
   const lower = html.toLowerCase()
   return (
@@ -509,6 +705,13 @@ const isLikelyBotGate = (html: string) => {
   )
 }
 
+/**
+ * Infers the decimal separator from a normalized price string and host locale.
+ * @param normalized - Price string with only digits, commas, and dots.
+ * @param host - Fully qualified Amazon hostname.
+ * @returns `"."`, `","`, or `null` if no separator is detected.
+ * @source
+ */
 const getDecimalSeparator = (normalized: string, host: string) => {
   const lastDot = normalized.lastIndexOf(".")
   const lastComma = normalized.lastIndexOf(",")
@@ -529,6 +732,13 @@ const getDecimalSeparator = (normalized: string, host: string) => {
   return null
 }
 
+/**
+ * Parses a locale-aware price string into a numeric value.
+ * @param priceText - Raw price text (e.g. `"$12.99"`, `"14,99 €"`).
+ * @param host - Fully qualified Amazon hostname for locale inference.
+ * @returns Parsed float, or `null` if unparseable.
+ * @source
+ */
 const parsePriceValue = (priceText: string, host: string) => {
   const normalized = priceText.replaceAll(/[^\d.,]+/g, "")
   if (!normalized) return null
@@ -551,6 +761,13 @@ const parsePriceValue = (priceText: string, host: string) => {
   return Number.isFinite(value) ? value : null
 }
 
+/**
+ * Detects the currency from a price string, falling back to the host's default.
+ * @param priceText - Raw price text.
+ * @param host - Fully qualified Amazon hostname.
+ * @returns ISO 4217 currency code, or `null`.
+ * @source
+ */
 const detectCurrency = (priceText: string, host: string) => {
   const normalized = priceText.toUpperCase()
   if (normalized.includes("CA$") || normalized.includes("C$")) return "CAD"
@@ -570,6 +787,13 @@ const detectCurrency = (priceText: string, host: string) => {
   return hostCurrencyMap[host] ?? null
 }
 
+/**
+ * Builds the full search context from query parameters: URL, tokens, binding labels, etc.
+ * @param request - Incoming request with search query parameters.
+ * @returns Resolved search context used throughout the scoring pipeline.
+ * @throws {ApiError} If the required `title` parameter is missing.
+ * @source
+ */
 const getSearchContext = (request: NextRequest) => {
   const title = sanitizeInput(
     request.nextUrl.searchParams.get("title"),
@@ -659,8 +883,10 @@ const getSearchContext = (request: NextRequest) => {
   }
 }
 
+/** Inferred return type of `getSearchContext`. @source */
 type SearchContext = ReturnType<typeof getSearchContext>
 
+/** A scored Amazon search result with all ranking metrics. @source */
 type ScoredResult = {
   result: cheerio.Cheerio<Element>
   resultTitle: string
@@ -679,6 +905,7 @@ type ScoredResult = {
   index: number
 }
 
+/** A scored result with an extracted price and binding label. @source */
 type PricedCandidate = {
   candidate: ScoredResult
   priceText: string
@@ -687,11 +914,13 @@ type PricedCandidate = {
   bindingLabel: string
 }
 
+/** A matched binding link element and its label text. @source */
 type BindingMatch = {
   link: cheerio.Cheerio<Element>
   label: string
 }
 
+/** Final price selection result for the best-matching candidate. @source */
 type PriceSelection = {
   selected: ScoredResult
   priceText: string | null
@@ -701,6 +930,7 @@ type PriceSelection = {
   priceError: string | null
 }
 
+/** Input parameters for the `resolvePriceSelection` function. @source */
 type PriceSelectionInput = {
   $: cheerio.CheerioAPI
   includePrice: boolean
@@ -712,6 +942,15 @@ type PriceSelectionInput = {
   priceErrorMessage: string
 }
 
+/**
+ * Iterates scored candidates to find the first one with an extractable price.
+ * @param $ - Cheerio API instance.
+ * @param candidates - Ranked scored results.
+ * @param bindingLabels - Binding labels to try.
+ * @param host - Amazon hostname for price parsing.
+ * @returns The first priced candidate, or `null`.
+ * @source
+ */
 const findPricedCandidate = (
   $: cheerio.CheerioAPI,
   candidates: ScoredResult[],
@@ -726,6 +965,15 @@ const findPricedCandidate = (
   return null
 }
 
+/**
+ * Attempts to extract a price from a single scored result.
+ * @param $ - Cheerio API instance.
+ * @param candidate - The scored result to extract from.
+ * @param bindingLabels - Binding labels to try.
+ * @param host - Amazon hostname for price parsing.
+ * @returns Price data without the candidate, or `null` if no price is found.
+ * @source
+ */
 const getPriceForCandidate = (
   $: cheerio.CheerioAPI,
   candidate: ScoredResult,
@@ -763,6 +1011,12 @@ const getPriceForCandidate = (
   }
 }
 
+/**
+ * Selects the best priced result, applying fallback logic when image mode is active.
+ * @param input - Price selection parameters.
+ * @returns A `PriceSelection` with the chosen candidate and its price data.
+ * @source
+ */
 const resolvePriceSelection = ({
   $,
   includePrice,
@@ -849,6 +1103,13 @@ const resolvePriceSelection = ({
   }
 }
 
+/**
+ * Fetches and validates raw HTML from an Amazon search URL.
+ * @param searchUrl - Fully constructed Amazon search URL.
+ * @returns HTML string of the search results page.
+ * @throws {ApiError} On network failure, non-OK status, or bot detection.
+ * @source
+ */
 const fetchAmazonHtml = async (searchUrl: string) => {
   let response: Response
   try {
@@ -890,6 +1151,13 @@ const fetchAmazonHtml = async (searchUrl: string) => {
   return html
 }
 
+/**
+ * Extracts non-sponsored search result elements from parsed HTML.
+ * @param $ - Cheerio API instance.
+ * @returns Array of result `Element` nodes (capped at `MAX_RESULTS_TO_SCORE`).
+ * @throws {ApiError} When the search root or results are missing.
+ * @source
+ */
 const getSearchResults = ($: cheerio.CheerioAPI) => {
   const searchRoot = $("#search")
   if (!searchRoot.length) {
@@ -913,6 +1181,13 @@ const getSearchResults = ($: cheerio.CheerioAPI) => {
   return results.slice(0, MAX_RESULTS_TO_SCORE).toArray()
 }
 
+/**
+ * Extracts the product title text from a search result element.
+ * @param result - Cheerio-wrapped result element.
+ * @returns The cleaned title string.
+ * @throws {ApiError} When no title can be found.
+ * @source
+ */
 const extractResultTitle = (result: cheerio.Cheerio<Element>) => {
   // Prefer explicit title spans inside h2 > a to avoid brittle index-based fallbacks.
   const titleNode = result
@@ -935,6 +1210,13 @@ const extractResultTitle = (result: cheerio.Cheerio<Element>) => {
   return resultTitle
 }
 
+/**
+ * Checks whether a link's text matches a binding label.
+ * @param text - Link text from the Amazon result.
+ * @param label - Expected binding label.
+ * @returns `true` if the text matches or starts with the label.
+ * @source
+ */
 const matchesBindingLabel = (text: string, label: string) => {
   const normalizedText = normalizeBindingLabel(text)
   const normalizedLabel = normalizeBindingLabel(label)
@@ -945,6 +1227,15 @@ const matchesBindingLabel = (text: string, label: string) => {
   )
 }
 
+/**
+ * Finds the first link in a result that matches one of the binding labels.
+ * @param $ - Cheerio API instance.
+ * @param result - Cheerio-wrapped result element.
+ * @param bindingLabels - Ordered list of binding labels to try.
+ * @returns The matched link and its label.
+ * @throws {ApiError} When no matching binding link is found.
+ * @source
+ */
 const findBindingLink = (
   $: cheerio.CheerioAPI,
   result: cheerio.Cheerio<Element>,
@@ -970,6 +1261,14 @@ const findBindingLink = (
   )
 }
 
+/**
+ * Extracts a price string from the result DOM near the matched binding link.
+ * @param result - Cheerio-wrapped result element.
+ * @param bindingLink - The matched binding link element.
+ * @returns The extracted price text.
+ * @throws {ApiError} When no price text is found.
+ * @source
+ */
 const extractPriceText = (
   result: cheerio.Cheerio<Element>,
   bindingLink: cheerio.Cheerio<Element>
@@ -1038,6 +1337,13 @@ const extractPriceText = (
   return priceText
 }
 
+/**
+ * Extracts the canonical product URL from a search result, preferring ASIN-based URLs.
+ * @param result - Cheerio-wrapped result element.
+ * @param host - Fully qualified Amazon hostname.
+ * @returns Absolute product URL, or `null`.
+ * @source
+ */
 const extractProductUrl = (result: cheerio.Cheerio<Element>, host: string) => {
   const productPath = result.find("h2 a").first().attr("href")
   const asin = result.attr("data-asin")?.trim()
@@ -1074,6 +1380,12 @@ const extractProductUrl = (result: cheerio.Cheerio<Element>, host: string) => {
   return null
 }
 
+/**
+ * Extracts the full-resolution product image URL from a search result.
+ * @param result - Cheerio-wrapped result element.
+ * @returns Full-size image URL, or `null`.
+ * @source
+ */
 const extractImageUrl = (result: cheerio.Cheerio<Element>) => {
   const img = result.find("img.s-image").first()
   const src = img.attr("src") ?? img.attr("data-src") ?? ""
@@ -1081,6 +1393,15 @@ const extractImageUrl = (result: cheerio.Cheerio<Element>) => {
   return getFullSizeImageUrl(src)
 }
 
+/**
+ * Scores, ranks, and extracts price/image data from Amazon search HTML.
+ * @param html - Raw Amazon search results HTML.
+ * @param context - Resolved search context.
+ * @param options - Flags controlling price and image extraction.
+ * @returns The best-matching result with price, image, and score metadata.
+ * @throws {ApiError} When no results match above the threshold.
+ * @source
+ */
 const parseAmazonResult = (
   html: string,
   context: SearchContext,
@@ -1309,6 +1630,12 @@ const parseAmazonResult = (
   }
 }
 
+/**
+ * Amazon price-lookup endpoint: scrapes search results, scores them, and returns the best match with price/image data.
+ * @param request - Incoming request with `title`, `domain`, `volume`, `format`, `binding`, and option flags.
+ * @returns JSON with the matched result, price data, and search metadata.
+ * @source
+ */
 export async function GET(request: NextRequest) {
   try {
     // Check rate-limit cooldown before making any outbound request

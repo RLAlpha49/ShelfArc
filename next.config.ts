@@ -1,5 +1,6 @@
 import type { NextConfig } from "next"
 
+/** Next.js configuration with allowed remote image domains for Google Books and Open Library covers. @source */
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [

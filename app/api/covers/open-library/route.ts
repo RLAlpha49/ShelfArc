@@ -1,10 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
 
+/** Base URL for the Open Library Covers API. @source */
 const OPEN_LIBRARY_BASE = "https://covers.openlibrary.org/b/isbn"
+
+/** Allowed cover size parameters (`S`, `M`, `L`). @source */
 const VALID_SIZES = new Set(["S", "M", "L"])
+
+/** Timeout in milliseconds for upstream cover fetch requests. @source */
 const FETCH_TIMEOUT_MS = 5000
 
+/**
+ * Proxies a book cover image from the Open Library Covers API by ISBN.
+ * @param request - Incoming request with `isbn` and optional `size` query parameters.
+ * @returns The cover image stream with appropriate caching headers.
+ * @source
+ */
 export async function GET(request: NextRequest) {
   const isbnRaw = request.nextUrl.searchParams.get("isbn")?.trim() ?? ""
   const sizeRaw = request.nextUrl.searchParams.get("size")?.trim() ?? "L"

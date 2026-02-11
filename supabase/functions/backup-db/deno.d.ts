@@ -1,16 +1,26 @@
+/** Ambient Deno runtime namespace for edge functions. @source */
 declare const Deno: {
   env: {
+    /** Retrieves an environment variable by key. @param key - Environment variable name. @returns The value, or `undefined` if unset. @source */
     get(key: string): string | undefined
   }
 }
 
+/** Type declarations for the Deno standard HTTP server module. @source */
 declare module "https://deno.land/std@0.224.0/http/server.ts" {
+  /**
+   * Starts an HTTP server with the given request handler.
+   * @param handler - Callback invoked for each incoming request.
+   * @source
+   */
   export function serve(
     handler: (request: Request) => Response | Promise<Response>
   ): void
 }
 
+/** Type declarations for the Supabase JS client used in edge functions. @source */
 declare module "https://esm.sh/@supabase/supabase-js@2.49.1" {
+  /** Chainable query builder for filtering, ordering, and paginating Supabase queries. @source */
   type QueryBuilder = {
     eq(column: string, value: unknown): QueryBuilder
     neq(column: string, value: unknown): QueryBuilder
@@ -40,6 +50,7 @@ declare module "https://esm.sh/@supabase/supabase-js@2.49.1" {
     }>
   }
 
+  /** Supabase client interface exposing storage, auth, RPC, and table operations. @source */
   export type SupabaseClient = {
     storage: {
       from(bucket: string): {
@@ -83,6 +94,14 @@ declare module "https://esm.sh/@supabase/supabase-js@2.49.1" {
     }
   }
 
+  /**
+   * Creates a Supabase client instance.
+   * @param url - Supabase project URL.
+   * @param key - Supabase API key (anon or service role).
+   * @param options - Optional client configuration.
+   * @returns A configured Supabase client.
+   * @source
+   */
   export function createClient(
     url: string,
     key: string,

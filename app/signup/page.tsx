@@ -7,10 +7,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signup } from "@/app/auth/actions"
 
+/**
+ * Signup page with email/password/display-name form and decorative side panel.
+ * @source
+ */
 export default function SignupPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  /** Submits the signup form and surfaces errors without redirect. @source */
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     setError(null)

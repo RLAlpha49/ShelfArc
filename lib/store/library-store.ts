@@ -9,14 +9,23 @@ import type {
   ReadingStatus
 } from "@/lib/types/database"
 
+/** Sort field options for the library view. @source */
 export type SortField = "title" | "created_at" | "updated_at" | "author"
+/** Sort direction. @source */
 export type SortOrder = "asc" | "desc"
+/** Display mode for the library grid. @source */
 export type ViewMode = "grid" | "list"
+/** Top-level collection grouping. @source */
 export type CollectionView = "series" | "volumes"
+/** Supported external price source. @source */
 export type PriceSource = "amazon"
+/** Supported ISO currency codes. @source */
 export type CurrencyCode = "USD" | "GBP" | "EUR" | "CAD" | "JPY"
+/** Navigation layout mode. @source */
 export type NavigationMode = "sidebar" | "header"
+/** Default currency code used throughout the app. @source */
 export const DEFAULT_CURRENCY_CODE: CurrencyCode = "USD"
+/** Supported Amazon regional domains. @source */
 export type AmazonDomain =
   | "amazon.com"
   | "amazon.co.uk"
@@ -24,6 +33,7 @@ export type AmazonDomain =
   | "amazon.de"
   | "amazon.co.jp"
 
+/** Active filter state for the library view. @source */
 interface FilterState {
   search: string
   type: TitleType | "all"
@@ -32,6 +42,7 @@ interface FilterState {
   tags: string[]
 }
 
+/** Combined data, UI, and action state for the library Zustand store. @source */
 interface LibraryState {
   // Data
   series: SeriesWithVolumes[]
@@ -91,6 +102,7 @@ interface LibraryState {
   setIsLoading: (loading: boolean) => void
 }
 
+/** Default filter state with no active filters. @source */
 const defaultFilters: FilterState = {
   search: "",
   type: "all",
@@ -99,6 +111,7 @@ const defaultFilters: FilterState = {
   tags: []
 }
 
+/** Zustand store managing library data, UI preferences, and CRUD actions. @source */
 export const useLibraryStore = create<LibraryState>()(
   persist(
     (set) => ({

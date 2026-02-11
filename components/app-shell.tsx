@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 
+/** Props for the {@link AppShell} layout wrapper. @source */
 interface AppShellProps {
   readonly children: React.ReactNode
   readonly user?: {
@@ -17,6 +18,11 @@ interface AppShellProps {
   } | null
 }
 
+/**
+ * Top-level layout shell that switches between sidebar and header navigation.
+ * @param props - {@link AppShellProps}
+ * @source
+ */
 export function AppShell({ children, user }: AppShellProps) {
   const navigationMode = useLibraryStore((state) => state.navigationMode)
   const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)

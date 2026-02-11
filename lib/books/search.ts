@@ -1,7 +1,9 @@
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
 
+/** Supported book search providers. @source */
 export type BookSearchSource = "google_books" | "open_library"
 
+/** Normalized book search result shared across all search providers. @source */
 export interface BookSearchResult {
   id: string
   title: string
@@ -16,6 +18,12 @@ export interface BookSearchResult {
   source: BookSearchSource
 }
 
+/**
+ * Normalizes text for fuzzy book comparison by removing diacritics and punctuation.
+ * @param value - The raw book text.
+ * @returns A lowercase, single-spaced, ASCII-only string.
+ * @source
+ */
 const normalizeBookText = (value?: string | null) => {
   return (value ?? "")
     .normalize("NFKD")
@@ -26,6 +34,13 @@ const normalizeBookText = (value?: string | null) => {
     .replaceAll(/\s+/g, " ")
 }
 
+/**
+ * Builds a deduplication key from a book title and optional author.
+ * @param title - The book title.
+ * @param author - The book author.
+ * @returns A pipe-separated normalized key, or `null` if the title is empty.
+ * @source
+ */
 export const normalizeBookKey = (
   title?: string | null,
   author?: string | null
@@ -36,12 +51,24 @@ export const normalizeBookKey = (
   return `${normalizedTitle}|${normalizedAuthor}`
 }
 
+/** Upgrades an HTTP URL to HTTPS. @source */
 const ensureHttps = (url: string) => url.replace(/^http:/, "https:")
 
+/**
+ * Checks whether a search query string is a valid ISBN.
+ * @param query - The search query.
+ * @source
+ */
 export const isIsbnQuery = (query: string) => {
   return isValidIsbn(query)
 }
 
+/**
+ * Picks the best ISBN from Google Books industry identifiers, preferring ISBN-13.
+ * @param identifiers - Array of identifier objects from the API.
+ * @returns The selected ISBN string, or `null`.
+ * @source
+ */
 const pickIsbnFromIdentifiers = (
   identifiers?: Array<{ type?: string; identifier?: string }>
 ) => {
@@ -51,6 +78,12 @@ const pickIsbnFromIdentifiers = (
   return isbn13 ?? isbn10 ?? identifiers[0]?.identifier ?? null
 }
 
+/**
+ * Picks the best ISBN from a list of ISBN strings, preferring ISBN-13.
+ * @param isbns - Array of raw ISBN strings.
+ * @returns The selected ISBN string, or `null`.
+ * @source
+ */
 const pickIsbnFromList = (isbns?: string[]) => {
   if (!isbns || isbns.length === 0) return null
   const isbn13 = isbns.find((isbn) => normalizeIsbn(isbn).length === 13)
@@ -58,6 +91,12 @@ const pickIsbnFromList = (isbns?: string[]) => {
   return isbn13 ?? isbn10 ?? isbns[0] ?? null
 }
 
+/**
+ * Normalizes raw Google Books API items into `BookSearchResult` objects.
+ * @param items - Raw items from the Google Books API response.
+ * @returns An array of normalized book search results.
+ * @source
+ */
 export const normalizeGoogleBooksItems = (
   items: unknown[]
 ): BookSearchResult[] => {
@@ -125,6 +164,12 @@ export const normalizeGoogleBooksItems = (
   })
 }
 
+/**
+ * Normalizes raw Open Library docs into `BookSearchResult` objects.
+ * @param docs - Raw doc objects from the Open Library API response.
+ * @returns An array of normalized book search results.
+ * @source
+ */
 export const normalizeOpenLibraryDocs = (
   docs: unknown[]
 ): BookSearchResult[] => {

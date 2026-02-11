@@ -31,20 +31,24 @@ import type { OwnershipStatus } from "@/lib/types/database"
 
 /* ─── Constants ─────────────────────────────────────────── */
 
+/** Accepted file extensions for the file-picker input. @source */
 const ACCEPTED_EXTENSIONS = ".csv,.tsv,.txt"
 
+/** Import statuses that indicate actively processing. @source */
 const ACTIVE_STATUSES = new Set<IsbnImportStatus>([
   "searching",
   "fallback",
   "adding"
 ])
 
+/** Statuses for which a matched search result should be rendered. @source */
 const SHOW_RESULT_STATUSES = new Set<IsbnImportStatus>([
   "added",
   "adding",
   "found"
 ])
 
+/** Label, Tailwind color, and emoji icon per import status. @source */
 const STATUS_CONFIG: Record<
   IsbnImportStatus,
   { label: string; color: string; icon: string }
@@ -93,6 +97,12 @@ const STATUS_CONFIG: Record<
 
 /* ─── Helpers ───────────────────────────────────────────── */
 
+/**
+ * Returns a human-readable headline for the completion summary.
+ * @param addedCount - Number of books successfully imported.
+ * @returns Headline string.
+ * @source
+ */
 function completionHeadline(addedCount: number): string {
   if (addedCount === 0) return "No books were imported"
   const plural = addedCount === 1 ? "" : "s"
@@ -101,6 +111,10 @@ function completionHeadline(addedCount: number): string {
 
 /* ─── Shared sub-components ─────────────────────────────── */
 
+/**
+ * Live elapsed-time counter displayed during an active import.
+ * @source
+ */
 function ElapsedTime({ startTime }: Readonly<{ startTime: number | null }>) {
   const [elapsed, setElapsed] = useState(0)
 
@@ -125,6 +139,10 @@ function ElapsedTime({ startTime }: Readonly<{ startTime: number | null }>) {
   )
 }
 
+/**
+ * Gradient progress bar showing import completion percentage.
+ * @source
+ */
 function ProgressBar({
   processed,
   total
@@ -149,6 +167,10 @@ function ProgressBar({
   )
 }
 
+/**
+ * Single row displaying an ISBN's import status, matched result, and error message.
+ * @source
+ */
 function ImportItemRow({
   item,
   isActive
@@ -225,6 +247,10 @@ function ImportItemRow({
 
 /* ─── Phase: Idle ───────────────────────────────────────── */
 
+/**
+ * Idle-phase UI: drag-and-drop zone and file picker for CSV/TSV/TXT upload.
+ * @source
+ */
 function IdlePhase({
   isDragging,
   setIsDragging,
@@ -302,6 +328,10 @@ function IdlePhase({
 
 /* ─── Phase: Parsed ─────────────────────────────────────── */
 
+/**
+ * Parsed-phase UI: file summary, ISBN preview grid, import options, and start button.
+ * @source
+ */
 function ParsedPhase({
   fileName,
   stats,
@@ -353,6 +383,10 @@ function ParsedPhase({
   )
 }
 
+/**
+ * Summary card showing detected columns, valid ISBN count, and skip notices.
+ * @source
+ */
 function ParsedFileSummary({
   fileName,
   stats,
@@ -430,6 +464,10 @@ function ParsedFileSummary({
   )
 }
 
+/**
+ * Scrollable grid previewing the ISBNs about to be imported.
+ * @source
+ */
 function IsbnPreviewGrid({
   items
 }: Readonly<{ items: readonly IsbnImportItem[] }>) {
@@ -438,7 +476,6 @@ function IsbnPreviewGrid({
       <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
         ISBNs to import
       </p>
-      {/* FIXME: Scrolling does not work */}
       <ScrollArea className="max-h-48">
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4">
           {items.map((item) => (
@@ -455,6 +492,10 @@ function IsbnPreviewGrid({
   )
 }
 
+/**
+ * Search-source and ownership-status selectors with start/cancel actions.
+ * @source
+ */
 function ImportOptions({
   source,
   ownershipStatus,
@@ -525,6 +566,10 @@ function ImportOptions({
   )
 }
 
+/**
+ * Empty-state notice shown when no importable ISBNs are found in the file.
+ * @source
+ */
 function EmptyIsbnNotice({
   existingCount
 }: Readonly<{ existingCount: number }>) {
@@ -554,6 +599,10 @@ function EmptyIsbnNotice({
 
 /* ─── Phase: Importing / Complete ───────────────────────── */
 
+/**
+ * Importing/complete-phase UI: live progress bar, scrolling item list, and completion summary.
+ * @source
+ */
 function ActivePhase({
   phase,
   items,
@@ -606,6 +655,10 @@ function ActivePhase({
   )
 }
 
+/**
+ * Sticky header with progress bar and cancel button shown during the active import phase.
+ * @source
+ */
 function ActivePhaseHeader({
   phase,
   stats,
@@ -660,6 +713,10 @@ function ActivePhaseHeader({
   )
 }
 
+/**
+ * Summary card with confetti icon and final counts, plus navigation buttons.
+ * @source
+ */
 function CompletionSummary({
   stats,
   onReset
@@ -704,6 +761,10 @@ function CompletionSummary({
 
 /* ─── Main component ────────────────────────────────────── */
 
+/**
+ * Multi-phase CSV import wizard: file upload, ISBN preview, live import progress, and completion summary.
+ * @source
+ */
 export function CsvImport() {
   const defaultSearchSource = useSettingsStore((s) => s.defaultSearchSource)
   const defaultOwnershipStatus = useSettingsStore(

@@ -2,8 +2,15 @@ import { NextResponse, type NextRequest } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 
+/** Supabase Storage bucket for user media files. @source */
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media"
 
+/**
+ * Validates that a storage path contains no traversal or encoded-escape attacks.
+ * @param path - The storage file path to validate.
+ * @returns `true` if the path is safe to use.
+ * @source
+ */
 const isSafePath = (path: string) => {
   let decodedPath = path
 
@@ -41,6 +48,12 @@ const isSafePath = (path: string) => {
   return true
 }
 
+/**
+ * Downloads a user-owned file from Supabase Storage, scoped to the authenticated user's directory.
+ * @param request - Incoming request with a `path` query parameter.
+ * @returns The file contents with appropriate caching headers, or an error response.
+ * @source
+ */
 export async function GET(request: NextRequest) {
   const path = request.nextUrl.searchParams.get("path")?.trim()
 

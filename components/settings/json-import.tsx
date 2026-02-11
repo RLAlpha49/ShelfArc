@@ -26,14 +26,23 @@ import type {
   VolumeInsert
 } from "@/lib/types/database"
 
+/** Whether imported data is merged or replaces the existing collection. @source */
 type ImportMode = "merge" | "replace"
 
+/** Preview summary shown after parsing a JSON export file. @source */
 interface ImportPreview {
   seriesCount: number
   volumeCount: number
   data: SeriesWithVolumes[]
 }
 
+/**
+ * Validates that each volume entry in the import payload has a finite `volume_number`.
+ * @param volumes - Raw volume array from the parsed JSON.
+ * @param seriesIndex - Index of the parent series (used in error messages).
+ * @throws {TypeError} If any volume is invalid.
+ * @source
+ */
 function validateImportVolumes(volumes: unknown[], seriesIndex: number): void {
   for (let j = 0; j < volumes.length; j++) {
     const v = volumes[j] as Record<string, unknown>
@@ -53,6 +62,12 @@ function validateImportVolumes(volumes: unknown[], seriesIndex: number): void {
   }
 }
 
+/**
+ * Validates the top-level structure of the import payload (title required, volumes array optional).
+ * @param data - Parsed JSON array.
+ * @throws {TypeError} If any item is malformed.
+ * @source
+ */
 function validateImportStructure(data: unknown[]): void {
   for (let i = 0; i < data.length; i++) {
     const item = data[i] as Record<string, unknown>
@@ -73,6 +88,13 @@ function validateImportStructure(data: unknown[]): void {
   }
 }
 
+/**
+ * Sanitises and maps a raw series record to a safe {@link SeriesInsert}.
+ * @param s - Raw series data from the import file.
+ * @param userId - Authenticated user's ID.
+ * @returns Sanitised insert payload, or `null` if the title is empty.
+ * @source
+ */
 function sanitizeSeriesImport(
   s: SeriesWithVolumes,
   userId: string
@@ -103,6 +125,14 @@ function sanitizeSeriesImport(
   }
 }
 
+/**
+ * Sanitises and maps a raw volume record to a safe {@link VolumeInsert}.
+ * @param v - Raw volume data from the import file.
+ * @param seriesId - Parent series UUID.
+ * @param userId - Authenticated user's ID.
+ * @returns Sanitised insert payload, or `null` if the volume number is invalid.
+ * @source
+ */
 function sanitizeVolumeImport(
   v: Volume,
   seriesId: string,
@@ -157,6 +187,14 @@ function sanitizeVolumeImport(
   }
 }
 
+/**
+ * Inserts a single series and its volumes into the database.
+ * @param s - Series record with nested volumes.
+ * @param userId - Authenticated user's ID.
+ * @param seriesTable - Supabase `series` table handle.
+ * @param volumesTable - Supabase `volumes` table handle.
+ * @source
+ */
 async function importSeriesWithVolumes(
   s: SeriesWithVolumes,
   userId: string,
@@ -195,6 +233,10 @@ async function importSeriesWithVolumes(
   }
 }
 
+/**
+ * JSON import form for restoring a ShelfArc backup (merge or replace mode).
+ * @source
+ */
 export function JsonImport() {
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)

@@ -8,23 +8,31 @@ import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 
-function Sheet({ ...props }: SheetPrimitive.Root.Props) {
+/** Root provider for a sheet panel. @source */
+function Sheet({ ...props }: Readonly<SheetPrimitive.Root.Props>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
 
-function SheetTrigger({ ...props }: SheetPrimitive.Trigger.Props) {
+/** Element that opens the sheet on interaction. @source */
+function SheetTrigger({ ...props }: Readonly<SheetPrimitive.Trigger.Props>) {
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
 }
 
-function SheetClose({ ...props }: SheetPrimitive.Close.Props) {
+/** Close trigger for the sheet. @source */
+function SheetClose({ ...props }: Readonly<SheetPrimitive.Close.Props>) {
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
 }
 
-function SheetPortal({ ...props }: SheetPrimitive.Portal.Props) {
+/** Portal that renders sheet outside the DOM hierarchy. @source */
+function SheetPortal({ ...props }: Readonly<SheetPrimitive.Portal.Props>) {
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
 }
 
-function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
+/** Backdrop overlay behind the sheet. @source */
+function SheetOverlay({
+  className,
+  ...props
+}: Readonly<SheetPrimitive.Backdrop.Props>) {
   return (
     <SheetPrimitive.Backdrop
       data-slot="sheet-overlay"
@@ -37,6 +45,12 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
   )
 }
 
+/**
+ * Sliding panel content anchored to an edge of the viewport.
+ * @param side - Which edge the sheet slides from.
+ * @param showCloseButton - Whether to render the close button.
+ * @source
+ */
 function SheetContent({
   className,
   children,
@@ -80,6 +94,7 @@ function SheetContent({
   )
 }
 
+/** Header section of a sheet. @source */
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -90,6 +105,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Footer section of a sheet. @source */
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -100,7 +116,11 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
+/** Title heading for the sheet. @source */
+function SheetTitle({
+  className,
+  ...props
+}: Readonly<SheetPrimitive.Title.Props>) {
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
@@ -110,10 +130,11 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
   )
 }
 
+/** Descriptive text for the sheet. @source */
 function SheetDescription({
   className,
   ...props
-}: SheetPrimitive.Description.Props) {
+}: Readonly<SheetPrimitive.Description.Props>) {
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"

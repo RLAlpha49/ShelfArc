@@ -46,6 +46,12 @@ import type {
 import { type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
+/**
+ * Returns Tailwind grid classes for the given card size.
+ * @param cardSize - The user's chosen card size.
+ * @returns A CSS class string for the grid layout.
+ * @source
+ */
 function getGridClasses(cardSize: CardSize): string {
   switch (cardSize) {
     case "compact":
@@ -57,6 +63,11 @@ function getGridClasses(cardSize: CardSize): string {
   }
 }
 
+/**
+ * Skeleton placeholder shown while the library data is loading.
+ * @param viewMode - Current layout mode (grid or list).
+ * @source
+ */
 function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
   const cardSize = useSettingsStore((s) => s.cardSize)
   const items = Array.from({ length: 12 }, (_, i) => `skeleton-${i}`)
@@ -86,6 +97,16 @@ function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
   )
 }
 
+/**
+ * List-mode row for a single series with cover, title, and volume count.
+ * @param series - The series data to display.
+ * @param onClick - Handler for clicking the row.
+ * @param onEdit - Handler for editing the series.
+ * @param onDelete - Handler for deleting the series.
+ * @param selected - Whether this row is currently selected.
+ * @param onSelect - Optional handler for toggling selection.
+ * @source
+ */
 function SeriesListItem({
   series,
   onClick,
@@ -202,14 +223,22 @@ function SeriesListItem({
   )
 }
 
+/** A volume paired with its parent series for flat-list rendering. @source */
 type VolumeWithSeries = {
   volume: Volume
   series: SeriesWithVolumes
 }
 
+/** Regex matching common volume/book number tokens (e.g. "Vol. 3", "Book 1"). @source */
 const VOLUME_TOKEN_PATTERN =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
 
+/**
+ * Strips volume-number tokens from a title for cleaner display.
+ * @param title - The raw volume title.
+ * @returns The cleaned title string.
+ * @source
+ */
 const normalizeVolumeTitle = (title: string) => {
   const withoutToken = title.replaceAll(VOLUME_TOKEN_PATTERN, " ")
   const cleaned = withoutToken
@@ -219,8 +248,15 @@ const normalizeVolumeTitle = (title: string) => {
   return cleaned || title.trim()
 }
 
+/** Supported Amazon binding labels for search queries. @source */
 const AMAZON_BINDING_LABELS = ["Paperback", "Kindle"] as const
 
+/**
+ * Builds an Amazon search URL for a volume, preferring ISBN when available.
+ * @param options - Search parameters including domain, ISBN, titles, and format.
+ * @returns A fully-encoded Amazon search URL.
+ * @source
+ */
 const buildAmazonSearchUrl = (options: {
   amazonDomain: string
   isbn?: string | null
@@ -247,6 +283,10 @@ const buildAmazonSearchUrl = (options: {
   return `https://www.${domain}/s?k=${encodeURIComponent(query)}`
 }
 
+/**
+ * Grid-mode card for a single volume with cover image and action overlays.
+ * @source
+ */
 function VolumeGridItem({
   item,
   onClick,
@@ -455,6 +495,10 @@ function VolumeGridItem({
   )
 }
 
+/**
+ * List-mode row for a single volume with cover thumbnail and metadata.
+ * @source
+ */
 function VolumeListItem({
   item,
   onClick,
@@ -667,6 +711,10 @@ function VolumeListItem({
   )
 }
 
+/**
+ * Main library page for browsing, filtering, and managing the user's series and volume collection.
+ * @source
+ */
 export default function LibraryPage() {
   const router = useRouter()
   const {

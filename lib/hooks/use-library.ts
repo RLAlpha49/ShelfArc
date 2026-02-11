@@ -27,15 +27,19 @@ import type {
   OwnershipStatus
 } from "@/lib/types/database"
 
+/** Volume date fields eligible for normalization. @source */
 type VolumeDateFields = {
   publish_date?: string | null
   purchase_date?: string | null
 }
 
+/** Regex matching volume indicator tokens like "Vol. 3" or "Book 12". @source */
 const VOLUME_TOKEN_PATTERN =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*(\d+(?:\.\d+)?)\b/i
+/** Global variant of `VOLUME_TOKEN_PATTERN` for stripping. @source */
 const VOLUME_TOKEN_GLOBAL =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
+/** English number words (zero through twenty) for volume number parsing. @source */
 const VOLUME_WORDS = [
   "zero",
   "one",
@@ -59,6 +63,7 @@ const VOLUME_WORDS = [
   "nineteen",
   "twenty"
 ]
+/** Maps English number words to their numeric values. @source */
 const VOLUME_WORD_VALUE: Record<string, number> = {
   zero: 0,
   one: 1,
@@ -82,25 +87,33 @@ const VOLUME_WORD_VALUE: Record<string, number> = {
   nineteen: 19,
   twenty: 20
 }
+/** Regex matching volume indicators with English number words. @source */
 const VOLUME_WORD_PATTERN = new RegExp(
   String.raw`\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*(${VOLUME_WORDS.join(
     "|"
   )})\b`,
   "i"
 )
+/** Global variant of `VOLUME_WORD_PATTERN` for stripping. @source */
 const VOLUME_WORD_GLOBAL = new RegExp(
   String.raw`\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*(?:${VOLUME_WORDS.join(
     "|"
   )})\b`,
   "gi"
 )
+/** Matches a trailing number at the end of a title (e.g. "Title 3"). @source */
 const TRAILING_VOLUME_PATTERN = /(?:\s+|[-–—:]\s*)(\d+(?:\.\d+)?)\s*$/i
+/** Matches an inline volume number before a parenthetical or colon. @source */
 const INLINE_VOLUME_PATTERN =
   /^(.*)(?:\s+|[-–—:,]\s*)(\d+(?:\.\d+)?)\s*(?=[(:])/i
+/** Matches trailing bracketed/parenthesized descriptors. @source */
 const TRAILING_BRACKET_PATTERN = /\s*[[(]([^)\]]*?)[)\]]\s*$/
+/** Matches edition/collection descriptors like "omnibus" or "deluxe". @source */
 const EXTRA_DESCRIPTOR_PATTERN =
   /\b(omnibus|collector'?s|special|edition|deluxe|complete|box\s*set|boxset)\b/gi
+/** Matches trailing punctuation for cleanup. @source */
 const TRAILING_PUNCTUATION_PATTERN = /\s*[-–—:,;]\s*$/g
+/** Format suffixes to strip from series titles (e.g. "light novel", "manga"). @source */
 const FORMAT_SUFFIXES = [
   "light novel",
   "light novels",
@@ -119,6 +132,7 @@ const FORMAT_SUFFIXES = [
   "novels",
   "novel"
 ]
+/** Set of series descriptor terms recognized for bracket stripping. @source */
 const SERIES_DESCRIPTOR_SET = new Set([
   "comic",
   "comic book",
@@ -134,20 +148,35 @@ const SERIES_DESCRIPTOR_SET = new Set([
   "gn"
 ])
 
+/** Parsed trailing/inline volume suffix info. @source */
 type VolumeSuffixInfo = {
   number: number
   prefix: string
   wordCount: number
 }
 
+/** Upper bound for plausible volume numbers. @source */
 const MAX_VOLUME_NUMBER = 200
 
+/** Checks whether a number looks like a publication year (1900–2100). @source */
 const isLikelyYear = (value: number) => value >= 1900 && value <= 2100
 
+/**
+ * Parses an English number word to its numeric value.
+ * @param value - The word to parse.
+ * @returns The numeric value, or `null` if unrecognized.
+ * @source
+ */
 const parseVolumeWord = (value: string) => {
   return VOLUME_WORD_VALUE[value.toLowerCase()] ?? null
 }
 
+/**
+ * Extracts trailing volume info from a title string (e.g. "My Series 4").
+ * @param title - The title to parse.
+ * @returns Parsed suffix info, or `null` if no trailing number found.
+ * @source
+ */
 const getTrailingVolumeInfo = (title: string): VolumeSuffixInfo | null => {
   const match = new RegExp(TRAILING_VOLUME_PATTERN).exec(title)
   if (!match) return null
@@ -160,6 +189,12 @@ const getTrailingVolumeInfo = (title: string): VolumeSuffixInfo | null => {
   return { number, prefix, wordCount }
 }
 
+/**
+ * Extracts inline volume info from a title (number before parenthetical/colon).
+ * @param title - The title to parse.
+ * @returns Parsed suffix info, or `null` if none found.
+ * @source
+ */
 const getInlineVolumeInfo = (title: string): VolumeSuffixInfo | null => {
   const match = INLINE_VOLUME_PATTERN.exec(title)
   if (!match) return null
@@ -172,41 +207,48 @@ const getInlineVolumeInfo = (title: string): VolumeSuffixInfo | null => {
   return { number, prefix, wordCount }
 }
 
+/** Decides whether to strip a trailing number for display title derivation. @source */
 const shouldStripTrailingForTitle = (info: VolumeSuffixInfo) => {
   if (isLikelyYear(info.number)) return false
   if (info.number <= 3) return info.wordCount >= 2
   return info.number <= MAX_VOLUME_NUMBER && info.wordCount >= 2
 }
 
+/** Decides whether to strip a trailing number for series-key derivation. @source */
 const shouldStripTrailingForKey = (info: VolumeSuffixInfo) => {
   if (isLikelyYear(info.number)) return false
   return info.number <= MAX_VOLUME_NUMBER && info.wordCount >= 2
 }
 
+/** Strips an inline volume suffix from a title for display purposes. @source */
 const stripInlineVolumeSuffixForTitle = (title: string) => {
   const info = getInlineVolumeInfo(title)
   if (info && shouldStripTrailingForTitle(info)) return info.prefix
   return title
 }
 
+/** Strips an inline volume suffix from a title for key derivation. @source */
 const stripInlineVolumeSuffixForKey = (title: string) => {
   const info = getInlineVolumeInfo(title)
   if (info && shouldStripTrailingForKey(info)) return info.prefix
   return title
 }
 
+/** Strips a trailing volume number from a title for display purposes. @source */
 const stripTrailingVolumeSuffixForTitle = (title: string) => {
   const info = getTrailingVolumeInfo(title)
   if (info && shouldStripTrailingForTitle(info)) return info.prefix
   return title
 }
 
+/** Strips a trailing volume number from a title for key derivation. @source */
 const stripTrailingVolumeSuffixForKey = (title: string) => {
   const info = getTrailingVolumeInfo(title)
   if (info && shouldStripTrailingForKey(info)) return info.prefix
   return title
 }
 
+/** Removes trailing format suffixes like "light novel" or "manga" from a title. @source */
 const stripTrailingFormatSuffix = (title: string) => {
   let next = title
   while (true) {
@@ -227,10 +269,12 @@ const stripTrailingFormatSuffix = (title: string) => {
   }
 }
 
+/** Lowercases and normalizes whitespace in a descriptor string. @source */
 const normalizeDescriptor = (value: string) => {
   return value.trim().toLowerCase().replaceAll(/\s+/g, " ")
 }
 
+/** Checks if a bracketed descriptor should be stripped (format/volume info). @source */
 const shouldStripBracketDescriptor = (descriptor: string) => {
   const normalized = normalizeDescriptor(descriptor)
   if (!normalized) return false
@@ -243,6 +287,7 @@ const shouldStripBracketDescriptor = (descriptor: string) => {
   return false
 }
 
+/** Removes trailing bracketed series descriptors from a title. @source */
 const stripTrailingSeriesDescriptor = (title: string) => {
   let next = title
   while (true) {
@@ -254,6 +299,7 @@ const stripTrailingSeriesDescriptor = (title: string) => {
   }
 }
 
+/** Checks if a string contains any recognizable volume indicator. @source */
 const hasVolumeIndicator = (value: string) => {
   if (VOLUME_TOKEN_PATTERN.test(value)) return true
   if (VOLUME_WORD_PATTERN.test(value)) return true
@@ -265,6 +311,7 @@ const hasVolumeIndicator = (value: string) => {
   return false
 }
 
+/** Strips subtitle text after a volume indicator delimited by a colon or dash. @source */
 const stripSubtitleAfterVolumeIndicator = (title: string) => {
   const delimiterMatch = /[:–—-]\s/.exec(title)
   if (!delimiterMatch) return title
@@ -273,12 +320,19 @@ const stripSubtitleAfterVolumeIndicator = (title: string) => {
   return head
 }
 
+/** Extracts a trailing volume number from a title for display. @source */
 const extractTrailingVolumeNumber = (title: string) => {
   const info = getTrailingVolumeInfo(title)
   if (info && shouldStripTrailingForTitle(info)) return info.number
   return null
 }
 
+/**
+ * Normalizes a partial date string into ISO `YYYY-MM-DD` format.
+ * @param value - A date string (year, year-month, or full date).
+ * @returns A normalized date string, or `null`.
+ * @source
+ */
 const normalizeDateInput = (value?: string | null) => {
   if (!value) return null
   const trimmed = value.trim()
@@ -288,12 +342,19 @@ const normalizeDateInput = (value?: string | null) => {
   return trimmed
 }
 
+/** Sanitizes a date-field string, capping length at 20 characters. @source */
 const sanitizeDateField = (value?: string | null): string | null => {
   if (!value) return null
   const sanitized = sanitizePlainText(String(value), 20)
   return sanitized || null
 }
 
+/**
+ * Normalizes publish and purchase date fields on a volume data object.
+ * @param data - The volume data with optional date fields.
+ * @returns A copy with normalized dates.
+ * @source
+ */
 const normalizeVolumeDates = <T extends VolumeDateFields>(data: T) => {
   const next = { ...data }
   if (data.publish_date === undefined) {
@@ -311,11 +372,19 @@ const normalizeVolumeDates = <T extends VolumeDateFields>(data: T) => {
   return next
 }
 
+/** A volume paired with its parent series, used for flat volume views. @source */
 export interface VolumeWithSeries {
   volume: Volume
   series: SeriesWithVolumes
 }
 
+/**
+ * Sanitizes text fields on a partial series update object.
+ * @param data - The raw update data.
+ * @param sanitized - The output object to populate.
+ * @throws If the title is present but empty after sanitization.
+ * @source
+ */
 const sanitizeSeriesTextFields = (
   data: Partial<Series>,
   sanitized: Partial<Series>
@@ -357,6 +426,12 @@ const sanitizeSeriesTextFields = (
   }
 }
 
+/**
+ * Sanitizes all fields on a partial series update, including type and tags.
+ * @param data - The raw series update data.
+ * @returns A sanitized copy.
+ * @source
+ */
 const sanitizeSeriesUpdate = (data: Partial<Series>): Partial<Series> => {
   const sanitized = { ...data }
   sanitizeSeriesTextFields(data, sanitized)
@@ -377,6 +452,12 @@ const sanitizeSeriesUpdate = (data: Partial<Series>): Partial<Series> => {
   return sanitized
 }
 
+/**
+ * Sanitizes text fields on a partial volume update object.
+ * @param data - The raw update data.
+ * @param sanitized - The output object to populate.
+ * @source
+ */
 const sanitizeVolumeTextFields = (
   data: Partial<Volume>,
   sanitized: Partial<Volume>
@@ -410,14 +491,22 @@ const sanitizeVolumeTextFields = (
   }
 }
 
+/** Type guard for valid volume ratings (0–10). @source */
 const isValidRating = (value: unknown): value is number =>
   typeof value === "number" && value >= 0 && value <= 10
 
+/** Coerces a nullable value through a validator, returning `null` on failure. @source */
 const coerceNullable = <T>(
   value: T | null | undefined,
   validator: (v: T) => boolean
 ): T | null => (value != null && validator(value) ? value : null)
 
+/**
+ * Sanitizes numeric fields on a partial volume update object.
+ * @param data - The raw update data.
+ * @param sanitized - The output object to populate.
+ * @source
+ */
 const sanitizeVolumeNumericFields = (
   data: Partial<Volume>,
   sanitized: Partial<Volume>
@@ -442,6 +531,13 @@ const sanitizeVolumeNumericFields = (
   }
 }
 
+/**
+ * Sanitizes all fields on a partial volume update.
+ * @param data - The raw volume update data.
+ * @returns A sanitized copy.
+ * @throws If the volume number is invalid.
+ * @source
+ */
 const sanitizeVolumeUpdate = (data: Partial<Volume>): Partial<Volume> => {
   const sanitized = { ...data }
   sanitizeVolumeTextFields(data, sanitized)
@@ -468,6 +564,13 @@ const sanitizeVolumeUpdate = (data: Partial<Volume>): Partial<Volume> => {
   return sanitized
 }
 
+/**
+ * Builds a fully sanitized volume insert payload.
+ * @param data - The raw volume insert data (without `user_id`/`series_id`).
+ * @returns A sanitized copy.
+ * @throws If the volume number is invalid.
+ * @source
+ */
 const buildSanitizedVolumeInsert = (
   data: Omit<VolumeInsert, "user_id" | "series_id">
 ): Omit<VolumeInsert, "user_id" | "series_id"> => {
@@ -511,6 +614,11 @@ const buildSanitizedVolumeInsert = (
   }
 }
 
+/**
+ * React hook providing CRUD operations, filtering, sorting, and book-import logic for the library.
+ * @returns Library state, filtered views, and mutation functions.
+ * @source
+ */
 export function useLibrary() {
   const supabase = createClient()
   const {

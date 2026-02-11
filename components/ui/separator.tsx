@@ -4,11 +4,12 @@ import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
 
 import { cn } from "@/lib/utils"
 
+/** Horizontal or vertical divider built on Base UI. @source */
 function Separator({
   className,
   orientation = "horizontal",
   ...props
-}: SeparatorPrimitive.Props) {
+}: Readonly<SeparatorPrimitive.Props>) {
   return (
     <SeparatorPrimitive
       data-slot="separator"

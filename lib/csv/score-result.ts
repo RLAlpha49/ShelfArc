@@ -2,11 +2,11 @@ import { normalizeIsbn } from "@/lib/books/isbn"
 import type { BookSearchResult } from "@/lib/books/search"
 
 /**
- * Scores a search result based on metadata richness.
- * Higher score = more complete data. Max possible: 100.
- *
- * An exact ISBN match is heavily weighted (+50) so that
- * results matching the queried ISBN almost always win.
+ * Scores a search result by metadata richness (max 100); exact ISBN match adds 50.
+ * @param result - The book search result to score.
+ * @param queryIsbn - The ISBN that was searched for.
+ * @returns A numeric score.
+ * @source
  */
 export function scoreSearchResult(
   result: BookSearchResult,
@@ -34,8 +34,11 @@ export function scoreSearchResult(
 }
 
 /**
- * Picks the best result from a list by metadata score.
- * Returns `null` if the list is empty.
+ * Picks the result with the highest metadata score from a list.
+ * @param results - Array of book search results.
+ * @param queryIsbn - The ISBN that was searched for.
+ * @returns The best result with its score, or `null` if empty.
+ * @source
  */
 export function pickBestResult(
   results: BookSearchResult[],

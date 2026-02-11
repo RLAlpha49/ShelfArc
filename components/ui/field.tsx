@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
+/** Fieldset wrapper for grouping related form fields. @source */
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (
     <fieldset
@@ -20,6 +21,7 @@ function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   )
 }
 
+/** Legend element for a FieldSet with variant styles. @source */
 function FieldLegend({
   className,
   variant = "legend",
@@ -38,12 +40,13 @@ function FieldLegend({
   )
 }
 
+/** Vertical stack of fields within a form section. @source */
 function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="field-group"
       className={cn(
-        "group/field-group @container/field-group flex w-full flex-col gap-4 data-[slot=checkbox-group]:gap-3 [&>[data-slot=field-group]]:gap-4",
+        "group/field-group @container/field-group flex w-full flex-col gap-4 data-[slot=checkbox-group]:gap-3 *:data-[slot=field-group]:gap-4",
         className
       )}
       {...props}
@@ -51,6 +54,7 @@ function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** CVA variant definitions for field orientation. @source */
 const fieldVariants = cva(
   "data-[invalid=true]:text-destructive gap-2 group/field flex w-full",
   {
@@ -69,13 +73,14 @@ const fieldVariants = cva(
   }
 )
 
+/** Individual form field with orientation support. @source */
 function Field({
   className,
   orientation = "vertical",
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
   return (
-    <div
+    <div //NOSONAR
       role="group"
       data-slot="field"
       data-orientation={orientation}
@@ -85,6 +90,7 @@ function Field({
   )
 }
 
+/** Content wrapper inside a Field for input and messages. @source */
 function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -98,6 +104,7 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Label element for a Field, supporting nested field layouts. @source */
 function FieldLabel({
   className,
   ...props
@@ -106,7 +113,7 @@ function FieldLabel({
     <Label
       data-slot="field-label"
       className={cn(
-        "has-data-checked:bg-primary/5 dark:has-data-checked:bg-primary/10 group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border [&>*]:data-[slot=field]:p-2",
+        "has-data-checked:bg-primary/5 dark:has-data-checked:bg-primary/10 group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border *:data-[slot=field]:p-2",
         "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
         className
       )}
@@ -115,6 +122,7 @@ function FieldLabel({
   )
 }
 
+/** Non-interactive title display for a Field. @source */
 function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -128,12 +136,13 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** Muted helper text below a field. @source */
 function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="field-description"
       className={cn(
-        "text-muted-foreground text-left text-xs/relaxed leading-normal font-normal group-has-[[data-orientation=horizontal]]/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
+        "text-muted-foreground text-left text-xs/relaxed leading-normal font-normal group-has-data-[orientation=horizontal]/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
         "last:mt-0 nth-last-2:-mt-1",
         "[&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4",
         className
@@ -143,6 +152,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
   )
 }
 
+/** Horizontal separator between fields with optional centered text. @source */
 function FieldSeparator({
   children,
   className,
@@ -173,6 +183,11 @@ function FieldSeparator({
   )
 }
 
+/**
+ * Displays validation error messages for a field.
+ * @param errors - Array of error objects with optional message strings.
+ * @source
+ */
 function FieldError({
   className,
   children,
@@ -202,7 +217,7 @@ function FieldError({
       <ul className="ml-4 flex list-disc flex-col gap-1">
         {uniqueErrors.map(
           (error, index) =>
-            error?.message && <li key={index}>{error.message}</li>
+            error?.message && <li key={index}>{error.message}</li> //NOSONAR
         )}
       </ul>
     )

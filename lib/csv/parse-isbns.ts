@@ -1,5 +1,6 @@
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
 
+/** Result of parsing ISBNs from a CSV file. @source */
 interface ParseIsbnsResult {
   isbns: string[]
   invalidCount: number
@@ -7,11 +8,18 @@ interface ParseIsbnsResult {
   detectedColumns: string[]
 }
 
+/** Regex for recognizing ISBN-related CSV column headers. @source */
 const ISBN_HEADER_PATTERN = /^isbn[-_ ]?(10|13)?$/i
 
 /* ─── CSV Parsing ───────────────────────────────────────── */
 
-/** Read a quoted field starting at position `start` (after the opening quote). */
+/**
+ * Reads a quoted CSV field starting at `start` (after the opening quote).
+ * @param text - The full CSV text.
+ * @param start - Character index after the opening quote.
+ * @returns The parsed field value and the next read position.
+ * @source
+ */
 function readQuotedField(
   text: string,
   start: number
@@ -38,7 +46,15 @@ function readQuotedField(
   return { value: field, next: i }
 }
 
-/** Commit the current field to the row, and the row to results if `endRow` is true. */
+/**
+ * Commits the current field to a row, optionally ending the row.
+ * @param rows - Accumulator of completed rows.
+ * @param row - The current row being built.
+ * @param field - The current field value to commit.
+ * @param endRow - Whether to finalize the current row.
+ * @returns The next row and field state.
+ * @source
+ */
 function commitField(
   rows: string[][],
   row: string[],
@@ -54,8 +70,10 @@ function commitField(
 }
 
 /**
- * Minimal RFC 4180-compliant CSV parser.
- * Handles quoted fields, escaped quotes, and CRLF/LF line endings.
+ * Minimal RFC 4180-compliant CSV parser handling quoted fields and CRLF.
+ * @param text - The raw CSV text.
+ * @returns A 2D array of row/field strings.
+ * @source
  */
 function parseCsvRows(text: string): string[][] {
   const rows: string[][] = []
@@ -100,6 +118,12 @@ function parseCsvRows(text: string): string[][] {
 
 /* ─── ISBN column detection ─────────────────────────────── */
 
+/**
+ * Detects ISBN column indices and names from the CSV header row.
+ * @param headerRow - The first row of the CSV.
+ * @returns Column indices and their header names.
+ * @source
+ */
 function detectIsbnColumns(headerRow: string[]): {
   indices: number[]
   names: string[]
@@ -120,6 +144,12 @@ function detectIsbnColumns(headerRow: string[]): {
 
 /* ─── ISBN extraction ───────────────────────────────────── */
 
+/**
+ * Normalizes and validates a single CSV cell as an ISBN.
+ * @param cell - The raw cell value.
+ * @returns The normalized ISBN, or `null` if invalid.
+ * @source
+ */
 function extractIsbn(cell: string | undefined): string | null {
   const raw = cell?.trim()
   if (!raw) return null
@@ -128,6 +158,13 @@ function extractIsbn(cell: string | undefined): string | null {
   return isValidIsbn(normalized) ? normalized : null
 }
 
+/**
+ * Collects valid, deduplicated ISBNs from CSV data rows at the given column indices.
+ * @param dataRows - CSV rows excluding the header.
+ * @param columnIndices - Indices of detected ISBN columns.
+ * @returns Deduplicated ISBNs with invalid and duplicate counts.
+ * @source
+ */
 function collectIsbns(
   dataRows: string[][],
   columnIndices: number[]
@@ -163,6 +200,7 @@ function collectIsbns(
 
 /* ─── Public API ────────────────────────────────────────── */
 
+/** Empty parse result returned when the CSV has no usable data. @source */
 const EMPTY_RESULT: ParseIsbnsResult = {
   isbns: [],
   invalidCount: 0,
@@ -171,8 +209,10 @@ const EMPTY_RESULT: ParseIsbnsResult = {
 }
 
 /**
- * Parses a CSV string, auto-detects ISBN columns by header name,
- * extracts and validates ISBNs, and returns deduplicated results.
+ * Parses a CSV string, auto-detects ISBN columns, and returns validated, deduplicated ISBNs.
+ * @param csvText - The raw CSV file content.
+ * @returns Parsed ISBNs with metadata about detected columns and skipped entries.
+ * @source
  */
 export function parseIsbns(csvText: string): ParseIsbnsResult {
   const rows = parseCsvRows(csvText)

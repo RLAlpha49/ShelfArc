@@ -15,6 +15,7 @@ import { InputGroup, InputGroupAddon } from "@/components/ui/input-group"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { SearchIcon, Tick02Icon } from "@hugeicons/core-free-icons"
 
+/** Styled command palette container built on cmdk. @source */
 function Command({
   className,
   ...props
@@ -31,6 +32,7 @@ function Command({
   )
 }
 
+/** Command palette wrapped in a dialog. @source */
 function CommandDialog({
   title = "Command Palette",
   description = "Search for a command to run...",
@@ -64,6 +66,7 @@ function CommandDialog({
   )
 }
 
+/** Search input for the command palette. @source */
 function CommandInput({
   className,
   ...props
@@ -91,6 +94,7 @@ function CommandInput({
   )
 }
 
+/** Scrollable list of command items. @source */
 function CommandList({
   className,
   ...props
@@ -107,6 +111,7 @@ function CommandList({
   )
 }
 
+/** Placeholder shown when no command results match. @source */
 function CommandEmpty({
   className,
   ...props
@@ -120,6 +125,7 @@ function CommandEmpty({
   )
 }
 
+/** Labeled group of related command items. @source */
 function CommandGroup({
   className,
   ...props
@@ -128,7 +134,7 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        "text-foreground [&_[cmdk-group-heading]]:text-muted-foreground overflow-hidden p-1 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium",
+        "text-foreground **:[[cmdk-group-heading]]:text-muted-foreground overflow-hidden p-1 **:[[cmdk-group-heading]]:px-2.5 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium",
         className
       )}
       {...props}
@@ -136,6 +142,7 @@ function CommandGroup({
   )
 }
 
+/** Horizontal divider between command groups. @source */
 function CommandSeparator({
   className,
   ...props
@@ -149,6 +156,7 @@ function CommandSeparator({
   )
 }
 
+/** Selectable item within the command list with check indicator. @source */
 function CommandItem({
   className,
   children,
@@ -158,7 +166,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "data-selected:bg-muted data-selected:text-foreground data-selected:*:[svg]:text-foreground group/command-item relative flex min-h-7 cursor-default items-center gap-2 rounded-md px-2.5 py-1.5 text-xs/relaxed outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 [[data-slot=dialog-content]_&]:rounded-md",
+        "data-selected:bg-muted data-selected:text-foreground data-selected:*:[svg]:text-foreground group/command-item relative flex min-h-7 cursor-default items-center gap-2 rounded-md px-2.5 py-1.5 text-xs/relaxed outline-hidden select-none in-data-[slot=dialog-content]:rounded-md data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
         className
       )}
       {...props}
@@ -167,12 +175,13 @@ function CommandItem({
       <HugeiconsIcon
         icon={Tick02Icon}
         strokeWidth={2}
-        className="ml-auto opacity-0 group-has-[[data-slot=command-shortcut]]/command-item:hidden group-data-[checked=true]/command-item:opacity-100"
+        className="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100"
       />
     </CommandPrimitive.Item>
   )
 }
 
+/** Keyboard shortcut display for a command item. @source */
 function CommandShortcut({
   className,
   ...props

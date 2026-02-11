@@ -2,6 +2,10 @@ import Link from "next/link"
 import { createUserClient } from "@/lib/supabase/server"
 import { ThemeToggle } from "@/components/theme-toggle"
 
+/**
+ * Public landing page with hero, features, and CTA sections.
+ * @source
+ */
 export default async function HomePage() {
   const supabase = await createUserClient()
   const {

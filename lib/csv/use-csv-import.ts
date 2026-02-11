@@ -12,19 +12,34 @@ import type {
 import type { BookSearchResult, BookSearchSource } from "@/lib/books/search"
 import type { OwnershipStatus } from "@/lib/types/database"
 
-/** Minimum score to accept a result from the primary source */
+/** Minimum score to accept a result from the primary source. @source */
 const PRIMARY_SCORE_THRESHOLD = 20
-/** Minimum score to accept a result from the fallback source */
+/** Minimum score to accept a result from the fallback source. @source */
 const FALLBACK_SCORE_THRESHOLD = 10
-/** Max results to fetch per ISBN search */
+/** Max results to fetch per ISBN search. @source */
 const SEARCH_LIMIT = 5
-/** Delay between ISBN searches to avoid API hammering and allow React to render */
+/** Delay (ms) between ISBN searches to avoid API hammering. @source */
 const PROCESS_DELAY_MS = 150
 
+/**
+ * Returns the alternate search source for fallback lookups.
+ * @param source - The primary search source.
+ * @returns The alternate source.
+ * @source
+ */
 function getAlternateSource(source: BookSearchSource): BookSearchSource {
   return source === "google_books" ? "open_library" : "google_books"
 }
 
+/**
+ * Searches for a single ISBN via the books search API.
+ * @param isbn - The ISBN to search for.
+ * @param source - The search provider to query.
+ * @param signal - AbortSignal for cancellation.
+ * @returns An array of matching book search results.
+ * @throws On non-OK HTTP responses.
+ * @source
+ */
 async function searchIsbn(
   isbn: string,
   source: BookSearchSource,
@@ -44,6 +59,12 @@ async function searchIsbn(
   return data.results ?? []
 }
 
+/**
+ * React hook managing the full CSV ISBN import lifecycle.
+ * @param options - Optional set of existing ISBNs to skip.
+ * @returns State and actions for parsing, importing, cancelling, and resetting.
+ * @source
+ */
 export function useCsvImport({
   existingIsbns
 }: { existingIsbns?: ReadonlySet<string> } = {}) {

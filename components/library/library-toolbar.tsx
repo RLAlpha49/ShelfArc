@@ -25,6 +25,7 @@ import type {
   ReadingStatus
 } from "@/lib/types/database"
 
+/** Props for the {@link LibraryToolbar} component. @source */
 interface LibraryToolbarProps {
   readonly onAddBook: () => void
   readonly onAddSeries: () => void
@@ -32,6 +33,11 @@ interface LibraryToolbarProps {
   readonly onToggleSelectionMode: () => void
 }
 
+/**
+ * Toolbar with search, filters, sort controls, view toggles, and add-book/series buttons.
+ * @param props - {@link LibraryToolbarProps}
+ * @source
+ */
 export function LibraryToolbar({
   onAddBook,
   onAddSeries,
@@ -165,7 +171,7 @@ export function LibraryToolbar({
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="manga">Manga</SelectItem>
                 <SelectItem value="light_novel">Light Novel</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
@@ -186,7 +192,7 @@ export function LibraryToolbar({
                 <SelectValue placeholder="Ownership" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="owned">Owned</SelectItem>
                 <SelectItem value="wishlist">Wishlist</SelectItem>
               </SelectContent>
@@ -204,7 +210,7 @@ export function LibraryToolbar({
                 <SelectValue placeholder="Reading" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                <SelectItem value="all">All Reading</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="unread">Unread</SelectItem>
                 <SelectItem value="reading">Reading</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>

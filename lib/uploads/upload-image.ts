@@ -1,15 +1,27 @@
+/** Discriminated upload category for storage path organization. @source */
 export type UploadKind = "avatar" | "series-cover" | "volume-cover"
 
+/** Options for the image upload function. @source */
 export interface UploadOptions {
   replacePath?: string | null
   signal?: AbortSignal
   timeoutMs?: number
 }
 
+/** Shape of the upload API JSON response. @source */
 export interface UploadResponse {
   path: string
 }
 
+/**
+ * Wrapper around `fetch` that supports an AbortSignal and a timeout.
+ * @param input - The fetch input (URL or Request).
+ * @param init - Fetch init options.
+ * @param options - Signal and timeout configuration.
+ * @returns The fetch Response.
+ * @throws On timeout or cancellation.
+ * @source
+ */
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
   init: RequestInit,
@@ -62,6 +74,15 @@ const fetchWithTimeout = async (
   }
 }
 
+/**
+ * Uploads an image file to the server and returns a `storage:` prefixed path.
+ * @param file - The image file to upload.
+ * @param kind - The upload category (avatar, series-cover, volume-cover).
+ * @param options - Optional abort signal, timeout, and replacement path.
+ * @returns A `storage:`-prefixed path string.
+ * @throws If the upload fails or the response has no path.
+ * @source
+ */
 export async function uploadImage(
   file: File,
   kind: UploadKind,

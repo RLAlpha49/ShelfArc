@@ -11,6 +11,7 @@ import {
   Loading03Icon
 } from "@hugeicons/core-free-icons"
 
+/** Pre-configured toast notification container using Sonner with themed icons. @source */
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
 

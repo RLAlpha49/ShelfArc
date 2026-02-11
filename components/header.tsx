@@ -15,6 +15,7 @@ import { logout } from "@/app/auth/actions"
 import { cn } from "@/lib/utils"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 
+/** Props for the {@link Header} component. @source */
 interface HeaderProps {
   readonly user?: {
     email?: string
@@ -25,6 +26,11 @@ interface HeaderProps {
   } | null
 }
 
+/**
+ * Sticky top-bar header with center navigation, logo, theme toggle, and user avatar dropdown.
+ * @param props - {@link HeaderProps}
+ * @source
+ */
 export function Header({ user }: HeaderProps) {
   const pathname = usePathname()
   const avatarUrl = resolveImageUrl(user?.user_metadata?.avatar_url)

@@ -50,6 +50,7 @@ import type {
   ReadingStatus
 } from "@/lib/types/database"
 
+/** Props for the {@link VolumeDialog} component. @source */
 interface VolumeDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
@@ -65,6 +66,7 @@ interface VolumeDialogProps {
   ) => Promise<void>
 }
 
+/** Default values for the volume form fields. @source */
 const defaultFormData = {
   volume_number: 1,
   title: "",
@@ -84,10 +86,22 @@ const defaultFormData = {
   amazon_url: ""
 }
 
+/**
+ * Type guard for valid ownership status values.
+ * @param status - Value to check.
+ * @returns `true` if the status is a recognised {@link OwnershipStatus}.
+ * @source
+ */
 const isValidOwnershipStatus = (
   status: string | null | undefined
 ): status is OwnershipStatus => status === "owned" || status === "wishlist"
 
+/**
+ * Type guard for valid reading status values.
+ * @param status - Value to check.
+ * @returns `true` if the status is a recognised {@link ReadingStatus}.
+ * @source
+ */
 const isValidReadingStatus = (
   status: string | null | undefined
 ): status is ReadingStatus =>
@@ -97,20 +111,24 @@ const isValidReadingStatus = (
   status === "on_hold" ||
   status === "dropped"
 
+/** Maximum upload size for cover images (5 MB). @source */
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 
+/** Badge color mapping per series title type. @source */
 const SERIES_TYPE_COLORS: Record<TitleType, string> = {
   light_novel: "bg-gold/10 text-gold",
   manga: "bg-copper/10 text-copper",
   other: "bg-muted text-muted-foreground"
 }
 
+/** Human-readable label per series title type. @source */
 const SERIES_TYPE_LABELS: Record<TitleType, string> = {
   light_novel: "Light Novel",
   manga: "Manga",
   other: "Other"
 }
 
+/** Props for the internal {@link SeriesPicker} sub-dialog. @source */
 interface SeriesPickerProps {
   readonly seriesOptions: SeriesWithVolumes[]
   readonly selectedSeriesOption: SeriesWithVolumes | null
@@ -120,6 +138,11 @@ interface SeriesPickerProps {
   readonly allowNoSeries?: boolean
 }
 
+/**
+ * Inline series selector with a nested search dialog for reassigning a volume's series.
+ * @param props - {@link SeriesPickerProps}
+ * @source
+ */
 function SeriesPicker({
   seriesOptions,
   selectedSeriesOption,
@@ -480,6 +503,12 @@ function SeriesPicker({
   )
 }
 
+/**
+ * Dialog for creating or editing a volume with metadata fields, cover art management,
+ * Amazon price/image fetching, and optional series picker.
+ * @param props - {@link VolumeDialogProps}
+ * @source
+ */
 export function VolumeDialog({
   open,
   onOpenChange,

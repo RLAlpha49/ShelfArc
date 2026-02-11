@@ -7,6 +7,7 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 import { useLibraryStore } from "@/lib/store/library-store"
 import type { Volume } from "@/lib/types/database"
 
+/** Props for the {@link VolumeCard} component. @source */
 interface VolumeCardProps {
   readonly volume: Volume
   readonly seriesTitle?: string
@@ -18,11 +19,13 @@ interface VolumeCardProps {
   readonly onSelect?: () => void
 }
 
+/** Badge color mapping per ownership status. @source */
 const OWNERSHIP_COLORS: Record<string, string> = {
   owned: "bg-copper/10 text-copper",
   wishlist: "bg-gold/10 text-gold"
 }
 
+/** Badge color mapping per reading status. @source */
 const READING_COLORS: Record<string, string> = {
   unread: "bg-muted text-muted-foreground",
   reading: "bg-primary/10 text-primary",
@@ -31,6 +34,12 @@ const READING_COLORS: Record<string, string> = {
   dropped: "bg-destructive/10 text-destructive"
 }
 
+/**
+ * Builds an Amazon search URL for a volume using ISBN or title+number tokens.
+ * @param options - Volume metadata used to construct the search query.
+ * @returns Fully-qualified Amazon search URL.
+ * @source
+ */
 const buildAmazonSearchUrl = (options: {
   amazonDomain: string
   isbn?: string | null
@@ -57,6 +66,11 @@ const buildAmazonSearchUrl = (options: {
   return `https://www.${domain}/s?k=${encodeURIComponent(query)}`
 }
 
+/**
+ * Card displaying a single volume with cover, badges, rating, and overlay action buttons.
+ * @param props - {@link VolumeCardProps}
+ * @source
+ */
 export function VolumeCard({
   volume,
   seriesTitle,

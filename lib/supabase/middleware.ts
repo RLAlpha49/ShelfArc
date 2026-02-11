@@ -2,6 +2,13 @@ import "server-only"
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
+/**
+ * Refreshes the Supabase session and enforces auth-based route protection.
+ * @param request - The incoming Next.js middleware request.
+ * @returns A `NextResponse` with updated session cookies or a redirect.
+ * @throws If required Supabase environment variables are missing.
+ * @source
+ */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request

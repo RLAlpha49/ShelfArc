@@ -11,6 +11,7 @@ import {
  * Client component that applies global settings (fonts, animations) to the
  * document element. Renders nothing — pure side-effect bridge between
  * Zustand state and the DOM.
+ * @source
  */
 export function SettingsApplier() {
   const displayFont = useSettingsStore((s) => s.displayFont)

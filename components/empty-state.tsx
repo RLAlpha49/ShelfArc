@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 
+/** Props for the {@link EmptyState} placeholder. @source */
 interface EmptyStateProps {
   readonly icon?: React.ReactNode
   readonly title: string
@@ -10,6 +11,11 @@ interface EmptyStateProps {
   }
 }
 
+/**
+ * Centered placeholder shown when a list or view has no content.
+ * @param props - {@link EmptyStateProps}
+ * @source
+ */
 export function EmptyState({
   icon,
   title,

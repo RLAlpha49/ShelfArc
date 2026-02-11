@@ -6,10 +6,12 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
+/** Root provider for an alert dialog. @source */
 function AlertDialog({ ...props }: Readonly<AlertDialogPrimitive.Root.Props>) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
 }
 
+/** Element that opens the alert dialog on interaction. @source */
 function AlertDialogTrigger({
   ...props
 }: Readonly<AlertDialogPrimitive.Trigger.Props>) {
@@ -18,6 +20,7 @@ function AlertDialogTrigger({
   )
 }
 
+/** Portal container that renders alert dialog outside the DOM hierarchy. @source */
 function AlertDialogPortal({
   ...props
 }: Readonly<AlertDialogPrimitive.Portal.Props>) {
@@ -26,6 +29,7 @@ function AlertDialogPortal({
   )
 }
 
+/** Overlay that dims background content behind the alert dialog. @source */
 function AlertDialogOverlay({
   className,
   ...props
@@ -42,6 +46,7 @@ function AlertDialogOverlay({
   )
 }
 
+/** Centered popup content for an alert dialog with size variants. @source */
 function AlertDialogContent({
   className,
   size = "default",
@@ -65,6 +70,7 @@ function AlertDialogContent({
   )
 }
 
+/** Header layout for alert dialog title and description. @source */
 function AlertDialogHeader({
   className,
   ...props
@@ -81,6 +87,7 @@ function AlertDialogHeader({
   )
 }
 
+/** Footer layout for alert dialog action buttons. @source */
 function AlertDialogFooter({
   className,
   ...props
@@ -97,6 +104,7 @@ function AlertDialogFooter({
   )
 }
 
+/** Icon or media slot in the alert dialog header. @source */
 function AlertDialogMedia({
   className,
   ...props
@@ -113,6 +121,7 @@ function AlertDialogMedia({
   )
 }
 
+/** Title heading for the alert dialog. @source */
 function AlertDialogTitle({
   className,
   ...props
@@ -129,6 +138,7 @@ function AlertDialogTitle({
   )
 }
 
+/** Descriptive text for the alert dialog. @source */
 function AlertDialogDescription({
   className,
   ...props
@@ -145,6 +155,7 @@ function AlertDialogDescription({
   )
 }
 
+/** Primary action button in the alert dialog. @source */
 function AlertDialogAction({
   className,
   ...props
@@ -158,6 +169,7 @@ function AlertDialogAction({
   )
 }
 
+/** Cancel button that closes the alert dialog. @source */
 function AlertDialogCancel({
   className,
   variant = "outline",

@@ -40,17 +40,36 @@ import type { DateFormat } from "@/lib/store/settings-store"
 import { type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
+/** Tailwind badge color classes keyed by series type. @source */
 const typeColors = {
   light_novel: "bg-gold/10 text-gold",
   manga: "bg-copper/10 text-copper",
   other: "bg-muted text-muted-foreground"
 }
 
+/**
+ * Extracts a human-readable message from an unknown error value.
+ * @param error - The caught error.
+ * @returns The error message string.
+ * @source
+ */
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
 
+/**
+ * Converts a volume number to its string representation.
+ * @param value - The numeric volume number.
+ * @returns The formatted string.
+ * @source
+ */
 const formatVolumeNumber = (value: number) => value.toString()
 
+/**
+ * Builds a compact label like "Vol. 1–5, 7" from a list of volume numbers.
+ * @param numbers - Array of volume numbers, potentially unsorted or duplicated.
+ * @returns A formatted range string.
+ * @source
+ */
 const buildVolumeRangeLabel = (numbers: number[]) => {
   const uniqueSorted = Array.from(
     new Set(numbers.filter((value) => Number.isFinite(value)))
@@ -87,6 +106,12 @@ const buildVolumeRangeLabel = (numbers: number[]) => {
   return `Vol. ${formatted}`
 }
 
+/**
+ * Returns the first gap in owned volume numbers, starting from 1.
+ * @param numbers - Owned volume numbers.
+ * @returns The next volume number that should be purchased.
+ * @source
+ */
 const getNextOwnedVolumeNumber = (numbers: number[]) => {
   const ownedIntegers = new Set(
     numbers.filter(
@@ -100,6 +125,7 @@ const getNextOwnedVolumeNumber = (numbers: number[]) => {
   return next
 }
 
+/** Pre-computed collection insight metrics for a series. @source */
 type SeriesInsightData = {
   ownedVolumes: number
   wishlistVolumes: number
@@ -120,6 +146,13 @@ type SeriesInsightData = {
   updatedLabel: string
 }
 
+/**
+ * Computes collection insight metrics for a series.
+ * @param series - The series including its volumes.
+ * @param dateFormat - User's preferred date format.
+ * @returns Aggregated insight data.
+ * @source
+ */
 const buildSeriesInsights = (
   series: SeriesWithVolumes,
   dateFormat: DateFormat
@@ -194,6 +227,11 @@ const buildSeriesInsights = (
   }
 }
 
+/**
+ * Two-panel insights display showing collection breakdown and series details.
+ * @param insights - Pre-computed insight data.
+ * @source
+ */
 const SeriesInsightsPanel = ({
   insights
 }: {
@@ -346,6 +384,10 @@ const SeriesInsightsPanel = ({
   </div>
 )
 
+/**
+ * Series detail page showing cover, metadata, volume grid, and editing controls.
+ * @source
+ */
 export default function SeriesDetailPage() {
   const params = useParams()
   const router = useRouter()

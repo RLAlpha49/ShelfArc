@@ -8,26 +8,31 @@ import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
+/** Root provider for a dialog. @source */
+function Dialog({ ...props }: Readonly<DialogPrimitive.Root.Props>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
-function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
+/** Element that opens the dialog on interaction. @source */
+function DialogTrigger({ ...props }: Readonly<DialogPrimitive.Trigger.Props>) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
-function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
+/** Portal that renders dialog outside the DOM hierarchy. @source */
+function DialogPortal({ ...props }: Readonly<DialogPrimitive.Portal.Props>) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
-function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
+/** Close trigger for the dialog. @source */
+function DialogClose({ ...props }: Readonly<DialogPrimitive.Close.Props>) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
+/** Backdrop overlay that dims background content. @source */
 function DialogOverlay({
   className,
   ...props
-}: DialogPrimitive.Backdrop.Props) {
+}: Readonly<DialogPrimitive.Backdrop.Props>) {
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
@@ -40,6 +45,11 @@ function DialogOverlay({
   )
 }
 
+/**
+ * Centered dialog popup with optional close button.
+ * @param showCloseButton - Whether to render the top-right close button.
+ * @source
+ */
 function DialogContent({
   className,
   children,
@@ -80,6 +90,7 @@ function DialogContent({
   )
 }
 
+/** Header layout for dialog title and description. @source */
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -90,6 +101,11 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/**
+ * Footer layout for dialog actions with optional close button.
+ * @param showCloseButton - Whether to render a "Close" button.
+ * @source
+ */
 function DialogFooter({
   className,
   showCloseButton = false,
@@ -117,7 +133,11 @@ function DialogFooter({
   )
 }
 
-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+/** Title heading for the dialog. @source */
+function DialogTitle({
+  className,
+  ...props
+}: Readonly<DialogPrimitive.Title.Props>) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
@@ -127,10 +147,11 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   )
 }
 
+/** Descriptive text for the dialog. @source */
 function DialogDescription({
   className,
   ...props
-}: DialogPrimitive.Description.Props) {
+}: Readonly<DialogPrimitive.Description.Props>) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"

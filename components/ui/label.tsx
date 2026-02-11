@@ -4,9 +4,10 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/** Styled form label with disabled-state awareness. @source */
 function Label({ className, ...props }: React.ComponentProps<"label">) {
   return (
-    <label
+    <label //NOSONAR
       data-slot="label"
       className={cn(
         "flex items-center gap-2 text-xs/relaxed leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",

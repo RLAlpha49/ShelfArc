@@ -9,13 +9,30 @@ import {
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
 
+/** Google Books Volumes API base URL. @source */
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
+
+/** Open Library Search API base URL. @source */
 const OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"
+
+/** Default number of results per search page. @source */
 const DEFAULT_LIMIT = 40
+
+/** Maximum allowed results per page. @source */
 const MAX_LIMIT = 50
+
+/** Google Books API maximum `maxResults` per batch. @source */
 const GOOGLE_BOOKS_MAX_LIMIT = 20
+
+/** Timeout in milliseconds for upstream search requests. @source */
 const FETCH_TIMEOUT_MS = 10000
 
+/**
+ * Wraps a raw query as an ISBN query for Google Books when applicable.
+ * @param query - The user's search query.
+ * @returns A Google Books-compatible query string.
+ * @source
+ */
 const buildGoogleQuery = (query: string) => {
   if (isIsbnQuery(query)) {
     return `isbn:${normalizeIsbn(query)}`
@@ -23,6 +40,16 @@ const buildGoogleQuery = (query: string) => {
   return query
 }
 
+/**
+ * Fetches a URL with an abort-signal timeout.
+ * @param url - Target URL.
+ * @param options - Standard fetch options.
+ * @param timeoutMs - Timeout in milliseconds.
+ * @param contextLabel - Label used in timeout error messages.
+ * @returns The upstream `Response`.
+ * @throws When the request times out or the network fails.
+ * @source
+ */
 const fetchWithTimeout = async (
   url: string,
   options: RequestInit,
@@ -44,6 +71,16 @@ const fetchWithTimeout = async (
   }
 }
 
+/**
+ * Attempts a single Google Books batch request, rotating API keys on 429 responses.
+ * @param query - Search query string.
+ * @param apiKeys - Array of Google Books API keys.
+ * @param batchSize - Number of results to request.
+ * @param startIndex - Pagination offset.
+ * @param keyIndex - Current position in the API key rotation.
+ * @returns An object with the upstream response, updated key index, and optional error.
+ * @source
+ */
 const fetchGoogleBooksResponse = async (
   query: string,
   apiKeys: string[],
@@ -86,6 +123,15 @@ const fetchGoogleBooksResponse = async (
   return { keyIndex: usedKeyIndex }
 }
 
+/**
+ * Searches Google Books with pagination, batching, and API key rotation.
+ * @param query - User search query.
+ * @param apiKeys - Available API keys.
+ * @param page - 1-based page number.
+ * @param limit - Maximum results per page.
+ * @returns Normalized search results with an optional warning on partial failure.
+ * @source
+ */
 const fetchGoogleBooks = async (
   query: string,
   apiKeys: string[],
@@ -163,6 +209,15 @@ const fetchGoogleBooks = async (
   return { items: results.slice(0, safeLimit) }
 }
 
+/**
+ * Searches Open Library by query or ISBN.
+ * @param query - User search query or ISBN string.
+ * @param page - 1-based page number.
+ * @param limit - Maximum results per page.
+ * @returns Normalized search results.
+ * @throws When the upstream request fails.
+ * @source
+ */
 const fetchOpenLibrary = async (
   query: string,
   page: number,
@@ -191,6 +246,12 @@ const fetchOpenLibrary = async (
   return normalizeOpenLibraryDocs(data.docs ?? [])
 }
 
+/**
+ * Book search endpoint supporting Google Books and Open Library sources.
+ * @param request - Incoming request with `q`, optional `source`, `page`, and `limit` query parameters.
+ * @returns JSON with normalized search results and source metadata.
+ * @source
+ */
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q")?.trim() ?? ""
   const sourceParam = request.nextUrl.searchParams.get("source")

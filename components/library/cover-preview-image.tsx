@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { cn } from "../../lib/utils"
 
+/** Props for the {@link CoverPreviewImage} component. @source */
 interface CoverPreviewImageProps extends Omit<
   React.ComponentProps<"img">,
   "alt"
@@ -11,6 +12,11 @@ interface CoverPreviewImageProps extends Omit<
   readonly wrapperClassName?: string
 }
 
+/**
+ * Cover image preview with a fixed aspect ratio and loading spinner overlay.
+ * @param props - {@link CoverPreviewImageProps}
+ * @source
+ */
 export function CoverPreviewImage(props: Readonly<CoverPreviewImageProps>) {
   const { wrapperClassName, className, alt, onLoad, onError, ...imgProps } =
     props

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react"
 import { getCoverCandidates } from "@/lib/uploads/resolve-image-url"
 import { cn } from "@/lib/utils"
 
+/** Props for the {@link CoverImage} component. @source */
 interface CoverImageProps {
   readonly isbn?: string | null
   readonly coverImageUrl?: string | null
@@ -16,6 +17,11 @@ interface CoverImageProps {
   readonly fallback?: React.ReactNode
 }
 
+/**
+ * Renders a book cover image with automatic fallback through a ranked candidate list.
+ * @param props - {@link CoverImageProps}
+ * @source
+ */
 export function CoverImage({
   isbn,
   coverImageUrl,
@@ -50,6 +56,7 @@ export function CoverImage({
   )
 }
 
+/** Props for the internal {@link CoverImageFrame} renderer. @source */
 interface CoverImageFrameProps {
   readonly candidates: string[]
   readonly alt: string
@@ -60,6 +67,11 @@ interface CoverImageFrameProps {
   readonly fallback?: React.ReactNode
 }
 
+/**
+ * Internal frame that loads a single candidate URL and cycles to the next on error.
+ * @param props - {@link CoverImageFrameProps}
+ * @source
+ */
 function CoverImageFrame({
   candidates,
   alt,

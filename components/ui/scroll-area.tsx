@@ -5,15 +5,18 @@ import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 
 import { cn } from "@/lib/utils"
 
+/** Ref type for the scroll area viewport element. @source */
 type ScrollAreaViewportRef = React.ElementRef<
   typeof ScrollAreaPrimitive.Viewport
 >
 
+/** Props for the ScrollArea component. @source */
 type ScrollAreaProps = Readonly<ScrollAreaPrimitive.Root.Props> & {
   viewportRef?: React.Ref<ScrollAreaViewportRef>
   viewportClassName?: string
 }
 
+/** Custom scrollable container with styled scrollbars. @source */
 function ScrollArea({
   className,
   children,
@@ -43,6 +46,7 @@ function ScrollArea({
   )
 }
 
+/** Styled scrollbar track and thumb. @source */
 function ScrollBar({
   className,
   orientation = "vertical",

@@ -1,5 +1,6 @@
 import type { BookSearchResult } from "@/lib/books/search"
 
+/** Lifecycle status of a single ISBN import item. @source */
 export type IsbnImportStatus =
   | "pending"
   | "searching"
@@ -10,6 +11,7 @@ export type IsbnImportStatus =
   | "not-found"
   | "error"
 
+/** A single ISBN being imported, with its search result and status. @source */
 export interface IsbnImportItem {
   isbn: string
   status: IsbnImportStatus
@@ -18,6 +20,7 @@ export interface IsbnImportItem {
   score?: number
 }
 
+/** High-level phase of the CSV import workflow. @source */
 export type CsvImportPhase =
   | "idle"
   | "file-selected"
@@ -25,6 +28,7 @@ export type CsvImportPhase =
   | "importing"
   | "complete"
 
+/** Aggregate statistics for a CSV import run. @source */
 export interface CsvImportStats {
   total: number
   added: number
@@ -34,6 +38,7 @@ export interface CsvImportStats {
   processed: number
 }
 
+/** Metadata extracted during CSV parsing. @source */
 export interface CsvParseMeta {
   detectedColumns: string[]
   invalidCount: number

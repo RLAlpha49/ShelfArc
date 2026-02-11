@@ -28,6 +28,7 @@ import {
 import { useLibraryStore } from "@/lib/store/library-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
+/** Props for the {@link BulkScrapeDialog} component. @source */
 interface BulkScrapeDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
@@ -39,6 +40,7 @@ interface BulkScrapeDialogProps {
   ) => Promise<void>
 }
 
+/** Display metadata (label and icon key) per job status. @source */
 const STATUS_META: Record<
   VolumeJobStatus,
   { label: string; icon: "pending" | "spin" | "check" | "x" | "skip" | "dash" }
@@ -51,6 +53,12 @@ const STATUS_META: Record<
   cancelled: { label: "Cancelled", icon: "dash" }
 }
 
+/**
+ * SVG icon representing a volume job status (spinner, check, x, etc.).
+ * @param props.status - Current status of the scrape job.
+ * @param props.className - Optional additional CSS classes.
+ * @source
+ */
 function StatusIcon({
   status,
   className = ""
@@ -146,6 +154,7 @@ function StatusIcon({
   }
 }
 
+/** Text color class per job status. @source */
 const statusColor: Record<VolumeJobStatus, string> = {
   pending: "text-muted-foreground",
   scraping: "text-primary",
@@ -155,6 +164,12 @@ const statusColor: Record<VolumeJobStatus, string> = {
   cancelled: "text-muted-foreground/40"
 }
 
+/**
+ * Returns a CSS class string for the job row background based on status.
+ * @param status - Current volume job status.
+ * @returns Tailwind background class string.
+ * @source
+ */
 const jobRowBg = (status: VolumeJobStatus): string => {
   if (status === "scraping") return "bg-primary/5 border-primary/20"
   if (status === "done") return "bg-emerald-500/5"
@@ -162,6 +177,7 @@ const jobRowBg = (status: VolumeJobStatus): string => {
   return ""
 }
 
+/** Scrape mode radio options shown in the dialog configuration form. @source */
 const MODE_OPTIONS: {
   value: BulkScrapeMode
   label: string
@@ -184,6 +200,11 @@ const MODE_OPTIONS: {
   }
 ]
 
+/**
+ * Dialog for bulk-scraping Amazon data (price and/or cover) for all volumes in a series.
+ * @param props - {@link BulkScrapeDialogProps}
+ * @source
+ */
 export function BulkScrapeDialog({
   open,
   onOpenChange,

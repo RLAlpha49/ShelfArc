@@ -40,8 +40,10 @@ import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { OwnershipStatus } from "@/lib/types/database"
 
+/** Whether the search dialog is used to add a series or a volume. @source */
 type SearchContext = "series" | "volume"
 
+/** Props for the {@link BookSearchDialog} component. @source */
 interface BookSearchDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
@@ -58,6 +60,7 @@ interface BookSearchDialogProps {
   readonly existingIsbns?: readonly string[]
 }
 
+/** Dialog title and description per search context. @source */
 const contextCopy: Record<
   SearchContext,
   { title: string; description: string }
@@ -74,6 +77,7 @@ const contextCopy: Record<
   }
 }
 
+/** Human-readable labels and hints per search source. @source */
 const sourceCopy: Record<BookSearchSource, { label: string; hint: string }> = {
   google_books: {
     label: "Google Books",
@@ -85,11 +89,21 @@ const sourceCopy: Record<BookSearchSource, { label: string; hint: string }> = {
   }
 }
 
+/** Default placeholder for the search input. @source */
 const SEARCH_PLACEHOLDER = "Search by title, author, or ISBN..."
+/** Keys for rendering skeleton loading rows. @source */
 const SKELETON_ROWS = ["primary", "secondary", "tertiary"]
+/** Number of results fetched per page. @source */
 const RESULTS_PAGE_SIZE = 50
+/** Result count above which virtualised rendering kicks in. @source */
 const VIRTUALIZE_THRESHOLD = 12
 
+/**
+ * Removes duplicate search results by `source:id` key.
+ * @param items - Raw search result array.
+ * @returns De-duplicated array.
+ * @source
+ */
 const dedupeResults = (items: BookSearchResult[]) => {
   const seen = new Set<string>()
   return items.filter((item) => {
@@ -100,6 +114,12 @@ const dedupeResults = (items: BookSearchResult[]) => {
   })
 }
 
+/**
+ * Full-screen dialog for searching books via Google Books or Open Library, with
+ * multi-select, virtualised list, pagination, and ownership-status selector.
+ * @param props - {@link BookSearchDialogProps}
+ * @source
+ */
 export function BookSearchDialog({
   open,
   onOpenChange,

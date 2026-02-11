@@ -12,19 +12,23 @@ import {
   ArrowDown01Icon
 } from "@hugeicons/core-free-icons"
 
+/** Context value for mapping select item values to display labels. @source */
 type SelectLabelContextValue = {
   labels: Map<string, React.ReactNode>
   register: (value: string, label: React.ReactNode) => void
   unregister: (value: string) => void
 }
 
+/** React context for sharing item value-to-label mappings. @source */
 const SelectLabelContext = React.createContext<SelectLabelContextValue | null>(
   null
 )
 
+/** Converts a value to a stable string key. @source */
 const toValueKey = (value: unknown) =>
   value === null || value === undefined ? "" : String(value)
 
+/** Checks whether a React element is a SelectItem. @source */
 const isSelectItemElement = (child: React.ReactElement): boolean => {
   const elementType = child.type
   if (elementType === SelectItem) return true
@@ -48,6 +52,7 @@ const isSelectItemElement = (child: React.ReactElement): boolean => {
   return false
 }
 
+/** Recursively walks children to build a value-to-label map from SelectItems. @source */
 function collectLabelsFromChildren(children: React.ReactNode) {
   const labels = new Map<string, React.ReactNode>()
   const walk = (node: React.ReactNode) => {
@@ -73,6 +78,7 @@ function collectLabelsFromChildren(children: React.ReactNode) {
   return labels
 }
 
+/** Root select component with automatic label resolution via context. @source */
 function Select<Value, Multiple extends boolean | undefined = false>({
   children,
   ...props
@@ -127,6 +133,7 @@ function Select<Value, Multiple extends boolean | undefined = false>({
   )
 }
 
+/** Logical group of related select items. @source */
 function SelectGroup({
   className,
   ...props
@@ -140,6 +147,7 @@ function SelectGroup({
   )
 }
 
+/** Displays the currently selected value or a placeholder. @source */
 function SelectValue({
   className,
   placeholder,
@@ -173,6 +181,7 @@ function SelectValue({
   )
 }
 
+/** Trigger button that opens the select dropdown. @source */
 function SelectTrigger({
   className,
   size = "default",
@@ -205,6 +214,7 @@ function SelectTrigger({
   )
 }
 
+/** Positioned popup containing selectable items. @source */
 function SelectContent({
   className,
   children,
@@ -247,6 +257,7 @@ function SelectContent({
   )
 }
 
+/** Label heading for a select group. @source */
 function SelectLabel({
   className,
   ...props
@@ -260,6 +271,7 @@ function SelectLabel({
   )
 }
 
+/** Selectable option within the select dropdown. @source */
 function SelectItem({
   className,
   children,
@@ -306,6 +318,7 @@ function SelectItem({
   )
 }
 
+/** Horizontal divider between select groups. @source */
 function SelectSeparator({
   className,
   ...props
@@ -322,6 +335,7 @@ function SelectSeparator({
   )
 }
 
+/** Scroll indicator arrow at the top of the select list. @source */
 function SelectScrollUpButton({
   className,
   ...props
@@ -340,6 +354,7 @@ function SelectScrollUpButton({
   )
 }
 
+/** Scroll indicator arrow at the bottom of the select list. @source */
 function SelectScrollDownButton({
   className,
   ...props

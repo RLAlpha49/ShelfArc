@@ -1,3 +1,4 @@
+/** JSON-compatible value type matching Supabase/PostgREST conventions. @source */
 export type Json =
   | string
   | number
@@ -6,9 +7,12 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+/** Series classification: light novel, manga, or other. @source */
 export type TitleType = "light_novel" | "manga" | "other"
+/** Volume ownership status. @source */
 export type OwnershipStatus = "owned" | "wishlist"
 
+/** Volume reading progress status. @source */
 export type ReadingStatus =
   | "unread"
   | "reading"
@@ -16,8 +20,10 @@ export type ReadingStatus =
   | "on_hold"
   | "dropped"
 
+/** Physical book orientation for display layout. @source */
 export type BookOrientation = "vertical" | "horizontal"
 
+/** Supabase database schema definition for the public schema. @source */
 export interface Database {
   public: {
     Tables: {
@@ -253,15 +259,21 @@ export interface Database {
   }
 }
 
-// Convenience types for use in the app
+/** User profile row type. @source */
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+/** Series row type. @source */
 export type Series = Database["public"]["Tables"]["series"]["Row"]
+/** Volume row type. @source */
 export type Volume = Database["public"]["Tables"]["volumes"]["Row"]
+/** Tag row type. @source */
 export type Tag = Database["public"]["Tables"]["tags"]["Row"]
 
+/** Series insert payload type. @source */
 export type SeriesInsert = Database["public"]["Tables"]["series"]["Insert"]
+/** Volume insert payload type. @source */
 export type VolumeInsert = Database["public"]["Tables"]["volumes"]["Insert"]
 
+/** A series row joined with its child volumes. @source */
 export type SeriesWithVolumes = Series & {
   volumes: Volume[]
 }

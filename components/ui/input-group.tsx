@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
+/** Composite input container that groups an input with addons and buttons. @source */
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div
+    <div //NOSONAR
       data-slot="input-group"
       role="group"
       className={cn(
-        "border-input bg-input/20 dark:bg-input/30 has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-ring/30 has-[[data-slot][aria-invalid=true]]:ring-destructive/20 has-[[data-slot][aria-invalid=true]]:border-destructive dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40 group/input-group relative flex h-7 w-full min-w-0 items-center rounded-md border transition-colors outline-none has-data-[align=block-end]:rounded-md has-data-[align=block-start]:rounded-md has-[[data-slot=input-group-control]:focus-visible]:ring-[2px] has-[[data-slot][aria-invalid=true]]:ring-[2px] has-[textarea]:rounded-md has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5 [[data-slot=combobox-content]_&]:focus-within:border-inherit [[data-slot=combobox-content]_&]:focus-within:ring-0",
+        "border-input bg-input/20 dark:bg-input/30 has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-ring/30 has-[[data-slot][aria-invalid=true]]:ring-destructive/20 has-[[data-slot][aria-invalid=true]]:border-destructive dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40 group/input-group relative flex h-7 w-full min-w-0 items-center rounded-md border transition-colors outline-none in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-data-[align=block-end]:rounded-md has-data-[align=block-start]:rounded-md has-[[data-slot=input-group-control]:focus-visible]:ring-2 has-[[data-slot][aria-invalid=true]]:ring-2 has-[textarea]:rounded-md has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5",
         className
       )}
       {...props}
@@ -22,6 +23,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/** CVA variant definitions for input group addon alignment. @source */
 const inputGroupAddonVariants = cva(
   "text-muted-foreground **:data-[slot=kbd]:bg-muted-foreground/10 h-auto gap-1 py-2 text-xs/relaxed font-medium group-data-[disabled=true]/input-group:opacity-50 **:data-[slot=kbd]:rounded-[calc(var(--radius-sm)-2px)] **:data-[slot=kbd]:px-1 **:data-[slot=kbd]:text-[0.625rem] [&>svg:not([class*='size-'])]:size-3.5 flex cursor-text items-center justify-center select-none",
   {
@@ -43,13 +45,14 @@ const inputGroupAddonVariants = cva(
   }
 )
 
+/** Addon area positioned around an input (icons, labels, shortcuts). @source */
 function InputGroupAddon({
   className,
   align = "inline-start",
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
-    <div
+    <div //NOSONAR
       role="group"
       data-slot="input-group-addon"
       data-align={align}
@@ -65,6 +68,7 @@ function InputGroupAddon({
   )
 }
 
+/** CVA variant definitions for input group button sizing. @source */
 const inputGroupButtonVariants = cva(
   "gap-2 rounded-md text-xs/relaxed shadow-none flex items-center",
   {
@@ -82,6 +86,7 @@ const inputGroupButtonVariants = cva(
   }
 )
 
+/** Button embedded inside an input group. @source */
 function InputGroupButton({
   className,
   type = "button",
@@ -103,6 +108,7 @@ function InputGroupButton({
   )
 }
 
+/** Inline text or icon label within an input group. @source */
 function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
@@ -115,6 +121,7 @@ function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
   )
 }
 
+/** Text input control styled for use within an InputGroup. @source */
 function InputGroupInput({
   className,
   ...props
@@ -131,6 +138,7 @@ function InputGroupInput({
   )
 }
 
+/** Textarea control styled for use within an InputGroup. @source */
 function InputGroupTextarea({
   className,
   ...props

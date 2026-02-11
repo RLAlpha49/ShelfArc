@@ -10,11 +10,13 @@ import { formatDate } from "@/lib/format-date"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
+/** A volume entry augmented with its parent series title and ID. @source */
 interface RecentVolumeItem extends Volume {
   seriesTitle: string
   seriesId: string
 }
 
+/** A suggested next-purchase item computed from collection gaps and reading status. @source */
 interface SuggestedBuy {
   seriesId: string
   seriesTitle: string
@@ -27,6 +29,7 @@ interface SuggestedBuy {
   isReading: boolean
 }
 
+/** Empty state shown when the user has no series yet. @source */
 function RecentSeriesEmpty() {
   return (
     <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
@@ -64,6 +67,12 @@ function RecentSeriesEmpty() {
   )
 }
 
+/**
+ * Renders a list of recently added series.
+ * @param items - Series entries to display.
+ * @param dateFormat - User's preferred date format.
+ * @source
+ */
 function RecentSeriesList({
   items,
   dateFormat
@@ -111,6 +120,7 @@ function RecentSeriesList({
   )
 }
 
+/** Empty state shown when the user has no volumes yet. @source */
 function RecentVolumesEmpty() {
   return (
     <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
@@ -132,6 +142,13 @@ function RecentVolumesEmpty() {
   )
 }
 
+/**
+ * Renders a list of recently added volumes.
+ * @param items - Volume entries to display.
+ * @param priceFormatter - Intl formatter for currency values.
+ * @param dateFormat - User's preferred date format.
+ * @source
+ */
 function RecentVolumesList({
   items,
   priceFormatter,
@@ -183,6 +200,15 @@ function RecentVolumesList({
   )
 }
 
+/**
+ * Switches between the recent series and recent volumes lists.
+ * @param tab - Active tab identifier.
+ * @param recentSeries - Series items for the "series" tab.
+ * @param recentVolumes - Volume items for the "volumes" tab.
+ * @param priceFormatter - Intl formatter for currency values.
+ * @param dateFormat - User's preferred date format.
+ * @source
+ */
 function RecentlyAddedContent({
   tab,
   recentSeries,
@@ -210,6 +236,10 @@ function RecentlyAddedContent({
   )
 }
 
+/**
+ * Dashboard page displaying collection stats, reading progress, price tracking, and suggested purchases.
+ * @source
+ */
 export default function DashboardPage() {
   const { series, fetchSeries, isLoading } = useLibrary()
   const priceDisplayCurrency = useLibraryStore(

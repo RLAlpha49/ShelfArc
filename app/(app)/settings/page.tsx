@@ -43,9 +43,13 @@ import type {
   PriceSource
 } from "@/lib/store/library-store"
 
+/** Maximum avatar file size in bytes (2 MB). @source */
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
+
+/** Maximum avatar image dimension in pixels. @source */
 const MAX_AVATAR_DIMENSION = 1024
 
+/** Selectable Amazon marketplace domains. @source */
 const amazonDomainOptions: Array<{ value: AmazonDomain; label: string }> = [
   { value: "amazon.com", label: "amazon.com (US)" },
   { value: "amazon.co.uk", label: "amazon.co.uk (UK)" },
@@ -54,6 +58,7 @@ const amazonDomainOptions: Array<{ value: AmazonDomain; label: string }> = [
   { value: "amazon.co.jp", label: "amazon.co.jp (Japan)" }
 ]
 
+/** Selectable display currencies. @source */
 const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
   { value: "USD", label: "USD ($)" },
   { value: "GBP", label: "GBP (£)" },
@@ -62,15 +67,18 @@ const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
   { value: "JPY", label: "JPY (¥)" }
 ]
 
+/** Selectable price data sources. @source */
 const priceSourceOptions: Array<{ value: PriceSource; label: string }> = [
   { value: "amazon", label: "Amazon" }
 ]
 
+/** Selectable navigation layout modes. @source */
 const navigationOptions: Array<{ value: NavigationMode; label: string }> = [
   { value: "sidebar", label: "Sidebar (default)" },
   { value: "header", label: "Header" }
 ]
 
+/** Selectable display/heading fonts. @source */
 const displayFontOptions: Array<{ value: DisplayFont; label: string }> = [
   { value: "playfair", label: "Playfair Display" },
   { value: "lora", label: "Lora" },
@@ -78,18 +86,21 @@ const displayFontOptions: Array<{ value: DisplayFont; label: string }> = [
   { value: "source-serif", label: "Source Serif" }
 ]
 
+/** Selectable body/UI fonts. @source */
 const bodyFontOptions: Array<{ value: BodyFont; label: string }> = [
   { value: "plus-jakarta", label: "Plus Jakarta Sans" },
   { value: "inter", label: "Inter" },
   { value: "dm-sans", label: "DM Sans" }
 ]
 
+/** Selectable library card sizes for grid view. @source */
 const cardSizeOptions: Array<{ value: CardSize; label: string }> = [
   { value: "compact", label: "Compact" },
   { value: "default", label: "Default" },
   { value: "large", label: "Large" }
 ]
 
+/** Selectable default ownership statuses for new volumes. @source */
 const ownershipStatusOptions: Array<{
   value: DefaultOwnershipStatus
   label: string
@@ -98,11 +109,13 @@ const ownershipStatusOptions: Array<{
   { value: "wishlist", label: "Wishlist" }
 ]
 
+/** Selectable book search providers. @source */
 const searchSourceOptions: Array<{ value: SearchSource; label: string }> = [
   { value: "google_books", label: "Google Books" },
   { value: "open_library", label: "Open Library" }
 ]
 
+/** Selectable date display formats with live examples. @source */
 const dateFormatOptions: Array<{
   value: DateFormat
   label: string
@@ -114,6 +127,7 @@ const dateFormatOptions: Array<{
   { value: "iso", label: "ISO", example: "2026-01-05" }
 ]
 
+/** Navigation anchors for the settings page sections. @source */
 const settingsNav = [
   { id: "profile", label: "Profile" },
   { id: "preferences", label: "Preferences" },
@@ -122,6 +136,13 @@ const settingsNav = [
   { id: "data", label: "Data" }
 ] as const
 
+/**
+ * Type-guard returning true when the value matches one of the given option values.
+ * @param value - The value to validate.
+ * @param options - Available options to match against.
+ * @returns Whether the value is a valid option.
+ * @source
+ */
 const isValidOption = <T extends string>(
   value: string | null | undefined,
   options: Array<{ value: T }>
@@ -130,6 +151,12 @@ const isValidOption = <T extends string>(
   value !== undefined &&
   options.some((option) => option.value === value)
 
+/**
+ * Loads an image file and resolves with its object URL and natural dimensions.
+ * @param file - The image file to read.
+ * @returns Object URL, width, and height.
+ * @source
+ */
 const loadImageDimensions = (file: File) =>
   new Promise<{ url: string; width: number; height: number }>(
     (resolve, reject) => {
@@ -149,6 +176,11 @@ const loadImageDimensions = (file: File) =>
     }
   )
 
+/**
+ * Preloads an image URL into the browser cache.
+ * @param src - The image URL to preload.
+ * @source
+ */
 const preloadImage = (src: string) =>
   new Promise<void>((resolve, reject) => {
     const image = new Image()
@@ -157,6 +189,10 @@ const preloadImage = (src: string) =>
     image.src = src
   })
 
+/**
+ * Settings page with profile, preferences, appearance, pricing, and data management sections.
+ * @source
+ */
 export default function SettingsPage() {
   const supabase = createClient()
   const [profile, setProfile] = useState<Profile | null>(null)

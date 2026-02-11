@@ -12,6 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CsvImport } from "@/components/settings/csv-import"
 import { JsonImport } from "@/components/settings/json-import"
 
+/**
+ * Import page with tabbed CSV and JSON import workflows.
+ * @source
+ */
 export default function ImportPage() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 lg:px-10">

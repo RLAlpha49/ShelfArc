@@ -36,6 +36,7 @@ import type {
   Volume
 } from "@/lib/types/database"
 
+/** Props for the {@link SeriesDialog} component. @source */
 interface SeriesDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
@@ -50,11 +51,19 @@ interface SeriesDialogProps {
   ) => Promise<void>
 }
 
+/** Maximum upload size for cover images (5 MB). @source */
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 
+/** Regex matching common volume/book number tokens (e.g. "Vol. 3", "Book 1"). @source */
 const VOLUME_TOKEN_PATTERN =
   /\b(?:vol(?:ume)?|v|book|part|no\.?|#)\s*\.?\s*\d+(?:\.\d+)?\b/gi
 
+/**
+ * Strips volume-number tokens from a title to derive a clean series name.
+ * @param title - Raw volume title.
+ * @returns Cleaned title or the original if stripping would produce an empty string.
+ * @source
+ */
 const normalizeVolumeTitle = (title: string) => {
   const withoutToken = title.replaceAll(VOLUME_TOKEN_PATTERN, " ")
   const cleaned = withoutToken
@@ -64,6 +73,7 @@ const normalizeVolumeTitle = (title: string) => {
   return cleaned || title.trim()
 }
 
+/** Default values for the series form fields. @source */
 const defaultFormData = {
   title: "",
   description: "",
@@ -78,6 +88,12 @@ const defaultFormData = {
   tags: ""
 }
 
+/**
+ * Builds form state from an existing series or falls back to defaults.
+ * @param series - Existing series record, or null for a new entry.
+ * @returns Initialised form data object.
+ * @source
+ */
 const buildSeriesFormData = (series?: SeriesWithVolumes | null) => ({
   ...defaultFormData,
   title: series?.title ?? "",
@@ -93,8 +109,16 @@ const buildSeriesFormData = (series?: SeriesWithVolumes | null) => ({
   tags: series?.tags?.join(", ") ?? ""
 })
 
+/** Return type of {@link buildSeriesFormData}. @source */
 type SeriesFormData = ReturnType<typeof buildSeriesFormData>
 
+/**
+ * Shallow equality check for two series form-data snapshots.
+ * @param left - First snapshot.
+ * @param right - Second snapshot.
+ * @returns `true` if all tracked fields match.
+ * @source
+ */
 const areSeriesFormDataEqual = (left: SeriesFormData, right: SeriesFormData) =>
   left.title === right.title &&
   left.description === right.description &&
@@ -108,6 +132,11 @@ const areSeriesFormDataEqual = (left: SeriesFormData, right: SeriesFormData) =>
   left.status === right.status &&
   left.tags === right.tags
 
+/**
+ * Dialog for creating or editing a series with cover art, seed-volume picker, and metadata fields.
+ * @param props - {@link SeriesDialogProps}
+ * @source
+ */
 export function SeriesDialog({
   open,
   onOpenChange,

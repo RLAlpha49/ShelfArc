@@ -7,10 +7,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { login } from "@/app/auth/actions"
 
+/**
+ * Login page with email/password form and decorative side panel.
+ * @source
+ */
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  /** Submits the login form and surfaces errors without redirect. @source */
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     setError(null)

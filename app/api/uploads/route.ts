@@ -6,10 +6,13 @@ import sharp from "sharp"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 
+/** Forces Node.js runtime for sharp image processing. @source */
 export const runtime = "nodejs"
 
+/** Supabase Storage bucket for user media. @source */
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media"
 
+/** MIME types accepted for image uploads. @source */
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -17,6 +20,7 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/avif"
 ])
 
+/** Size and quality constraints for each upload category. @source */
 const UPLOAD_SPECS = {
   avatar: {
     folder: "avatars",
@@ -38,16 +42,27 @@ const UPLOAD_SPECS = {
   }
 } as const
 
+/** Upload category key. @source */
 type UploadKind = keyof typeof UPLOAD_SPECS
+
+/** Resolved spec for a given upload kind. @source */
 type UploadSpec = (typeof UPLOAD_SPECS)[UploadKind]
+
 const isDev = process.env.NODE_ENV !== "production"
+
+/** Extracts a human-readable message from an unknown error. @source */
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "Upload failed"
+
+/** Checks that a path has no directory traversal or backslash sequences. @source */
 const isSafePath = (path: string) =>
   !(path.includes("..") || path.includes("\\") || path.startsWith("/"))
+
+/** Builds a JSON error response with the given status. @source */
 const buildError = (message: string, status: number) =>
   NextResponse.json({ error: message }, { status })
 
+/** Metadata stored when a previous-file deletion fails during replacement. @source */
 type FailedDeletionRecord = {
   replacePath: string
   newPath: string
@@ -58,10 +73,18 @@ type FailedDeletionRecord = {
   rollbackError?: string
 }
 
+/** Result of image processing — either a buffer or an error response. @source */
 type ProcessImageResult =
   | { ok: true; buffer: Buffer }
   | { ok: false; response: Response }
 
+/**
+ * Persists a failed-deletion record to storage for later cleanup.
+ * @param supabase - Admin Supabase client.
+ * @param record - Metadata about the failed deletion.
+ * @returns `true` if the record was successfully stored.
+ * @source
+ */
 const enqueueFailedDeletion = async (
   supabase: ReturnType<typeof createAdminClient>,
   record: FailedDeletionRecord
@@ -96,6 +119,14 @@ const enqueueFailedDeletion = async (
   }
 }
 
+/**
+ * Resizes, rotates, and converts an image to WebP using sharp.
+ * @param inputStream - Readable stream of the raw uploaded image.
+ * @param spec - Upload spec controlling max dimensions and quality.
+ * @param context - Contextual metadata for error logging.
+ * @returns A `ProcessImageResult` with the optimized buffer or an error response.
+ * @source
+ */
 const processImage = async (
   inputStream: Readable,
   spec: UploadSpec,
@@ -130,6 +161,11 @@ const processImage = async (
   }
 }
 
+/**
+ * Removes the previously stored file after a successful replacement upload.
+ * @param params - Cleanup parameters including paths and user ID.
+ * @source
+ */
 const handleReplaceCleanup = async (params: {
   supabase: ReturnType<typeof createAdminClient>
   shouldReplace: boolean
@@ -178,6 +214,12 @@ const handleReplaceCleanup = async (params: {
   }
 }
 
+/**
+ * Parses multipart form data from the upload request.
+ * @param request - The incoming HTTP request.
+ * @returns Parsed `FormData` or a JSON error response.
+ * @source
+ */
 const getFormData = async (request: Request) => {
   try {
     return await request.formData()
@@ -186,6 +228,13 @@ const getFormData = async (request: Request) => {
   }
 }
 
+/**
+ * Validates and extracts upload metadata from the parsed form data.
+ * @param formData - Parsed form data from the request.
+ * @param userId - Authenticated user's ID for path scoping.
+ * @returns Validated upload data or a JSON error response.
+ * @source
+ */
 const getUploadData = (formData: FormData, userId: string) => {
   const file = formData.get("file")
   if (!(file instanceof File)) {
@@ -231,6 +280,12 @@ const getUploadData = (formData: FormData, userId: string) => {
   }
 }
 
+/**
+ * Handles authenticated image uploads: validates, optimizes via sharp, stores in Supabase, and cleans up replaced files.
+ * @param request - Incoming multipart POST request with `file`, `kind`, and optional `replacePath` fields.
+ * @returns JSON with the stored file path on success, or an error response.
+ * @source
+ */
 export async function POST(request: Request) {
   const userClient = await createUserClient()
   const {

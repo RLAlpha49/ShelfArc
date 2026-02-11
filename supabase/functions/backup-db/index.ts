@@ -1,8 +1,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1"
 
+/** Generic JSON-compatible record type. @source */
 type JsonRecord = Record<string, unknown>
 
+/** Metadata describing the contents and scope of a backup snapshot. @source */
 type BackupMetadata = {
   createdAt: string
   tableCount: number
@@ -10,17 +12,27 @@ type BackupMetadata = {
   tableTruncated: Record<string, boolean>
 }
 
+/** Full backup payload containing metadata and table data. @source */
 type BackupPayload = {
   metadata: BackupMetadata
   tables: Record<string, unknown[]>
 }
 
+/** Alias for the Supabase client return type. @source */
 type SupabaseClient = ReturnType<typeof createClient>
 
+/** Discriminated union for success/error outcomes used throughout the backup flow. @source */
 type Result<T> =
   | { data: T; error?: never; details?: never; status?: never }
   | { data?: never; error: string; details?: string; status?: number }
 
+/**
+ * Creates a JSON Response with the given status and body.
+ * @param status - HTTP status code.
+ * @param body - JSON-serializable response body.
+ * @returns A Response with JSON content-type.
+ * @source
+ */
 const jsonResponse = (status: number, body: JsonRecord) =>
   new Response(JSON.stringify(body), {
     status,
@@ -29,6 +41,13 @@ const jsonResponse = (status: number, body: JsonRecord) =>
     }
   })
 
+/**
+ * Reads a Deno environment variable with an optional fallback.
+ * @param key - Environment variable name.
+ * @param fallback - Default value if the variable is unset or empty.
+ * @returns The variable value or fallback.
+ * @source
+ */
 function getEnv(key: string): string | undefined
 function getEnv(key: string, fallback: string): string
 function getEnv(key: string, fallback?: string) {
@@ -39,6 +58,13 @@ function getEnv(key: string, fallback?: string) {
   return value
 }
 
+/**
+ * Parses a string to an integer, returning a fallback for invalid or missing values.
+ * @param value - String to parse.
+ * @param fallback - Default if parsing fails.
+ * @returns The parsed integer or fallback.
+ * @source
+ */
 const toInt = (value: string | undefined, fallback: number) => {
   if (!value) {
     return fallback
@@ -47,12 +73,24 @@ const toInt = (value: string | undefined, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+/**
+ * Splits a comma-separated string into a trimmed, non-empty array of values.
+ * @param value - Comma-separated input string.
+ * @returns Array of parsed entries.
+ * @source
+ */
 const parseCsv = (value: string | undefined) =>
   (value ?? "")
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean)
 
+/**
+ * Formats a Date into a compact ISO-8601 timestamp suitable for filenames.
+ * @param date - The date to format.
+ * @returns A string like `20260210T120000Z`.
+ * @source
+ */
 const formatTimestamp = (date: Date) =>
   date
     .toISOString()
@@ -60,6 +98,12 @@ const formatTimestamp = (date: Date) =>
     .replaceAll(":", "")
     .replace(/\.\d{3}Z$/, "Z")
 
+/**
+ * Compresses a JSON string using gzip and returns the result as a Blob.
+ * @param json - Raw JSON string to compress.
+ * @returns A gzip-compressed Blob.
+ * @source
+ */
 const gzipJson = async (json: string) => {
   const encoder = new TextEncoder()
   const stream = new Blob([encoder.encode(json)], {
@@ -70,6 +114,13 @@ const gzipJson = async (json: string) => {
   return await new Response(stream).blob()
 }
 
+/**
+ * Validates the request using either a shared secret header or a JWT Bearer token.
+ * @param request - Incoming HTTP request.
+ * @param supabase - Supabase client for JWT verification.
+ * @returns An object with `ok: true` on success, or `ok: false` with a `reason` string.
+ * @source
+ */
 const requireAuthorization = async (
   request: Request,
   supabase: SupabaseClient
@@ -116,6 +167,14 @@ const requireAuthorization = async (
   return { ok: true }
 }
 
+/**
+ * Paginates through all objects in a Supabase Storage bucket under a given prefix.
+ * @param supabase - Supabase client.
+ * @param bucket - Storage bucket name.
+ * @param prefix - Path prefix to list within.
+ * @returns All matching storage objects or an error.
+ * @source
+ */
 const listAllStorageObjects = async (
   supabase: SupabaseClient,
   bucket: string,
@@ -155,6 +214,14 @@ const listAllStorageObjects = async (
   return { data: allItems, error: null } as const
 }
 
+/**
+ * Resolves the list of database tables to back up, using an allow-list or an RPC helper.
+ * @param supabase - Supabase client.
+ * @param allowList - Explicit table names to include (takes priority over RPC discovery).
+ * @param excludeList - Table names to exclude from backup.
+ * @returns A Result containing the filtered table name array.
+ * @source
+ */
 const resolveTables = async (
   supabase: SupabaseClient,
   allowList: string[],
@@ -206,6 +273,7 @@ const resolveTables = async (
   return { data: tables }
 }
 
+/** Configuration options for paginated table data fetching. @source */
 type FetchTableOptions = {
   maxRowsPerTable?: number
   maxTotalRows?: number
@@ -217,6 +285,7 @@ type FetchTableOptions = {
   ) => void | Promise<void>
 }
 
+/** Result of evaluating a single page of rows against configured row limits. @source */
 type PageEvaluation = {
   pageRows: unknown[]
   truncated: boolean
@@ -226,6 +295,12 @@ type PageEvaluation = {
   nextTotalRows: number
 }
 
+/**
+ * Evaluates a fetched page of rows against per-table and global row limits.
+ * @param input - Page data and current counters.
+ * @returns Evaluation result indicating which rows to keep and whether to stop.
+ * @source
+ */
 const evaluatePage = (input: {
   data: unknown[]
   pageSize: number
@@ -282,6 +357,12 @@ const evaluatePage = (input: {
   }
 }
 
+/**
+ * Fetches all rows for a single table with pagination and row-limit enforcement.
+ * @param input - Table name, client, pagination settings, and row limit configuration.
+ * @returns Row count, truncation status, and updated global totals, or an error.
+ * @source
+ */
 const fetchTableRows = async (input: {
   supabase: SupabaseClient
   table: string
@@ -388,6 +469,15 @@ const fetchTableRows = async (input: {
   }
 }
 
+/**
+ * Fetches data for all specified tables, respecting row limits and page size.
+ * @param supabase - Supabase client.
+ * @param tables - List of table names to export.
+ * @param pageSize - Number of rows per paginated fetch.
+ * @param options - Row limit and callback configuration.
+ * @returns Combined table data, row counts, and truncation flags, or an error.
+ * @source
+ */
 const fetchTableData = async (
   supabase: SupabaseClient,
   tables: string[],
@@ -456,6 +546,16 @@ const fetchTableData = async (
   return { data: { tableData, rowCounts, tableTruncated } }
 }
 
+/**
+ * Uploads a gzip-compressed backup to Supabase Storage, retrying with a UUID suffix on conflict.
+ * @param supabase - Supabase client.
+ * @param bucket - Storage bucket name.
+ * @param prefix - Path prefix for the backup file.
+ * @param payload - Backup data to serialize and upload.
+ * @param createdAt - Timestamp used for the backup filename.
+ * @returns The final storage path on success, or an error.
+ * @source
+ */
 const uploadBackup = async (
   supabase: SupabaseClient,
   bucket: string,
@@ -482,6 +582,7 @@ const uploadBackup = async (
       (initialUpload.error as { statusCode?: number; status?: number }).status
     const hasStatus = typeof errorStatus === "number"
     // Supabase reports conflicts via a 409 status code; treat it as authoritative.
+    // Fall back to message heuristics when no numeric status is available.
     const isConflict =
       errorStatus === 409 ||
       (!hasStatus &&
@@ -497,6 +598,7 @@ const uploadBackup = async (
       }
     }
 
+    // Append a UUID to avoid filename collisions on timestamp conflict.
     const fallbackPath = `${prefix}/${timestamp}-${crypto.randomUUID()}.json.gz`
     const retryUpload = await supabase.storage
       .from(bucket)
@@ -519,6 +621,16 @@ const uploadBackup = async (
   return { data: backupPath }
 }
 
+/**
+ * Deletes old backups exceeding the configured count and total size limits.
+ * @param supabase - Supabase client.
+ * @param bucket - Storage bucket name.
+ * @param prefix - Path prefix where backups are stored.
+ * @param keepLast - Maximum number of recent backups to retain.
+ * @param maxTotalBytes - Maximum total backup size in bytes before pruning.
+ * @returns An array of warning messages if any retention issues occurred.
+ * @source
+ */
 const applyRetention = async (
   supabase: SupabaseClient,
   bucket: string,
@@ -546,6 +658,7 @@ const applyRetention = async (
       size: item.metadata?.size ?? 0
     }))
 
+  // Sort newest-first so `slice(keepLast)` yields the oldest candidates for deletion.
   const sortedByNameDesc = [...items].sort((a, b) =>
     b.name.localeCompare(a.name)
   )
@@ -600,6 +713,11 @@ const applyRetention = async (
   return warnings
 }
 
+/**
+ * Edge function handler that performs a full database backup on POST requests.
+ * Validates authorization, fetches table data, uploads a gzip-compressed snapshot, and applies retention.
+ * @source
+ */
 serve(async (request: Request) => {
   if (request.method !== "POST") {
     return jsonResponse(405, { error: "Method not allowed." })

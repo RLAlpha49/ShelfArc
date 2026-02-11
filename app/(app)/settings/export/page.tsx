@@ -16,8 +16,13 @@ import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { toast } from "sonner"
 
+/** Supported export file formats. @source */
 type ExportFormat = "json" | "csv"
 
+/**
+ * Export page allowing users to download their library as JSON or CSV.
+ * @source
+ */
 export default function ExportPage() {
   const { series, fetchSeries } = useLibrary()
   const [format, setFormat] = useState<ExportFormat>("json")

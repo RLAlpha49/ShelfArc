@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { CoverImage } from "@/components/library/cover-image"
 import type { SeriesWithVolumes, TitleType } from "@/lib/types/database"
 
+/** Props for the {@link SeriesCard} component. @source */
 interface SeriesCardProps {
   readonly series: SeriesWithVolumes
   readonly onEdit: () => void
@@ -16,12 +17,18 @@ interface SeriesCardProps {
   readonly onSelect?: () => void
 }
 
+/** Badge color mapping per series title type. @source */
 const TYPE_COLORS: Record<TitleType, string> = {
   light_novel: "bg-gold/10 text-gold",
   manga: "bg-copper/10 text-copper",
   other: "bg-muted text-muted-foreground"
 }
 
+/**
+ * Card displaying a series cover, title, type badge, progress bar, and quick-action buttons.
+ * @param props - {@link SeriesCardProps}
+ * @source
+ */
 export function SeriesCard({
   series,
   onEdit,

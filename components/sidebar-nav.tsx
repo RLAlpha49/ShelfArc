@@ -17,6 +17,7 @@ import {
 import { logout } from "@/app/auth/actions"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 
+/** Props for the {@link SidebarNav} component. @source */
 interface SidebarNavProps {
   readonly user?: {
     email?: string
@@ -29,6 +30,7 @@ interface SidebarNavProps {
   readonly onCollapsedChange?: (value: boolean) => void
 }
 
+/** Navigation items rendered in the sidebar. @source */
 const navItems = [
   {
     href: "/library",
@@ -89,6 +91,11 @@ const navItems = [
   }
 ]
 
+/**
+ * Collapsible sidebar navigation with mobile drawer support and user profile dropdown.
+ * @param props - {@link SidebarNavProps}
+ * @source
+ */
 export function SidebarNav({
   user,
   collapsed: collapsedProp,

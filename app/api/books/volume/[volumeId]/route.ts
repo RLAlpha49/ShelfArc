@@ -2,14 +2,28 @@ import { NextRequest, NextResponse } from "next/server"
 import { normalizeGoogleBooksItems } from "@/lib/books/search"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
 
+/** Google Books Volumes API base URL. @source */
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 
+/**
+ * Maps a Google Books response status to a client-facing HTTP status.
+ * @param response - The upstream Google Books response.
+ * @returns The appropriate HTTP status code.
+ * @source
+ */
 const resolveGoogleBooksStatus = (response: Response) => {
   if (response.status === 404) return 404
   if (response.status === 429) return 429
   return 502
 }
 
+/**
+ * Fetches a single volume from Google Books, cycling API keys on 429 rate limits.
+ * @param volumeId - The Google Books volume ID.
+ * @param apiKeys - Array of Google Books API keys to rotate through.
+ * @returns The upstream response, or `undefined` if all keys are exhausted.
+ * @source
+ */
 const fetchGoogleBooksVolumeResponse = async (
   volumeId: string,
   apiKeys: string[]
@@ -34,12 +48,20 @@ const fetchGoogleBooksVolumeResponse = async (
   return undefined
 }
 
+/** Route context carrying the dynamic `volumeId` segment. @source */
 interface RouteContext {
   params: Promise<{
     volumeId: string
   }>
 }
 
+/**
+ * Retrieves a single Google Books volume by its ID.
+ * @param request - Incoming request (volume ID is extracted from the route segment).
+ * @param params - Dynamic route context containing `volumeId`.
+ * @returns JSON with the normalized volume result or an error.
+ * @source
+ */
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const { volumeId: paramVolumeId } = await params
   const volumeIdFromParams = paramVolumeId.trim()
