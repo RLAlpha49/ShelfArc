@@ -184,7 +184,7 @@ function SeriesListItem({
               onCheckedChange={() => onSelect?.()}
               onClick={(event) => event.stopPropagation()}
               aria-label={`Select ${series.title}`}
-              className="h-4 w-4"
+              className="h-5 w-5 border-2"
             />
           </div>
         )}
@@ -257,7 +257,11 @@ function SeriesListItem({
             <div className="bg-primary/10 ml-auto h-1.5 w-24 overflow-hidden rounded-full">
               <div
                 className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
-                style={{ width: `${(ownedCount / totalCount) * 100}%` }}
+                style={
+                  {
+                    "--target-width": `${(ownedCount / totalCount) * 100}%`
+                  } as React.CSSProperties
+                }
               />
             </div>
           )}
@@ -382,7 +386,7 @@ function VolumeGridItem({
     <div className="group relative">
       <button
         type="button"
-        className={`bg-card hover:bg-accent/40 group-hover:bg-accent/40 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`bg-card hover:bg-accent/60 group-hover:bg-accent/60 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
@@ -414,7 +418,7 @@ function VolumeGridItem({
                 onCheckedChange={() => onSelect?.()}
                 onClick={(event) => event.stopPropagation()}
                 aria-label={`Select ${coverAlt}`}
-                className="h-4 w-4"
+                className="h-5 w-5 border-2"
               />
             </div>
           )}
@@ -635,7 +639,7 @@ function VolumeListItem({
               onCheckedChange={() => onSelect?.()}
               onClick={(event) => event.stopPropagation()}
               aria-label={`Select ${coverAlt}`}
-              className="h-4 w-4"
+              className="h-5 w-5 border-2"
             />
           </div>
         )}
@@ -1376,16 +1380,24 @@ export default function LibraryPage() {
 
   const handleSeriesItemClick = useCallback(
     (seriesItem: SeriesWithVolumes) => {
+      if (selectedSeriesIds.size > 0) {
+        toggleSeriesSelection(seriesItem.id)
+        return
+      }
       handleSeriesClick(seriesItem)
     },
-    [handleSeriesClick]
+    [selectedSeriesIds.size, toggleSeriesSelection, handleSeriesClick]
   )
 
   const handleVolumeItemClick = useCallback(
     (volumeId: string) => {
+      if (selectedVolumeIds.size > 0) {
+        toggleVolumeSelection(volumeId)
+        return
+      }
       handleVolumeClick(volumeId)
     },
-    [handleVolumeClick]
+    [selectedVolumeIds.size, toggleVolumeSelection, handleVolumeClick]
   )
 
   const handleToggleRead = useCallback(
