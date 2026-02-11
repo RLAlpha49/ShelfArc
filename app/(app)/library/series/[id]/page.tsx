@@ -144,6 +144,10 @@ type SeriesInsightData = {
   officialTotalVolumes: number | null
   createdLabel: string
   updatedLabel: string
+  totalSpent: number
+  averagePrice: number
+  pricedVolumes: number
+  readPercent: number
 }
 
 /**
@@ -181,6 +185,19 @@ const buildSeriesInsights = (
     (acc, volume) => acc + (volume.page_count ?? 0),
     0
   )
+  const totalSpent = series.volumes
+    .filter((volume) => volume.ownership_status === "owned")
+    .reduce((acc, volume) => acc + (volume.purchase_price ?? 0), 0)
+  const pricedVolumeEntries = series.volumes.filter(
+    (volume) =>
+      volume.ownership_status === "owned" &&
+      volume.purchase_price != null &&
+      volume.purchase_price > 0
+  )
+  const pricedVolumes = pricedVolumeEntries.length
+  const averagePrice = pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
+  const readPercent =
+    totalVolumes > 0 ? Math.round((readVolumes / totalVolumes) * 100) : 0
   const ratedVolumes = series.volumes.filter(
     (volume) => typeof volume.rating === "number"
   )
@@ -223,7 +240,11 @@ const buildSeriesInsights = (
     catalogedVolumes: series.volumes.length,
     officialTotalVolumes: series.total_volumes,
     createdLabel: formatDate(series.created_at, dateFormat),
-    updatedLabel: formatDate(series.updated_at, dateFormat)
+    updatedLabel: formatDate(series.updated_at, dateFormat),
+    totalSpent,
+    averagePrice,
+    pricedVolumes,
+    readPercent
   }
 }
 
@@ -298,12 +319,30 @@ const SeriesInsightsPanel = ({
         </div>
       </div>
       {insights.totalVolumes > 0 && (
-        <div className="mt-4">
-          <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
-            <div
-              className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all"
-              style={{ width: `${insights.collectionPercent}%` }}
-            />
+        <div className="mt-4 space-y-3">
+          <div>
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Collection</span>
+              <span className="font-medium">{insights.collectionPercent}%</span>
+            </div>
+            <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
+              <div
+                className="from-copper to-gold h-full rounded-full bg-linear-to-r transition-all"
+                style={{ width: `${insights.collectionPercent}%` }}
+              />
+            </div>
+          </div>
+          <div>
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Reading</span>
+              <span className="font-medium">{insights.readPercent}%</span>
+            </div>
+            <div className="bg-primary/10 h-2 overflow-hidden rounded-full">
+              <div
+                className="from-primary to-gold h-full rounded-full bg-linear-to-r transition-all"
+                style={{ width: `${insights.readPercent}%` }}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -369,6 +408,14 @@ const SeriesInsightsPanel = ({
         </div>
         <div>
           <dt className="text-muted-foreground text-xs tracking-widest uppercase">
+            Priced
+          </dt>
+          <dd className="font-medium">
+            {insights.pricedVolumes} of {insights.catalogedVolumes}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs tracking-widest uppercase">
             Added
           </dt>
           <dd className="font-medium">{insights.createdLabel || "—"}</dd>
@@ -410,6 +457,9 @@ export default function SeriesDetailPage() {
   const { selectedSeries, setSelectedSeries, deleteSeriesVolumes } =
     useLibraryStore()
   const dateFormat = useSettingsStore((state) => state.dateFormat)
+  const priceDisplayCurrency = useLibraryStore(
+    (state) => state.priceDisplayCurrency
+  )
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [volumeDialogOpen, setVolumeDialogOpen] = useState(false)
@@ -445,6 +495,44 @@ export default function SeriesDetailPage() {
       .filter((isbn) => isbn.length > 0)
     return Array.from(new Set(normalized))
   }, [currentSeries])
+
+  const formatPrice = useMemo(() => {
+    try {
+      const withDecimals = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: priceDisplayCurrency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
+      const noDecimals = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: priceDisplayCurrency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      })
+      return (value: number) =>
+        Number.isInteger(value)
+          ? noDecimals.format(value)
+          : withDecimals.format(value)
+    } catch {
+      const withDecimals = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
+      const noDecimals = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      })
+      return (value: number) =>
+        Number.isInteger(value)
+          ? noDecimals.format(value)
+          : withDecimals.format(value)
+    }
+  }, [priceDisplayCurrency])
 
   useEffect(() => {
     if (series.length === 0) {
@@ -899,31 +987,77 @@ export default function SeriesDetailPage() {
               </div>
             )}
 
-            {/* Stats */}
-            <div className="glass-card mt-6 flex items-center divide-x rounded-2xl">
-              <div className="flex-1 px-6 py-4 text-center">
-                <div className="font-display text-primary text-2xl font-bold">
-                  {insights.ownedVolumes}/{insights.totalVolumes}
+            {/* Stats strip */}
+            <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-6">
+              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                  Volumes
+                </span>
+                <div className="font-display text-xl font-bold">
+                  {insights.ownedVolumes}
+                  <span className="text-muted-foreground text-sm font-normal">
+                    /{insights.totalVolumes}
+                  </span>
                 </div>
-                <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                  Owned
-                </div>
+                <div className="text-muted-foreground text-[10px]">owned</div>
               </div>
-              <div className="flex-1 px-6 py-4 text-center">
-                <div className="font-display text-primary text-2xl font-bold">
+              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                  Reading
+                </span>
+                <div className="font-display text-xl font-bold">
                   {insights.readVolumes}
+                  <span className="text-muted-foreground text-sm font-normal">
+                    /{insights.totalVolumes}
+                  </span>
                 </div>
-                <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                  Read
+                <div className="text-muted-foreground text-[10px]">
+                  {insights.readPercent}% complete
                 </div>
               </div>
-              <div className="flex-1 px-6 py-4 text-center">
-                <div className="font-display text-primary text-2xl font-bold">
-                  {insights.collectionPercent}%
+              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                  Total Spent
+                </span>
+                <div className="font-display text-xl font-bold">
+                  {formatPrice(insights.totalSpent)}
                 </div>
-                <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                  Complete
+                <div className="text-muted-foreground text-[10px]">
+                  {insights.pricedVolumes} priced
                 </div>
+              </div>
+              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                  Avg Price
+                </span>
+                <div className="font-display text-xl font-bold">
+                  {insights.pricedVolumes > 0
+                    ? formatPrice(insights.averagePrice)
+                    : "—"}
+                </div>
+                <div className="text-muted-foreground text-[10px]">
+                  per volume
+                </div>
+              </div>
+              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                  Pages
+                </span>
+                <div className="font-display text-xl font-bold">
+                  {insights.totalPages > 0
+                    ? insights.totalPages.toLocaleString()
+                    : "—"}
+                </div>
+                <div className="text-muted-foreground text-[10px]">total</div>
+              </div>
+              <div className="bg-card flex flex-col gap-1 p-4 text-center">
+                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                  Wishlist
+                </span>
+                <div className="font-display text-xl font-bold">
+                  {insights.wishlistVolumes}
+                </div>
+                <div className="text-muted-foreground text-[10px]">items</div>
               </div>
             </div>
             <SeriesInsightsPanel insights={insights} />
