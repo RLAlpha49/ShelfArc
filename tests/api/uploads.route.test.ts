@@ -31,6 +31,21 @@ mock.module("node:stream", () => ({
       // noop
       return undefined
     }
+  },
+  // Provide a minimal Transform export so imports of { Transform } from
+  // "node:stream" succeed during tests (some dependencies import it).
+  Transform: class {
+    _transform(_chunk: unknown, _encoding?: string, callback?: () => void) {
+      if (callback) callback()
+    }
+    write(_chunk: unknown, _encoding?: string, callback?: () => void) {
+      if (callback) callback()
+      return true
+    }
+    end() {
+      // noop
+      return undefined
+    }
   }
 }))
 
