@@ -86,7 +86,7 @@ function RecentSeriesList({
         <Link
           key={s.id}
           href={`/library/series/${s.id}`}
-          className="bg-card group hover:bg-accent/40 flex items-center justify-between p-4 transition-colors"
+          className="bg-card group hover:bg-accent/60 flex items-center justify-between p-4 transition-colors"
         >
           <div className="min-w-0 flex-1">
             <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
@@ -164,7 +164,7 @@ function RecentVolumesList({
         <Link
           key={v.id}
           href={`/library/volume/${v.id}`}
-          className="bg-card group hover:bg-accent/40 flex items-center justify-between p-4 transition-colors"
+          className="bg-card group hover:bg-accent/60 flex items-center justify-between p-4 transition-colors"
         >
           <div className="min-w-0 flex-1">
             <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
@@ -719,7 +719,7 @@ export default function DashboardPage() {
         ].map((stat) => (
           <div
             key={stat.id}
-            className="bg-card group hover:bg-accent/40 flex flex-col gap-1 p-5 transition-colors"
+            className="bg-card group hover:bg-accent/60 flex flex-col gap-1 p-5 transition-colors"
           >
             <div className="flex items-center gap-2">
               <div className="text-primary bg-primary/8 flex h-6 w-6 items-center justify-center rounded-md">
@@ -736,6 +736,100 @@ export default function DashboardPage() {
           </div>
         ))}
       </section>
+
+      {/* ── Quick navigation ── */}
+      <nav className="animate-fade-in-up stagger-2 mb-10 flex flex-wrap gap-2">
+        {[
+          {
+            href: "/dashboard/recent",
+            label: "Recently Added",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
+            )
+          },
+          {
+            href: "/dashboard/suggestions",
+            label: "Suggestions",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <line x1="3" x2="21" y1="6" y2="6" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+            )
+          },
+          {
+            href: "/dashboard/tracked",
+            label: "Price Tracking",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            )
+          },
+          {
+            href: "/dashboard/wishlist",
+            label: "Wishlist",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+              </svg>
+            )
+          }
+        ].map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="glass-card hover:bg-accent/70 group flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all hover:shadow-sm"
+          >
+            <span className="text-primary">{item.icon}</span>
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+              {item.label}
+            </span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-muted-foreground/40 group-hover:text-primary h-3.5 w-3.5 transition-all group-hover:translate-x-0.5"
+            >
+              <polyline points="9,18 15,12 9,6" />
+            </svg>
+          </Link>
+        ))}
+      </nav>
 
       {/* ── Main content: asymmetric 7/5 grid ── */}
       <section className="mb-10 grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -826,7 +920,11 @@ export default function DashboardPage() {
                         <div className="bg-primary/8 mt-3 h-1.5 overflow-hidden rounded-full">
                           <div
                             className="progress-animate from-primary to-gold h-full rounded-full bg-linear-to-r"
-                            style={{ width: `${progress}%` }}
+                            style={
+                              {
+                                "--target-width": `${progress}%`
+                              } as React.CSSProperties
+                            }
                           />
                         </div>
                       )}
@@ -1316,9 +1414,11 @@ export default function DashboardPage() {
                           <div className="bg-primary/8 mt-1 h-1.5 overflow-hidden rounded-full">
                             <div
                               className="progress-animate from-copper to-gold h-full rounded-full bg-linear-to-r"
-                              style={{
-                                width: `${priceBreakdown.maxSeriesSpent > 0 ? Math.round((s.total / priceBreakdown.maxSeriesSpent) * 100) : 0}%`
-                              }}
+                              style={
+                                {
+                                  "--target-width": `${priceBreakdown.maxSeriesSpent > 0 ? Math.round((s.total / priceBreakdown.maxSeriesSpent) * 100) : 0}%`
+                                } as React.CSSProperties
+                              }
                             />
                           </div>
                         </Link>
@@ -1331,8 +1431,8 @@ export default function DashboardPage() {
                   href="/dashboard/tracked"
                   className="text-primary hover:text-primary/80 block pt-1 text-center text-xs font-medium transition-colors"
                 >
-                  {priceBreakdown.trackedCount} of {totalVolumes} volumes
-                  tracked
+                  {priceBreakdown.trackedCount} of {ownedVolumes} owned volumes
+                  priced
                 </Link>
               </div>
             )}
@@ -1434,9 +1534,11 @@ export default function DashboardPage() {
                           <div className="bg-gold/10 mt-1 h-1.5 overflow-hidden rounded-full">
                             <div
                               className="progress-animate from-gold to-copper h-full rounded-full bg-linear-to-r"
-                              style={{
-                                width: `${wishlistStats.maxWishlistSeriesCount > 0 ? Math.round((s.count / wishlistStats.maxWishlistSeriesCount) * 100) : 0}%`
-                              }}
+                              style={
+                                {
+                                  "--target-width": `${wishlistStats.maxWishlistSeriesCount > 0 ? Math.round((s.count / wishlistStats.maxWishlistSeriesCount) * 100) : 0}%`
+                                } as React.CSSProperties
+                              }
                             />
                           </div>
                         </Link>
@@ -1449,8 +1551,7 @@ export default function DashboardPage() {
                   href="/dashboard/wishlist"
                   className="text-primary hover:text-primary/80 block pt-1 text-center text-xs font-medium transition-colors"
                 >
-                  {wishlistStats.wishlistPricedCount} of {wishlistCount} volumes
-                  priced
+                  {wishlistCount} of {totalVolumes} volumes wishlisted
                 </Link>
               </div>
             )}
