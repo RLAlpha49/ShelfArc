@@ -234,6 +234,64 @@ async function importSeriesWithVolumes(
 }
 
 /**
+ * Parses a JSON export file and returns a normalised array of
+ * {@link SeriesWithVolumes}. Supports both the legacy flat-array format
+ * and the current `{ series, volumes }` export shape.
+ * @param content - Raw file content string.
+ * @returns Parsed series array.
+ * @throws {TypeError} If the JSON is malformed or not a recognised format.
+ * @source
+ */
+function parseImportJson(content: string): SeriesWithVolumes[] {
+  const parsed: unknown = JSON.parse(content)
+
+  if (Array.isArray(parsed)) {
+    return parsed as SeriesWithVolumes[]
+  }
+
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "series" in parsed &&
+    "volumes" in parsed
+  ) {
+    const obj = parsed as { series: unknown; volumes: unknown }
+
+    if (!Array.isArray(obj.series)) {
+      throw new TypeError("Invalid JSON format: 'series' must be an array")
+    }
+    if (!Array.isArray(obj.volumes)) {
+      throw new TypeError("Invalid JSON format: 'volumes' must be an array")
+    }
+
+    const seriesList = obj.series as Record<string, unknown>[]
+    const volumesList = obj.volumes as Volume[]
+
+    const volumesBySeries = new Map<string, Volume[]>()
+    for (const v of volumesList) {
+      const sid = v.series_id
+      if (sid) {
+        const existing = volumesBySeries.get(sid) ?? []
+        existing.push(v)
+        volumesBySeries.set(sid, existing)
+      }
+    }
+
+    return seriesList.map((s) => {
+      const id = s.id as string
+      return {
+        ...s,
+        volumes: volumesBySeries.get(id) ?? []
+      } as SeriesWithVolumes
+    })
+  }
+
+  throw new TypeError(
+    "Invalid JSON format: expected an array of series or { series, volumes }"
+  )
+}
+
+/**
  * JSON import form for restoring a ShelfArc backup (merge or replace mode).
  * @source
  */
@@ -255,11 +313,7 @@ export function JsonImport() {
         throw new TypeError("Please select a JSON file exported from ShelfArc")
       }
 
-      const data = JSON.parse(content) as SeriesWithVolumes[]
-
-      if (!Array.isArray(data)) {
-        throw new TypeError("Invalid JSON format: expected an array of series")
-      }
+      const data = parseImportJson(content)
 
       validateImportStructure(data)
 
