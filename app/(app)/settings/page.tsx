@@ -15,6 +15,7 @@ import type {
 } from "@/lib/store/settings-store"
 import { cn } from "@/lib/utils"
 import { sanitizePlainText } from "@/lib/sanitize-html"
+import { USERNAME_PATTERN } from "@/lib/validation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -199,7 +200,12 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
-  const [displayName, setDisplayName] = useState("")
+  const [username, setUsername] = useState("")
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
+    null
+  )
+  const [usernameChecking, setUsernameChecking] = useState(false)
+  const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [avatarUrl, setAvatarUrl] = useState("")
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("")
   const [avatarPreviewError, setAvatarPreviewError] = useState(false)
@@ -250,8 +256,10 @@ export default function SettingsPage() {
   } = useSettingsStore()
   const [activeSection, setActiveSection] = useState("profile")
 
+  const usernameFormatValid = USERNAME_PATTERN.test(username)
+
   const hasProfileChanges =
-    displayName !== (profile?.display_name || "") ||
+    username !== (profile?.username || "") ||
     avatarUrl !== (profile?.avatar_url || "")
 
   useEffect(() => {
@@ -270,7 +278,7 @@ export default function SettingsPage() {
       if (data) {
         const profileData = data as unknown as Profile
         setProfile(profileData)
-        setDisplayName(profileData.display_name || "")
+        setUsername(profileData.username || "")
         setAvatarUrl(profileData.avatar_url || "")
       }
       setIsLoading(false)
@@ -295,13 +303,44 @@ export default function SettingsPage() {
     setAvatarPreviewUrl(url ?? "")
   }
 
+  const handleUsernameChange = (value: string) => {
+    setUsername(value)
+    setUsernameAvailable(null)
+
+    if (usernameCheckTimer.current) {
+      clearTimeout(usernameCheckTimer.current)
+    }
+
+    if (!USERNAME_PATTERN.test(value) || value === (profile?.username || "")) {
+      setUsernameChecking(false)
+      return
+    }
+
+    setUsernameChecking(true)
+    usernameCheckTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/username/check?username=${encodeURIComponent(value)}`
+        )
+        if (res.ok) {
+          const json = (await res.json()) as { available: boolean }
+          setUsernameAvailable(json.available)
+        }
+      } catch {
+        // Silently ignore network errors for availability check
+      } finally {
+        setUsernameChecking(false)
+      }
+    }, 300)
+  }
+
   const handleSaveProfile = async () => {
     if (!profile) return
 
     setIsSaving(true)
     try {
-      const sanitizedDisplayName = sanitizePlainText(displayName, 100)
-      setDisplayName(sanitizedDisplayName)
+      const sanitizedUsername = sanitizePlainText(username, 20)
+      setUsername(sanitizedUsername)
 
       const profilesTable = supabase.from("profiles") as unknown as {
         update: (data: Record<string, unknown>) => {
@@ -309,11 +348,16 @@ export default function SettingsPage() {
         }
       }
       const nextProfileValues = {
-        display_name: sanitizedDisplayName || null,
+        username: sanitizedUsername || null,
         avatar_url: avatarUrl || null
       }
+      const nextAuthMetadata = {
+        username: sanitizedUsername || null,
+        avatar_url: avatarUrl || null,
+        display_name: sanitizedUsername || null
+      }
       const previousProfileValues = {
-        display_name: profile.display_name || null,
+        username: profile.username || null,
         avatar_url: profile.avatar_url || null
       }
       const { error } = await profilesTable
@@ -323,7 +367,7 @@ export default function SettingsPage() {
       if (error) throw error
 
       const { error: authError } = await supabase.auth.updateUser({
-        data: nextProfileValues
+        data: nextAuthMetadata
       })
 
       if (authError) {
@@ -333,10 +377,10 @@ export default function SettingsPage() {
         if (rollbackError) {
           setProfile({
             ...profile,
-            display_name: nextProfileValues.display_name,
+            username: nextProfileValues.username,
             avatar_url: nextProfileValues.avatar_url
           })
-          setDisplayName(nextProfileValues.display_name ?? "")
+          setUsername(nextProfileValues.username ?? "")
           setAvatarUrl(nextProfileValues.avatar_url ?? "")
           console.error("Failed to rollback profile update", {
             authError,
@@ -347,10 +391,10 @@ export default function SettingsPage() {
         } else {
           setProfile({
             ...profile,
-            display_name: previousProfileValues.display_name,
+            username: previousProfileValues.username,
             avatar_url: previousProfileValues.avatar_url
           })
-          setDisplayName(previousProfileValues.display_name ?? "")
+          setUsername(previousProfileValues.username ?? "")
           setAvatarUrl(previousProfileValues.avatar_url ?? "")
         }
         console.error("Failed to update auth metadata", {
@@ -362,7 +406,7 @@ export default function SettingsPage() {
       }
       setProfile({
         ...profile,
-        display_name: nextProfileValues.display_name,
+        username: nextProfileValues.username,
         avatar_url: nextProfileValues.avatar_url
       })
       toast.success("Profile updated successfully")
@@ -497,7 +541,7 @@ export default function SettingsPage() {
                 "relative shrink-0 px-3 py-2.5 text-sm font-medium transition-colors",
                 activeSection === section.id
                   ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               )}
             >
               {section.label}
@@ -522,7 +566,7 @@ export default function SettingsPage() {
                       "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                       activeSection === section.id
                         ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-sm"
                     )}
                   >
                     <svg
@@ -656,7 +700,7 @@ export default function SettingsPage() {
                         <AvatarImage src={resolvedAvatarUrl} alt="Avatar" />
                       )}
                     <AvatarFallback className="bg-primary/10 text-primary font-display text-2xl font-semibold">
-                      {(displayName || profile?.email || "U")
+                      {(username || profile?.email || "U")
                         .charAt(0)
                         .toUpperCase()}
                     </AvatarFallback>
@@ -671,14 +715,39 @@ export default function SettingsPage() {
                 {/* Name + email */}
                 <div className="flex-1 space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="displayName">Display Name</Label>
+                    <Label htmlFor="username">Username</Label>
                     <Input
-                      id="displayName"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="How should we call you?"
+                      id="username"
+                      value={username}
+                      onChange={(e) => handleUsernameChange(e.target.value)}
+                      placeholder="Choose a unique username"
                       className="max-w-sm"
                     />
+                    {username && !usernameFormatValid && (
+                      <p className="text-destructive text-xs">
+                        3-20 characters. Letters, numbers, and underscores only.
+                      </p>
+                    )}
+                    {usernameFormatValid &&
+                      username !== (profile?.username || "") && (
+                        <p className="text-xs">
+                          {usernameChecking && (
+                            <span className="text-muted-foreground">
+                              Checking...
+                            </span>
+                          )}
+                          {!usernameChecking && usernameAvailable === true && (
+                            <span className="text-emerald-600">
+                              ✓ Available
+                            </span>
+                          )}
+                          {!usernameChecking && usernameAvailable === false && (
+                            <span className="text-destructive">
+                              ✗ Already taken
+                            </span>
+                          )}
+                        </p>
+                      )}
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="email">Email</Label>
@@ -727,13 +796,22 @@ export default function SettingsPage() {
                     >
                       Image URL
                     </Label>
-                    <Input
-                      id="avatarUrl"
-                      type="url"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      placeholder="https://..."
-                    />
+                    {extractStoragePath(avatarUrl) ? (
+                      <Input
+                        id="avatarUrl"
+                        value="Uploaded image"
+                        disabled
+                        className="bg-muted max-w-sm"
+                      />
+                    ) : (
+                      <Input
+                        id="avatarUrl"
+                        type="url"
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        placeholder="https://..."
+                      />
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label
@@ -1556,7 +1634,7 @@ export default function SettingsPage() {
 
             <div className="grid-stagger grid gap-4 sm:grid-cols-2">
               <Link href="/settings/export" className="group">
-                <div className="bg-muted/30 hover:bg-accent/40 hover-lift rounded-2xl border p-5 transition-colors">
+                <div className="bg-muted/30 hover:bg-accent/60 hover-lift rounded-2xl border p-5 transition-colors">
                   <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -1581,7 +1659,7 @@ export default function SettingsPage() {
                 </div>
               </Link>
               <Link href="/settings/import" className="group">
-                <div className="bg-muted/30 hover:bg-accent/40 hover-lift rounded-2xl border p-5 transition-colors">
+                <div className="bg-muted/30 hover:bg-accent/60 hover-lift rounded-2xl border p-5 transition-colors">
                   <div className="text-primary bg-primary/8 group-hover:bg-primary/12 mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"

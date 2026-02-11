@@ -135,17 +135,20 @@ export default function SignupPage() {
               className="animate-fade-in-up space-y-2"
               style={{ animationDelay: "100ms", animationFillMode: "both" }}
             >
-              <Label htmlFor="displayName" className="text-sm font-medium">
-                Display Name
+              <Label htmlFor="username" className="text-sm font-medium">
+                Username
               </Label>
               <Input
-                id="displayName"
-                name="displayName"
+                id="username"
+                name="username"
                 type="text"
-                placeholder="Your name"
+                placeholder="Choose a username"
                 required
                 className="h-11 rounded-xl"
               />
+              <p className="text-muted-foreground text-xs">
+                3-20 characters. Letters, numbers, and underscores only.
+              </p>
             </div>
 
             <div

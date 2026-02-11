@@ -12,7 +12,7 @@ interface AppShellProps {
   readonly user?: {
     email?: string
     user_metadata?: {
-      display_name?: string
+      username?: string
       avatar_url?: string
     }
   } | null

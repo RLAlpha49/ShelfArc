@@ -108,3 +108,15 @@ export const isNonNegativeFinite = (value: unknown): value is number =>
 export const isValidUrl = (value: unknown): value is string =>
   typeof value === "string" &&
   (value.startsWith("https://") || value.startsWith("http://"))
+
+/** Regex matching a valid username (3-20 alphanumeric or underscore characters). @source */
+export const USERNAME_PATTERN = /^\w{3,20}$/
+
+/**
+ * Type guard for valid usernames.
+ * @param value - The value to check.
+ * @source
+ */
+export function isValidUsername(value: unknown): value is string {
+  return typeof value === "string" && USERNAME_PATTERN.test(value)
+}

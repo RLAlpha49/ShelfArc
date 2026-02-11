@@ -20,7 +20,7 @@ interface HeaderProps {
   readonly user?: {
     email?: string
     user_metadata?: {
-      display_name?: string
+      username?: string
       avatar_url?: string
     }
   } | null
@@ -132,10 +132,10 @@ export function Header({ user }: HeaderProps) {
                 <Avatar className="ring-border h-8 w-8 cursor-pointer ring-1 transition-shadow hover:ring-2">
                   <AvatarImage
                     src={avatarUrl}
-                    alt={user.user_metadata?.display_name || "User"}
+                    alt={user.user_metadata?.username || "User"}
                   />
                   <AvatarFallback className="bg-primary/8 text-primary text-xs font-medium">
-                    {(user.user_metadata?.display_name || user.email || "U")
+                    {(user.user_metadata?.username || user.email || "U")
                       .charAt(0)
                       .toUpperCase()}
                   </AvatarFallback>
@@ -146,18 +146,18 @@ export function Header({ user }: HeaderProps) {
                   <Avatar className="h-9 w-9">
                     <AvatarImage
                       src={avatarUrl}
-                      alt={user.user_metadata?.display_name || "User"}
+                      alt={user.user_metadata?.username || "User"}
                     />
                     <AvatarFallback className="bg-primary/8 text-primary text-xs font-medium">
-                      {(user.user_metadata?.display_name || user.email || "U")
+                      {(user.user_metadata?.username || user.email || "U")
                         .charAt(0)
                         .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col leading-none">
-                    {user.user_metadata?.display_name && (
+                    {user.user_metadata?.username && (
                       <p className="text-sm font-medium">
-                        {user.user_metadata.display_name}
+                        {user.user_metadata.username}
                       </p>
                     )}
                     {user.email && (

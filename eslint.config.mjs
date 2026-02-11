@@ -46,7 +46,7 @@ const eslintConfig = defineConfig([
     }
   },
   {
-    files: ["app/api/**", "supabase/functions/**"],
+    files: ["app/api/**", "app/auth/**", "supabase/functions/**"],
     rules: {
       "no-restricted-imports": [
         "error",

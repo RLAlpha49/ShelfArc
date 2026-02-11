@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createUserClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { sanitizePlainText } from "@/lib/sanitize-html"
+import { isValidUsername } from "@/lib/validation"
 
 /**
  * Authenticates a user with email and password, then redirects to the library.
@@ -39,7 +41,7 @@ export async function login(formData: FormData) {
 
 /**
  * Registers a new user account and redirects to the library on success.
- * @param formData - Form data containing `email`, `password`, and optional `displayName` fields.
+ * @param formData - Form data containing `email`, `password`, and `username` fields.
  * @returns An error object if registration fails; otherwise redirects.
  * @source
  */
@@ -48,7 +50,7 @@ export async function signup(formData: FormData) {
 
   const email = (formData.get("email") as string)?.trim()
   const password = formData.get("password") as string
-  const displayName = formData.get("displayName") as string
+  const rawUsername = formData.get("username") as string
 
   if (!email?.includes("@")) {
     return { error: "Valid email is required" }
@@ -57,14 +59,38 @@ export async function signup(formData: FormData) {
     return { error: "Password must be at least 6 characters" }
   }
 
-  const sanitizedDisplayName = sanitizePlainText(displayName || "", 100)
+  const username = sanitizePlainText(rawUsername || "", 20)
+
+  if (!isValidUsername(username)) {
+    return {
+      error: "Username must be 3-20 characters (letters, numbers, underscores)"
+    }
+  }
+
+  const admin = createAdminClient({
+    reason: "Check username uniqueness during signup"
+  })
+
+  const { data: existing, error: checkError } = await admin
+    .from("profiles")
+    .select("id")
+    .ilike("username", username)
+    .limit(1)
+
+  if (checkError) {
+    return { error: "Unable to verify username availability" }
+  }
+
+  if (existing && existing.length > 0) {
+    return { error: "Username is already taken" }
+  }
 
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        display_name: sanitizedDisplayName || null
+        username
       }
     }
   })

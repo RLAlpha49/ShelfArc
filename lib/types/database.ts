@@ -30,16 +30,18 @@ export interface Database {
       profiles: {
         Row: {
           id: string
+          user_id: number
           email: string
-          display_name: string | null
+          username: string | null
           avatar_url: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id: string
+          user_id?: number
           email: string
-          display_name?: string | null
+          username?: string | null
           avatar_url?: string | null
           created_at?: string
           updated_at?: string
@@ -47,7 +49,7 @@ export interface Database {
         Update: {
           id?: string
           email?: string
-          display_name?: string | null
+          username?: string | null
           avatar_url?: string | null
           created_at?: string
           updated_at?: string
