@@ -5,6 +5,17 @@ import nextTs from "eslint-config-next/typescript"
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Explicit React version avoids calling plugin detection which can break under ESLint 10.
+  // Keeps ESLint 10 while preventing `contextOrFilename.getFilename` errors in
+  // eslint-plugin-react's version detection code.
+  {
+    settings: {
+      react: {
+        version: "19.2.4",
+        defaultVersion: "19.2.4"
+      }
+    }
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
