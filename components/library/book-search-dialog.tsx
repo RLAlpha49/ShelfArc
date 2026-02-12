@@ -96,7 +96,7 @@ const SKELETON_ROWS = ["primary", "secondary", "tertiary"]
 /** Number of results fetched per page. @source */
 const RESULTS_PAGE_SIZE = 50
 /** Result count above which virtualised rendering kicks in. @source */
-const VIRTUALIZE_THRESHOLD = 12
+const VIRTUALIZE_THRESHOLD = 40
 
 /**
  * Removes duplicate search results by `source:id` key.
@@ -658,8 +658,9 @@ export function BookSearchDialog({
             {decoratedResults.length > 0 && (
               <div className="relative w-full">
                 {shouldVirtualize ? (
-                  <div
-                    className="relative w-full"
+                  <ul
+                    className="relative m-0 w-full list-none p-0"
+                    aria-label="Search results"
                     style={{ height: rowVirtualizer.getTotalSize() }}
                   >
                     {virtualRows.map((virtualRow) => {
@@ -667,7 +668,7 @@ export function BookSearchDialog({
                       if (!item) return null
 
                       return (
-                        <div
+                        <li
                           key={item.result.id}
                           ref={rowVirtualizer.measureElement}
                           data-index={virtualRow.index}
@@ -677,16 +678,19 @@ export function BookSearchDialog({
                           }}
                         >
                           {renderResultCard(item)}
-                        </div>
+                        </li>
                       )
                     })}
-                  </div>
+                  </ul>
                 ) : (
-                  <div className="space-y-4">
+                  <ul
+                    className="m-0 list-none space-y-4 p-0"
+                    aria-label="Search results"
+                  >
                     {decoratedResults.map((item) => (
-                      <div key={item.result.id}>{renderResultCard(item)}</div>
+                      <li key={item.result.id}>{renderResultCard(item)}</li>
                     ))}
-                  </div>
+                  </ul>
                 )}
               </div>
             )}

@@ -38,6 +38,9 @@ export function SettingsApplier() {
 
   // Toggle animations
   useEffect(() => {
+    document.documentElement.dataset.animations = enableAnimations
+      ? "enabled"
+      : "disabled"
     document.documentElement.classList.toggle(
       "no-animations",
       !enableAnimations

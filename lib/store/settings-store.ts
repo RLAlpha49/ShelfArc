@@ -68,6 +68,20 @@ export const BODY_FONT_MAP: Record<BodyFont, string> = {
   "dm-sans": "var(--font-dm-sans)"
 }
 
+/**
+ * Determine the initial animation preference.
+ *
+ * - Defaults to "enabled" on the server.
+ * - On first client load (no persisted settings yet), respects OS reduce-motion.
+ *
+ * Persisted settings from zustand/persist will override this default.
+ */
+function getDefaultEnableAnimations() {
+  const win = globalThis.window
+  if (!win) return true
+  return !win.matchMedia("(prefers-reduced-motion: reduce)").matches
+}
+
 /** Zustand store managing user preferences with localStorage persistence. @source */
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -90,7 +104,7 @@ export const useSettingsStore = create<SettingsState>()(
       sidebarCollapsed: false,
 
       // Appearance
-      enableAnimations: true,
+      enableAnimations: getDefaultEnableAnimations(),
       displayFont: "playfair",
       bodyFont: "plus-jakarta",
       dateFormat: "relative",

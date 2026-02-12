@@ -76,7 +76,10 @@ export function Header({ user }: HeaderProps) {
     <header className="bg-background/90 sticky top-0 z-50 w-full backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-7xl items-center px-6 lg:px-8">
         {/* Wordmark */}
-        <Link href="/" className="group flex items-center gap-2.5">
+        <Link
+          href="/"
+          className="group focus-visible:ring-ring focus-visible:ring-offset-background flex items-center gap-2.5 rounded-lg focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
           <div className="bg-primary flex h-7 w-7 items-center justify-center rounded-md">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -99,36 +102,98 @@ export function Header({ user }: HeaderProps) {
         {/* Center navigation */}
         {user && (
           <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0.5 md:flex">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "relative flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-all duration-200 active:scale-[0.97]",
-                  pathname === item.href
-                    ? "text-foreground font-medium"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-sm"
-                )}
-              >
-                <span className="transition-transform duration-200 group-hover:scale-110">
-                  {item.icon}
-                </span>
-                {item.label}
-                {pathname === item.href && (
-                  <span className="bg-primary animate-scale-in absolute inset-x-2 -bottom-3 h-0.5" />
-                )}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href || pathname.startsWith(`${item.href}/`)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "group focus-visible:ring-ring focus-visible:ring-offset-background relative flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97]",
+                    isActive
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-sm"
+                  )}
+                >
+                  <span className="transition-transform duration-200 group-hover:scale-110">
+                    {item.icon}
+                  </span>
+                  {item.label}
+                  {isActive && (
+                    <span className="bg-primary animate-scale-in absolute inset-x-2 -bottom-3 h-0.5" />
+                  )}
+                </Link>
+              )
+            })}
           </nav>
         )}
 
         {/* Right actions */}
         <div className="ml-auto flex items-center gap-1.5">
+          {user && (
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="focus-visible:ring-ring focus-visible:ring-offset-background hover:bg-accent inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  aria-label="Open navigation"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <line x1="4" x2="20" y1="12" y2="12" />
+                    <line x1="4" x2="20" y1="6" y2="6" />
+                    <line x1="4" x2="20" y1="18" y2="18" />
+                  </svg>
+                  <span className="sr-only">Menu</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-2 py-1.5">
+                    <p className="text-muted-foreground text-[11px] tracking-widest uppercase">
+                      Navigate
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  {navItems.map((item) => {
+                    const isActive =
+                      pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`)
+                    return (
+                      <DropdownMenuItem key={`mobile-${item.href}`}>
+                        <Link
+                          href={item.href}
+                          aria-current={isActive ? "page" : undefined}
+                          className={cn(
+                            "flex w-full items-center gap-2",
+                            isActive ? "font-medium" : undefined
+                          )}
+                        >
+                          {item.icon}
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
           <ThemeToggle />
 
           {user ? (
             <DropdownMenu>
-              <DropdownMenuTrigger className="focus:outline-none">
+              <DropdownMenuTrigger
+                className="focus-visible:ring-ring focus-visible:ring-offset-background rounded-full focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                aria-label="Open user menu"
+              >
                 <Avatar className="ring-border h-8 w-8 cursor-pointer ring-1 transition-shadow hover:ring-2">
                   <AvatarImage
                     src={avatarUrl}

@@ -465,36 +465,40 @@ export function LibraryToolbar({
             <div className="flex-1" />
 
             {/* Collection View */}
-            <div className="border-input flex items-center overflow-hidden rounded-xl border">
+            <fieldset className="border-input flex items-center overflow-hidden rounded-xl border">
+              <legend className="sr-only">Collection view</legend>
               <button
-                className={`px-2.5 py-1.5 text-xs transition-all ${
+                className={`focus-visible:ring-ring focus-visible:ring-offset-background px-2.5 py-1.5 text-xs transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${
                   collectionView === "series"
                     ? "bg-primary text-primary-foreground font-medium"
                     : "hover:bg-accent hover:text-foreground"
                 }`}
                 onClick={() => setCollectionView("series")}
                 aria-label="Series view"
+                aria-pressed={collectionView === "series"}
                 type="button"
               >
                 Series
               </button>
               <button
-                className={`px-2.5 py-1.5 text-xs transition-all ${
+                className={`focus-visible:ring-ring focus-visible:ring-offset-background px-2.5 py-1.5 text-xs transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${
                   collectionView === "volumes"
                     ? "bg-primary text-primary-foreground font-medium"
                     : "hover:bg-accent hover:text-foreground"
                 }`}
                 onClick={() => setCollectionView("volumes")}
                 aria-label="Volumes view"
+                aria-pressed={collectionView === "volumes"}
                 type="button"
               >
                 Volumes
               </button>
-            </div>
+            </fieldset>
 
             {/* Card Size (grid only) */}
             {viewMode === "grid" && (
-              <div className="border-input flex items-center overflow-hidden rounded-xl border">
+              <fieldset className="border-input flex items-center overflow-hidden rounded-xl border">
+                <legend className="sr-only">Card size</legend>
                 {(["compact", "default", "large"] as const).map((size) => {
                   const sizeLabels = {
                     compact: "S",
@@ -505,28 +509,31 @@ export function LibraryToolbar({
                   return (
                     <button
                       key={size}
-                      className={`px-2 py-1.5 text-xs transition-all ${
+                      className={`focus-visible:ring-ring focus-visible:ring-offset-background px-2 py-1.5 text-xs transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${
                         cardSize === size
                           ? "bg-primary text-primary-foreground font-medium"
                           : "hover:bg-accent hover:text-foreground"
                       }`}
                       onClick={() => setCardSize(size)}
                       aria-label={`${size} card size`}
+                      aria-pressed={cardSize === size}
                       type="button"
                     >
                       {label}
                     </button>
                   )
                 })}
-              </div>
+              </fieldset>
             )}
 
             {/* View Toggle */}
-            <div className="border-input flex items-center overflow-hidden rounded-xl border">
+            <fieldset className="border-input flex items-center overflow-hidden rounded-xl border">
+              <legend className="sr-only">View mode</legend>
               <button
-                className={`p-1.5 transition-all ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-foreground"}`}
+                className={`focus-visible:ring-ring focus-visible:ring-offset-background p-1.5 transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-foreground"}`}
                 onClick={() => setViewMode("grid")}
                 aria-label="Grid view"
+                aria-pressed={viewMode === "grid"}
                 type="button"
               >
                 <svg
@@ -546,9 +553,10 @@ export function LibraryToolbar({
                 </svg>
               </button>
               <button
-                className={`p-1.5 transition-all ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-foreground"}`}
+                className={`focus-visible:ring-ring focus-visible:ring-offset-background p-1.5 transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-foreground"}`}
                 onClick={() => setViewMode("list")}
                 aria-label="List view"
+                aria-pressed={viewMode === "list"}
                 type="button"
               >
                 <svg
@@ -569,7 +577,7 @@ export function LibraryToolbar({
                   <line x1="3" x2="3.01" y1="18" y2="18" />
                 </svg>
               </button>
-            </div>
+            </fieldset>
           </div>
         </div>
       </div>

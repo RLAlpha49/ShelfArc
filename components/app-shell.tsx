@@ -1,10 +1,12 @@
 "use client"
 
+import { useEffect, useMemo } from "react"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { Header } from "@/components/header"
 import { cn } from "@/lib/utils"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import { usePathname } from "next/navigation"
 
 /** Props for the {@link AppShell} layout wrapper. @source */
 interface AppShellProps {
@@ -24,9 +26,40 @@ interface AppShellProps {
  * @source
  */
 export function AppShell({ children, user }: AppShellProps) {
+  const pathname = usePathname()
   const navigationMode = useLibraryStore((state) => state.navigationMode)
   const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)
   const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed)
+
+  const routeAnnouncement = useMemo(() => {
+    const label = pathname
+      .split("?")[0]
+      .split("#")[0]
+      .split("/")
+      .filter(Boolean)
+      .map((segment) => segment.replaceAll("-", " "))
+      .join(" ")
+
+    return label ? `Navigated to ${label}.` : "Navigated home."
+  }, [pathname])
+
+  // If the App Router navigation leaves focus on <body>/<html>, move it to <main>
+  // so keyboard and screen reader users land in the new page content.
+  useEffect(() => {
+    const active = document.activeElement
+    if (
+      active &&
+      active !== document.body &&
+      active !== document.documentElement
+    ) {
+      return
+    }
+
+    const main = document.getElementById("main")
+    if (main instanceof HTMLElement) {
+      main.focus({ preventScroll: true })
+    }
+  }, [pathname])
 
   let sidebarOffsetClass: string | null = null
   if (navigationMode === "sidebar") {
@@ -46,8 +79,14 @@ export function AppShell({ children, user }: AppShellProps) {
   if (navigationMode === "header") {
     return (
       <div className="relative min-h-screen">
+        <a href="#main" className="skip-link">
+          Skip to main content
+        </a>
         <Header user={user} />
-        <main className={mainClassName}>
+        <main id="main" tabIndex={-1} className={mainClassName}>
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {routeAnnouncement}
+          </div>
           <div className="noise-overlay relative min-h-screen">
             <div className={contentClassName}>{children}</div>
           </div>
@@ -58,12 +97,18 @@ export function AppShell({ children, user }: AppShellProps) {
 
   return (
     <div className="relative flex min-h-screen">
+      <a href="#main" className="skip-link">
+        Skip to main content
+      </a>
       <SidebarNav
         user={user}
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
       />
-      <main className={mainClassName}>
+      <main id="main" tabIndex={-1} className={mainClassName}>
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {routeAnnouncement}
+        </div>
         <div className="noise-overlay relative min-h-screen">
           <div className={contentClassName}>{children}</div>
         </div>

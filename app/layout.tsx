@@ -92,6 +92,7 @@ export default function RootLayout({
         inter.variable,
         dmSans.variable
       ].join(" ")}
+      data-animations="auto"
       suppressHydrationWarning
     >
       <body className="bg-background min-h-screen font-sans antialiased">

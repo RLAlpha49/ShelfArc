@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,13 @@ import { login } from "@/app/auth/actions"
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const errorRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.focus()
+    }
+  }, [error])
 
   /** Submits the login form and surfaces errors without redirect. @source */
   async function handleSubmit(formData: FormData) {
@@ -125,7 +132,14 @@ export default function LoginPage() {
 
           <form action={handleSubmit} className="space-y-5">
             {error && (
-              <div className="text-destructive bg-destructive/10 rounded-xl p-4 text-sm">
+              <div
+                ref={errorRef}
+                tabIndex={-1}
+                role="alert"
+                aria-live="assertive"
+                aria-atomic="true"
+                className="text-destructive focus-visible:ring-ring focus-visible:ring-offset-background bg-destructive/10 rounded-xl p-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              >
                 {error}
               </div>
             )}
