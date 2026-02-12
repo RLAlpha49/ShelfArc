@@ -245,6 +245,101 @@ export interface Database {
           }
         ]
       }
+      price_history: {
+        Row: {
+          id: string
+          volume_id: string
+          user_id: string
+          price: number
+          currency: string
+          source: string
+          product_url: string | null
+          scraped_at: string
+        }
+        Insert: {
+          id?: string
+          volume_id: string
+          user_id: string
+          price: number
+          currency?: string
+          source?: string
+          product_url?: string | null
+          scraped_at?: string
+        }
+        Update: {
+          id?: string
+          volume_id?: string
+          user_id?: string
+          price?: number
+          currency?: string
+          source?: string
+          product_url?: string | null
+          scraped_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_volume_id_fkey"
+            columns: ["volume_id"]
+            referencedRelation: "volumes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_history_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      price_alerts: {
+        Row: {
+          id: string
+          volume_id: string
+          user_id: string
+          target_price: number
+          currency: string
+          enabled: boolean
+          triggered_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          volume_id: string
+          user_id: string
+          target_price: number
+          currency?: string
+          enabled?: boolean
+          triggered_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          volume_id?: string
+          user_id?: string
+          target_price?: number
+          currency?: string
+          enabled?: boolean
+          triggered_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_alerts_volume_id_fkey"
+            columns: ["volume_id"]
+            referencedRelation: "volumes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_alerts_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -279,3 +374,14 @@ export type VolumeInsert = Database["public"]["Tables"]["volumes"]["Insert"]
 export type SeriesWithVolumes = Series & {
   volumes: Volume[]
 }
+
+/** Price history row type. @source */
+export type PriceHistory = Database["public"]["Tables"]["price_history"]["Row"]
+/** Price history insert payload type. @source */
+export type PriceHistoryInsert =
+  Database["public"]["Tables"]["price_history"]["Insert"]
+/** Price alert row type. @source */
+export type PriceAlert = Database["public"]["Tables"]["price_alerts"]["Row"]
+/** Price alert insert payload type. @source */
+export type PriceAlertInsert =
+  Database["public"]["Tables"]["price_alerts"]["Insert"]

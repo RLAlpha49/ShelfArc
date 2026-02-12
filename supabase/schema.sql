@@ -592,3 +592,131 @@ BEGIN
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   END IF;
 END $$;
+
+-- Price history table (append-only, no updates)
+CREATE TABLE IF NOT EXISTS price_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  volume_id UUID NOT NULL REFERENCES volumes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  price DECIMAL(10, 2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  source TEXT NOT NULL DEFAULT 'amazon',
+  product_url TEXT,
+  scraped_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Price alerts table
+CREATE TABLE IF NOT EXISTS price_alerts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  volume_id UUID NOT NULL REFERENCES volumes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  target_price DECIMAL(10, 2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  enabled BOOLEAN DEFAULT true NOT NULL,
+  triggered_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  UNIQUE(volume_id, user_id)
+);
+
+-- Indexes for price_history
+CREATE INDEX IF NOT EXISTS idx_price_history_volume_id ON price_history(volume_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_user_id ON price_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_volume_scraped
+  ON price_history(volume_id, scraped_at DESC);
+
+-- Indexes for price_alerts
+CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id);
+CREATE INDEX IF NOT EXISTS idx_price_alerts_user_id ON price_alerts(user_id);
+
+-- RLS
+ALTER TABLE price_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for price_history
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_history'
+      AND policyname = 'Users can view their own price history'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own price history" ON public.price_history FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_history'
+      AND policyname = 'Users can insert their own price history'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own price history" ON public.price_history FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_history'
+      AND policyname = 'Users can update their own price history'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can update their own price history" ON public.price_history FOR UPDATE USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_history'
+      AND policyname = 'Users can delete their own price history'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can delete their own price history" ON public.price_history FOR DELETE USING ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+-- RLS Policies for price_alerts
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_alerts'
+      AND policyname = 'Users can view their own price alerts'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own price alerts" ON public.price_alerts FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_alerts'
+      AND policyname = 'Users can insert their own price alerts'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own price alerts" ON public.price_alerts FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_alerts'
+      AND policyname = 'Users can update their own price alerts'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can update their own price alerts" ON public.price_alerts FOR UPDATE USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_alerts'
+      AND policyname = 'Users can delete their own price alerts'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can delete their own price alerts" ON public.price_alerts FOR DELETE USING ((select auth.uid()) = user_id)';
+  END IF;
+END $$;

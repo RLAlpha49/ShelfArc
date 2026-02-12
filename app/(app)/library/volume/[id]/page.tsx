@@ -29,6 +29,7 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PriceHistoryCard } from "@/components/library/price-history-card"
 import type { Volume, VolumeInsert } from "@/lib/types/database"
 
 /**
@@ -589,6 +590,14 @@ export default function VolumeDetailPage() {
                 />
               </div>
             )}
+
+            {/* Price History */}
+            <div className="animate-fade-in-up stagger-5">
+              <PriceHistoryCard
+                volumeId={currentVolume.id}
+                currency={priceDisplayCurrency}
+              />
+            </div>
 
             {/* Notes */}
             {currentVolume.notes && (

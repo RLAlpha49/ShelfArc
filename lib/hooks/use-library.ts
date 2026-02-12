@@ -2,13 +2,20 @@
 
 import { useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { useLibraryStore } from "@/lib/store/library-store"
+import {
+  DEFAULT_CURRENCY_CODE,
+  useLibraryStore
+} from "@/lib/store/library-store"
 import {
   sanitizeOptionalHtml,
   sanitizeOptionalPlainText,
   sanitizePlainText
 } from "@/lib/sanitize-html"
-import { isValidTitleType, isPositiveInteger } from "@/lib/validation"
+import {
+  isNonNegativeFinite,
+  isPositiveInteger,
+  isValidTitleType
+} from "@/lib/validation"
 import type { BookSearchResult } from "@/lib/books/search"
 import type {
   Series,
@@ -588,6 +595,87 @@ export function useLibrary() {
     ]
   )
 
+  /**
+   * Persists an append-only price history entry (best effort).
+   * @param params - Price history payload.
+   * @source
+   */
+  const appendPriceHistory = useCallback(
+    async (params: {
+      userId: string
+      volumeId: string
+      price: number | null | undefined
+      currency?: string | null
+      productUrl?: string | null
+      source?: string
+    }) => {
+      if (
+        params.price == null ||
+        !isNonNegativeFinite(params.price) ||
+        params.price <= 0
+      ) {
+        return
+      }
+
+      const currencyCode =
+        params.currency ||
+        useLibraryStore.getState().priceDisplayCurrency ||
+        DEFAULT_CURRENCY_CODE
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).from("price_history").insert({
+          volume_id: params.volumeId,
+          user_id: params.userId,
+          price: params.price,
+          currency: currencyCode,
+          source: params.source ?? "manual",
+          product_url: params.productUrl ?? null
+        })
+
+        if (error) {
+          console.warn("Failed to append price history entry", error)
+        }
+      } catch (error) {
+        console.warn("Failed to append price history entry", error)
+      }
+    },
+    [supabase]
+  )
+
+  /**
+   * Appends price history only when purchase price changed to a positive value.
+   * @param params - Previous and next pricing data.
+   * @source
+   */
+  const appendPriceHistoryIfChanged = useCallback(
+    async (params: {
+      userId: string
+      volumeId: string
+      previousPrice: number | null | undefined
+      nextPrice: number | null | undefined
+      productUrl?: string | null
+      source?: string
+    }) => {
+      const shouldAppend =
+        params.nextPrice != null &&
+        params.nextPrice > 0 &&
+        (!isNonNegativeFinite(params.previousPrice) ||
+          params.previousPrice !== params.nextPrice)
+
+      if (!shouldAppend) return
+
+      await appendPriceHistory({
+        userId: params.userId,
+        volumeId: params.volumeId,
+        price: params.nextPrice,
+        productUrl: params.productUrl,
+        source: params.source
+      })
+    },
+    [appendPriceHistory]
+  )
+
   // Create new volume
   const createVolume = useCallback(
     async (
@@ -630,6 +718,14 @@ export function useLibrary() {
 
         if (error) throw error
 
+        await appendPriceHistory({
+          userId: user.id,
+          volumeId: (newVolume as Volume).id,
+          price: (newVolume as Volume).purchase_price,
+          productUrl: (newVolume as Volume).amazon_url,
+          source: "manual"
+        })
+
         if (seriesId) {
           await updateSeriesCoverFromVolume(seriesId, newVolume as Volume)
           addVolume(seriesId, newVolume as Volume)
@@ -642,7 +738,13 @@ export function useLibrary() {
         throw error
       }
     },
-    [supabase, addVolume, addUnassignedVolume, updateSeriesCoverFromVolume]
+    [
+      supabase,
+      addVolume,
+      addUnassignedVolume,
+      appendPriceHistory,
+      updateSeriesCoverFromVolume
+    ]
   )
 
   // Update volume
@@ -697,6 +799,15 @@ export function useLibrary() {
           ...updatePayload
         }
 
+        await appendPriceHistoryIfChanged({
+          userId: user.id,
+          volumeId,
+          previousPrice: currentVolume.purchase_price,
+          nextPrice: updatedVolume.purchase_price,
+          productUrl: updatedVolume.amazon_url,
+          source: "manual"
+        })
+
         if (nextSeriesId === seriesId) {
           if (seriesId) {
             updateVolume(seriesId, volumeId, updatePayload)
@@ -732,6 +843,7 @@ export function useLibrary() {
       deleteUnassignedVolume,
       addVolume,
       addUnassignedVolume,
+      appendPriceHistoryIfChanged,
       updateSeriesCoverFromVolume
     ]
   )
