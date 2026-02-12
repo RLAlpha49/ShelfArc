@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { SeriesCard } from "@/components/library/series-card"
 import { SeriesDialog } from "@/components/library/series-dialog"
 import { AssignToSeriesDialog } from "@/components/library/assign-to-series-dialog"
+import { DuplicateMergeDialog } from "@/components/library/duplicate-merge-dialog"
 import { VolumeDialog } from "@/components/library/volume-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { LibraryToolbar } from "@/components/library/library-toolbar"
@@ -1006,6 +1007,7 @@ export default function LibraryPage() {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
   const [assignToSeriesDialogOpen, setAssignToSeriesDialogOpen] =
     useState(false)
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchSeries()
@@ -2075,6 +2077,12 @@ export default function LibraryPage() {
       <LibraryToolbar
         onAddBook={openAddDialog}
         onAddSeries={openAddSeriesDialog}
+        onOpenDuplicates={() => setDuplicateDialogOpen(true)}
+      />
+
+      <DuplicateMergeDialog
+        open={duplicateDialogOpen}
+        onOpenChange={setDuplicateDialogOpen}
       />
 
       {selectedCount > 0 && (

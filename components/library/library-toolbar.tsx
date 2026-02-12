@@ -53,6 +53,7 @@ function isSortActive(
 interface LibraryToolbarProps {
   readonly onAddBook: () => void
   readonly onAddSeries: () => void
+  readonly onOpenDuplicates?: () => void
 }
 
 /**
@@ -62,7 +63,8 @@ interface LibraryToolbarProps {
  */
 export function LibraryToolbar({
   onAddBook,
-  onAddSeries
+  onAddSeries,
+  onOpenDuplicates
 }: LibraryToolbarProps) {
   const {
     collectionView,
@@ -170,6 +172,21 @@ export function LibraryToolbar({
           {/* Row 2: Filters + View controls */}
           <div className="flex flex-wrap items-end gap-2">
             <FilterPresetsControl />
+
+            {onOpenDuplicates && (
+              <div className="space-y-1">
+                <span className="text-muted-foreground text-[11px] font-medium">
+                  Tools
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={onOpenDuplicates}
+                  className="h-9 rounded-xl text-xs shadow-sm"
+                >
+                  Duplicates
+                </Button>
+              </div>
+            )}
 
             {/* Type Filter */}
             <div className="space-y-1">
