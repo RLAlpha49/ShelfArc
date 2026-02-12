@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { VolumeDialog } from "@/components/library/volume-dialog"
 import { SeriesDialog } from "@/components/library/series-dialog"
@@ -12,6 +12,14 @@ import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { VolumeCard } from "@/components/library/volume-card"
 import { EmptyState } from "@/components/empty-state"
 import { CoverImage } from "@/components/library/cover-image"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -34,7 +42,8 @@ import type {
   SeriesInsert,
   Volume,
   VolumeInsert,
-  OwnershipStatus
+  OwnershipStatus,
+  ReadingStatus
 } from "@/lib/types/database"
 import type { DateFormat } from "@/lib/store/settings-store"
 import { type BookSearchResult } from "@/lib/books/search"
@@ -446,6 +455,519 @@ const SeriesInsightsPanel = ({
 )
 
 /**
+ * Selection bar for bulk actions on volumes.
+ * Extracted to keep {@link SeriesDetailPage} complexity low.
+ * @source
+ */
+const VolumeSelectionBar = ({
+  selectedCount,
+  totalSelectableCount,
+  isAllSelected,
+  onSelectAll,
+  onClear,
+  onApplyOwnership,
+  onApplyReading,
+  onEdit,
+  onDelete,
+  onCancel
+}: {
+  readonly selectedCount: number
+  readonly totalSelectableCount: number
+  readonly isAllSelected: boolean
+  readonly onSelectAll: () => void
+  readonly onClear: () => void
+  readonly onApplyOwnership: (status: OwnershipStatus) => void
+  readonly onApplyReading: (status: ReadingStatus) => void
+  readonly onEdit: () => void
+  readonly onDelete: () => void
+  readonly onCancel: () => void
+}) => {
+  if (selectedCount <= 0) return null
+
+  return (
+    <div className="glass-card animate-fade-in-up mb-6 rounded-2xl p-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3">
+          <span className="text-muted-foreground text-[11px] tracking-widest uppercase">
+            Selection
+          </span>
+          <span className="font-display text-sm font-semibold">
+            {selectedCount} selected
+          </span>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onSelectAll}
+          disabled={totalSelectableCount === 0 || isAllSelected}
+          className="rounded-xl"
+        >
+          Select all
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+          disabled={selectedCount === 0}
+          className="rounded-xl"
+        >
+          Clear
+        </Button>
+
+        <div className="flex-1" />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className: "rounded-xl"
+            })}
+            disabled={selectedCount === 0}
+          >
+            Bulk actions
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="rounded-xl">
+            <DropdownMenuLabel>Ownership</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => onApplyOwnership("owned")}>
+              Mark owned
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onApplyOwnership("wishlist")}>
+              Mark wishlist
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Reading status</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => onApplyReading("unread")}>
+              Mark unread
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onApplyReading("reading")}>
+              Mark reading
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onApplyReading("completed")}>
+              Mark completed
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onApplyReading("on_hold")}>
+              Mark on hold
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onApplyReading("dropped")}>
+              Mark dropped
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onEdit}
+          disabled={selectedCount !== 1}
+          className="rounded-xl"
+        >
+          Edit
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={onDelete}
+          disabled={selectedCount === 0}
+          className="rounded-xl"
+        >
+          Delete
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onCancel}
+          className="rounded-xl"
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Series header section with cover, metadata, stats, insights, and notes. @source */
+const SeriesHeaderSection = ({
+  currentSeries,
+  insights,
+  primaryIsbn,
+  descriptionHtml,
+  formatPrice,
+  onEditSeries,
+  onDeleteSeries
+}: {
+  readonly currentSeries: SeriesWithVolumes
+  readonly insights: SeriesInsightData
+  readonly primaryIsbn: string | null
+  readonly descriptionHtml: string
+  readonly formatPrice: (value: number) => string
+  readonly onEditSeries: () => void
+  readonly onDeleteSeries: () => void
+}) => (
+  <div className="relative mb-10">
+    <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-[radial-gradient(ellipse_at_30%_50%,var(--warm-glow-strong),transparent_70%)]" />
+    <div className="animate-fade-in-up grid grid-cols-1 gap-8 lg:grid-cols-12">
+      {/* Cover Image */}
+      <div className="lg:col-span-4">
+        <div className="relative">
+          <div className="absolute -inset-4 rounded-3xl bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)]" />
+          <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-2xl shadow-lg">
+            <CoverImage
+              isbn={primaryIsbn}
+              coverImageUrl={currentSeries.cover_image_url}
+              alt={currentSeries.title}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+              fallback={
+                <div className="flex h-full items-center justify-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="text-muted-foreground/50 h-16 w-16"
+                  >
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                  </svg>
+                </div>
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Series Info */}
+      <div className="space-y-4 lg:col-span-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge
+                variant="secondary"
+                className={typeColors[currentSeries.type]}
+              >
+                {currentSeries.type === "light_novel" && "Light Novel"}
+                {currentSeries.type === "manga" && "Manga"}
+                {currentSeries.type === "other" && "Other"}
+              </Badge>
+              {currentSeries.status && (
+                <Badge variant="outline">{currentSeries.status}</Badge>
+              )}
+            </div>
+            <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+              {currentSeries.title}
+            </h1>
+            {currentSeries.original_title && (
+              <p className="text-muted-foreground mt-1 text-lg">
+                {currentSeries.original_title}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+              onClick={onEditSeries}
+            >
+              Edit Series
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-xl shadow-sm"
+              onClick={onDeleteSeries}
+            >
+              Delete Series
+            </Button>
+          </div>
+        </div>
+
+        {currentSeries.author && (
+          <p className="text-muted-foreground">
+            By <span className="text-foreground font-medium">{currentSeries.author}</span>
+            {currentSeries.artist && currentSeries.artist !== currentSeries.author && (
+              <>
+                , illustrated by{" "}
+                <span className="text-foreground font-medium">{currentSeries.artist}</span>
+              </>
+            )}
+          </p>
+        )}
+
+        {currentSeries.publisher && (
+          <p className="text-muted-foreground text-sm">
+            Published by {currentSeries.publisher}
+          </p>
+        )}
+
+        {descriptionHtml && (
+          <div
+            className="text-muted-foreground"
+            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+          />
+        )}
+
+        {currentSeries.tags.length > 0 && (
+          <div className="animate-fade-in stagger-2 flex flex-wrap gap-2">
+            {currentSeries.tags.map((tag) => (
+              <Badge
+                key={tag}
+                variant="outline"
+                className="badge-pop border-primary/15 rounded-lg"
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Stats strip */}
+        <div className="animate-fade-in-up stagger-1 mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-6">
+          <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+              Volumes
+            </span>
+            <div className="font-display text-xl font-bold">
+              {insights.ownedVolumes}
+              <span className="text-muted-foreground text-sm font-normal">
+                /{insights.totalVolumes}
+              </span>
+            </div>
+            <div className="text-muted-foreground text-[10px]">owned</div>
+          </div>
+          <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+              Reading
+            </span>
+            <div className="font-display text-xl font-bold">
+              {insights.readVolumes}
+              <span className="text-muted-foreground text-sm font-normal">
+                /{insights.totalVolumes}
+              </span>
+            </div>
+            <div className="text-muted-foreground text-[10px]">
+              {insights.readPercent}% complete
+            </div>
+          </div>
+          <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+              Total Spent
+            </span>
+            <div className="font-display text-xl font-bold">
+              {formatPrice(insights.totalSpent)}
+            </div>
+            <div className="text-muted-foreground text-[10px]">
+              {insights.pricedVolumes} priced
+            </div>
+          </div>
+          <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+              Avg Price
+            </span>
+            <div className="font-display text-xl font-bold">
+              {insights.pricedVolumes > 0 ? formatPrice(insights.averagePrice) : "—"}
+            </div>
+            <div className="text-muted-foreground text-[10px]">per volume</div>
+          </div>
+          <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+              Pages
+            </span>
+            <div className="font-display text-xl font-bold">
+              {insights.totalPages > 0 ? insights.totalPages.toLocaleString() : "—"}
+            </div>
+            <div className="text-muted-foreground text-[10px]">total</div>
+          </div>
+          <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+              Wishlist
+            </span>
+            <div className="font-display text-xl font-bold">
+              {insights.wishlistVolumes}
+            </div>
+            <div className="text-muted-foreground text-[10px]">items</div>
+          </div>
+        </div>
+
+        <SeriesInsightsPanel insights={insights} />
+
+        {currentSeries.notes && (
+          <div
+            className="animate-fade-in-up border-border/60 bg-card/60 mt-6 rounded-2xl border p-5"
+            style={{ animationDelay: "400ms", animationFillMode: "both" }}
+          >
+            <span className="text-muted-foreground block text-xs tracking-widest uppercase">
+              Personal
+            </span>
+            <h2 className="font-display mt-2 text-lg font-semibold tracking-tight">
+              Notes
+            </h2>
+            <p className="text-muted-foreground mt-2 whitespace-pre-line">
+              {currentSeries.notes}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)
+
+/** Series volumes section with selection, bulk actions, and volume grid. @source */
+const SeriesVolumesSection = ({
+  currentSeries,
+  selectedVolumeIds,
+  selectedCount,
+  totalSelectableCount,
+  isAllSelected,
+  onOpenBulkScrape,
+  onOpenAdd,
+  onSelectAll,
+  onClearSelection,
+  onApplyOwnership,
+  onApplyReading,
+  onEditSelected,
+  onBulkDelete,
+  onCancelSelection,
+  onVolumeClick,
+  onEditVolume,
+  onDeleteVolume,
+  onToggleRead,
+  onSelectVolume
+}: {
+  readonly currentSeries: SeriesWithVolumes
+  readonly selectedVolumeIds: Set<string>
+  readonly selectedCount: number
+  readonly totalSelectableCount: number
+  readonly isAllSelected: boolean
+  readonly onOpenBulkScrape: () => void
+  readonly onOpenAdd: () => void
+  readonly onSelectAll: () => void
+  readonly onClearSelection: () => void
+  readonly onApplyOwnership: (status: OwnershipStatus) => void
+  readonly onApplyReading: (status: ReadingStatus) => void
+  readonly onEditSelected: () => void
+  readonly onBulkDelete: () => void
+  readonly onCancelSelection: () => void
+  readonly onVolumeClick: (volumeId: string) => void
+  readonly onEditVolume: (volume: Volume) => void
+  readonly onDeleteVolume: (volume: Volume) => void
+  readonly onToggleRead: (volume: Volume) => void
+  readonly onSelectVolume: (volumeId: string) => void
+}) => (
+  <div>
+    <div className="animate-fade-in-up stagger-2 mb-6 flex items-center justify-between">
+      <div>
+        <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
+          Collection
+        </span>
+        <h2 className="font-display text-xl font-semibold tracking-tight">
+          Volumes
+        </h2>
+      </div>
+      <div className="flex items-center gap-2">
+        {currentSeries.volumes.length > 0 && (
+          <Button
+            variant="outline"
+            className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+            onClick={onOpenBulkScrape}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-1.5 h-4 w-4"
+            >
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+            Bulk Scrape
+          </Button>
+        )}
+        <Button
+          className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+          onClick={onOpenAdd}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="mr-2 h-4 w-4"
+          >
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
+          </svg>
+          Add Volume
+        </Button>
+      </div>
+    </div>
+
+    <VolumeSelectionBar
+      selectedCount={selectedCount}
+      totalSelectableCount={totalSelectableCount}
+      isAllSelected={isAllSelected}
+      onSelectAll={onSelectAll}
+      onClear={onClearSelection}
+      onApplyOwnership={onApplyOwnership}
+      onApplyReading={onApplyReading}
+      onEdit={onEditSelected}
+      onDelete={onBulkDelete}
+      onCancel={onCancelSelection}
+    />
+
+    {currentSeries.volumes.length === 0 ? (
+      <EmptyState
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="text-muted-foreground h-8 w-8"
+          >
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+          </svg>
+        }
+        title="No volumes yet"
+        description="Start tracking your collection by adding volumes"
+        action={{
+          label: "Add Volume",
+          onClick: onOpenAdd
+        }}
+      />
+    ) : (
+      <div className="animate-fade-in-up">
+        <div className="grid-stagger grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {currentSeries.volumes
+            .toSorted((a, b) => a.volume_number - b.volume_number)
+            .map((volume) => (
+              <VolumeCard
+                key={volume.id}
+                volume={volume}
+                seriesTitle={currentSeries.title}
+                onClick={() => onVolumeClick(volume.id)}
+                onEdit={() => onEditVolume(volume)}
+                onDelete={() => onDeleteVolume(volume)}
+                onToggleRead={() => onToggleRead(volume)}
+                selected={selectedVolumeIds.has(volume.id)}
+                onSelect={() => onSelectVolume(volume.id)}
+              />
+            ))}
+        </div>
+      </div>
+    )}
+  </div>
+)
+
+/**
  * Series detail page showing cover, metadata, volume grid, and editing controls.
  * @source
  */
@@ -471,6 +993,7 @@ export default function SeriesDetailPage() {
   const { selectedSeries, setSelectedSeries, deleteSeriesVolumes } =
     useLibraryStore()
   const dateFormat = useSettingsStore((state) => state.dateFormat)
+  const confirmBeforeDelete = useSettingsStore((s) => s.confirmBeforeDelete)
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
   )
@@ -487,6 +1010,10 @@ export default function SeriesDetailPage() {
   const [isDeletingSeries, setIsDeletingSeries] = useState(false)
   const [isDeletingVolume, setIsDeletingVolume] = useState(false)
   const [deletingVolume, setDeletingVolume] = useState<Volume | null>(null)
+  const [selectedVolumeIds, setSelectedVolumeIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
   const isDeletingSeriesRef = useRef(false)
 
   const currentSeries =
@@ -565,6 +1092,26 @@ export default function SeriesDetailPage() {
       router.replace("/library")
     }
   }, [seriesId, router])
+
+  const toggleVolumeSelection = useCallback((volumeId: string) => {
+    setSelectedVolumeIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(volumeId)) {
+        next.delete(volumeId)
+      } else {
+        next.add(volumeId)
+      }
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => {
+    setSelectedVolumeIds(new Set())
+  }, [])
+
+  useEffect(() => {
+    clearSelection()
+  }, [seriesId, clearSelection])
 
   const handleAddVolume = async (
     data: Omit<VolumeInsert, "user_id" | "series_id">
@@ -772,6 +1319,148 @@ export default function SeriesDetailPage() {
     [router]
   )
 
+  const selectedCount = selectedVolumeIds.size
+  const totalSelectableCount = currentSeries?.volumes.length ?? 0
+  const isAllSelected =
+    totalSelectableCount > 0 && selectedCount === totalSelectableCount
+
+  const handleVolumeItemClick = useCallback(
+    (volumeId: string) => {
+      if (selectedVolumeIds.size > 0) {
+        toggleVolumeSelection(volumeId)
+        return
+      }
+      handleVolumeClick(volumeId)
+    },
+    [selectedVolumeIds.size, toggleVolumeSelection, handleVolumeClick]
+  )
+
+  const handleSelectAll = useCallback(() => {
+    if (!currentSeries) return
+    setSelectedVolumeIds(new Set(currentSeries.volumes.map((volume) => volume.id)))
+  }, [currentSeries])
+
+  const handleClearSelection = useCallback(() => {
+    clearSelection()
+  }, [clearSelection])
+
+  const applyVolumeOwnershipStatus = useCallback(
+    async (status: OwnershipStatus) => {
+      if (!currentSeries) return
+      if (selectedVolumeIds.size === 0) return
+
+      const targets = Array.from(selectedVolumeIds)
+        .map((id) => currentSeries.volumes.find((volume) => volume.id === id))
+        .filter((volume): volume is Volume => Boolean(volume))
+
+      const results = await Promise.allSettled(
+        targets.map((volume) =>
+          editVolume(currentSeries.id, volume.id, { ownership_status: status })
+        )
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [currentSeries, selectedVolumeIds, editVolume]
+  )
+
+  const applyVolumeReadingStatus = useCallback(
+    async (status: ReadingStatus) => {
+      if (!currentSeries) return
+      if (selectedVolumeIds.size === 0) return
+
+      const targets = Array.from(selectedVolumeIds)
+        .map((id) => currentSeries.volumes.find((volume) => volume.id === id))
+        .filter((volume): volume is Volume => Boolean(volume))
+
+      const results = await Promise.allSettled(
+        targets.map((volume) =>
+          editVolume(currentSeries.id, volume.id, { reading_status: status })
+        )
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status.replace("_", " ")}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [currentSeries, selectedVolumeIds, editVolume]
+  )
+
+  const deleteSelectedVolumes = useCallback(async () => {
+    if (!currentSeries) return
+    const targets = Array.from(selectedVolumeIds)
+      .map((id) => currentSeries.volumes.find((volume) => volume.id === id))
+      .filter((volume): volume is Volume => Boolean(volume))
+    if (targets.length === 0) return
+
+    const results = await Promise.allSettled(
+      targets.map((volume) => removeVolume(currentSeries.id, volume.id))
+    )
+    const successCount = results.filter(
+      (result) => result.status === "fulfilled"
+    ).length
+    const failureCount = results.length - successCount
+
+    if (successCount > 0) {
+      toast.success(
+        `Deleted ${successCount} volume${successCount === 1 ? "" : "s"}`
+      )
+    }
+    if (failureCount > 0) {
+      toast.error(
+        `${failureCount} volume delete${failureCount === 1 ? "" : "s"} failed`
+      )
+    }
+  }, [currentSeries, selectedVolumeIds, removeVolume])
+
+  const performBulkDelete = useCallback(async () => {
+    await deleteSelectedVolumes()
+    clearSelection()
+    setBulkDeleteDialogOpen(false)
+  }, [deleteSelectedVolumes, clearSelection])
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedCount === 0) return
+    if (!confirmBeforeDelete) {
+      void performBulkDelete()
+      return
+    }
+    setBulkDeleteDialogOpen(true)
+  }, [selectedCount, confirmBeforeDelete, performBulkDelete])
+
+  const handleEditSelected = useCallback(() => {
+    if (!currentSeries) return
+    if (selectedVolumeIds.size !== 1) return
+    const onlyId = Array.from(selectedVolumeIds)[0]
+    const volume = currentSeries.volumes.find((v) => v.id === onlyId)
+    if (!volume) return
+    openEditDialog(volume)
+  }, [currentSeries, selectedVolumeIds, openEditDialog])
+
   const handleDeleteSeriesConfirm = useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault()
@@ -876,322 +1565,39 @@ export default function SeriesDetailPage() {
         <span className="font-medium">{currentSeries.title}</span>
       </nav>
 
-      {/* Series Header */}
-      <div className="relative mb-10">
-        <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-[radial-gradient(ellipse_at_30%_50%,var(--warm-glow-strong),transparent_70%)]" />
-        <div className="animate-fade-in-up grid grid-cols-1 gap-8 lg:grid-cols-12">
-          {/* Cover Image */}
-          <div className="lg:col-span-4">
-            <div className="relative">
-              <div className="absolute -inset-4 rounded-3xl bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)]" />
-              <div className="bg-muted relative aspect-2/3 overflow-hidden rounded-2xl shadow-lg">
-                <CoverImage
-                  isbn={primaryIsbn}
-                  coverImageUrl={currentSeries.cover_image_url}
-                  alt={currentSeries.title}
-                  className="absolute inset-0 h-full w-full object-cover"
-                  loading="eager"
-                  decoding="async"
-                  fetchPriority="high"
-                  fallback={
-                    <div className="flex h-full items-center justify-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        className="text-muted-foreground/50 h-16 w-16"
-                      >
-                        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-                      </svg>
-                    </div>
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Series Info */}
-          <div className="space-y-4 lg:col-span-8">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant="secondary"
-                    className={typeColors[currentSeries.type]}
-                  >
-                    {currentSeries.type === "light_novel" && "Light Novel"}
-                    {currentSeries.type === "manga" && "Manga"}
-                    {currentSeries.type === "other" && "Other"}
-                  </Badge>
-                  {currentSeries.status && (
-                    <Badge variant="outline">{currentSeries.status}</Badge>
-                  )}
-                </div>
-                <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-                  {currentSeries.title}
-                </h1>
-                {currentSeries.original_title && (
-                  <p className="text-muted-foreground mt-1 text-lg">
-                    {currentSeries.original_title}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
-                  onClick={() => setSeriesDialogOpen(true)}
-                >
-                  Edit Series
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="rounded-xl shadow-sm"
-                  onClick={() => setDeleteSeriesDialogOpen(true)}
-                >
-                  Delete Series
-                </Button>
-              </div>
-            </div>
-
-            {currentSeries.author && (
-              <p className="text-muted-foreground">
-                By{" "}
-                <span className="text-foreground font-medium">
-                  {currentSeries.author}
-                </span>
-                {currentSeries.artist &&
-                  currentSeries.artist !== currentSeries.author && (
-                    <>
-                      , illustrated by{" "}
-                      <span className="text-foreground font-medium">
-                        {currentSeries.artist}
-                      </span>
-                    </>
-                  )}
-              </p>
-            )}
-
-            {currentSeries.publisher && (
-              <p className="text-muted-foreground text-sm">
-                Published by {currentSeries.publisher}
-              </p>
-            )}
-
-            {descriptionHtml && (
-              <div
-                className="text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-              />
-            )}
-
-            {currentSeries.tags.length > 0 && (
-              <div className="animate-fade-in stagger-2 flex flex-wrap gap-2">
-                {currentSeries.tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="outline"
-                    className="badge-pop border-primary/15 rounded-lg"
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            {/* Stats strip */}
-            <div className="animate-fade-in-up stagger-1 mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-6">
-              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                  Volumes
-                </span>
-                <div className="font-display text-xl font-bold">
-                  {insights.ownedVolumes}
-                  <span className="text-muted-foreground text-sm font-normal">
-                    /{insights.totalVolumes}
-                  </span>
-                </div>
-                <div className="text-muted-foreground text-[10px]">owned</div>
-              </div>
-              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                  Reading
-                </span>
-                <div className="font-display text-xl font-bold">
-                  {insights.readVolumes}
-                  <span className="text-muted-foreground text-sm font-normal">
-                    /{insights.totalVolumes}
-                  </span>
-                </div>
-                <div className="text-muted-foreground text-[10px]">
-                  {insights.readPercent}% complete
-                </div>
-              </div>
-              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                  Total Spent
-                </span>
-                <div className="font-display text-xl font-bold">
-                  {formatPrice(insights.totalSpent)}
-                </div>
-                <div className="text-muted-foreground text-[10px]">
-                  {insights.pricedVolumes} priced
-                </div>
-              </div>
-              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                  Avg Price
-                </span>
-                <div className="font-display text-xl font-bold">
-                  {insights.pricedVolumes > 0
-                    ? formatPrice(insights.averagePrice)
-                    : "—"}
-                </div>
-                <div className="text-muted-foreground text-[10px]">
-                  per volume
-                </div>
-              </div>
-              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                  Pages
-                </span>
-                <div className="font-display text-xl font-bold">
-                  {insights.totalPages > 0
-                    ? insights.totalPages.toLocaleString()
-                    : "—"}
-                </div>
-                <div className="text-muted-foreground text-[10px]">total</div>
-              </div>
-              <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                  Wishlist
-                </span>
-                <div className="font-display text-xl font-bold">
-                  {insights.wishlistVolumes}
-                </div>
-                <div className="text-muted-foreground text-[10px]">items</div>
-              </div>
-            </div>
-            <SeriesInsightsPanel insights={insights} />
-            {currentSeries.notes && (
-              <div
-                className="animate-fade-in-up border-border/60 bg-card/60 mt-6 rounded-2xl border p-5"
-                style={{ animationDelay: "400ms", animationFillMode: "both" }}
-              >
-                <span className="text-muted-foreground block text-xs tracking-widest uppercase">
-                  Personal
-                </span>
-                <h2 className="font-display mt-2 text-lg font-semibold tracking-tight">
-                  Notes
-                </h2>
-                <p className="text-muted-foreground mt-2 whitespace-pre-line">
-                  {currentSeries.notes}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <SeriesHeaderSection
+        currentSeries={currentSeries}
+        insights={insights}
+        primaryIsbn={primaryIsbn}
+        descriptionHtml={descriptionHtml}
+        formatPrice={formatPrice}
+        onEditSeries={() => setSeriesDialogOpen(true)}
+        onDeleteSeries={() => setDeleteSeriesDialogOpen(true)}
+      />
 
       <div className="my-10 border-t" />
 
-      {/* Volumes Section */}
-      <div>
-        <div className="animate-fade-in-up stagger-2 mb-6 flex items-center justify-between">
-          <div>
-            <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
-              Collection
-            </span>
-            <h2 className="font-display text-xl font-semibold tracking-tight">
-              Volumes
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            {currentSeries.volumes.length > 0 && (
-              <Button
-                variant="outline"
-                className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
-                onClick={() => setBulkScrapeDialogOpen(true)}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mr-1.5 h-4 w-4"
-                >
-                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                  <path d="M21 3v5h-5" />
-                </svg>
-                Bulk Scrape
-              </Button>
-            )}
-            <Button
-              className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
-              onClick={openAddDialog}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="mr-2 h-4 w-4"
-              >
-                <path d="M5 12h14" />
-                <path d="M12 5v14" />
-              </svg>
-              Add Volume
-            </Button>
-          </div>
-        </div>
-
-        {currentSeries.volumes.length === 0 ? (
-          <EmptyState
-            icon={
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="text-muted-foreground h-8 w-8"
-              >
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-              </svg>
-            }
-            title="No volumes yet"
-            description="Start tracking your collection by adding volumes"
-            action={{
-              label: "Add Volume",
-              onClick: openAddDialog
-            }}
-          />
-        ) : (
-          <div className="animate-fade-in-up">
-            <div className="grid-stagger grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {currentSeries.volumes
-                .toSorted((a, b) => a.volume_number - b.volume_number)
-                .map((volume) => (
-                  <VolumeCard
-                    key={volume.id}
-                    volume={volume}
-                    seriesTitle={currentSeries.title}
-                    onClick={() => handleVolumeClick(volume.id)}
-                    onEdit={() => openEditDialog(volume)}
-                    onDelete={() => openDeleteDialog(volume)}
-                    onToggleRead={() => handleToggleRead(volume)}
-                  />
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <SeriesVolumesSection
+        currentSeries={currentSeries}
+        selectedVolumeIds={selectedVolumeIds}
+        selectedCount={selectedCount}
+        totalSelectableCount={totalSelectableCount}
+        isAllSelected={isAllSelected}
+        onOpenBulkScrape={() => setBulkScrapeDialogOpen(true)}
+        onOpenAdd={openAddDialog}
+        onSelectAll={handleSelectAll}
+        onClearSelection={handleClearSelection}
+        onApplyOwnership={applyVolumeOwnershipStatus}
+        onApplyReading={applyVolumeReadingStatus}
+        onEditSelected={handleEditSelected}
+        onBulkDelete={handleBulkDelete}
+        onCancelSelection={clearSelection}
+        onVolumeClick={handleVolumeItemClick}
+        onEditVolume={openEditDialog}
+        onDeleteVolume={openDeleteDialog}
+        onToggleRead={handleToggleRead}
+        onSelectVolume={toggleVolumeSelection}
+      />
 
       {/* Book Search Dialog */}
       <BookSearchDialog
@@ -1297,6 +1703,30 @@ export default function SeriesDetailPage() {
             <AlertDialogAction
               onClick={handleDeleteVolume}
               disabled={isDeletingVolume}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Volumes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to delete {selectedCount} volume
+              {selectedCount === 1 ? "" : "s"}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={performBulkDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { SeriesCard } from "@/components/library/series-card"
 import { SeriesDialog } from "@/components/library/series-dialog"
+import { AssignToSeriesDialog } from "@/components/library/assign-to-series-dialog"
 import { VolumeDialog } from "@/components/library/volume-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { LibraryToolbar } from "@/components/library/library-toolbar"
@@ -900,6 +901,8 @@ export default function LibraryPage() {
     () => new Set()
   )
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [assignToSeriesDialogOpen, setAssignToSeriesDialogOpen] =
+    useState(false)
 
   useEffect(() => {
     fetchSeries()
@@ -957,6 +960,18 @@ export default function LibraryPage() {
       : filteredVolumes.length + filteredUnassignedVolumes.length
   const isAllSelected =
     totalSelectableCount > 0 && selectedCount === totalSelectableCount
+
+  const selectedUnassignedVolumeIds = useMemo(() => {
+    if (collectionView !== "volumes") return []
+    if (selectedVolumeIds.size === 0) return []
+
+    return Array.from(selectedVolumeIds).filter((id) => {
+      const volume = volumeLookup.get(id)
+      return volume != null && !volume.series_id
+    })
+  }, [collectionView, selectedVolumeIds, volumeLookup])
+
+  const selectedUnassignedCount = selectedUnassignedVolumeIds.length
 
   const getNextVolumeNumber = useCallback(
     (seriesId: string | null) => {
@@ -1106,6 +1121,41 @@ export default function LibraryPage() {
       }
     },
     [selectedVolumeIds, volumeLookup, editVolume]
+  )
+
+  const assignSelectedUnassignedVolumes = useCallback(
+    async (targetSeriesId: string) => {
+      if (selectedUnassignedVolumeIds.length === 0) return false
+
+      const results = await Promise.allSettled(
+        selectedUnassignedVolumeIds.map((volumeId) =>
+          editVolume(null, volumeId, { series_id: targetSeriesId })
+        )
+      )
+
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Assigned ${successCount} book${successCount === 1 ? "" : "s"} to series`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} assignment${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+
+      if (successCount > 0) {
+        clearSelection()
+      }
+
+      return successCount > 0
+    },
+    [selectedUnassignedVolumeIds, editVolume, clearSelection]
   )
 
   const deleteSelectedSeries = useCallback(async () => {
@@ -1771,6 +1821,17 @@ export default function LibraryPage() {
               Clear
             </Button>
 
+            {collectionView === "volumes" && selectedUnassignedCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAssignToSeriesDialogOpen(true)}
+                className="rounded-xl"
+              >
+                Assign to series ({selectedUnassignedCount})
+              </Button>
+            )}
+
             <div className="flex-1" />
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -1919,6 +1980,14 @@ export default function LibraryPage() {
         series={editingSeries}
         unassignedVolumes={unassignedVolumes}
         onSubmit={editingSeries ? handleEditSeries : handleAddSeries}
+      />
+
+      <AssignToSeriesDialog
+        open={assignToSeriesDialogOpen}
+        onOpenChange={setAssignToSeriesDialogOpen}
+        series={series}
+        selectedVolumeCount={selectedUnassignedCount}
+        onAssign={assignSelectedUnassignedVolumes}
       />
 
       <AlertDialog
