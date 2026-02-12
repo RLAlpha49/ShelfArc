@@ -214,7 +214,7 @@ function SeriesListItem({
     <div className="group relative">
       {showSelection && (
         <div
-          className={`absolute left-4 top-1/2 z-10 -translate-y-1/2 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+          className={`absolute top-1/2 left-4 z-10 -translate-y-1/2 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
@@ -669,7 +669,7 @@ function VolumeListItem({
     <div className="group relative">
       {showSelection && (
         <div
-          className={`absolute left-4 top-1/2 z-10 -translate-y-1/2 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+          className={`absolute top-1/2 left-4 z-10 -translate-y-1/2 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
@@ -1878,7 +1878,9 @@ export default function LibraryPage() {
       return <LoadingSkeleton viewMode={viewMode} />
     }
 
-    return collectionView === "volumes" ? renderVolumesView() : renderSeriesView()
+    return collectionView === "volumes"
+      ? renderVolumesView()
+      : renderSeriesView()
   }
 
   return (

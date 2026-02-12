@@ -144,7 +144,6 @@ export function VolumeCard({
 
           {/* Hover Overlay */}
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
-
         </div>
 
         {/* Volume Info */}

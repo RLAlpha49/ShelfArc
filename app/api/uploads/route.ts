@@ -68,7 +68,8 @@ const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "Upload failed"
 
 /** Builds a JSON error response with the given status. @source */
-const buildError = (message: string, status: number) => apiError(status, message)
+const buildError = (message: string, status: number) =>
+  apiError(status, message)
 
 /**
  * Basic CSRF hardening for cookie-auth endpoints.
@@ -89,8 +90,7 @@ const enforceSameOrigin = (request: Request) => {
   const origin = headers.get("origin")?.trim() ?? ""
   if (!origin) return undefined
 
-  const host =
-    headers.get("x-forwarded-host") ?? headers.get("host")
+  const host = headers.get("x-forwarded-host") ?? headers.get("host")
   if (!host) return undefined
 
   try {

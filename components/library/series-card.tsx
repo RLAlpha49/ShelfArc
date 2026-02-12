@@ -82,7 +82,6 @@ export function SeriesCard({
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
-
         <div className="bg-muted relative aspect-2/3">
           <CoverImage
             isbn={primaryIsbn}

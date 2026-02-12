@@ -34,7 +34,9 @@ describe("GET /api/books/price", () => {
     rateLimitMocks.getCooldownRemaining.mockReturnValue(0)
 
     distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(
+      null
+    )
   })
 
   afterEach(() => {

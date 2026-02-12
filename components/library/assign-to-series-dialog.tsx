@@ -44,9 +44,8 @@ export function AssignToSeriesDialog({
   selectedVolumeCount,
   onAssign
 }: AssignToSeriesDialogProps) {
-  const [selectedSeries, setSelectedSeries] = useState<SeriesWithVolumes | null>(
-    null
-  )
+  const [selectedSeries, setSelectedSeries] =
+    useState<SeriesWithVolumes | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const sortedSeries = useMemo(() => {
@@ -143,7 +142,9 @@ export function AssignToSeriesDialog({
           </Button>
           <Button
             onClick={handleAssign}
-            disabled={!selectedSeries || selectedVolumeCount === 0 || isSubmitting}
+            disabled={
+              !selectedSeries || selectedVolumeCount === 0 || isSubmitting
+            }
             className="rounded-xl"
           >
             {assignLabel}

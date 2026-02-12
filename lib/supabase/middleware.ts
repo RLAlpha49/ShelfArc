@@ -32,7 +32,9 @@ export async function updateSession(request: NextRequest) {
   const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
     pathname.startsWith(route)
   )
-  const isAuthRoute = AUTH_ROUTES.includes(pathname as (typeof AUTH_ROUTES)[number])
+  const isAuthRoute = AUTH_ROUTES.includes(
+    pathname as (typeof AUTH_ROUTES)[number]
+  )
   const hasAuthCookie = hasSupabaseAuthCookie(request)
 
   if (isProtectedRoute && !hasAuthCookie) {

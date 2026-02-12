@@ -255,7 +255,9 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const totalSeries = series.length
-    const lightNovelSeries = series.filter((s) => s.type === "light_novel").length
+    const lightNovelSeries = series.filter(
+      (s) => s.type === "light_novel"
+    ).length
     const mangaSeries = series.filter((s) => s.type === "manga").length
 
     const volumes = series.flatMap((s) => s.volumes)
@@ -276,7 +278,9 @@ export default function DashboardPage() {
       (acc, v) => acc + (v.purchase_price ?? 0),
       0
     )
-    const pricedVolumes = owned.filter((v) => (v.purchase_price ?? 0) > 0).length
+    const pricedVolumes = owned.filter(
+      (v) => (v.purchase_price ?? 0) > 0
+    ).length
     const averagePricePerTrackedVolume =
       pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
 

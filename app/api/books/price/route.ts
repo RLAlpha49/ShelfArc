@@ -64,8 +64,9 @@ const getClientIp = (request: NextRequest) => {
 const resolveClientIdentity = (request: NextRequest) => {
   const authCookie = request.cookies
     .getAll()
-    .find(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"))
-    ?.value
+    .find(
+      ({ name }) => name.startsWith("sb-") && name.includes("-auth-token")
+    )?.value
 
   if (authCookie) {
     const digest = createHash("sha256").update(authCookie).digest("hex")
