@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { Header } from "@/components/header"
+import { CommandPalette } from "@/components/command-palette"
 import { cn } from "@/lib/utils"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -82,6 +83,7 @@ export function AppShell({ children, user }: AppShellProps) {
         <a href="#main" className="skip-link">
           Skip to main content
         </a>
+        <CommandPalette />
         <Header user={user} />
         <main id="main" tabIndex={-1} className={mainClassName}>
           <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -100,6 +102,7 @@ export function AppShell({ children, user }: AppShellProps) {
       <a href="#main" className="skip-link">
         Skip to main content
       </a>
+      <CommandPalette />
       <SidebarNav
         user={user}
         collapsed={sidebarCollapsed}
