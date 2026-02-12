@@ -42,6 +42,47 @@ interface FilterState {
   tags: string[]
 }
 
+/** Persisted, user-defined filter preset (optionally includes sort/view). @source */
+interface FilterPreset {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+  state: {
+    filters: FilterState
+    sortField?: SortField
+    sortOrder?: SortOrder
+    viewMode?: ViewMode
+    collectionView?: CollectionView
+  }
+}
+
+function getNowIso() {
+  return new Date().toISOString()
+}
+
+function createPresetId() {
+  const cryptoObj = globalThis.crypto
+  if (
+    cryptoObj &&
+    "randomUUID" in cryptoObj &&
+    typeof cryptoObj.randomUUID === "function"
+  ) {
+    return cryptoObj.randomUUID()
+  }
+  return `preset_${Date.now()}_${Math.random().toString(16).slice(2)}`
+}
+
+function cloneFilters(filters: FilterState): FilterState {
+  return {
+    search: filters.search,
+    type: filters.type,
+    ownershipStatus: filters.ownershipStatus,
+    readingStatus: filters.readingStatus,
+    tags: [...filters.tags]
+  }
+}
+
 /** Combined data, UI, and action state for the library Zustand store. @source */
 interface LibraryState {
   // Data
@@ -55,6 +96,9 @@ interface LibraryState {
   sortField: SortField
   sortOrder: SortOrder
   filters: FilterState
+  filterPresets: FilterPreset[]
+  activeFilterPresetId: string | null
+  filterPresetsInitialized: boolean
   deleteSeriesVolumes: boolean
   priceSource: PriceSource
   amazonDomain: AmazonDomain
@@ -91,6 +135,16 @@ interface LibraryState {
   setSortOrder: (order: SortOrder) => void
   setFilters: (filters: Partial<FilterState>) => void
   resetFilters: () => void
+  applyFilterPreset: (presetId: string) => void
+  saveFilterPreset: (
+    name: string,
+    options?: {
+      includeSortAndView?: boolean
+    }
+  ) => void
+  renameFilterPreset: (presetId: string, name: string) => void
+  deleteFilterPreset: (presetId: string) => void
+  ensureDefaultFilterPresets: () => void
   setDeleteSeriesVolumes: (value: boolean) => void
   setPriceSource: (value: PriceSource) => void
   setAmazonDomain: (value: AmazonDomain) => void
@@ -111,10 +165,37 @@ const defaultFilters: FilterState = {
   tags: []
 }
 
+const DEFAULT_FILTER_PRESETS: FilterPreset[] = [
+  {
+    id: "default_wishlist",
+    name: "Wishlist",
+    createdAt: "2026-02-11T00:00:00.000Z",
+    updatedAt: "2026-02-11T00:00:00.000Z",
+    state: {
+      filters: {
+        ...defaultFilters,
+        ownershipStatus: "wishlist"
+      }
+    }
+  },
+  {
+    id: "default_currently_reading",
+    name: "Currently reading",
+    createdAt: "2026-02-11T00:00:00.000Z",
+    updatedAt: "2026-02-11T00:00:00.000Z",
+    state: {
+      filters: {
+        ...defaultFilters,
+        readingStatus: "reading"
+      }
+    }
+  }
+]
+
 /** Zustand store managing library data, UI preferences, and CRUD actions. @source */
 export const useLibraryStore = create<LibraryState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state
       series: [],
       unassignedVolumes: [],
@@ -124,6 +205,9 @@ export const useLibraryStore = create<LibraryState>()(
       sortField: "title",
       sortOrder: "asc",
       filters: defaultFilters,
+      filterPresets: [],
+      activeFilterPresetId: null,
+      filterPresetsInitialized: false,
       deleteSeriesVolumes: false,
       priceSource: "amazon",
       amazonDomain: "amazon.com",
@@ -234,13 +318,105 @@ export const useLibraryStore = create<LibraryState>()(
         })),
 
       setSelectedSeries: (series) => set({ selectedSeries: series }),
-      setCollectionView: (view) => set({ collectionView: view }),
-      setViewMode: (mode) => set({ viewMode: mode }),
-      setSortField: (field) => set({ sortField: field }),
-      setSortOrder: (order) => set({ sortOrder: order }),
+      setCollectionView: (view) =>
+        set({ collectionView: view, activeFilterPresetId: null }),
+      setViewMode: (mode) =>
+        set({ viewMode: mode, activeFilterPresetId: null }),
+      setSortField: (field) =>
+        set({ sortField: field, activeFilterPresetId: null }),
+      setSortOrder: (order) =>
+        set({ sortOrder: order, activeFilterPresetId: null }),
       setFilters: (filters) =>
-        set((state) => ({ filters: { ...state.filters, ...filters } })),
-      resetFilters: () => set({ filters: defaultFilters }),
+        set((state) => ({
+          filters: { ...state.filters, ...filters },
+          activeFilterPresetId: null
+        })),
+      resetFilters: () =>
+        set({ filters: defaultFilters, activeFilterPresetId: null }),
+
+      ensureDefaultFilterPresets: () => {
+        const state = get()
+        if (state.filterPresetsInitialized) return
+        if (state.filterPresets.length > 0) {
+          set({ filterPresetsInitialized: true })
+          return
+        }
+
+        set({
+          filterPresets: DEFAULT_FILTER_PRESETS,
+          filterPresetsInitialized: true
+        })
+      },
+
+      saveFilterPreset: (rawName, options) => {
+        const name = rawName.trim()
+        if (!name) return
+
+        const includeSortAndView = options?.includeSortAndView ?? false
+        const state = get()
+        const now = getNowIso()
+
+        const preset: FilterPreset = {
+          id: createPresetId(),
+          name,
+          createdAt: now,
+          updatedAt: now,
+          state: {
+            filters: cloneFilters(state.filters),
+            ...(includeSortAndView
+              ? {
+                  sortField: state.sortField,
+                  sortOrder: state.sortOrder,
+                  viewMode: state.viewMode,
+                  collectionView: state.collectionView
+                }
+              : {})
+          }
+        }
+
+        set((prev) => ({
+          filterPresets: [...prev.filterPresets, preset],
+          activeFilterPresetId: preset.id,
+          filterPresetsInitialized: true
+        }))
+      },
+
+      applyFilterPreset: (presetId) => {
+        const state = get()
+        const preset = state.filterPresets.find((p) => p.id === presetId)
+        if (!preset) return
+
+        set({
+          filters: cloneFilters(preset.state.filters),
+          sortField: preset.state.sortField ?? state.sortField,
+          sortOrder: preset.state.sortOrder ?? state.sortOrder,
+          viewMode: preset.state.viewMode ?? state.viewMode,
+          collectionView: preset.state.collectionView ?? state.collectionView,
+          activeFilterPresetId: preset.id
+        })
+      },
+
+      renameFilterPreset: (presetId, rawName) => {
+        const name = rawName.trim()
+        if (!name) return
+
+        const now = getNowIso()
+        set((state) => ({
+          filterPresets: state.filterPresets.map((p) =>
+            p.id === presetId ? { ...p, name, updatedAt: now } : p
+          )
+        }))
+      },
+
+      deleteFilterPreset: (presetId) =>
+        set((state) => ({
+          filterPresets: state.filterPresets.filter((p) => p.id !== presetId),
+          activeFilterPresetId:
+            state.activeFilterPresetId === presetId
+              ? null
+              : state.activeFilterPresetId
+        })),
+
       setDeleteSeriesVolumes: (value) => set({ deleteSeriesVolumes: value }),
       setPriceSource: (value) => set({ priceSource: value }),
       setAmazonDomain: (value) => set({ amazonDomain: value }),
@@ -254,11 +430,16 @@ export const useLibraryStore = create<LibraryState>()(
     }),
     {
       name: "shelfarc-library",
+      onRehydrateStorage: () => (state) => {
+        state?.ensureDefaultFilterPresets()
+      },
       partialize: (state) => ({
         collectionView: state.collectionView,
         viewMode: state.viewMode,
         sortField: state.sortField,
         sortOrder: state.sortOrder,
+        filterPresets: state.filterPresets,
+        filterPresetsInitialized: state.filterPresetsInitialized,
         deleteSeriesVolumes: state.deleteSeriesVolumes,
         priceSource: state.priceSource,
         amazonDomain: state.amazonDomain,

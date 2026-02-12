@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
+import { FilterPresetsControl } from "@/components/library/filter-presets-control"
 import { useLibraryStore } from "@/lib/store/library-store"
 import type { SortField, SortOrder } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -168,6 +169,8 @@ export function LibraryToolbar({
 
           {/* Row 2: Filters + View controls */}
           <div className="flex flex-wrap items-end gap-2">
+            <FilterPresetsControl />
+
             {/* Type Filter */}
             <div className="space-y-1">
               <span className="text-muted-foreground text-[11px] font-medium">
