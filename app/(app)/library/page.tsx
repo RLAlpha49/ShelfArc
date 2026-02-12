@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { SeriesCard } from "@/components/library/series-card"
 import { SeriesDialog } from "@/components/library/series-dialog"
 import { AssignToSeriesDialog } from "@/components/library/assign-to-series-dialog"
@@ -27,10 +27,15 @@ import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { toast } from "sonner"
 import {
   DropdownMenu,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import {
@@ -379,6 +384,233 @@ const buildAmazonSearchUrl = (options: {
   return `https://www.${domain}/s?k=${encodeURIComponent(query)}`
 }
 
+/** Action menu for a volume row/card (toggle read/wishlist, rating, edit/delete). @source */
+function VolumeActionsMenu({
+  coverAlt,
+  amazonLink,
+  amazonLabel,
+  isCompleted,
+  isWishlisted,
+  rating,
+  onToggleRead,
+  onToggleWishlist,
+  onSetRating,
+  onEdit,
+  onDelete
+}: {
+  readonly coverAlt: string
+  readonly amazonLink: string
+  readonly amazonLabel: string
+  readonly isCompleted: boolean
+  readonly isWishlisted: boolean
+  readonly rating: number | null
+  readonly onToggleRead?: () => void
+  readonly onToggleWishlist?: () => void
+  readonly onSetRating?: (rating: number | null) => void
+  readonly onEdit: () => void
+  readonly onDelete: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 w-8 items-center justify-center rounded-xl shadow-sm backdrop-blur-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
+        onClick={(event) => event.stopPropagation()}
+        aria-label={`Actions for ${coverAlt}`}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-4 w-4"
+        >
+          <circle cx="12" cy="5" r="1" />
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="12" cy="19" r="1" />
+        </svg>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <DropdownMenuItem
+          onClick={() => {
+            if (amazonLink) {
+              window.open(amazonLink, "_blank", "noopener,noreferrer")
+            }
+          }}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mr-2 h-4 w-4"
+          >
+            <path d="M15 3h6v6" />
+            <path d="M10 14 21 3" />
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          </svg>
+          <span className="truncate">Amazon</span>
+          <span className="sr-only">{amazonLabel}</span>
+        </DropdownMenuItem>
+
+        {onToggleRead && (
+          <DropdownMenuItem onClick={() => onToggleRead()}>
+            {isCompleted ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 h-4 w-4"
+              >
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 h-4 w-4"
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            )}
+            {isCompleted ? "Mark as unread" : "Mark as read"}
+          </DropdownMenuItem>
+        )}
+
+        {onToggleWishlist && (
+          <DropdownMenuItem onClick={() => onToggleWishlist()}>
+            {isWishlisted ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 h-4 w-4"
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 h-4 w-4"
+              >
+                <path d="M12.17 8.09 10.34 6.26a2 2 0 0 0-2.83 0L5.67 8.09a2 2 0 0 0 0 2.83l6.36 6.36a2 2 0 0 0 2.83 0l6.36-6.36a2 2 0 0 0 0-2.83l-1.83-1.83a2 2 0 0 0-2.83 0z" />
+              </svg>
+            )}
+            {isWishlisted ? "Mark as owned" : "Move to wishlist"}
+          </DropdownMenuItem>
+        )}
+
+        {onSetRating && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="text-gold mr-2 h-4 w-4"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              Rating
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent align="end">
+              <DropdownMenuRadioGroup
+                value={rating == null ? "none" : String(rating)}
+                onValueChange={(next) => {
+                  if (next === "none") {
+                    onSetRating(null)
+                    return
+                  }
+                  const parsed = Number(next)
+                  if (!Number.isFinite(parsed)) return
+                  onSetRating(parsed)
+                }}
+              >
+                <DropdownMenuRadioItem value="none">No rating</DropdownMenuRadioItem>
+                <DropdownMenuSeparator />
+                {Array.from({ length: 10 }, (_, index) => {
+                  const value = String(index + 1)
+                  return (
+                    <DropdownMenuRadioItem key={value} value={value}>
+                      {value}
+                    </DropdownMenuRadioItem>
+                  )
+                })}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={() => onEdit()}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mr-2 h-4 w-4"
+          >
+            <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+          </svg>
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => onDelete()}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mr-2 h-4 w-4"
+          >
+            <path d="M3 6h18" />
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+          </svg>
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 /**
  * Grid-mode card for a single volume with cover image and action overlays.
  * @source
@@ -389,6 +621,8 @@ function VolumeGridItem({
   onEdit,
   onDelete,
   onToggleRead,
+  onToggleWishlist,
+  onSetRating,
   amazonDomain,
   bindingLabel,
   selected = false,
@@ -399,6 +633,8 @@ function VolumeGridItem({
   readonly onEdit: () => void
   readonly onDelete: () => void
   readonly onToggleRead?: () => void
+  readonly onToggleWishlist?: () => void
+  readonly onSetRating?: (rating: number | null) => void
   readonly amazonDomain: string
   readonly bindingLabel: string
   readonly selected?: boolean
@@ -411,6 +647,7 @@ function VolumeGridItem({
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
   const showSelection = Boolean(onSelect)
   const isCompleted = item.volume.reading_status === "completed"
+  const isWishlisted = item.volume.ownership_status === "wishlist"
   const amazonSearchUrl = buildAmazonSearchUrl({
     amazonDomain,
     isbn: item.volume.isbn,
@@ -505,115 +742,20 @@ function VolumeGridItem({
           )}
         </div>
       </button>
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        <button
-          type="button"
-          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation()
-            if (amazonLink) {
-              window.open(amazonLink, "_blank", "noopener,noreferrer")
-            }
-          }}
-          aria-label={amazonLabel}
-        >
-          {item.volume.amazon_url ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M15 3h6v6" />
-              <path d="M10 14 21 3" />
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            </svg>
-          ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-          )}
-        </button>
-        {onToggleRead && (
-          <button
-            type="button"
-            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-            onClick={(event) => {
-              event.stopPropagation()
-              onToggleRead()
-            }}
-            aria-label={
-              isCompleted
-                ? `Mark ${coverAlt} as unread`
-                : `Mark ${coverAlt} as read`
-            }
-          >
-            {isCompleted ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-            )}
-          </button>
-        )}
-        <button
-          type="button"
-          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation()
-            onEdit()
-          }}
-          aria-label={`Edit ${coverAlt}`}
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          className="bg-background/80 hover:bg-destructive/10 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation()
-            onDelete()
-          }}
-          aria-label={`Delete ${coverAlt}`}
-        >
-          Delete
-        </button>
+      <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <VolumeActionsMenu
+          coverAlt={coverAlt}
+          amazonLink={amazonLink}
+          amazonLabel={amazonLabel}
+          isCompleted={isCompleted}
+          isWishlisted={isWishlisted}
+          rating={item.volume.rating}
+          onToggleRead={onToggleRead}
+          onToggleWishlist={onToggleWishlist}
+          onSetRating={onSetRating}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       </div>
     </div>
   )
@@ -629,6 +771,8 @@ function VolumeListItem({
   onEdit,
   onDelete,
   onToggleRead,
+  onToggleWishlist,
+  onSetRating,
   amazonDomain,
   bindingLabel,
   selected = false,
@@ -639,6 +783,8 @@ function VolumeListItem({
   readonly onEdit: () => void
   readonly onDelete: () => void
   readonly onToggleRead?: () => void
+  readonly onToggleWishlist?: () => void
+  readonly onSetRating?: (rating: number | null) => void
   readonly amazonDomain: string
   readonly bindingLabel: string
   readonly selected?: boolean
@@ -651,6 +797,7 @@ function VolumeListItem({
   const coverAlt = `${item.series.title} — ${volumeDescriptor}`
   const showSelection = Boolean(onSelect)
   const isCompleted = item.volume.reading_status === "completed"
+  const isWishlisted = item.volume.ownership_status === "wishlist"
   const amazonSearchUrl = buildAmazonSearchUrl({
     amazonDomain,
     isbn: item.volume.isbn,
@@ -772,115 +919,20 @@ function VolumeListItem({
           )}
         </div>
       </button>
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        <button
-          type="button"
-          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation()
-            if (amazonLink) {
-              window.open(amazonLink, "_blank", "noopener,noreferrer")
-            }
-          }}
-          aria-label={amazonLabel}
-        >
-          {item.volume.amazon_url ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M15 3h6v6" />
-              <path d="M10 14 21 3" />
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            </svg>
-          ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-          )}
-        </button>
-        {onToggleRead && (
-          <button
-            type="button"
-            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-            onClick={(event) => {
-              event.stopPropagation()
-              onToggleRead()
-            }}
-            aria-label={
-              isCompleted
-                ? `Mark ${coverAlt} as unread`
-                : `Mark ${coverAlt} as read`
-            }
-          >
-            {isCompleted ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-            )}
-          </button>
-        )}
-        <button
-          type="button"
-          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation()
-            onEdit()
-          }}
-          aria-label={`Edit ${coverAlt}`}
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          className="bg-background/80 hover:bg-destructive/10 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation()
-            onDelete()
-          }}
-          aria-label={`Delete ${coverAlt}`}
-        >
-          Delete
-        </button>
+      <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <VolumeActionsMenu
+          coverAlt={coverAlt}
+          amazonLink={amazonLink}
+          amazonLabel={amazonLabel}
+          isCompleted={isCompleted}
+          isWishlisted={isWishlisted}
+          rating={item.volume.rating}
+          onToggleRead={onToggleRead}
+          onToggleWishlist={onToggleWishlist}
+          onSetRating={onSetRating}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       </div>
     </div>
   )
@@ -892,6 +944,9 @@ function VolumeListItem({
  */
 export default function LibraryPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const consumedAddParamRef = useRef<string | null>(null)
   const {
     series,
     unassignedVolumes,
@@ -1516,6 +1571,43 @@ export default function LibraryPage() {
     [editVolume]
   )
 
+  const handleToggleWishlist = useCallback(
+    async (volume: Volume) => {
+      const nextStatus =
+        volume.ownership_status === "wishlist" ? "owned" : "wishlist"
+      try {
+        await editVolume(volume.series_id ?? null, volume.id, {
+          ownership_status: nextStatus
+        })
+        toast.success(
+          nextStatus === "wishlist" ? "Moved to wishlist" : "Marked as owned"
+        )
+      } catch {
+        toast.error("Failed to update ownership status")
+      }
+    },
+    [editVolume]
+  )
+
+  const handleSetRating = useCallback(
+    async (volume: Volume, rating: number | null) => {
+      if (rating != null && (!Number.isFinite(rating) || rating < 0 || rating > 10)) {
+        toast.error("Rating must be between 0 and 10")
+        return
+      }
+
+      try {
+        await editVolume(volume.series_id ?? null, volume.id, {
+          rating
+        })
+        toast.success(rating == null ? "Rating cleared" : `Rated ${rating}/10`)
+      } catch {
+        toast.error("Failed to update rating")
+      }
+    },
+    [editVolume]
+  )
+
   const openAddDialog = useCallback(() => {
     setEditingSeries(null)
     setSearchDialogOpen(true)
@@ -1526,6 +1618,29 @@ export default function LibraryPage() {
     setPendingSeriesSelection(false)
     setSeriesDialogOpen(true)
   }, [])
+
+  useEffect(() => {
+    const addParam = searchParams.get("add")
+    if (!addParam) {
+      consumedAddParamRef.current = null
+      return
+    }
+
+    if (consumedAddParamRef.current === addParam) return
+    consumedAddParamRef.current = addParam
+
+    if (addParam === "book") {
+      globalThis.queueMicrotask(() => openAddDialog())
+    } else if (addParam === "series") {
+      globalThis.queueMicrotask(() => openAddSeriesDialog())
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete("add")
+    const nextQuery = nextParams.toString()
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname
+    router.replace(nextUrl, { scroll: false })
+  }, [openAddDialog, openAddSeriesDialog, pathname, router, searchParams])
 
   const openManualDialog = useCallback(() => {
     setSearchDialogOpen(false)
@@ -1609,6 +1724,8 @@ export default function LibraryPage() {
                 onEdit={() => openEditVolumeDialog(volume)}
                 onDelete={() => openDeleteVolumeDialog(volume)}
                 onToggleRead={() => handleToggleRead(volume)}
+                onToggleWishlist={() => handleToggleWishlist(volume)}
+                onSetRating={(rating) => handleSetRating(volume, rating)}
                 selected={selectedVolumeIds.has(volume.id)}
                 onSelect={() => toggleVolumeSelection(volume.id)}
               />
@@ -1624,6 +1741,8 @@ export default function LibraryPage() {
                 onEdit={() => openEditVolumeDialog(volume)}
                 onDelete={() => openDeleteVolumeDialog(volume)}
                 onToggleRead={() => handleToggleRead(volume)}
+                onToggleWishlist={() => handleToggleWishlist(volume)}
+                onSetRating={(rating) => handleSetRating(volume, rating)}
                 selected={selectedVolumeIds.has(volume.id)}
                 onSelect={() => toggleVolumeSelection(volume.id)}
               />
@@ -1684,6 +1803,8 @@ export default function LibraryPage() {
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
                       onToggleRead={() => handleToggleRead(item.volume)}
+                      onToggleWishlist={() => handleToggleWishlist(item.volume)}
+                      onSetRating={(rating) => handleSetRating(item.volume, rating)}
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
                       selected={selectedVolumeIds.has(item.volume.id)}
@@ -1701,6 +1822,8 @@ export default function LibraryPage() {
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
                       onToggleRead={() => handleToggleRead(item.volume)}
+                      onToggleWishlist={() => handleToggleWishlist(item.volume)}
+                      onSetRating={(rating) => handleSetRating(item.volume, rating)}
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
                       selected={selectedVolumeIds.has(item.volume.id)}
@@ -1725,6 +1848,8 @@ export default function LibraryPage() {
                         onEdit={() => openEditVolumeDialog(item.volume)}
                         onDelete={() => openDeleteVolumeDialog(item.volume)}
                         onToggleRead={() => handleToggleRead(item.volume)}
+                        onToggleWishlist={() => handleToggleWishlist(item.volume)}
+                        onSetRating={(rating) => handleSetRating(item.volume, rating)}
                         amazonDomain={amazonDomain}
                         bindingLabel={amazonBindingLabel}
                         selected={selectedVolumeIds.has(item.volume.id)}
@@ -1743,6 +1868,8 @@ export default function LibraryPage() {
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
                       onToggleRead={() => handleToggleRead(item.volume)}
+                      onToggleWishlist={() => handleToggleWishlist(item.volume)}
+                      onSetRating={(rating) => handleSetRating(item.volume, rating)}
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
                       selected={selectedVolumeIds.has(item.volume.id)}

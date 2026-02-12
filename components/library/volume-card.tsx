@@ -5,8 +5,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { CoverImage } from "@/components/library/cover-image"
 import {
   DropdownMenu,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -21,6 +27,8 @@ interface VolumeCardProps {
   readonly onEdit: () => void
   readonly onDelete: () => void
   readonly onToggleRead?: () => void
+  readonly onToggleWishlist?: () => void
+  readonly onSetRating?: (rating: number | null) => void
   readonly selected?: boolean
   readonly onSelect?: () => void
 }
@@ -84,6 +92,8 @@ export function VolumeCard({
   onEdit,
   onDelete,
   onToggleRead,
+  onToggleWishlist,
+  onSetRating,
   selected = false,
   onSelect
 }: VolumeCardProps) {
@@ -92,6 +102,7 @@ export function VolumeCard({
   const amazonPreferKindle = useLibraryStore((s) => s.amazonPreferKindle)
   const showSelection = Boolean(onSelect)
   const isCompleted = volume.reading_status === "completed"
+  const isWishlisted = volume.ownership_status === "wishlist"
   const amazonSearchUrl = buildAmazonSearchUrl({
     amazonDomain,
     isbn: volume.isbn,
@@ -234,6 +245,39 @@ export function VolumeCard({
             align="end"
             onClick={(event) => event.stopPropagation()}
           >
+            {onToggleWishlist && (
+              <DropdownMenuItem onClick={() => onToggleWishlist()}>
+                {isWishlisted ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-2 h-4 w-4"
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-2 h-4 w-4"
+                  >
+                    <path d="M12.17 8.09 10.34 6.26a2 2 0 0 0-2.83 0L5.67 8.09a2 2 0 0 0 0 2.83l6.36 6.36a2 2 0 0 0 2.83 0l6.36-6.36a2 2 0 0 0 0-2.83l-1.83-1.83a2 2 0 0 0-2.83 0z" />
+                  </svg>
+                )}
+                {isWishlisted ? "Mark as owned" : "Move to wishlist"}
+              </DropdownMenuItem>
+            )}
+
             <DropdownMenuItem
               onClick={() => {
                 if (amazonLink) {
@@ -306,6 +350,54 @@ export function VolumeCard({
                 {isCompleted ? "Mark as unread" : "Mark as read"}
               </DropdownMenuItem>
             )}
+
+            {onSetRating && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="text-gold mr-2 h-4 w-4"
+                  >
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  Rating
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent align="end">
+                  <DropdownMenuRadioGroup
+                    value={
+                      volume.rating == null ? "none" : String(volume.rating)
+                    }
+                    onValueChange={(next) => {
+                      if (next === "none") {
+                        onSetRating(null)
+                        return
+                      }
+                      const parsed = Number(next)
+                      if (!Number.isFinite(parsed)) return
+                      onSetRating(parsed)
+                    }}
+                  >
+                    <DropdownMenuRadioItem value="none">
+                      No rating
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuSeparator />
+                    {Array.from({ length: 10 }, (_, index) => {
+                      const value = String(index + 1)
+                      return (
+                        <DropdownMenuRadioItem key={value} value={value}>
+                          {value}
+                        </DropdownMenuRadioItem>
+                      )
+                    })}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
+
+            {(onToggleWishlist || onSetRating) && <DropdownMenuSeparator />}
+
             <DropdownMenuItem onClick={() => onEdit()}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"

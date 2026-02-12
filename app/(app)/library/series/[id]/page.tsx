@@ -849,6 +849,8 @@ const SeriesVolumesSection = ({
   onEditVolume,
   onDeleteVolume,
   onToggleRead,
+  onToggleWishlist,
+  onSetRating,
   onSelectVolume
 }: {
   readonly currentSeries: SeriesWithVolumes
@@ -869,6 +871,8 @@ const SeriesVolumesSection = ({
   readonly onEditVolume: (volume: Volume) => void
   readonly onDeleteVolume: (volume: Volume) => void
   readonly onToggleRead: (volume: Volume) => void
+  readonly onToggleWishlist: (volume: Volume) => void
+  readonly onSetRating: (volume: Volume, rating: number | null) => void
   readonly onSelectVolume: (volumeId: string) => void
 }) => {
   const windowWidth = useWindowWidth()
@@ -992,6 +996,8 @@ const SeriesVolumesSection = ({
                   onEdit={() => onEditVolume(volume)}
                   onDelete={() => onDeleteVolume(volume)}
                   onToggleRead={() => onToggleRead(volume)}
+                  onToggleWishlist={() => onToggleWishlist(volume)}
+                  onSetRating={(rating) => onSetRating(volume, rating)}
                   selected={selectedVolumeIds.has(volume.id)}
                   onSelect={() => onSelectVolume(volume.id)}
                 />
@@ -1008,6 +1014,8 @@ const SeriesVolumesSection = ({
                   onEdit={() => onEditVolume(volume)}
                   onDelete={() => onDeleteVolume(volume)}
                   onToggleRead={() => onToggleRead(volume)}
+                  onToggleWishlist={() => onToggleWishlist(volume)}
+                  onSetRating={(rating) => onSetRating(volume, rating)}
                   selected={selectedVolumeIds.has(volume.id)}
                   onSelect={() => onSelectVolume(volume.id)}
                 />
@@ -1365,6 +1373,58 @@ export default function SeriesDetailPage() {
     [editVolume]
   )
 
+  const handleToggleWishlist = useCallback(
+    async (volume: Volume) => {
+      if (!volume.series_id) return
+      const nextStatus =
+        volume.ownership_status === "wishlist" ? "owned" : "wishlist"
+
+      try {
+        await editVolume(volume.series_id, volume.id, {
+          ownership_status: nextStatus
+        })
+        toast.success(
+          nextStatus === "wishlist" ? "Moved to wishlist" : "Marked as owned"
+        )
+      } catch (err) {
+        console.error(err)
+        toast.error(`Failed to update: ${getErrorMessage(err)}`)
+      }
+    },
+    [editVolume]
+  )
+
+  const handleSetRating = useCallback(
+    async (volume: Volume, rating: number | null) => {
+      if (!volume.series_id) return
+
+      if (rating == null) {
+        try {
+          await editVolume(volume.series_id, volume.id, { rating: null })
+          toast.success("Rating cleared")
+        } catch (err) {
+          console.error(err)
+          toast.error(`Failed to update: ${getErrorMessage(err)}`)
+        }
+        return
+      }
+
+      if (!Number.isFinite(rating) || rating < 0 || rating > 10) {
+        toast.error("Rating must be between 0 and 10")
+        return
+      }
+
+      try {
+        await editVolume(volume.series_id, volume.id, { rating })
+        toast.success(`Rated ${rating}/10`)
+      } catch (err) {
+        console.error(err)
+        toast.error(`Failed to update: ${getErrorMessage(err)}`)
+      }
+    },
+    [editVolume]
+  )
+
   const handleVolumeClick = useCallback(
     (volumeId: string) => {
       router.push(`/library/volume/${volumeId}`)
@@ -1651,6 +1711,8 @@ export default function SeriesDetailPage() {
         onEditVolume={openEditDialog}
         onDeleteVolume={openDeleteDialog}
         onToggleRead={handleToggleRead}
+        onToggleWishlist={handleToggleWishlist}
+        onSetRating={handleSetRating}
         onSelectVolume={toggleVolumeSelection}
       />
 
