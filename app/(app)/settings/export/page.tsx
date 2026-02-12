@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import Link from "next/link"
 import {
   Card,
@@ -10,57 +10,177 @@ import {
   CardTitle
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { toast } from "sonner"
+import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** Supported export file formats. @source */
 type ExportFormat = "json" | "csv"
+/** Export scope for the settings export page. @source */
+type ExportScope = "all" | "selected"
+/** Selection mode when exporting a subset of the library. @source */
+type SelectionMode = "series" | "volumes"
 
-/**
- * Export page allowing users to download their library as JSON or CSV.
- * @source
- */
+type ExportPayload = {
+  series: SeriesWithVolumes[]
+  volumes: Volume[]
+}
+
+function downloadTextFile(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function csvEscape(value: unknown): string {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`
+}
+
+/** Export page allowing users to download their library as JSON or CSV. @source */
 export default function ExportPage() {
   const { series, fetchSeries } = useLibrary()
+  const storeSeries = useLibraryStore((s) => s.series)
+  const storeUnassignedVolumes = useLibraryStore((s) => s.unassignedVolumes)
+
   const [format, setFormat] = useState<ExportFormat>("json")
+  const [scope, setScope] = useState<ExportScope>("all")
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("series")
+  const [selectedSeriesIds, setSelectedSeriesIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [selectedVolumeIds, setSelectedVolumeIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [volumeSearch, setVolumeSearch] = useState("")
   const [isExporting, setIsExporting] = useState(false)
 
-  const handleExport = async () => {
-    setIsExporting(true)
+  const flatVolumes = useMemo(() => {
+    const rows: Array<{ id: string; label: string; subtitle: string }> = []
+    for (const s of storeSeries) {
+      for (const v of s.volumes) {
+        const title = v.title?.trim() || `Vol. ${v.volume_number}`
+        const isbn = v.isbn ? ` · ISBN ${v.isbn}` : ""
+        rows.push({
+          id: v.id,
+          label: `${s.title} · Vol. ${v.volume_number}`,
+          subtitle: `${title}${isbn}`
+        })
+      }
+    }
+    for (const v of storeUnassignedVolumes) {
+      const title = v.title?.trim() || `Vol. ${v.volume_number}`
+      const isbn = v.isbn ? ` · ISBN ${v.isbn}` : ""
+      rows.push({
+        id: v.id,
+        label: `Unassigned · Vol. ${v.volume_number}`,
+        subtitle: `${title}${isbn}`
+      })
+    }
+    return rows
+  }, [storeSeries, storeUnassignedVolumes])
 
+  const filteredFlatVolumes = useMemo(() => {
+    const q = volumeSearch.trim().toLowerCase()
+    if (!q) return flatVolumes
+    return flatVolumes.filter((row) => {
+      return (
+        row.label.toLowerCase().includes(q) ||
+        row.subtitle.toLowerCase().includes(q)
+      )
+    })
+  }, [flatVolumes, volumeSearch])
+
+  const resolveExportPayload = useCallback((): ExportPayload => {
+    const state = useLibraryStore.getState()
+    const currentSeries = state.series
+    const currentUnassigned = state.unassignedVolumes
+
+    if (scope === "all") {
+      return {
+        series: currentSeries,
+        volumes: [...currentSeries.flatMap((s) => s.volumes), ...currentUnassigned]
+      }
+    }
+
+    if (selectionMode === "series") {
+      const selected = currentSeries.filter((s) => selectedSeriesIds.has(s.id))
+      return {
+        series: selected,
+        volumes: selected.flatMap((s) => s.volumes)
+      }
+    }
+
+    const volumes = [
+      ...currentSeries.flatMap((s) => s.volumes),
+      ...currentUnassigned
+    ].filter((v) => selectedVolumeIds.has(v.id))
+
+    const seriesById = new Map(currentSeries.map((s) => [s.id, s]))
+    const referencedSeriesIds = new Set(
+      volumes.map((v) => v.series_id).filter(Boolean) as string[]
+    )
+    const selectedSeries = Array.from(referencedSeriesIds)
+      .map((id) => seriesById.get(id))
+      .filter((value): value is NonNullable<typeof value> => Boolean(value))
+
+    return { series: selectedSeries, volumes }
+  }, [scope, selectionMode, selectedSeriesIds, selectedVolumeIds])
+
+  const canExportSelected = useMemo(() => {
+    if (scope !== "selected") return true
+    if (selectionMode === "series") return selectedSeriesIds.size > 0
+    return selectedVolumeIds.size > 0
+  }, [scope, selectionMode, selectedSeriesIds.size, selectedVolumeIds.size])
+
+  const handleExport = async () => {
+    if (!canExportSelected) {
+      toast.error("Select at least one item to export")
+      return
+    }
+
+    setIsExporting(true)
     try {
       // Ensure data is loaded
       if (series.length === 0) {
         await fetchSeries()
       }
 
-      // Read from the store directly to avoid stale closure
-      const currentSeries = useLibraryStore.getState().series
-
-      let content: string
-      let filename: string
-      let mimeType: string
+      const payload = resolveExportPayload()
+      const today = new Date().toISOString().split("T")[0]
 
       if (format === "json") {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const seriesData = currentSeries.map(({ volumes: _, ...rest }) => rest)
-        const volumesData = currentSeries.flatMap((s) => s.volumes)
-        content = JSON.stringify(
-          { series: seriesData, volumes: volumesData },
-          null,
-          2
+        const seriesData = payload.series.map((s) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { volumes, ...rest } = s
+          return rest
+        })
+        const volumesData = payload.volumes
+
+        downloadTextFile(
+          JSON.stringify({ series: seriesData, volumes: volumesData }, null, 2),
+          `shelfarc-export-${today}.json`,
+          "application/json"
         )
-        filename = `shelfarc-export-${new Date().toISOString().split("T")[0]}.json`
-        mimeType = "application/json"
       } else {
-        // CSV export — two sections: Volumes and Series
+        const seriesById = new Map<string, SeriesWithVolumes>()
+        for (const s of payload.series) seriesById.set(s.id, s)
+
         const volumeRows: string[] = []
         const seriesRows: string[] = []
 
-        // Volume headers
         volumeRows.push(
           [
             "Series Title",
@@ -82,11 +202,10 @@ export default function ExportPage() {
             "Purchase Price",
             "Notes"
           ]
-            .map((h) => `"${h}"`)
+            .map((h) => csvEscape(h))
             .join(",")
         )
 
-        // Series headers
         seriesRows.push(
           [
             "Title",
@@ -101,13 +220,11 @@ export default function ExportPage() {
             "Created At",
             "Updated At"
           ]
-            .map((h) => `"${h}"`)
+            .map((h) => csvEscape(h))
             .join(",")
         )
 
-        // Data rows
-        for (const s of currentSeries) {
-          // Series row
+        for (const s of payload.series) {
           seriesRows.push(
             [
               s.title,
@@ -122,90 +239,55 @@ export default function ExportPage() {
               s.created_at || "",
               s.updated_at || ""
             ]
-              .map((v) => `"${String(v).replaceAll('"', '""')}"`)
+              .map(csvEscape)
               .join(",")
           )
-
-          if (s.volumes.length === 0) {
-            // Series with no volumes — one row with empty volume columns
-            volumeRows.push(
-              [
-                s.title,
-                s.type,
-                s.author || "",
-                s.publisher || "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                ""
-              ]
-                .map((v) => `"${String(v).replaceAll('"', '""')}"`)
-                .join(",")
-            )
-          } else {
-            for (const v of s.volumes) {
-              volumeRows.push(
-                [
-                  s.title,
-                  s.type,
-                  s.author || "",
-                  s.publisher || "",
-                  v.volume_number,
-                  v.title || "",
-                  v.description || "",
-                  v.isbn || "",
-                  v.edition || "",
-                  v.format || "",
-                  v.ownership_status,
-                  v.reading_status,
-                  v.page_count || "",
-                  v.rating || "",
-                  v.publish_date || "",
-                  v.purchase_date || "",
-                  v.purchase_price || "",
-                  v.notes || ""
-                ]
-                  .map((val) => `"${String(val).replaceAll('"', '""')}"`)
-                  .join(",")
-              )
-            }
-          }
         }
 
-        // Combine as two sections separated by a blank line
-        content = [
-          "--- Volumes ---",
-          ...volumeRows,
-          "",
-          "--- Series ---",
-          ...seriesRows
-        ].join("\n")
-        filename = `shelfarc-export-${new Date().toISOString().split("T")[0]}.csv`
-        mimeType = "text/csv"
+        for (const v of payload.volumes) {
+          const parent = v.series_id ? seriesById.get(v.series_id) : undefined
+          volumeRows.push(
+            [
+              parent?.title ?? "",
+              parent?.type ?? "",
+              parent?.author ?? "",
+              parent?.publisher ?? "",
+              v.volume_number,
+              v.title || "",
+              v.description || "",
+              v.isbn || "",
+              v.edition || "",
+              v.format || "",
+              v.ownership_status,
+              v.reading_status,
+              v.page_count || "",
+              v.rating || "",
+              v.publish_date || "",
+              v.purchase_date || "",
+              v.purchase_price || "",
+              v.notes || ""
+            ]
+              .map(csvEscape)
+              .join(",")
+          )
+        }
+
+        downloadTextFile(
+          [
+            "--- Volumes ---",
+            ...volumeRows,
+            "",
+            "--- Series ---",
+            ...seriesRows
+          ].join("\n"),
+          `shelfarc-export-${today}.csv`,
+          "text/csv"
+        )
       }
 
-      // Download file
-      const blob = new Blob([content], { type: mimeType })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-
-      toast.success(`Exported ${currentSeries.length} series successfully`)
+      toast.success(
+        `Exported ${payload.series.length} series and ${payload.volumes.length} volume${payload.volumes.length === 1 ? "" : "s"}`
+      )
     } catch {
       toast.error("Failed to export data")
     } finally {
@@ -215,7 +297,6 @@ export default function ExportPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 lg:px-10">
-      {/* Back link + heading */}
       <div className="animate-fade-in mb-8">
         <Link
           href="/settings"
@@ -245,7 +326,8 @@ export default function ExportPage() {
           <CardHeader>
             <CardTitle>Export Your Library</CardTitle>
             <CardDescription>
-              Download your entire collection as a file for backup or migration
+              Download your entire collection—or export just a subset for sharing
+              or migration.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -259,15 +341,11 @@ export default function ExportPage() {
                 <div className="flex items-start space-x-3 rounded-lg border p-4">
                   <RadioGroupItem value="json" id="json" className="mt-1" />
                   <div className="space-y-1">
-                    <Label
-                      htmlFor="json"
-                      className="cursor-pointer font-medium"
-                    >
+                    <Label htmlFor="json" className="cursor-pointer font-medium">
                       JSON
                     </Label>
                     <p className="text-muted-foreground text-sm">
-                      Full data with nested volumes. Best for backup and
-                      re-import.
+                      Full data. Best for backup and re-import.
                     </p>
                   </div>
                 </div>
@@ -278,17 +356,213 @@ export default function ExportPage() {
                       CSV
                     </Label>
                     <p className="text-muted-foreground text-sm">
-                      Flat spreadsheet format. Good for viewing in Excel.
+                      Spreadsheet-friendly. Great for Excel.
                     </p>
                   </div>
                 </div>
               </RadioGroup>
             </div>
 
+            <div className="space-y-3">
+              <Label>Export Scope</Label>
+              <RadioGroup
+                value={scope}
+                onValueChange={(value: ExportScope) => setScope(value)}
+                className="grid grid-cols-2 gap-4"
+              >
+                <div className="flex items-start space-x-3 rounded-lg border p-4">
+                  <RadioGroupItem value="all" id="scope-all" className="mt-1" />
+                  <div className="space-y-1">
+                    <Label htmlFor="scope-all" className="cursor-pointer font-medium">
+                      All data
+                    </Label>
+                    <p className="text-muted-foreground text-sm">
+                      Export your entire library.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3 rounded-lg border p-4">
+                  <RadioGroupItem
+                    value="selected"
+                    id="scope-selected"
+                    className="mt-1"
+                  />
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="scope-selected"
+                      className="cursor-pointer font-medium"
+                    >
+                      Selected
+                    </Label>
+                    <p className="text-muted-foreground text-sm">
+                      Choose series or volumes to export.
+                    </p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {scope === "selected" && (
+              <div className="space-y-3">
+                <Label>Pick what to export</Label>
+                <Tabs
+                  value={selectionMode}
+                  onValueChange={(value) =>
+                    setSelectionMode(value as SelectionMode)
+                  }
+                >
+                  <TabsList className="rounded-xl">
+                    <TabsTrigger value="series">Series</TabsTrigger>
+                    <TabsTrigger value="volumes">Volumes</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="series" className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                        onClick={() =>
+                          setSelectedSeriesIds(new Set(storeSeries.map((s) => s.id)))
+                        }
+                      >
+                        Select all
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-xl"
+                        onClick={() => setSelectedSeriesIds(new Set())}
+                      >
+                        Clear
+                      </Button>
+                      <div className="flex-1" />
+                      <span className="text-muted-foreground text-xs">
+                        {selectedSeriesIds.size} selected
+                      </span>
+                    </div>
+
+                    <ScrollArea className="h-56 rounded-xl border">
+                      <div className="space-y-1 p-2">
+                        {storeSeries.map((s) => {
+                          const checked = selectedSeriesIds.has(s.id)
+                          return (
+                            <label
+                              key={s.id}
+                              className="hover:bg-muted/20 flex cursor-pointer items-start gap-3 rounded-lg p-2"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(next) => {
+                                  const isChecked = Boolean(next)
+                                  setSelectedSeriesIds((prev) => {
+                                    const copy = new Set(prev)
+                                    if (isChecked) copy.add(s.id)
+                                    else copy.delete(s.id)
+                                    return copy
+                                  })
+                                }}
+                              />
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium">
+                                  {s.title}
+                                </div>
+                                <div className="text-muted-foreground truncate text-xs">
+                                  {s.volumes.length} volumes
+                                  {s.author ? ` · ${s.author}` : ""}
+                                </div>
+                              </div>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+
+                  <TabsContent value="volumes" className="space-y-2">
+                    <Input
+                      value={volumeSearch}
+                      onChange={(e) => setVolumeSearch(e.target.value)}
+                      placeholder="Search volumes by title, series, ISBN, or number…"
+                      className="rounded-xl"
+                    />
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                        onClick={() =>
+                          setSelectedVolumeIds(
+                            new Set(filteredFlatVolumes.map((row) => row.id))
+                          )
+                        }
+                      >
+                        Select filtered
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-xl"
+                        onClick={() => setSelectedVolumeIds(new Set())}
+                      >
+                        Clear
+                      </Button>
+                      <div className="flex-1" />
+                      <span className="text-muted-foreground text-xs">
+                        {selectedVolumeIds.size} selected
+                      </span>
+                    </div>
+
+                    <ScrollArea className="h-56 rounded-xl border">
+                      <div className="space-y-1 p-2">
+                        {filteredFlatVolumes.map((row) => {
+                          const checked = selectedVolumeIds.has(row.id)
+                          return (
+                            <label
+                              key={row.id}
+                              className="hover:bg-muted/20 flex cursor-pointer items-start gap-3 rounded-lg p-2"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(next) => {
+                                  const isChecked = Boolean(next)
+                                  setSelectedVolumeIds((prev) => {
+                                    const copy = new Set(prev)
+                                    if (isChecked) copy.add(row.id)
+                                    else copy.delete(row.id)
+                                    return copy
+                                  })
+                                }}
+                              />
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium">
+                                  {row.label}
+                                </div>
+                                <div className="text-muted-foreground truncate text-xs">
+                                  {row.subtitle}
+                                </div>
+                              </div>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+
+                {!canExportSelected && (
+                  <p className="text-muted-foreground text-xs">
+                    Select at least one item to export.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-4">
               <Button
                 onClick={handleExport}
-                disabled={isExporting}
+                disabled={isExporting || !canExportSelected}
                 className="rounded-xl px-6"
               >
                 {isExporting ? "Exporting..." : "Export"}

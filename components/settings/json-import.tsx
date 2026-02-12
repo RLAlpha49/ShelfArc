@@ -29,6 +29,9 @@ import type {
 /** Whether imported data is merged or replaces the existing collection. @source */
 type ImportMode = "merge" | "replace"
 
+/** How to handle volumes that already exist during merge-mode import. @source */
+type MergeStrategy = "overwrite" | "skip"
+
 /** Preview summary shown after parsing a JSON export file. @source */
 interface ImportPreview {
   seriesCount: number
@@ -217,7 +220,7 @@ type VolumesTableHandle = {
   insert: (data: VolumeInsert[]) => Promise<{ error: Error | null }>
   upsert: (
     data: VolumeInsert[],
-    options: { onConflict: string }
+    options: { onConflict: string; ignoreDuplicates?: boolean }
   ) => Promise<{ error: Error | null }>
 }
 
@@ -296,7 +299,8 @@ async function importMerge(
   userId: string,
   seriesTable: SeriesTableHandle,
   volumesTable: VolumesTableHandle,
-  onPhase: (index: number, label?: string) => void
+  onPhase: (index: number, label?: string) => void,
+  mergeStrategy: MergeStrategy
 ): Promise<string> {
   onPhase(0)
   const { data: existingSeries, error: fetchError } = await seriesTable
@@ -351,7 +355,8 @@ async function importMerge(
   onPhase(2, `Processing ${allVolumes.length} volumes...`)
   if (allVolumes.length > 0) {
     const { error: volError } = await volumesTable.upsert(allVolumes, {
-      onConflict: "series_id,volume_number,edition"
+      onConflict: "series_id,volume_number,edition",
+      ignoreDuplicates: mergeStrategy === "skip"
     })
     if (volError) throw new Error("Failed to upsert volumes")
   }
@@ -553,6 +558,7 @@ export function JsonImport() {
   const [isImporting, setIsImporting] = useState(false)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [importPhases, setImportPhases] = useState<ImportPhase[]>([])
+  const [mergeStrategy, setMergeStrategy] = useState<MergeStrategy>("overwrite")
   const [resultMessage, setResultMessage] = useState<string | null>(null)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -661,7 +667,8 @@ export function JsonImport() {
               user.id,
               seriesTable,
               volumesTable,
-              onPhase
+              onPhase,
+              mergeStrategy
             )
 
       setImportPhases((prev) =>
@@ -730,7 +737,8 @@ export function JsonImport() {
                   Add to Collection
                 </Label>
                 <p className="text-muted-foreground text-sm">
-                  Import as new entries. Existing data will not be affected.
+                  Import entries into your existing collection. Choose how to
+                  handle conflicts below.
                 </p>
               </div>
             </div>
@@ -746,6 +754,51 @@ export function JsonImport() {
                 <p className="text-muted-foreground text-sm">
                   Delete all existing data and import fresh. This cannot be
                   undone.
+                </p>
+              </div>
+            </div>
+          </RadioGroup>
+        </div>
+      )}
+
+      {preview && mode === "merge" && (
+        <div className="space-y-3">
+          <Label>When a volume already exists</Label>
+          <RadioGroup
+            value={mergeStrategy}
+            onValueChange={(value: MergeStrategy) => setMergeStrategy(value)}
+            className="space-y-2"
+          >
+            <div className="flex items-start space-x-3 rounded-lg border p-4">
+              <RadioGroupItem
+                value="overwrite"
+                id="merge-overwrite"
+                className="mt-1"
+              />
+              <div className="space-y-1">
+                <Label
+                  htmlFor="merge-overwrite"
+                  className="cursor-pointer font-medium"
+                >
+                  Overwrite
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Update existing volumes with values from the import.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3 rounded-lg border p-4">
+              <RadioGroupItem
+                value="skip"
+                id="merge-skip"
+                className="mt-1"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="merge-skip" className="cursor-pointer font-medium">
+                  Skip
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Keep existing volumes unchanged; only add missing ones.
                 </p>
               </div>
             </div>
