@@ -253,49 +253,60 @@ export default function DashboardPage() {
     }
   }, [series.length, fetchSeries])
 
-  // Calculate statistics
-  const totalSeries = series.length
-  const totalVolumes = series.reduce((acc, s) => acc + s.volumes.length, 0)
-  const ownedVolumes = series.reduce(
-    (acc, s) =>
-      acc + s.volumes.filter((v) => v.ownership_status === "owned").length,
-    0
-  )
-  const readVolumes = series.reduce(
-    (acc, s) =>
-      acc + s.volumes.filter((v) => v.reading_status === "completed").length,
-    0
-  )
-  const readingVolumes = series.reduce(
-    (acc, s) =>
-      acc + s.volumes.filter((v) => v.reading_status === "reading").length,
-    0
-  )
+  const stats = useMemo(() => {
+    const totalSeries = series.length
+    const lightNovelSeries = series.filter((s) => s.type === "light_novel").length
+    const mangaSeries = series.filter((s) => s.type === "manga").length
 
-  const lightNovels = series.filter((s) => s.type === "light_novel")
-  const manga = series.filter((s) => s.type === "manga")
+    const volumes = series.flatMap((s) => s.volumes)
+    const totalVolumes = volumes.length
+    const owned = volumes.filter((v) => v.ownership_status === "owned")
+    const ownedVolumes = owned.length
+    const wishlistCount = volumes.filter(
+      (v) => v.ownership_status === "wishlist"
+    ).length
+    const readVolumes = volumes.filter(
+      (v) => v.reading_status === "completed"
+    ).length
+    const readingVolumes = volumes.filter(
+      (v) => v.reading_status === "reading"
+    ).length
 
-  const totalSpent = series.reduce(
-    (acc, s) =>
-      acc +
-      s.volumes
-        .filter((v) => v.ownership_status === "owned")
-        .reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
-    0
-  )
-  const pricedVolumes = series.reduce(
-    (acc, s) =>
-      acc +
-      s.volumes.filter(
-        (v) =>
-          v.ownership_status === "owned" &&
-          v.purchase_price != null &&
-          v.purchase_price > 0
-      ).length,
-    0
-  )
-  const averagePricePerTrackedVolume =
-    pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
+    const totalSpent = owned.reduce(
+      (acc, v) => acc + (v.purchase_price ?? 0),
+      0
+    )
+    const pricedVolumes = owned.filter((v) => (v.purchase_price ?? 0) > 0).length
+    const averagePricePerTrackedVolume =
+      pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
+
+    const completeSets = series.filter((s) => {
+      const hintedTotal = s.total_volumes
+      if (!hintedTotal || hintedTotal <= 0) return false
+      if (s.volumes.length === 0) return false
+
+      const ownedCount = s.volumes.filter(
+        (v) => v.ownership_status === "owned"
+      ).length
+      const allOwned = ownedCount === s.volumes.length
+      return allOwned && ownedCount >= hintedTotal
+    }).length
+
+    return {
+      totalSeries,
+      totalVolumes,
+      ownedVolumes,
+      readVolumes,
+      readingVolumes,
+      lightNovelSeries,
+      mangaSeries,
+      totalSpent,
+      pricedVolumes,
+      averagePricePerTrackedVolume,
+      wishlistCount,
+      completeSets
+    }
+  }, [series])
 
   const priceFormatter = useMemo(() => {
     try {
@@ -311,38 +322,23 @@ export default function DashboardPage() {
     }
   }, [priceDisplayCurrency])
 
-  // Get recently added series
-  const recentSeries = [...series]
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-    .slice(0, 8)
+  const recentSeries = useMemo(() => {
+    return [...series]
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      .slice(0, 8)
+  }, [series])
 
-  // Get currently reading volumes
-  const currentlyReading = series
-    .flatMap((s) =>
-      s.volumes.map((v) => ({ ...v, seriesTitle: s.title, seriesId: s.id }))
-    )
-    .filter((v) => v.reading_status === "reading")
-    .slice(0, 5)
-
-  // Collection stats
-  const completeSets = series.filter((s) => {
-    const totalVolumes = s.total_volumes
-    if (!totalVolumes || totalVolumes <= 0) return false
-    if (s.volumes.length === 0) return false
-    const ownedCount = s.volumes.filter(
-      (v) => v.ownership_status === "owned"
-    ).length
-    const allOwned = ownedCount === s.volumes.length
-    return allOwned && ownedCount >= totalVolumes
-  }).length
-  const wishlistCount = series.reduce(
-    (acc, s) =>
-      acc + s.volumes.filter((v) => v.ownership_status === "wishlist").length,
-    0
-  )
+  const currentlyReading = useMemo(() => {
+    return series
+      .flatMap((s) =>
+        s.volumes.map((v) => ({ ...v, seriesTitle: s.title, seriesId: s.id }))
+      )
+      .filter((v) => v.reading_status === "reading")
+      .slice(0, 5)
+  }, [series])
 
   // Recently added volumes (across all series)
   const recentVolumes = useMemo(() => {
@@ -596,9 +592,13 @@ export default function DashboardPage() {
 
   // Reading completion percentage
   const readPercentage =
-    totalVolumes > 0 ? Math.round((readVolumes / totalVolumes) * 100) : 0
+    stats.totalVolumes > 0
+      ? Math.round((stats.readVolumes / stats.totalVolumes) * 100)
+      : 0
   const ownedPercentage =
-    totalVolumes > 0 ? Math.round((ownedVolumes / totalVolumes) * 100) : 0
+    stats.totalVolumes > 0
+      ? Math.round((stats.ownedVolumes / stats.totalVolumes) * 100)
+      : 0
 
   if (isLoading && series.length === 0) {
     return (
@@ -632,8 +632,8 @@ export default function DashboardPage() {
           </span>
         </h1>
         <p className="text-muted-foreground mt-2 max-w-lg text-base leading-relaxed">
-          {totalSeries > 0
-            ? `${totalSeries} series · ${totalVolumes} volumes · ${readingVolumes} in progress`
+          {stats.totalSeries > 0
+            ? `${stats.totalSeries} series · ${stats.totalVolumes} volumes · ${stats.readingVolumes} in progress`
             : "Start building your library to see your collection stats here."}
         </p>
       </section>
@@ -644,8 +644,8 @@ export default function DashboardPage() {
           {
             id: "series",
             label: "Series",
-            value: totalSeries,
-            detail: `${lightNovels.length} LN · ${manga.length} Manga`,
+            value: stats.totalSeries,
+            detail: `${stats.lightNovelSeries} LN · ${stats.mangaSeries} Manga`,
             icon: (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -662,8 +662,8 @@ export default function DashboardPage() {
           {
             id: "volumes",
             label: "Volumes",
-            value: totalVolumes,
-            detail: `${ownedVolumes} owned · ${ownedPercentage}%`,
+            value: stats.totalVolumes,
+            detail: `${stats.ownedVolumes} owned · ${ownedPercentage}%`,
             icon: (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -681,7 +681,7 @@ export default function DashboardPage() {
           {
             id: "read",
             label: "Read",
-            value: readVolumes,
+            value: stats.readVolumes,
             detail: `${readPercentage}% complete`,
             icon: (
               <svg
@@ -700,8 +700,8 @@ export default function DashboardPage() {
           {
             id: "spent",
             label: "Invested",
-            value: priceFormatter.format(totalSpent),
-            detail: `${priceFormatter.format(averagePricePerTrackedVolume)}/priced vol`,
+            value: priceFormatter.format(stats.totalSpent),
+            detail: `${priceFormatter.format(stats.averagePricePerTrackedVolume)}/priced vol`,
             icon: (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1113,7 +1113,7 @@ export default function DashboardPage() {
                 {
                   id: "ln",
                   label: "Light Novels",
-                  value: lightNovels.length,
+                  value: stats.lightNovelSeries,
                   unit: "series",
                   gradient: "from-primary/15 to-primary/5",
                   textColor: "text-primary",
@@ -1134,7 +1134,7 @@ export default function DashboardPage() {
                 {
                   id: "manga",
                   label: "Manga",
-                  value: manga.length,
+                  value: stats.mangaSeries,
                   unit: "series",
                   gradient: "from-copper/15 to-copper/5",
                   textColor: "text-copper",
@@ -1157,7 +1157,7 @@ export default function DashboardPage() {
                 {
                   id: "complete",
                   label: "Complete series",
-                  value: completeSets,
+                  value: stats.completeSets,
                   unit: "series",
                   gradient: "from-green-500/12 to-green-500/4",
                   textColor: "text-green-600 dark:text-green-400",
@@ -1179,7 +1179,7 @@ export default function DashboardPage() {
                 {
                   id: "wishlist",
                   label: "Wishlisted volumes",
-                  value: wishlistCount,
+                  value: stats.wishlistCount,
                   unit: "volumes",
                   gradient: "from-gold/15 to-gold/5",
                   textColor: "text-gold",
@@ -1278,7 +1278,7 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Read</span>
                       <span className="font-medium">
-                        {readVolumes}/{totalVolumes}
+                        {stats.readVolumes}/{stats.totalVolumes}
                       </span>
                     </div>
                     <div className="bg-primary/8 mt-1 h-1.5 overflow-hidden rounded-full">
@@ -1291,13 +1291,15 @@ export default function DashboardPage() {
                   <div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">In progress</span>
-                      <span className="font-medium">{readingVolumes}</span>
+                      <span className="font-medium">
+                        {stats.readingVolumes}
+                      </span>
                     </div>
                     <div className="bg-gold/10 mt-1 h-1.5 overflow-hidden rounded-full">
                       <div
                         className="bg-gold h-full rounded-full transition-all duration-700"
                         style={{
-                          width: `${totalVolumes > 0 ? Math.round((readingVolumes / totalVolumes) * 100) : 0}%`
+                          width: `${stats.totalVolumes > 0 ? Math.round((stats.readingVolumes / stats.totalVolumes) * 100) : 0}%`
                         }}
                       />
                     </div>
@@ -1431,8 +1433,8 @@ export default function DashboardPage() {
                   href="/dashboard/tracked"
                   className="text-primary hover:text-primary/80 block pt-1 text-center text-xs font-medium transition-colors"
                 >
-                  {priceBreakdown.trackedCount} of {ownedVolumes} owned volumes
-                  priced
+                  {priceBreakdown.trackedCount} of {stats.ownedVolumes} owned
+                  volumes priced
                 </Link>
               </div>
             )}
@@ -1447,7 +1449,7 @@ export default function DashboardPage() {
               <p className="text-muted-foreground text-xs">Your want list</p>
             </div>
 
-            {wishlistCount === 0 ? (
+            {stats.wishlistCount === 0 ? (
               <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
                 <div className="text-gold bg-gold/10 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
                   <svg
@@ -1477,7 +1479,7 @@ export default function DashboardPage() {
                       Volumes
                     </span>
                     <div className="text-gold font-display mt-0.5 text-lg font-bold">
-                      {wishlistCount}
+                      {stats.wishlistCount}
                     </div>
                   </div>
                   <div className="from-copper/12 to-copper/4 rounded-lg border bg-linear-to-br p-3">
@@ -1551,7 +1553,8 @@ export default function DashboardPage() {
                   href="/dashboard/wishlist"
                   className="text-primary hover:text-primary/80 block pt-1 text-center text-xs font-medium transition-colors"
                 >
-                  {wishlistCount} of {totalVolumes} volumes wishlisted
+                  {stats.wishlistCount} of {stats.totalVolumes} volumes
+                  wishlisted
                 </Link>
               </div>
             )}
