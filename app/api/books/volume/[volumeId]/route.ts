@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { normalizeGoogleBooksItems } from "@/lib/books/search"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
+import { apiError } from "@/lib/api-response"
 
 /** Google Books Volumes API base URL. @source */
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
+
+/** Cache TTL for upstream volume lookups (seconds). @source */
+const VOLUME_CACHE_TTL_SECONDS = 60 * 60 * 12
+
+/** Timeout in milliseconds for upstream volume fetch requests. @source */
+const FETCH_TIMEOUT_MS = 10000
 
 /**
  * Maps a Google Books response status to a client-facing HTTP status.
@@ -32,7 +39,11 @@ const fetchGoogleBooksVolumeResponse = async (
     const apiKey = apiKeys[attempt]
     const url = new URL(`${GOOGLE_BOOKS_URL}/${encodeURIComponent(volumeId)}`)
     url.searchParams.set("key", apiKey)
-    const response = await fetch(url.toString(), { cache: "no-store" })
+    const response = await fetch(url.toString(), {
+      cache: "force-cache",
+      next: { revalidate: VOLUME_CACHE_TTL_SECONDS },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+    } as RequestInit)
 
     if (
       response.status === 429 &&
@@ -71,15 +82,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   const fallbackId = fallbackSegment ? decodeURIComponent(fallbackSegment) : ""
   const volumeId = (volumeIdFromParams || fallbackId).trim()
   if (!volumeId) {
-    return NextResponse.json({ error: "Missing volume id" }, { status: 400 })
+    return apiError(400, "Missing volume id")
   }
 
   const googleApiKeys = getGoogleBooksApiKeys()
   if (googleApiKeys.length === 0) {
-    return NextResponse.json(
-      { error: "Google Books API key is not configured" },
-      { status: 400 }
-    )
+    return apiError(400, "Google Books API key is not configured")
   }
 
   try {
@@ -89,35 +97,23 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     )
 
     if (!response) {
-      return NextResponse.json(
-        { error: "Google Books volume fetch failed" },
-        { status: 502 }
-      )
+      return apiError(502, "Google Books volume fetch failed")
     }
 
     if (!response.ok) {
       const status = resolveGoogleBooksStatus(response)
-      return NextResponse.json(
-        { error: "Google Books volume fetch failed" },
-        { status }
-      )
+      return apiError(status, "Google Books volume fetch failed")
     }
 
     const data = (await response.json()) as unknown
     const result = normalizeGoogleBooksItems([data])[0]
     if (!result) {
-      return NextResponse.json(
-        { error: "Google Books volume not found" },
-        { status: 404 }
-      )
+      return apiError(404, "Google Books volume not found")
     }
 
     return NextResponse.json({ result })
   } catch (error) {
     console.error("Google Books volume fetch failed", error)
-    return NextResponse.json(
-      { error: "Google Books volume fetch failed" },
-      { status: 502 }
-    )
+    return apiError(502, "Google Books volume fetch failed")
   }
 }

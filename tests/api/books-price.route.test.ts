@@ -15,6 +15,12 @@ const rateLimitMocks: RateLimitModule = {
 
 mock.module("@/lib/rate-limit", () => rateLimitMocks)
 
+const distributedRateLimitMocks = {
+  consumeDistributedRateLimit: mock(async () => null)
+}
+
+mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
+
 const loadRoute = async () => await import("../../app/api/books/price/route")
 
 const originalFetch = globalThis.fetch
@@ -26,6 +32,9 @@ describe("GET /api/books/price", () => {
     rateLimitMocks.recordFailure.mockClear()
     rateLimitMocks.isRateLimited.mockReturnValue(false)
     rateLimitMocks.getCooldownRemaining.mockReturnValue(0)
+
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
   })
 
   afterEach(() => {

@@ -1,5 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server"
+import { type NextRequest } from "next/server"
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
+import { apiError } from "@/lib/api-response"
 
 /** Base URL for the Open Library Covers API. @source */
 const OPEN_LIBRARY_BASE = "https://covers.openlibrary.org/b/isbn"
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   const sizeRaw = request.nextUrl.searchParams.get("size")?.trim() ?? "L"
 
   if (!isbnRaw || !isValidIsbn(isbnRaw)) {
-    return NextResponse.json({ error: "Invalid ISBN" }, { status: 400 })
+    return apiError(400, "Invalid ISBN")
   }
 
   const normalized = normalizeIsbn(isbnRaw)

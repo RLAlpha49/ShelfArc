@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
 type UserResult = { data: { user: { id: string } | null } }
-type AdminQueryResult = { data: Array<{ id: string }>; error: unknown | null }
+type AdminQueryResult = {
+  data: Array<{ id: string }>
+  error: Record<string, unknown> | null
+}
 
 const getUserMock = mock(
   async (): Promise<UserResult> => ({
@@ -41,9 +44,14 @@ const rateLimitMocks = {
   recordFailure: mock(() => undefined)
 }
 
+const distributedRateLimitMocks = {
+  consumeDistributedRateLimit: mock(async () => null)
+}
+
 mock.module("@/lib/supabase/server", () => ({ createUserClient }))
 mock.module("@/lib/supabase/admin", () => ({ createAdminClient }))
 mock.module("@/lib/rate-limit", () => rateLimitMocks)
+mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 
 const loadRoute = async () => await import("../../app/api/username/check/route")
 
@@ -55,6 +63,9 @@ beforeEach(() => {
   limitMock.mockClear()
   rateLimitMocks.isRateLimited.mockClear()
   rateLimitMocks.recordFailure.mockClear()
+
+  distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
+  distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
 
   rateLimitMocks.isRateLimited.mockReturnValue(false)
   limitMock.mockResolvedValue({ data: [], error: null })

@@ -34,6 +34,14 @@ import {
   sanitizeVolumeUpdate
 } from "@/lib/library/sanitize-library"
 
+/** Explicit column list for hot `series` reads (avoid select("*") growth). @source */
+const SERIES_SELECT_FIELDS =
+  "id,user_id,title,original_title,description,notes,author,artist,publisher,cover_image_url,type,total_volumes,status,tags,created_at,updated_at"
+
+/** Explicit column list for hot `volumes` reads (avoid select("*") growth). @source */
+const VOLUME_SELECT_FIELDS =
+  "id,series_id,user_id,volume_number,title,description,isbn,cover_image_url,edition,format,page_count,publish_date,purchase_date,purchase_price,ownership_status,reading_status,current_page,amazon_url,rating,notes,started_at,finished_at,created_at,updated_at"
+
 /** A volume paired with its parent series, used for flat volume views. @source */
 export interface VolumeWithSeries {
   volume: Volume
@@ -291,7 +299,7 @@ export function useLibrary() {
 
       const { data: seriesData, error: seriesError } = await supabase
         .from("series")
-        .select("*")
+        .select(SERIES_SELECT_FIELDS)
         .eq("user_id", user.id)
         .order(sortField, { ascending: sortOrder === "asc" })
 
@@ -300,7 +308,7 @@ export function useLibrary() {
       // Fetch volumes for all series
       const { data: volumesData, error: volumesError } = await supabase
         .from("volumes")
-        .select("*")
+        .select(VOLUME_SELECT_FIELDS)
         .eq("user_id", user.id)
         .order("volume_number", { ascending: true })
 

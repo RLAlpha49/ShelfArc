@@ -6,6 +6,11 @@ import sharp from "sharp"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 import { isSafeStoragePath } from "@/lib/storage/safe-path"
+import { apiError } from "@/lib/api-response"
+import {
+  ConcurrencyLimitError,
+  ConcurrencyLimiter
+} from "@/lib/concurrency/limiter"
 
 /** Forces Node.js runtime for sharp image processing. @source */
 export const runtime = "nodejs"
@@ -51,13 +56,54 @@ type UploadSpec = (typeof UPLOAD_SPECS)[UploadKind]
 
 const isDev = process.env.NODE_ENV !== "production"
 
+/** Limits concurrent sharp + storage work per instance to prevent overload. @source */
+const uploadLimiter = new ConcurrencyLimiter({
+  concurrency: 2,
+  maxQueue: 12,
+  retryAfterMs: 1500
+})
+
 /** Extracts a human-readable message from an unknown error. @source */
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "Upload failed"
 
 /** Builds a JSON error response with the given status. @source */
-const buildError = (message: string, status: number) =>
-  NextResponse.json({ error: message }, { status })
+const buildError = (message: string, status: number) => apiError(status, message)
+
+/**
+ * Basic CSRF hardening for cookie-auth endpoints.
+ * Rejects cross-site browser requests and mismatched Origin/Host.
+ * @source
+ */
+const enforceSameOrigin = (request: Request) => {
+  const headers = (request as unknown as { headers?: Headers }).headers
+  if (!headers || typeof headers.get !== "function") {
+    return undefined
+  }
+
+  const fetchSite = headers.get("sec-fetch-site")
+  if (fetchSite === "cross-site") {
+    return buildError("Forbidden", 403)
+  }
+
+  const origin = headers.get("origin")?.trim() ?? ""
+  if (!origin) return undefined
+
+  const host =
+    headers.get("x-forwarded-host") ?? headers.get("host")
+  if (!host) return undefined
+
+  try {
+    const originUrl = new URL(origin)
+    if (originUrl.host !== host) {
+      return buildError("Forbidden", 403)
+    }
+  } catch {
+    return buildError("Forbidden", 403)
+  }
+
+  return undefined
+}
 
 /** Metadata stored when a previous-file deletion fails during replacement. @source */
 type FailedDeletionRecord = {
@@ -284,6 +330,9 @@ const getUploadData = (formData: FormData, userId: string) => {
  * @source
  */
 export async function POST(request: Request) {
+  const csrfResult = enforceSameOrigin(request)
+  if (csrfResult) return csrfResult
+
   const userClient = await createUserClient()
   const {
     data: { user }
@@ -302,50 +351,64 @@ export async function POST(request: Request) {
   const { file, spec, replacePathValue, shouldReplace } = uploadData
 
   try {
-    // file.stream() returns a DOM ReadableStream, which doesn't match Node's ReadableStream types.
-    // Cast through unknown so Readable.fromWeb accepts it while remaining safe at runtime.
-    const inputStream = Readable.fromWeb(
-      file.stream() as unknown as ReadableStream<Uint8Array>
-    )
-    const optimizedResult = await processImage(inputStream, spec, {
-      userId: user.id,
-      mimeType: file.type
+    return await uploadLimiter.run(async () => {
+      try {
+        // file.stream() returns a DOM ReadableStream, which doesn't match Node's ReadableStream types.
+        // Cast through unknown so Readable.fromWeb accepts it while remaining safe at runtime.
+        const inputStream = Readable.fromWeb(
+          file.stream() as unknown as ReadableStream<Uint8Array>
+        )
+        const optimizedResult = await processImage(inputStream, spec, {
+          userId: user.id,
+          mimeType: file.type
+        })
+
+        if (!optimizedResult.ok) {
+          return optimizedResult.response
+        }
+
+        const optimizedBuffer = optimizedResult.buffer
+
+        const fileName = `${user.id}/${spec.folder}/${randomUUID()}.webp`
+
+        const adminClient = createAdminClient({
+          reason: "Upload user-owned media to storage"
+        })
+        const { error: uploadError } = await adminClient.storage
+          .from(STORAGE_BUCKET)
+          .upload(fileName, optimizedBuffer, {
+            contentType: "image/webp",
+            cacheControl: "31536000",
+            upsert: false
+          })
+
+        if (uploadError) {
+          console.error("Storage upload failed", uploadError)
+          return buildError(isDev ? uploadError.message : "Upload failed", 500)
+        }
+
+        await handleReplaceCleanup({
+          supabase: adminClient,
+          shouldReplace,
+          replacePathValue,
+          fileName,
+          userId: user.id
+        })
+
+        return NextResponse.json({ path: fileName })
+      } catch (error) {
+        const message = getErrorMessage(error)
+        console.error("Image upload failed", error)
+        return buildError(isDev ? message : "Upload failed", 500)
+      }
     })
-
-    if (!optimizedResult.ok) {
-      return optimizedResult.response
-    }
-
-    const optimizedBuffer = optimizedResult.buffer
-
-    const fileName = `${user.id}/${spec.folder}/${randomUUID()}.webp`
-
-    const adminClient = createAdminClient({
-      reason: "Upload user-owned media to storage"
-    })
-    const { error: uploadError } = await adminClient.storage
-      .from(STORAGE_BUCKET)
-      .upload(fileName, optimizedBuffer, {
-        contentType: "image/webp",
-        cacheControl: "31536000",
-        upsert: false
-      })
-
-    if (uploadError) {
-      console.error("Storage upload failed", uploadError)
-      return buildError(isDev ? uploadError.message : "Upload failed", 500)
-    }
-
-    await handleReplaceCleanup({
-      supabase: adminClient,
-      shouldReplace,
-      replacePathValue,
-      fileName,
-      userId: user.id
-    })
-
-    return NextResponse.json({ path: fileName })
   } catch (error) {
+    if (error instanceof ConcurrencyLimitError) {
+      return apiError(503, error.message, {
+        extra: { retryAfterMs: error.retryAfterMs }
+      })
+    }
+
     const message = getErrorMessage(error)
     console.error("Image upload failed", error)
     return buildError(isDev ? message : "Upload failed", 500)

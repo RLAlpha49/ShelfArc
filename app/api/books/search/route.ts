@@ -8,6 +8,7 @@ import {
 } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
+import { apiError } from "@/lib/api-response"
 
 /** Google Books Volumes API base URL. @source */
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -26,6 +27,9 @@ const GOOGLE_BOOKS_MAX_LIMIT = 20
 
 /** Timeout in milliseconds for upstream search requests. @source */
 const FETCH_TIMEOUT_MS = 10000
+
+/** Cache TTL for upstream search calls (seconds). @source */
+const SEARCH_CACHE_TTL_SECONDS = 60
 
 /**
  * Wraps a raw query as an ISBN query for Google Books when applicable.
@@ -52,7 +56,7 @@ const buildGoogleQuery = (query: string) => {
  */
 const fetchWithTimeout = async (
   url: string,
-  options: RequestInit,
+  options: RequestInit & { next?: { revalidate?: number } },
   timeoutMs: number,
   contextLabel: string
 ): Promise<Response> => {
@@ -104,7 +108,10 @@ const fetchGoogleBooksResponse = async (
     try {
       const response = await fetchWithTimeout(
         url.toString(),
-        { cache: "no-store" },
+        {
+          cache: "force-cache",
+          next: { revalidate: SEARCH_CACHE_TTL_SECONDS }
+        },
         FETCH_TIMEOUT_MS,
         "Google Books"
       )
@@ -234,7 +241,10 @@ const fetchOpenLibrary = async (
 
   const response = await fetchWithTimeout(
     url.toString(),
-    { cache: "no-store" },
+    {
+      cache: "force-cache",
+      next: { revalidate: SEARCH_CACHE_TTL_SECONDS }
+    },
     FETCH_TIMEOUT_MS,
     "Open Library"
   )
@@ -280,14 +290,9 @@ export async function GET(request: NextRequest) {
   if (source === "google_books") {
     const googleApiKeys = getGoogleBooksApiKeys()
     if (googleApiKeys.length === 0) {
-      return NextResponse.json(
-        {
-          results: [],
-          sourceUsed: "google_books",
-          error: "Google Books API key is not configured"
-        },
-        { status: 400 }
-      )
+      return apiError(400, "Google Books API key is not configured", {
+        extra: { results: [], sourceUsed: "google_books" }
+      })
     }
 
     try {
@@ -306,14 +311,9 @@ export async function GET(request: NextRequest) {
       })
     } catch (error) {
       console.error("Google Books search failed", error)
-      return NextResponse.json(
-        {
-          results: [],
-          sourceUsed: "google_books",
-          error: "Google Books search failed"
-        },
-        { status: 502 }
-      )
+      return apiError(502, "Google Books search failed", {
+        extra: { results: [], sourceUsed: "google_books" }
+      })
     }
   }
 
@@ -331,13 +331,8 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("Open Library search failed", error)
-    return NextResponse.json(
-      {
-        results: [],
-        sourceUsed: "open_library",
-        error: "Open Library search failed"
-      },
-      { status: 502 }
-    )
+    return apiError(502, "Open Library search failed", {
+      extra: { results: [], sourceUsed: "open_library" }
+    })
   }
 }

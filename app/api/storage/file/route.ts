@@ -1,7 +1,8 @@
-import { NextResponse, type NextRequest } from "next/server"
+import { type NextRequest } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 import { isSafeStoragePath } from "@/lib/storage/safe-path"
+import { apiError } from "@/lib/api-response"
 
 /** Supabase Storage bucket for user media files. @source */
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media"
@@ -16,11 +17,11 @@ export async function GET(request: NextRequest) {
   const path = request.nextUrl.searchParams.get("path")?.trim()
 
   if (!path) {
-    return NextResponse.json({ error: "Missing path" }, { status: 400 })
+    return apiError(400, "Missing path")
   }
 
   if (!isSafeStoragePath(path)) {
-    return NextResponse.json({ error: "Invalid path" }, { status: 400 })
+    return apiError(400, "Invalid path")
   }
 
   const userClient = await createUserClient()
@@ -29,11 +30,11 @@ export async function GET(request: NextRequest) {
   } = await userClient.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return apiError(401, "Unauthorized")
   }
 
   if (!path.startsWith(`${user.id}/`)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    return apiError(403, "Forbidden")
   }
 
   const adminClient = createAdminClient({
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
 
   if (error || !data) {
     console.error("Storage download failed", error)
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
+    return apiError(404, "Not found")
   }
 
   let contentLength: number | null = null

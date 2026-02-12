@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createHash } from "node:crypto"
 import {
   isRateLimited,
   recordFailure,
   getCooldownRemaining
 } from "@/lib/rate-limit"
+import { apiError } from "@/lib/api-response"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { ApiError } from "@/lib/books/price/api-error"
 import {
   createAmazonSearchContext,
   fetchAmazonHtml,
   parseAmazonResult
 } from "@/lib/books/price/amazon-price"
+import {
+  ConcurrencyLimitError,
+  ConcurrencyLimiter
+} from "@/lib/concurrency/limiter"
 
 /** Forces dynamic (uncached) rendering for this route. @source */
 export const dynamic = "force-dynamic"
@@ -26,6 +33,48 @@ const RATE_LIMIT_CONFIG = {
   cooldownMs: 10 * 60 * 1000 // 10-minute cooldown after 3 captcha blocks
 } as const
 
+/** Best-effort per-client request limit for outbound scraping. @source */
+const REQUEST_LIMIT_CONFIG = {
+  maxFailures: 30,
+  failureWindowMs: 60_000,
+  cooldownMs: 60_000
+} as const
+
+/** Limits concurrent Amazon scrapes per instance to reduce overload. @source */
+const amazonLimiter = new ConcurrencyLimiter({
+  concurrency: 1,
+  maxQueue: 30,
+  retryAfterMs: 1200
+})
+
+/** Extracts the client IP for rate limiting (best-effort). @source */
+const getClientIp = (request: NextRequest) => {
+  const forwardedFor = request.headers.get("x-forwarded-for")
+  const ipFromForwarded = forwardedFor?.split(",")[0]?.trim()
+  return (
+    ipFromForwarded || request.headers.get("x-real-ip")?.trim() || "unknown"
+  )
+}
+
+/**
+ * Builds a stable per-client identifier without persisting raw auth tokens.
+ * Prefers a hash of Supabase auth cookies when present; falls back to IP.
+ * @source
+ */
+const resolveClientIdentity = (request: NextRequest) => {
+  const authCookie = request.cookies
+    .getAll()
+    .find(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"))
+    ?.value
+
+  if (authCookie) {
+    const digest = createHash("sha256").update(authCookie).digest("hex")
+    return `session:${digest.slice(0, 16)}`
+  }
+
+  return `ip:${getClientIp(request)}`
+}
+
 /**
  * Serializes an `ApiError` into a JSON `NextResponse`.
  * @param error - The API error to serialize.
@@ -33,10 +82,62 @@ const RATE_LIMIT_CONFIG = {
  * @source
  */
 const jsonError = (error: ApiError) => {
-  const payload = error.details
-    ? { error: error.message, ...error.details }
-    : { error: error.message }
-  return NextResponse.json(payload, { status: error.status })
+  return apiError(error.status, error.message, {
+    extra: error.details
+  })
+}
+
+/**
+ * Checks the global anti-bot cooldown (captcha circuit breaker).
+ * @returns A response when blocked, otherwise `null`.
+ * @source
+ */
+const checkGlobalCooldown = () => {
+  if (!isRateLimited(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)) {
+    return null
+  }
+
+  const remaining = getCooldownRemaining(RATE_LIMIT_KEY)
+  const minutes = Math.ceil(remaining / 60_000)
+  return apiError(
+    429,
+    `Amazon scraping is temporarily disabled due to anti-bot detection. Try again in ~${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    { extra: { cooldownMs: remaining } }
+  )
+}
+
+/**
+ * Applies per-client rate limiting for outbound scraping.
+ * @returns A response when limited, otherwise `null`.
+ * @source
+ */
+const enforceRequestRateLimit = async (requestLimitKey: string) => {
+  const distributed = await consumeDistributedRateLimit({
+    key: requestLimitKey,
+    maxHits: REQUEST_LIMIT_CONFIG.maxFailures,
+    windowMs: REQUEST_LIMIT_CONFIG.failureWindowMs,
+    cooldownMs: REQUEST_LIMIT_CONFIG.cooldownMs,
+    reason: "Rate limit Amazon price scraping"
+  })
+
+  if (distributed) {
+    if (!distributed.allowed) {
+      return apiError(429, "Too many requests", {
+        extra: { retryAfterMs: distributed.retryAfterMs }
+      })
+    }
+    return null
+  }
+
+  if (isRateLimited(requestLimitKey, REQUEST_LIMIT_CONFIG)) {
+    const remaining = getCooldownRemaining(requestLimitKey)
+    return apiError(429, "Too many requests", {
+      extra: { cooldownMs: remaining }
+    })
+  }
+
+  recordFailure(requestLimitKey, REQUEST_LIMIT_CONFIG)
+  return null
 }
 
 /**
@@ -47,18 +148,8 @@ const jsonError = (error: ApiError) => {
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check rate-limit cooldown before making any outbound request
-    if (isRateLimited(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)) {
-      const remaining = getCooldownRemaining(RATE_LIMIT_KEY)
-      const minutes = Math.ceil(remaining / 60_000)
-      return NextResponse.json(
-        {
-          error: `Amazon scraping is temporarily disabled due to anti-bot detection. Try again in ~${minutes} minute${minutes === 1 ? "" : "s"}.`,
-          cooldownMs: remaining
-        },
-        { status: 429 }
-      )
-    }
+    const globalCooldown = checkGlobalCooldown()
+    if (globalCooldown) return globalCooldown
 
     const includeImage =
       request.nextUrl.searchParams.get("includeImage") === "true"
@@ -66,30 +157,45 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get("includePrice") !== "false"
 
     const context = createAmazonSearchContext(request.nextUrl.searchParams)
-    const html = await fetchAmazonHtml(context.searchUrl)
-    const parsed = parseAmazonResult(html, context, {
-      includePrice,
-      includeImage
-    })
 
-    return NextResponse.json({
-      searchUrl: context.searchUrl,
-      domain: context.domain,
-      expectedTitle: context.expectedTitle,
-      matchScore: parsed.matchScore,
-      binding: context.bindingLabel,
-      result: {
-        title: parsed.resultTitle,
-        priceText: parsed.priceText,
-        priceValue: parsed.priceValue,
-        currency: parsed.currency,
-        priceBinding: parsed.priceBinding,
-        priceError: parsed.priceError,
-        url: parsed.productUrl,
-        imageUrl: parsed.imageUrl
-      }
+    const identity = resolveClientIdentity(request)
+    const requestLimitKey = `amazon-request:${identity}`
+
+    const requestLimited = await enforceRequestRateLimit(requestLimitKey)
+    if (requestLimited) return requestLimited
+
+    return await amazonLimiter.run(async () => {
+      const html = await fetchAmazonHtml(context.searchUrl)
+      const parsed = parseAmazonResult(html, context, {
+        includePrice,
+        includeImage
+      })
+
+      return NextResponse.json({
+        searchUrl: context.searchUrl,
+        domain: context.domain,
+        expectedTitle: context.expectedTitle,
+        matchScore: parsed.matchScore,
+        binding: context.bindingLabel,
+        result: {
+          title: parsed.resultTitle,
+          priceText: parsed.priceText,
+          priceValue: parsed.priceValue,
+          currency: parsed.currency,
+          priceBinding: parsed.priceBinding,
+          priceError: parsed.priceError,
+          url: parsed.productUrl,
+          imageUrl: parsed.imageUrl
+        }
+      })
     })
   } catch (error) {
+    if (error instanceof ConcurrencyLimitError) {
+      return apiError(503, error.message, {
+        extra: { retryAfterMs: error.retryAfterMs }
+      })
+    }
+
     if (error instanceof ApiError) {
       // Record captcha / bot-gate failures toward cooldown
       if (error.status === 429) {
@@ -99,9 +205,6 @@ export async function GET(request: NextRequest) {
     }
 
     console.error("Amazon price lookup failed", error)
-    return NextResponse.json(
-      { error: "Amazon price lookup failed" },
-      { status: 500 }
-    )
+    return apiError(500, "Amazon price lookup failed")
   }
 }
