@@ -279,6 +279,10 @@ export function FilterPresetsControl() {
                         onClick={() => {
                           if (!canRename) return
                           renameFilterPreset(preset.id, trimmedDraft)
+                          setDraftNames((prev) => ({
+                            ...prev,
+                            [preset.id]: trimmedDraft
+                          }))
                         }}
                         disabled={!canRename}
                         className="rounded-xl"
@@ -292,18 +296,17 @@ export function FilterPresetsControl() {
                             <Button
                               variant="ghost"
                               className="text-destructive hover:bg-destructive/10 rounded-xl"
-                            />
+                            >
+                              Delete
+                            </Button>
                           }
-                        >
-                          Delete
-                        </AlertDialogTrigger>
+                        />
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete preset?</AlertDialogTitle>
                             <AlertDialogDescription>
                               This will permanently remove{" "}
-                              <span className="font-medium">{preset.name}</span>
-                              .
+                              <span className="font-medium">{preset.name}</span>.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
