@@ -16,6 +16,7 @@ import { CoverImage } from "@/components/library/cover-image"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -534,30 +535,34 @@ const VolumeSelectionBar = ({
             Bulk actions
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="rounded-xl">
-            <DropdownMenuLabel>Ownership</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => onApplyOwnership("owned")}>
-              Mark owned
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onApplyOwnership("wishlist")}>
-              Mark wishlist
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Ownership</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => onApplyOwnership("owned")}>
+                Mark owned
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onApplyOwnership("wishlist")}>
+                Mark wishlist
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel>Reading status</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => onApplyReading("unread")}>
-              Mark unread
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onApplyReading("reading")}>
-              Mark reading
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onApplyReading("completed")}>
-              Mark completed
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onApplyReading("on_hold")}>
-              Mark on hold
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onApplyReading("dropped")}>
-              Mark dropped
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Reading status</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => onApplyReading("unread")}>
+                Mark unread
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onApplyReading("reading")}>
+                Mark reading
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onApplyReading("completed")}>
+                Mark completed
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onApplyReading("on_hold")}>
+                Mark on hold
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onApplyReading("dropped")}>
+                Mark dropped
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
 

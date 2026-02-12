@@ -31,6 +31,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -1931,7 +1932,7 @@ export default function LibraryPage() {
       return (
         <div className="space-y-8">
           <div className="animate-fade-in-up">
-            <div className="overflow-hidden rounded-2xl">
+            <div className="rounded-2xl">
               {filteredSeries.length > VIRTUALIZE_THRESHOLD ? (
                 <VirtualizedWindowGrid
                   items={filteredSeries}
@@ -2153,7 +2154,7 @@ export default function LibraryPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
                 {collectionView === "series" ? (
-                  <>
+                  <DropdownMenuGroup>
                     <DropdownMenuLabel>Series type</DropdownMenuLabel>
                     <DropdownMenuItem
                       onClick={() => applySeriesType("light_novel")}
@@ -2166,47 +2167,51 @@ export default function LibraryPage() {
                     <DropdownMenuItem onClick={() => applySeriesType("other")}>
                       Set to Other
                     </DropdownMenuItem>
-                  </>
+                  </DropdownMenuGroup>
                 ) : (
                   <>
-                    <DropdownMenuLabel>Ownership</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => applyVolumeOwnershipStatus("owned")}
-                    >
-                      Mark owned
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => applyVolumeOwnershipStatus("wishlist")}
-                    >
-                      Mark wishlist
-                    </DropdownMenuItem>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Ownership</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => applyVolumeOwnershipStatus("owned")}
+                      >
+                        Mark owned
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applyVolumeOwnershipStatus("wishlist")}
+                      >
+                        Mark wishlist
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Reading status</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => applyVolumeReadingStatus("unread")}
-                    >
-                      Mark unread
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => applyVolumeReadingStatus("reading")}
-                    >
-                      Mark reading
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => applyVolumeReadingStatus("completed")}
-                    >
-                      Mark completed
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => applyVolumeReadingStatus("on_hold")}
-                    >
-                      Mark on hold
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => applyVolumeReadingStatus("dropped")}
-                    >
-                      Mark dropped
-                    </DropdownMenuItem>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Reading status</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => applyVolumeReadingStatus("unread")}
+                      >
+                        Mark unread
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applyVolumeReadingStatus("reading")}
+                      >
+                        Mark reading
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applyVolumeReadingStatus("completed")}
+                      >
+                        Mark completed
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applyVolumeReadingStatus("on_hold")}
+                      >
+                        Mark on hold
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applyVolumeReadingStatus("dropped")}
+                      >
+                        Mark dropped
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                   </>
                 )}
               </DropdownMenuContent>
