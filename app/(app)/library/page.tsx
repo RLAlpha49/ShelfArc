@@ -9,12 +9,17 @@ import { VolumeDialog } from "@/components/library/volume-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { LibraryToolbar } from "@/components/library/library-toolbar"
 import { VolumeCard } from "@/components/library/volume-card"
+import {
+  VirtualizedWindowGrid,
+  VirtualizedWindowList
+} from "@/components/library/virtualized-window"
 import { CoverImage } from "@/components/library/cover-image"
 import { EmptyState } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useLibrary } from "@/lib/hooks/use-library"
+import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { CardSize } from "@/lib/store/settings-store"
@@ -86,6 +91,43 @@ const READING_STATUS_COLORS: Record<ReadingStatus, string> = {
 const OWNERSHIP_STATUS_COLORS: Record<OwnershipStatus, string> = {
   owned: "bg-copper/10 text-copper",
   wishlist: "bg-gold/10 text-gold"
+}
+
+/** Item count above which /library switches to window virtualization. @source */
+const VIRTUALIZE_THRESHOLD = 200
+
+/** Returns the number of grid columns for the given card size + viewport width. @source */
+const GRID_COLUMNS_BY_CARD_SIZE: Record<CardSize, readonly number[]> = {
+  compact: [3, 4, 5, 6, 8],
+  default: [2, 3, 4, 5, 6],
+  large: [1, 2, 3, 4, 5]
+}
+
+function getBreakpointTier(width: number) {
+  if (width >= 1280) return 4
+  if (width >= 1024) return 3
+  if (width >= 768) return 2
+  if (width >= 640) return 1
+  return 0
+}
+
+function getGridColumnCount(cardSize: CardSize, width: number) {
+  const tier = getBreakpointTier(width)
+  return GRID_COLUMNS_BY_CARD_SIZE[cardSize][tier] ?? 2
+}
+
+/** Returns the (Tailwind-matching) grid gap in pixels for the given card size. @source */
+function getGridGapPx(cardSize: CardSize) {
+  if (cardSize === "compact") return 12
+  if (cardSize === "large") return 20
+  return 16
+}
+
+/** Rough row-height estimate for card grids (actual height is measured). @source */
+function estimateGridRowSize(cardSize: CardSize) {
+  if (cardSize === "compact") return 320
+  if (cardSize === "large") return 460
+  return 380
 }
 
 /**
@@ -877,6 +919,12 @@ export default function LibraryPage() {
     amazonPreferKindle
   } = useLibraryStore()
   const cardSize = useSettingsStore((s) => s.cardSize)
+  const windowWidth = useWindowWidth()
+  const gridColumnCount = useMemo(
+    () => getGridColumnCount(cardSize, windowWidth),
+    [cardSize, windowWidth]
+  )
+  const gridGapPx = useMemo(() => getGridGapPx(cardSize), [cardSize])
   const confirmBeforeDelete = useSettingsStore((s) => s.confirmBeforeDelete)
   const amazonBindingLabel = AMAZON_BINDING_LABELS[Number(amazonPreferKindle)]
 
@@ -1547,65 +1595,103 @@ export default function LibraryPage() {
             </h2>
           </div>
         </div>
-        <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
-          {filteredUnassignedVolumes.map((volume) => (
-            <VolumeCard
-              key={volume.id}
-              volume={volume}
-              onClick={() => handleVolumeItemClick(volume.id)}
-              onEdit={() => openEditVolumeDialog(volume)}
-              onDelete={() => openDeleteVolumeDialog(volume)}
-              onToggleRead={() => handleToggleRead(volume)}
-              selected={selectedVolumeIds.has(volume.id)}
-              onSelect={() => toggleVolumeSelection(volume.id)}
-            />
-          ))}
-        </div>
+        {filteredUnassignedVolumes.length > VIRTUALIZE_THRESHOLD ? (
+          <VirtualizedWindowGrid
+            items={filteredUnassignedVolumes}
+            columnCount={gridColumnCount}
+            gapPx={gridGapPx}
+            estimateRowSize={() => estimateGridRowSize(cardSize)}
+            getItemKey={(volume) => volume.id}
+            renderItem={(volume) => (
+              <VolumeCard
+                volume={volume}
+                onClick={() => handleVolumeItemClick(volume.id)}
+                onEdit={() => openEditVolumeDialog(volume)}
+                onDelete={() => openDeleteVolumeDialog(volume)}
+                onToggleRead={() => handleToggleRead(volume)}
+                selected={selectedVolumeIds.has(volume.id)}
+                onSelect={() => toggleVolumeSelection(volume.id)}
+              />
+            )}
+          />
+        ) : (
+          <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
+            {filteredUnassignedVolumes.map((volume) => (
+              <VolumeCard
+                key={volume.id}
+                volume={volume}
+                onClick={() => handleVolumeItemClick(volume.id)}
+                onEdit={() => openEditVolumeDialog(volume)}
+                onDelete={() => openDeleteVolumeDialog(volume)}
+                onToggleRead={() => handleToggleRead(volume)}
+                selected={selectedVolumeIds.has(volume.id)}
+                onSelect={() => toggleVolumeSelection(volume.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     )
   }
 
-  const renderContent = () => {
-    if (isLoading) {
-      return <LoadingSkeleton viewMode={viewMode} />
+  const renderVolumesView = () => {
+    const hasAssignedVolumes = filteredVolumes.length > 0
+    const hasUnassignedVolumes = filteredUnassignedVolumes.length > 0
+
+    if (!hasAssignedVolumes && !hasUnassignedVolumes) {
+      return (
+        <EmptyState
+          icon={
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-muted-foreground h-8 w-8"
+            >
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+          }
+          title="No volumes found"
+          description="Search for a book to add your first volume"
+          action={{
+            label: "Add Book",
+            onClick: openAddDialog
+          }}
+        />
+      )
     }
 
-    if (collectionView === "volumes") {
-      const hasAssignedVolumes = filteredVolumes.length > 0
-      const hasUnassignedVolumes = filteredUnassignedVolumes.length > 0
-
-      if (!hasAssignedVolumes && !hasUnassignedVolumes) {
-        return (
-          <EmptyState
-            icon={
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-muted-foreground h-8 w-8"
-              >
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-              </svg>
-            }
-            title="No volumes found"
-            description="Search for a book to add your first volume"
-            action={{
-              label: "Add Book",
-              onClick: openAddDialog
-            }}
-          />
-        )
-      }
-
-      return (
-        <div className="space-y-8">
-          {hasAssignedVolumes &&
-            (viewMode === "grid" ? (
-              <div className="animate-fade-in-up">
+    return (
+      <div className="space-y-8">
+        {hasAssignedVolumes &&
+          (viewMode === "grid" ? (
+            <div className="animate-fade-in-up">
+              {filteredVolumes.length > VIRTUALIZE_THRESHOLD ? (
+                <VirtualizedWindowGrid
+                  items={filteredVolumes}
+                  columnCount={gridColumnCount}
+                  gapPx={gridGapPx}
+                  estimateRowSize={() => estimateGridRowSize(cardSize)}
+                  getItemKey={(item) => item.volume.id}
+                  renderItem={(item) => (
+                    <VolumeGridItem
+                      item={item}
+                      onClick={() => handleVolumeItemClick(item.volume.id)}
+                      onEdit={() => openEditVolumeDialog(item.volume)}
+                      onDelete={() => openDeleteVolumeDialog(item.volume)}
+                      onToggleRead={() => handleToggleRead(item.volume)}
+                      amazonDomain={amazonDomain}
+                      bindingLabel={amazonBindingLabel}
+                      selected={selectedVolumeIds.has(item.volume.id)}
+                      onSelect={() => toggleVolumeSelection(item.volume.id)}
+                    />
+                  )}
+                />
+              ) : (
                 <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
                   {filteredVolumes.map((item) => (
                     <VolumeGridItem
@@ -1622,9 +1708,32 @@ export default function LibraryPage() {
                     />
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div className="animate-fade-in-up">
+              )}
+            </div>
+          ) : (
+            <div className="animate-fade-in-up">
+              {filteredVolumes.length > VIRTUALIZE_THRESHOLD ? (
+                <VirtualizedWindowList
+                  items={filteredVolumes}
+                  estimateSize={() => 104}
+                  getItemKey={(item) => item.volume.id}
+                  renderItem={(item) => (
+                    <div className="pb-2">
+                      <VolumeListItem
+                        item={item}
+                        onClick={() => handleVolumeItemClick(item.volume.id)}
+                        onEdit={() => openEditVolumeDialog(item.volume)}
+                        onDelete={() => openDeleteVolumeDialog(item.volume)}
+                        onToggleRead={() => handleToggleRead(item.volume)}
+                        amazonDomain={amazonDomain}
+                        bindingLabel={amazonBindingLabel}
+                        selected={selectedVolumeIds.has(item.volume.id)}
+                        onSelect={() => toggleVolumeSelection(item.volume.id)}
+                      />
+                    </div>
+                  )}
+                />
+              ) : (
                 <div className="list-stagger space-y-2">
                   {filteredVolumes.map((item) => (
                     <VolumeListItem
@@ -1641,13 +1750,15 @@ export default function LibraryPage() {
                     />
                   ))}
                 </div>
-              </div>
-            ))}
-          {renderUnassignedSection()}
-        </div>
-      )
-    }
+              )}
+            </div>
+          ))}
+        {renderUnassignedSection()}
+      </div>
+    )
+  }
 
+  const renderSeriesView = () => {
     if (filteredSeries.length === 0 && filteredUnassignedVolumes.length === 0) {
       return (
         <EmptyState
@@ -1680,21 +1791,40 @@ export default function LibraryPage() {
         <div className="space-y-8">
           <div className="animate-fade-in-up">
             <div className="overflow-hidden rounded-2xl">
-              {" "}
-              <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
-                {filteredSeries.map((series) => (
-                  <SeriesCard
-                    key={series.id}
-                    series={series}
-                    onEdit={() => openEditDialog(series)}
-                    onDelete={() => openDeleteDialog(series)}
-                    onClick={() => handleSeriesItemClick(series)}
-                    selected={selectedSeriesIds.has(series.id)}
-                    onSelect={() => toggleSeriesSelection(series.id)}
-                  />
-                ))}
-              </div>
-            </div>{" "}
+              {filteredSeries.length > VIRTUALIZE_THRESHOLD ? (
+                <VirtualizedWindowGrid
+                  items={filteredSeries}
+                  columnCount={gridColumnCount}
+                  gapPx={gridGapPx}
+                  estimateRowSize={() => estimateGridRowSize(cardSize)}
+                  getItemKey={(series) => series.id}
+                  renderItem={(series) => (
+                    <SeriesCard
+                      series={series}
+                      onEdit={() => openEditDialog(series)}
+                      onDelete={() => openDeleteDialog(series)}
+                      onClick={() => handleSeriesItemClick(series)}
+                      selected={selectedSeriesIds.has(series.id)}
+                      onSelect={() => toggleSeriesSelection(series.id)}
+                    />
+                  )}
+                />
+              ) : (
+                <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
+                  {filteredSeries.map((series) => (
+                    <SeriesCard
+                      key={series.id}
+                      series={series}
+                      onEdit={() => openEditDialog(series)}
+                      onDelete={() => openDeleteDialog(series)}
+                      onClick={() => handleSeriesItemClick(series)}
+                      selected={selectedSeriesIds.has(series.id)}
+                      onSelect={() => toggleSeriesSelection(series.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           {renderUnassignedSection()}
         </div>
@@ -1704,23 +1834,51 @@ export default function LibraryPage() {
     return (
       <div className="space-y-8">
         <div className="animate-fade-in-up">
-          <div className="list-stagger space-y-2">
-            {filteredSeries.map((series) => (
-              <SeriesListItem
-                key={series.id}
-                series={series}
-                onClick={() => handleSeriesItemClick(series)}
-                onEdit={() => openEditDialog(series)}
-                onDelete={() => openDeleteDialog(series)}
-                selected={selectedSeriesIds.has(series.id)}
-                onSelect={() => toggleSeriesSelection(series.id)}
-              />
-            ))}
-          </div>
+          {filteredSeries.length > VIRTUALIZE_THRESHOLD ? (
+            <VirtualizedWindowList
+              items={filteredSeries}
+              estimateSize={() => 104}
+              getItemKey={(series) => series.id}
+              renderItem={(series) => (
+                <div className="pb-2">
+                  <SeriesListItem
+                    series={series}
+                    onClick={() => handleSeriesItemClick(series)}
+                    onEdit={() => openEditDialog(series)}
+                    onDelete={() => openDeleteDialog(series)}
+                    selected={selectedSeriesIds.has(series.id)}
+                    onSelect={() => toggleSeriesSelection(series.id)}
+                  />
+                </div>
+              )}
+            />
+          ) : (
+            <div className="list-stagger space-y-2">
+              {filteredSeries.map((series) => (
+                <SeriesListItem
+                  key={series.id}
+                  series={series}
+                  onClick={() => handleSeriesItemClick(series)}
+                  onEdit={() => openEditDialog(series)}
+                  onDelete={() => openDeleteDialog(series)}
+                  selected={selectedSeriesIds.has(series.id)}
+                  onSelect={() => toggleSeriesSelection(series.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
         {renderUnassignedSection()}
       </div>
     )
+  }
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <LoadingSkeleton viewMode={viewMode} />
+    }
+
+    return collectionView === "volumes" ? renderVolumesView() : renderSeriesView()
   }
 
   return (

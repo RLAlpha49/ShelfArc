@@ -10,6 +10,7 @@ import { SeriesDialog } from "@/components/library/series-dialog"
 import { BulkScrapeDialog } from "@/components/library/bulk-scrape-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { VolumeCard } from "@/components/library/volume-card"
+import { VirtualizedWindowGrid } from "@/components/library/virtualized-window"
 import { EmptyState } from "@/components/empty-state"
 import { CoverImage } from "@/components/library/cover-image"
 import {
@@ -21,6 +22,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { useLibrary } from "@/lib/hooks/use-library"
+import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { formatDate } from "@/lib/format-date"
@@ -55,6 +57,9 @@ const typeColors = {
   manga: "bg-copper/10 text-copper",
   other: "bg-muted text-muted-foreground"
 }
+
+/** Item count above which series detail volumes switch to virtualization. @source */
+const VIRTUALIZE_THRESHOLD = 200
 
 /**
  * Extracts a human-readable message from an unknown error value.
@@ -855,8 +860,25 @@ const SeriesVolumesSection = ({
   readonly onDeleteVolume: (volume: Volume) => void
   readonly onToggleRead: (volume: Volume) => void
   readonly onSelectVolume: (volumeId: string) => void
-}) => (
-  <div>
+}) => {
+  const windowWidth = useWindowWidth()
+  const columnCount = useMemo(() => {
+    if (windowWidth >= 1024) return 6
+    if (windowWidth >= 768) return 4
+    if (windowWidth >= 640) return 3
+    return 2
+  }, [windowWidth])
+
+  const sortedVolumes = useMemo(() => {
+    return currentSeries.volumes.toSorted(
+      (a, b) => a.volume_number - b.volume_number
+    )
+  }, [currentSeries.volumes])
+
+  const shouldVirtualize = sortedVolumes.length > VIRTUALIZE_THRESHOLD
+
+  return (
+    <div>
     <div className="animate-fade-in-up stagger-2 mb-6 flex items-center justify-between">
       <div>
         <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
@@ -945,10 +967,29 @@ const SeriesVolumesSection = ({
       />
     ) : (
       <div className="animate-fade-in-up">
-        <div className="grid-stagger grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {currentSeries.volumes
-            .toSorted((a, b) => a.volume_number - b.volume_number)
-            .map((volume) => (
+        {shouldVirtualize ? (
+          <VirtualizedWindowGrid
+            items={sortedVolumes}
+            columnCount={columnCount}
+            gapPx={16}
+            estimateRowSize={() => 380}
+            getItemKey={(volume) => volume.id}
+            renderItem={(volume) => (
+              <VolumeCard
+                volume={volume}
+                seriesTitle={currentSeries.title}
+                onClick={() => onVolumeClick(volume.id)}
+                onEdit={() => onEditVolume(volume)}
+                onDelete={() => onDeleteVolume(volume)}
+                onToggleRead={() => onToggleRead(volume)}
+                selected={selectedVolumeIds.has(volume.id)}
+                onSelect={() => onSelectVolume(volume.id)}
+              />
+            )}
+          />
+        ) : (
+          <div className="grid-stagger grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {sortedVolumes.map((volume) => (
               <VolumeCard
                 key={volume.id}
                 volume={volume}
@@ -961,11 +1002,13 @@ const SeriesVolumesSection = ({
                 onSelect={() => onSelectVolume(volume.id)}
               />
             ))}
-        </div>
+          </div>
+        )}
       </div>
     )}
   </div>
-)
+  )
+}
 
 /**
  * Series detail page showing cover, metadata, volume grid, and editing controls.
