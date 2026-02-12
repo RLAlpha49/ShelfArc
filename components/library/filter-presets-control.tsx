@@ -306,7 +306,8 @@ export function FilterPresetsControl() {
                             <AlertDialogTitle>Delete preset?</AlertDialogTitle>
                             <AlertDialogDescription>
                               This will permanently remove{" "}
-                              <span className="font-medium">{preset.name}</span>.
+                              <span className="font-medium">{preset.name}</span>
+                              .
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

@@ -555,7 +555,9 @@ function VolumeActionsMenu({
                   onSetRating(parsed)
                 }}
               >
-                <DropdownMenuRadioItem value="none">No rating</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="none">
+                  No rating
+                </DropdownMenuRadioItem>
                 <DropdownMenuSeparator />
                 {Array.from({ length: 10 }, (_, index) => {
                   const value = String(index + 1)
@@ -587,10 +589,7 @@ function VolumeActionsMenu({
           </svg>
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          onClick={() => onDelete()}
-        >
+        <DropdownMenuItem variant="destructive" onClick={() => onDelete()}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -1593,7 +1592,10 @@ export default function LibraryPage() {
 
   const handleSetRating = useCallback(
     async (volume: Volume, rating: number | null) => {
-      if (rating != null && (!Number.isFinite(rating) || rating < 0 || rating > 10)) {
+      if (
+        rating != null &&
+        (!Number.isFinite(rating) || rating < 0 || rating > 10)
+      ) {
         toast.error("Rating must be between 0 and 10")
         return
       }
@@ -1806,7 +1808,9 @@ export default function LibraryPage() {
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
                       onToggleRead={() => handleToggleRead(item.volume)}
                       onToggleWishlist={() => handleToggleWishlist(item.volume)}
-                      onSetRating={(rating) => handleSetRating(item.volume, rating)}
+                      onSetRating={(rating) =>
+                        handleSetRating(item.volume, rating)
+                      }
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
                       selected={selectedVolumeIds.has(item.volume.id)}
@@ -1825,7 +1829,9 @@ export default function LibraryPage() {
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
                       onToggleRead={() => handleToggleRead(item.volume)}
                       onToggleWishlist={() => handleToggleWishlist(item.volume)}
-                      onSetRating={(rating) => handleSetRating(item.volume, rating)}
+                      onSetRating={(rating) =>
+                        handleSetRating(item.volume, rating)
+                      }
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
                       selected={selectedVolumeIds.has(item.volume.id)}
@@ -1850,8 +1856,12 @@ export default function LibraryPage() {
                         onEdit={() => openEditVolumeDialog(item.volume)}
                         onDelete={() => openDeleteVolumeDialog(item.volume)}
                         onToggleRead={() => handleToggleRead(item.volume)}
-                        onToggleWishlist={() => handleToggleWishlist(item.volume)}
-                        onSetRating={(rating) => handleSetRating(item.volume, rating)}
+                        onToggleWishlist={() =>
+                          handleToggleWishlist(item.volume)
+                        }
+                        onSetRating={(rating) =>
+                          handleSetRating(item.volume, rating)
+                        }
                         amazonDomain={amazonDomain}
                         bindingLabel={amazonBindingLabel}
                         selected={selectedVolumeIds.has(item.volume.id)}
@@ -1871,7 +1881,9 @@ export default function LibraryPage() {
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
                       onToggleRead={() => handleToggleRead(item.volume)}
                       onToggleWishlist={() => handleToggleWishlist(item.volume)}
-                      onSetRating={(rating) => handleSetRating(item.volume, rating)}
+                      onSetRating={(rating) =>
+                        handleSetRating(item.volume, rating)
+                      }
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
                       selected={selectedVolumeIds.has(item.volume.id)}

@@ -111,7 +111,10 @@ export default function ExportPage() {
     if (scope === "all") {
       return {
         series: currentSeries,
-        volumes: [...currentSeries.flatMap((s) => s.volumes), ...currentUnassigned]
+        volumes: [
+          ...currentSeries.flatMap((s) => s.volumes),
+          ...currentUnassigned
+        ]
       }
     }
 
@@ -326,8 +329,8 @@ export default function ExportPage() {
           <CardHeader>
             <CardTitle>Export Your Library</CardTitle>
             <CardDescription>
-              Download your entire collection—or export just a subset for sharing
-              or migration.
+              Download your entire collection—or export just a subset for
+              sharing or migration.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -341,7 +344,10 @@ export default function ExportPage() {
                 <div className="flex items-start space-x-3 rounded-lg border p-4">
                   <RadioGroupItem value="json" id="json" className="mt-1" />
                   <div className="space-y-1">
-                    <Label htmlFor="json" className="cursor-pointer font-medium">
+                    <Label
+                      htmlFor="json"
+                      className="cursor-pointer font-medium"
+                    >
                       JSON
                     </Label>
                     <p className="text-muted-foreground text-sm">
@@ -373,7 +379,10 @@ export default function ExportPage() {
                 <div className="flex items-start space-x-3 rounded-lg border p-4">
                   <RadioGroupItem value="all" id="scope-all" className="mt-1" />
                   <div className="space-y-1">
-                    <Label htmlFor="scope-all" className="cursor-pointer font-medium">
+                    <Label
+                      htmlFor="scope-all"
+                      className="cursor-pointer font-medium"
+                    >
                       All data
                     </Label>
                     <p className="text-muted-foreground text-sm">
@@ -423,7 +432,9 @@ export default function ExportPage() {
                         size="sm"
                         className="rounded-xl"
                         onClick={() =>
-                          setSelectedSeriesIds(new Set(storeSeries.map((s) => s.id)))
+                          setSelectedSeriesIds(
+                            new Set(storeSeries.map((s) => s.id))
+                          )
                         }
                       >
                         Select all

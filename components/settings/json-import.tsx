@@ -788,13 +788,12 @@ export function JsonImport() {
               </div>
             </div>
             <div className="flex items-start space-x-3 rounded-lg border p-4">
-              <RadioGroupItem
-                value="skip"
-                id="merge-skip"
-                className="mt-1"
-              />
+              <RadioGroupItem value="skip" id="merge-skip" className="mt-1" />
               <div className="space-y-1">
-                <Label htmlFor="merge-skip" className="cursor-pointer font-medium">
+                <Label
+                  htmlFor="merge-skip"
+                  className="cursor-pointer font-medium"
+                >
                   Skip
                 </Label>
                 <p className="text-muted-foreground text-sm">

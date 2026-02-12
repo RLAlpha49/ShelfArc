@@ -53,7 +53,12 @@ type JumpItem =
     }
 
 function collectSeriesJumpItems(
-  series: Array<{ id: string; title: string; author?: string | null; tags?: string[] }>,
+  series: Array<{
+    id: string
+    title: string
+    author?: string | null
+    tags?: string[]
+  }>,
   normalizedQuery: string,
   limit: number
 ): JumpItem[] {
@@ -86,7 +91,12 @@ function collectVolumeJumpItemsFromSeries(
     id: string
     title: string
     author?: string | null
-    volumes: Array<{ id: string; title?: string | null; isbn?: string | null; volume_number: number }>
+    volumes: Array<{
+      id: string
+      title?: string | null
+      isbn?: string | null
+      volume_number: number
+    }>
   }>,
   normalizedQuery: string,
   limit: number
@@ -121,7 +131,12 @@ function collectVolumeJumpItemsFromSeries(
 }
 
 function collectVolumeJumpItemsFromUnassigned(
-  volumes: Array<{ id: string; title?: string | null; isbn?: string | null; volume_number: number }>,
+  volumes: Array<{
+    id: string
+    title?: string | null
+    isbn?: string | null
+    volume_number: number
+  }>,
   normalizedQuery: string,
   limit: number
 ): JumpItem[] {
@@ -175,7 +190,11 @@ export function CommandPalette() {
     const maxSeries = 10
     const maxVolumes = 14
 
-    const seriesMatches = collectSeriesJumpItems(series, normalizedQuery, maxSeries)
+    const seriesMatches = collectSeriesJumpItems(
+      series,
+      normalizedQuery,
+      maxSeries
+    )
 
     const volumeMatches = collectVolumeJumpItemsFromSeries(
       series,

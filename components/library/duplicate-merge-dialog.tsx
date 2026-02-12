@@ -94,7 +94,9 @@ function buildIsbnDuplicateGroups(all: VolumeRef[]): DuplicateGroup[] {
   return groups
 }
 
-function buildSeriesNumberDuplicateGroups(series: SeriesWithVolumes[]): DuplicateGroup[] {
+function buildSeriesNumberDuplicateGroups(
+  series: SeriesWithVolumes[]
+): DuplicateGroup[] {
   const byKey = new Map<string, VolumeRef[]>()
 
   for (const s of series) {
@@ -141,7 +143,10 @@ function buildDuplicateGroups(
   return groups.toSorted((a, b) => b.items.length - a.items.length)
 }
 
-function mergeNotes(primary: string | null, incoming: string | null): string | null {
+function mergeNotes(
+  primary: string | null,
+  incoming: string | null
+): string | null {
   const a = safeTrim(primary)
   const b = safeTrim(incoming)
   if (!a && !b) return null
@@ -157,10 +162,7 @@ function buildAutoMergePatch(
 ): Partial<Volume> | null {
   const patch: Partial<Volume> = {}
 
-  const takeFirst = <T,>(
-    current: T | null,
-    candidate: T | null
-  ): T | null => {
+  const takeFirst = <T,>(current: T | null, candidate: T | null): T | null => {
     return current == null || current === ("" as unknown as T)
       ? candidate
       : current
@@ -243,7 +245,8 @@ export function DuplicateMergeDialog({
   const resolveGroup = useCallback(
     async (group: DuplicateGroup) => {
       const keepId =
-        keepByGroupId[group.id] ?? group.items.toSorted(newestFirst)[0]?.volume.id
+        keepByGroupId[group.id] ??
+        group.items.toSorted(newestFirst)[0]?.volume.id
 
       const keepRef = group.items.find((ref) => ref.volume.id === keepId)
       if (!keepRef) return
@@ -296,9 +299,7 @@ export function DuplicateMergeDialog({
 
         <div className="space-y-4">
           <div className="bg-muted/20 flex flex-wrap items-center gap-2 rounded-xl border p-3">
-            <div className="text-muted-foreground text-xs">
-              {groupsSummary}
-            </div>
+            <div className="text-muted-foreground text-xs">{groupsSummary}</div>
 
             <div className="flex-1" />
 
@@ -333,15 +334,16 @@ export function DuplicateMergeDialog({
 
           {!hasAnyData && (
             <div className="text-muted-foreground rounded-xl border p-4 text-xs">
-              Your library hasn&apos;t been loaded yet. Open the Library page (or
-              click Refresh) and try again.
+              Your library hasn&apos;t been loaded yet. Open the Library page
+              (or click Refresh) and try again.
             </div>
           )}
 
           {groups.length > 0 && (
             <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
               {groups.map((group) => {
-                const defaultKeep = group.items.toSorted(newestFirst)[0]?.volume.id
+                const defaultKeep =
+                  group.items.toSorted(newestFirst)[0]?.volume.id
                 const keepValue = keepByGroupId[group.id] ?? defaultKeep
                 const busy = busyGroupId === group.id
 
@@ -389,7 +391,8 @@ export function DuplicateMergeDialog({
                           const volume = ref.volume
                           const seriesLabel = ref.seriesTitle ?? "Unassigned"
                           const title =
-                            safeTrim(volume.title) || `Vol. ${volume.volume_number}`
+                            safeTrim(volume.title) ||
+                            `Vol. ${volume.volume_number}`
 
                           return (
                             <label
@@ -411,12 +414,20 @@ export function DuplicateMergeDialog({
                                 </div>
                                 <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
                                   {volume.isbn && (
-                                    <span className="tabular-nums">ISBN {volume.isbn}</span>
+                                    <span className="tabular-nums">
+                                      ISBN {volume.isbn}
+                                    </span>
                                   )}
-                                  {volume.edition && <span>{volume.edition}</span>}
-                                  {volume.format && <span>{volume.format}</span>}
+                                  {volume.edition && (
+                                    <span>{volume.edition}</span>
+                                  )}
+                                  {volume.format && (
+                                    <span>{volume.format}</span>
+                                  )}
                                   {volume.rating != null && (
-                                    <span className="tabular-nums">{volume.rating}/10</span>
+                                    <span className="tabular-nums">
+                                      {volume.rating}/10
+                                    </span>
                                   )}
                                 </div>
                               </div>
