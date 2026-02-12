@@ -840,12 +840,6 @@ export function VolumeDialog({
     return `https://www.${amazonDomain}/s?k=${encodeURIComponent(searchQuery)}`
   }
 
-  const handleOpenAmazonSearch = () => {
-    const url = getAmazonSearchUrl()
-    if (!url) return
-    window.open(url, "_blank", "noopener,noreferrer")
-  }
-
   const handleOpenAmazonPage = () => {
     const url = formData.amazon_url || getAmazonSearchUrl()
     if (!url) return
@@ -1037,130 +1031,322 @@ export function VolumeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl p-0 sm:max-w-3xl">
-        <DialogHeader className="bg-warm/30 rounded-t-2xl border-b px-6 pt-6 pb-4">
-          <DialogTitle className="font-display">
-            {isEditing ? "Edit Volume" : "Add Volume"}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? "Update volume details"
-              : "Add a new volume to this series"}
-          </DialogDescription>
+        <DialogHeader className="relative overflow-hidden rounded-t-2xl border-b px-6 pt-7 pb-5">
+          <div className="bg-warm/40 pointer-events-none absolute inset-0" />
+          <div className="from-warm-glow/60 via-warm-glow/20 pointer-events-none absolute inset-0 bg-linear-to-br to-transparent" />
+          <div className="relative">
+            <DialogTitle className="font-display text-lg tracking-tight">
+              {isEditing ? "Edit Volume" : "Add Volume"}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground/80 mt-1 text-[13px]">
+              {isEditing
+                ? "Update volume details"
+                : "Add a new volume to this series"}
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          className="space-y-6 px-6 pt-6"
+          className="divide-border/60 divide-y"
         >
           {showSeriesSelect && seriesOptions && (
-            <SeriesPicker
-              seriesOptions={seriesOptions}
-              selectedSeriesOption={selectedSeriesOption}
-              selectedSeriesId={selectedSeriesId}
-              onSeriesChange={onSeriesChange}
-              onCreateSeries={onCreateSeries}
-              allowNoSeries={allowNoSeries}
-            />
+            <div className="px-6 py-5">
+              <SeriesPicker
+                seriesOptions={seriesOptions}
+                selectedSeriesOption={selectedSeriesOption}
+                selectedSeriesId={selectedSeriesId}
+                onSeriesChange={onSeriesChange}
+                onCreateSeries={onCreateSeries}
+                allowNoSeries={allowNoSeries}
+              />
+            </div>
           )}
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-6">
-              {/* Volume Info */}
-              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
-                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
-                  Volume Info
-                </legend>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="volume_number">Volume Number *</Label>
-                    <Input
-                      id="volume_number"
-                      type="number"
-                      min={0}
-                      value={formData.volume_number}
-                      onChange={(e) =>
-                        updateField(
-                          "volume_number",
-                          Number.parseInt(e.target.value) || 1
-                        )
+          {/* ── Cover + Volume Details ── */}
+          <div className="grid gap-x-6 gap-y-5 px-6 py-6 sm:grid-cols-[200px_minmax(0,1fr)]">
+            {/* Cover Art */}
+            <div className="flex flex-col items-center gap-3 sm:items-start">
+              {coverUrl && !coverPreviewError && (
+                <CoverPreviewImage
+                  key={coverUrl}
+                  src={coverUrl}
+                  alt="Cover preview"
+                  wrapperClassName="w-full max-w-[200px]"
+                  onError={() => {
+                    setCoverPreviewError(true)
+                    setPreviewUrl(null)
+                  }}
+                />
+              )}
+              {coverPreviewError && (
+                <div className="bg-muted text-muted-foreground flex aspect-2/3 w-full max-w-50 items-center justify-center rounded-xl text-xs">
+                  Preview unavailable
+                </div>
+              )}
+              {!coverUrl && !coverPreviewError && (
+                <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-full max-w-50 flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-muted-foreground/60 h-8 w-8"
+                  >
+                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                    <circle cx="9" cy="9" r="2" />
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                  </svg>
+                  <span className="text-muted-foreground/60 text-[10px]">
+                    No cover
+                  </span>
+                </div>
+              )}
+
+              {/* Cover controls */}
+              <div className="w-full max-w-50 space-y-2.5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cover_image_url" className="text-[11px]">
+                    Cover URL
+                  </Label>
+                  <Input
+                    id="cover_image_url"
+                    type="url"
+                    placeholder="https://..."
+                    value={formData.cover_image_url}
+                    onChange={(e) => {
+                      setCoverPreviewError(false)
+                      updateField("cover_image_url", e.target.value)
+                    }}
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="cover_image_upload" className="text-[11px]">
+                    Upload Cover
+                  </Label>
+                  <Input
+                    id="cover_image_upload"
+                    type="file"
+                    accept="image/*"
+                    className="h-8 text-xs"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        if (file.size > MAX_COVER_SIZE_BYTES) {
+                          toast.error("Cover images must be 5MB or smaller.")
+                        } else {
+                          void handleCoverFileChange(file)
+                        }
                       }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2 lg:col-span-2">
-                    <Label htmlFor="title">Volume Title</Label>
-                    <Input
-                      id="title"
-                      placeholder="Optional subtitle"
-                      value={formData.title}
-                      onChange={(e) => updateField("title", e.target.value)}
-                    />
-                  </div>
+                      e.currentTarget.value = ""
+                    }}
+                  />
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="isbn">ISBN</Label>
-                    <Input
-                      id="isbn"
-                      placeholder="978-..."
-                      value={formData.isbn}
-                      onChange={(e) => updateField("isbn", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="rating">Rating (1-10)</Label>
-                    <Input
-                      id="rating"
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={formData.rating}
-                      onChange={(e) => updateField("rating", e.target.value)}
-                    />
-                  </div>
+                <div className="flex items-center gap-2">
+                  {formData.cover_image_url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => {
+                        updateField("cover_image_url", "")
+                        setCoverPreviewError(false)
+                        setPreviewUrl(null)
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  {isUploadingCover && (
+                    <span className="text-muted-foreground text-xs">
+                      Uploading...
+                    </span>
+                  )}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <p className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-widest uppercase">
+                    Cover tools
+                  </p>
+
                   <div className="space-y-2">
-                    <Label htmlFor="publish_date">Publish Date</Label>
-                    <Input
-                      id="publish_date"
-                      type="date"
-                      value={formData.publish_date}
-                      onChange={(e) =>
-                        updateField("publish_date", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edition">Edition</Label>
-                    <Input
-                      id="edition"
-                      placeholder="e.g. 1st, Deluxe"
-                      value={formData.edition}
-                      onChange={(e) => updateField("edition", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="format">Format</Label>
-                    <Input
-                      id="format"
-                      placeholder="e.g. Paperback, Hardcover"
-                      value={formData.format}
-                      onChange={(e) => updateField("format", e.target.value)}
-                    />
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 rounded-lg"
+                        onClick={handleFetchAmazonImage}
+                        disabled={isBusy}
+                      >
+                        {isFetchingImage && isFetchingPrice ? (
+                          <>
+                            <svg
+                              className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                              />
+                            </svg>
+                            Fetching...
+                          </>
+                        ) : (
+                          "Fetch Amazon Image & Price"
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 rounded-lg"
+                        onClick={handleFetchAmazonImageOnly}
+                        disabled={isBusy}
+                      >
+                        {isFetchingImage && !isFetchingPrice ? (
+                          <>
+                            <svg
+                              className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                              />
+                            </svg>
+                            Fetching...
+                          </>
+                        ) : (
+                          "Fetch Amazon Image Only"
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full rounded-lg"
+                        onClick={handleOpenCoverSearch}
+                        disabled={!coverSearchUrl}
+                        title={
+                          coverSearchUrl
+                            ? "Search Google Images for cover art"
+                            : "Add a title to enable image search"
+                        }
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mr-1.5 h-4 w-4"
+                        >
+                          <circle cx="11" cy="11" r="8" />
+                          <path d="m21 21-4.3-4.3" />
+                        </svg>
+                        Google Images
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </fieldset>
+              </div>
+            </div>
 
-              {/* Status */}
-              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
-                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
+            {/* Volume Details */}
+            <div className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="volume_number">Volume Number *</Label>
+                  <Input
+                    id="volume_number"
+                    type="number"
+                    min={0}
+                    value={formData.volume_number}
+                    onChange={(e) =>
+                      updateField(
+                        "volume_number",
+                        Number.parseInt(e.target.value) || 1
+                      )
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="title">Volume Title</Label>
+                  <Input
+                    id="title"
+                    placeholder="Optional subtitle"
+                    value={formData.title}
+                    onChange={(e) => updateField("title", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="isbn">ISBN</Label>
+                  <Input
+                    id="isbn"
+                    placeholder="978-..."
+                    value={formData.isbn}
+                    onChange={(e) => updateField("isbn", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rating">Rating (1-10)</Label>
+                  <Input
+                    id="rating"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={formData.rating}
+                    onChange={(e) => updateField("rating", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-widest uppercase">
                   Status
-                </legend>
-                <div className="grid gap-4 md:grid-cols-2">
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="ownership_status">Ownership Status</Label>
                     <Select
@@ -1214,31 +1400,71 @@ export function VolumeDialog({
                     </Select>
                   </div>
                 </div>
-              </fieldset>
+              </div>
 
-              {/* Pages */}
-              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
-                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
-                  Pages
-                </legend>
-                <div className="space-y-2">
-                  <Label htmlFor="page_count">Total Pages</Label>
-                  <Input
-                    id="page_count"
-                    type="number"
-                    min={0}
-                    value={formData.page_count}
-                    onChange={(e) => updateField("page_count", e.target.value)}
-                  />
+              <div>
+                <p className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-widest uppercase">
+                  Publication
+                </p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="publish_date">Publish Date</Label>
+                    <Input
+                      id="publish_date"
+                      type="date"
+                      value={formData.publish_date}
+                      onChange={(e) =>
+                        updateField("publish_date", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edition">Edition</Label>
+                    <Input
+                      id="edition"
+                      placeholder="e.g. 1st, Deluxe"
+                      value={formData.edition}
+                      onChange={(e) => updateField("edition", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="format">Format</Label>
+                    <Input
+                      id="format"
+                      placeholder="e.g. Paperback, Hardcover"
+                      value={formData.format}
+                      onChange={(e) => updateField("format", e.target.value)}
+                    />
+                  </div>
                 </div>
-              </fieldset>
 
-              {/* Purchase */}
-              <fieldset className="glass-card space-y-4 rounded-2xl p-4">
-                <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
-                  Purchase
-                </legend>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="page_count">Total Pages</Label>
+                    <Input
+                      id="page_count"
+                      type="number"
+                      min={0}
+                      value={formData.page_count}
+                      onChange={(e) =>
+                        updateField("page_count", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2.5 flex items-end justify-between gap-3">
+                  <p className="text-muted-foreground text-[11px] font-medium tracking-widest uppercase">
+                    Purchase
+                  </p>
+                  <span className="text-muted-foreground text-xs">
+                    {priceDisplayCurrency} · {priceCurrencySymbol}
+                  </span>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="purchase_date">Purchase Date</Label>
                     <Input
@@ -1251,12 +1477,7 @@ export function VolumeDialog({
                     />
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="purchase_price">Price</Label>
-                      <span className="text-muted-foreground text-xs">
-                        {priceDisplayCurrency} · {priceCurrencySymbol}
-                      </span>
-                    </div>
+                    <Label htmlFor="purchase_price">Price</Label>
                     <InputGroup>
                       <InputGroupAddon align="inline-start">
                         <InputGroupText>{priceCurrencySymbol}</InputGroupText>
@@ -1275,7 +1496,8 @@ export function VolumeDialog({
                     </InputGroup>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -1311,38 +1533,16 @@ export function VolumeDialog({
                       "Fetch Amazon Price"
                     )}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 rounded-xl p-0"
-                    onClick={handleOpenAmazonSearch}
-                    disabled={!getAmazonSearchUrl()}
-                    title="Open Amazon search in new tab"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-3.5 w-3.5"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                  </Button>
                   <span className="text-muted-foreground text-[11px]">
                     Price only
                   </span>
                 </div>
+
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="rounded-xl"
+                  className="mt-2 rounded-xl"
                   onClick={handleOpenAmazonPage}
                   disabled={!formData.amazon_url && !getAmazonSearchUrl()}
                 >
@@ -1362,357 +1562,94 @@ export function VolumeDialog({
                   </svg>
                   {formData.amazon_url ? "Open on Amazon" : "Search on Amazon"}
                 </Button>
-              </fieldset>
+              </div>
             </div>
+          </div>
 
-            {/* Cover Art sidebar */}
-            <fieldset className="glass-card space-y-4 self-start rounded-2xl p-4">
-              <legend className="text-muted-foreground px-1 text-xs tracking-widest uppercase">
-                Cover Art
-              </legend>
-
-              {/* Preview */}
-              {coverUrl && !coverPreviewError && (
-                <div className="flex justify-center">
-                  <CoverPreviewImage
-                    key={coverUrl}
-                    src={coverUrl}
-                    alt="Cover preview"
-                    onError={() => {
-                      setCoverPreviewError(true)
-                      setPreviewUrl(null)
-                    }}
-                  />
-                </div>
-              )}
-              {coverPreviewError && (
-                <div className="flex justify-center">
-                  <div className="bg-muted text-muted-foreground flex aspect-2/3 w-40 items-center justify-center rounded-xl text-xs">
-                    Preview unavailable
-                  </div>
-                </div>
-              )}
-              {!coverUrl && !coverPreviewError && (
-                <div className="flex justify-center">
-                  <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-muted-foreground/60 h-8 w-8"
-                    >
-                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                      <circle cx="9" cy="9" r="2" />
-                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                    </svg>
-                    <span className="text-muted-foreground/60 text-[10px]">
-                      No cover
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="cover_image_url">Cover Image URL</Label>
-                <Input
-                  id="cover_image_url"
-                  type="url"
-                  placeholder="https://..."
-                  value={formData.cover_image_url}
-                  onChange={(e) => {
-                    setCoverPreviewError(false)
-                    updateField("cover_image_url", e.target.value)
-                  }}
-                />
-              </div>
-
-              {/* Action buttons */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 rounded-xl"
-                    onClick={handleFetchAmazonImage}
-                    disabled={isBusy}
-                  >
-                    {isFetchingImage && isFetchingPrice ? (
-                      <>
-                        <svg
-                          className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                          />
-                        </svg>
-                        Fetching image &amp; price...
-                      </>
-                    ) : (
-                      "Fetch Amazon Image & Price"
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 shrink-0 rounded-xl p-0"
-                    onClick={handleOpenAmazonSearch}
-                    disabled={!getAmazonSearchUrl()}
-                    title="Open Amazon search in new tab"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-3.5 w-3.5"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                  </Button>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 rounded-xl"
-                    onClick={handleFetchAmazonImageOnly}
-                    disabled={isBusy}
-                  >
-                    {isFetchingImage && !isFetchingPrice ? (
-                      <>
-                        <svg
-                          className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                          />
-                        </svg>
-                        Fetching image...
-                      </>
-                    ) : (
-                      "Fetch Amazon Image Only"
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 shrink-0 rounded-xl p-0"
-                    onClick={handleOpenAmazonSearch}
-                    disabled={!getAmazonSearchUrl()}
-                    title="Open Amazon search in new tab"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-3.5 w-3.5"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                  </Button>
-                </div>
-                <div className="text-muted-foreground space-y-1 text-[11px] leading-snug">
-                  <p>
-                    Grabs the cover image and price from the top Amazon search
-                    result in a single request.
-                  </p>
-                  <p>Use image-only if you don&apos;t want price updates.</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl"
-                  onClick={handleOpenCoverSearch}
-                  disabled={!coverSearchUrl}
-                  title={
-                    coverSearchUrl
-                      ? "Search Google Images for cover art"
-                      : "Add a title to enable image search"
-                  }
-                >
+          {/* Amazon warning callout — shown after any Amazon fetch */}
+          {showAmazonWarning && showAmazonDisclaimer && (
+            <div className="px-6 py-5">
+              <div className="border-gold/30 bg-gold/5 rounded-xl border px-4 py-3">
+                <div className="flex items-start gap-2.5">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="1.5"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="mr-1.5 h-4 w-4"
+                    className="text-gold mt-0.5 h-4 w-4 shrink-0"
                   >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+                    <path d="M12 9v4" />
+                    <path d="M12 17h.01" />
                   </svg>
-                  Google Images
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="cover_image_upload">Upload Cover Image</Label>
-                <Input
-                  id="cover_image_upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      if (file.size > MAX_COVER_SIZE_BYTES) {
-                        toast.error("Cover images must be 5MB or smaller.")
-                      } else {
-                        void handleCoverFileChange(file)
-                      }
-                    }
-                    e.currentTarget.value = ""
-                  }}
-                />
-                <div className="flex items-center gap-2">
-                  {formData.cover_image_url && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        updateField("cover_image_url", "")
-                        setCoverPreviewError(false)
-                        setPreviewUrl(null)
-                      }}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                  {isUploadingCover && (
-                    <span className="text-muted-foreground text-xs">
-                      Uploading...
-                    </span>
-                  )}
-                </div>
-              </div>
-            </fieldset>
-          </div>
-
-          {/* Amazon warning callout — shown after any Amazon fetch */}
-          {showAmazonWarning && showAmazonDisclaimer && (
-            <div className="border-gold/30 bg-gold/5 rounded-xl border px-4 py-3">
-              <div className="flex items-start gap-2.5">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-gold mt-0.5 h-4 w-4 shrink-0"
-                >
-                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
-                  <path d="M12 9v4" />
-                  <path d="M12 17h.01" />
-                </svg>
-                <div className="space-y-1.5">
-                  <p className="text-foreground text-xs font-semibold">
-                    Amazon Data Disclaimer
-                  </p>
-                  <p className="text-muted-foreground text-[11px] leading-relaxed">
-                    The cover image from Amazon is usually{" "}
-                    <strong>much higher quality</strong> than other sources,
-                    however it could be incorrect if the top search result
-                    doesn&apos;t match. The price is generally reliable — if the
-                    wrong product is matched, the lookup usually fails outright
-                    rather than returning incorrect data.
-                  </p>
-                  <p className="text-muted-foreground text-[11px] leading-relaxed">
-                    Amazon may use anti-scraping measures that temporarily
-                    prevent fetching. If requests fail repeatedly, the feature
-                    will automatically pause and retry later. You can wait and
-                    try again.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-[11px]"
-                      onClick={() => {
-                        setShowAmazonDisclaimer(false)
-                        setShowAmazonWarning(false)
-                      }}
-                    >
-                      Don&apos;t show again
-                    </Button>
+                  <div className="space-y-1.5">
+                    <p className="text-foreground text-xs font-semibold">
+                      Amazon Data Disclaimer
+                    </p>
+                    <p className="text-muted-foreground text-[11px] leading-relaxed">
+                      The cover image from Amazon is usually{" "}
+                      <strong>much higher quality</strong> than other sources,
+                      however it could be incorrect if the top search result
+                      doesn&apos;t match. The price is generally reliable — if
+                      the wrong product is matched, the lookup usually fails
+                      outright rather than returning incorrect data.
+                    </p>
+                    <p className="text-muted-foreground text-[11px] leading-relaxed">
+                      Amazon may use anti-scraping measures that temporarily
+                      prevent fetching. If requests fail repeatedly, the feature
+                      will automatically pause and retry later. You can wait and
+                      try again.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-[11px]"
+                        onClick={() => {
+                          setShowAmazonDisclaimer(false)
+                          setShowAmazonWarning(false)
+                        }}
+                      >
+                        Don&apos;t show again
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              placeholder="Short summary or synopsis..."
-              rows={4}
-              value={formData.description}
-              onChange={(e) => updateField("description", e.target.value)}
-            />
+          {/* ── Description & Notes ── */}
+          <div className="space-y-5 px-6 py-5">
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Short summary or synopsis..."
+                rows={4}
+                value={formData.description}
+                onChange={(e) => updateField("description", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                placeholder="Any personal notes about this volume..."
+                rows={3}
+                value={formData.notes}
+                onChange={(e) => updateField("notes", e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Any personal notes about this volume..."
-              rows={3}
-              value={formData.notes}
-              onChange={(e) => updateField("notes", e.target.value)}
-            />
-          </div>
-
-          <DialogFooter className="px-6 pb-6">
+          {/* ── Footer ── */}
+          <DialogFooter className="bg-muted/30 px-6 py-4">
             <Button
               type="button"
               variant="outline"
