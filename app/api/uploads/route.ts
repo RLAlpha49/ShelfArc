@@ -5,6 +5,7 @@ import { ReadableStream } from "node:stream/web"
 import sharp from "sharp"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
+import { isSafeStoragePath } from "@/lib/storage/safe-path"
 
 /** Forces Node.js runtime for sharp image processing. @source */
 export const runtime = "nodejs"
@@ -53,10 +54,6 @@ const isDev = process.env.NODE_ENV !== "production"
 /** Extracts a human-readable message from an unknown error. @source */
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "Upload failed"
-
-/** Checks that a path has no directory traversal or backslash sequences. @source */
-const isSafePath = (path: string) =>
-  !(path.includes("..") || path.includes("\\") || path.startsWith("/"))
 
 /** Builds a JSON error response with the given status. @source */
 const buildError = (message: string, status: number) =>
@@ -264,7 +261,7 @@ const getUploadData = (formData: FormData, userId: string) => {
     typeof replacePath === "string" ? replacePath.trim() : ""
   if (
     replacePathValue &&
-    (!isSafePath(replacePathValue) ||
+    (!isSafeStoragePath(replacePathValue) ||
       !replacePathValue.startsWith(`${userId}/`))
   ) {
     return buildError("Invalid replace path", 400)

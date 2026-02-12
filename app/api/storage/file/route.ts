@@ -1,52 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
+import { isSafeStoragePath } from "@/lib/storage/safe-path"
 
 /** Supabase Storage bucket for user media files. @source */
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media"
-
-/**
- * Validates that a storage path contains no traversal or encoded-escape attacks.
- * @param path - The storage file path to validate.
- * @returns `true` if the path is safe to use.
- * @source
- */
-const isSafePath = (path: string) => {
-  let decodedPath = path
-
-  try {
-    for (let i = 0; i < 2; i += 1) {
-      const next = decodeURIComponent(decodedPath)
-      if (next === decodedPath) break
-      decodedPath = next
-    }
-  } catch {
-    return false
-  }
-
-  const lowerPath = path.toLowerCase()
-  const decodedLowerPath = decodedPath.toLowerCase()
-  const blockedSequences = ["%2e", "%2f", "%5c", "%00"]
-
-  if (
-    blockedSequences.some(
-      (sequence) =>
-        lowerPath.includes(sequence) || decodedLowerPath.includes(sequence)
-    )
-  ) {
-    return false
-  }
-
-  if (
-    decodedPath.includes("..") ||
-    decodedPath.includes("\\") ||
-    decodedPath.startsWith("/")
-  ) {
-    return false
-  }
-
-  return true
-}
 
 /**
  * Downloads a user-owned file from Supabase Storage, scoped to the authenticated user's directory.
@@ -61,7 +19,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing path" }, { status: 400 })
   }
 
-  if (!isSafePath(path)) {
+  if (!isSafeStoragePath(path)) {
     return NextResponse.json({ error: "Invalid path" }, { status: 400 })
   }
 
