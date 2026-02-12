@@ -63,25 +63,25 @@ export function SeriesCard({
 
   return (
     <div className="card-hover hover-lift group relative h-full w-full">
+      {showSelection && (
+        <div
+          className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+        >
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onSelect?.()}
+            aria-label={`Select ${series.title}`}
+            className="h-5 w-5 border-2"
+          />
+        </div>
+      )}
+
       <button
         type="button"
         className={`press-effect bg-card hover:bg-accent/50 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-all hover:shadow-lg ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
-        {showSelection && (
-          <div
-            className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
-          >
-            <Checkbox
-              checked={selected}
-              onCheckedChange={() => onSelect?.()}
-              onClick={(event) => event.stopPropagation()}
-              aria-label={`Select ${series.title}`}
-              className="h-5 w-5 border-2"
-            />
-          </div>
-        )}
 
         <div className="bg-muted relative aspect-2/3">
           <CoverImage

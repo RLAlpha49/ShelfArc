@@ -169,25 +169,25 @@ function SeriesListItem({
 
   return (
     <div className="group relative">
+      {showSelection && (
+        <div
+          className={`absolute left-4 top-1/2 z-10 -translate-y-1/2 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+        >
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onSelect?.()}
+            aria-label={`Select ${series.title}`}
+            className="h-5 w-5 border-2"
+          />
+        </div>
+      )}
+
       <button
         type="button"
-        className={`group glass-card hover:bg-accent flex w-full cursor-pointer items-start gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`group glass-card hover:bg-accent flex w-full cursor-pointer items-start gap-4 rounded-2xl p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${showSelection ? "pl-14" : ""} ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
-        {showSelection && (
-          <div
-            className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
-          >
-            <Checkbox
-              checked={selected}
-              onCheckedChange={() => onSelect?.()}
-              onClick={(event) => event.stopPropagation()}
-              aria-label={`Select ${series.title}`}
-              className="h-5 w-5 border-2"
-            />
-          </div>
-        )}
         <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-xl">
           <CoverImage
             isbn={primaryIsbn}
@@ -384,6 +384,19 @@ function VolumeGridItem({
 
   return (
     <div className="group relative">
+      {showSelection && (
+        <div
+          className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+        >
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onSelect?.()}
+            aria-label={`Select ${coverAlt}`}
+            className="h-5 w-5 border-2"
+          />
+        </div>
+      )}
+
       <button
         type="button"
         className={`bg-card hover:bg-accent/60 group-hover:bg-accent/60 relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-colors ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
@@ -409,19 +422,6 @@ function VolumeGridItem({
             }
           />
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
-          {showSelection && (
-            <div
-              className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
-            >
-              <Checkbox
-                checked={selected}
-                onCheckedChange={() => onSelect?.()}
-                onClick={(event) => event.stopPropagation()}
-                aria-label={`Select ${coverAlt}`}
-                className="h-5 w-5 border-2"
-              />
-            </div>
-          )}
         </div>
         <div className="mt-2.5 space-y-1.5 px-1 pb-2">
           <p className="font-display line-clamp-1 font-medium">
@@ -624,25 +624,25 @@ function VolumeListItem({
 
   return (
     <div className="group relative">
+      {showSelection && (
+        <div
+          className={`absolute left-4 top-1/2 z-10 -translate-y-1/2 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+        >
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onSelect?.()}
+            aria-label={`Select ${coverAlt}`}
+            className="h-5 w-5 border-2"
+          />
+        </div>
+      )}
+
       <button
         type="button"
-        className={`glass-card hover:bg-accent group-hover:bg-accent relative flex w-full cursor-pointer items-start gap-4 rounded-2xl p-4 text-left shadow-sm transition-all group-hover:-translate-y-0.5 group-hover:shadow-md hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`glass-card hover:bg-accent group-hover:bg-accent relative flex w-full cursor-pointer items-start gap-4 rounded-2xl p-4 text-left shadow-sm transition-all group-hover:-translate-y-0.5 group-hover:shadow-md hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${showSelection ? "pl-14" : ""} ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
-        {showSelection && (
-          <div
-            className={`flex items-center transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
-          >
-            <Checkbox
-              checked={selected}
-              onCheckedChange={() => onSelect?.()}
-              onClick={(event) => event.stopPropagation()}
-              aria-label={`Select ${coverAlt}`}
-              className="h-5 w-5 border-2"
-            />
-          </div>
-        )}
         <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-xl">
           <CoverImage
             isbn={item.volume.isbn}
