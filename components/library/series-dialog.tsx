@@ -563,7 +563,7 @@ export function SeriesDialog({
                         No unassigned volumes available yet.
                       </div>
                     ) : (
-                      <div className="max-h-60 overflow-y-auto pr-3">
+                      <div className="max-h-60 overflow-y-auto p-2">
                         <RadioGroup
                           value={basisVolumeId ?? ""}
                           onValueChange={(value) =>
