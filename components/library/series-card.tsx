@@ -5,6 +5,13 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CoverImage } from "@/components/library/cover-image"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import type { SeriesWithVolumes, TitleType } from "@/lib/types/database"
 
 /** Props for the {@link SeriesCard} component. @source */
@@ -13,6 +20,7 @@ interface SeriesCardProps {
   readonly onEdit: () => void
   readonly onDelete: () => void
   readonly onClick: () => void
+  readonly onBulkScrape?: () => void
   readonly selected?: boolean
   readonly onSelect?: () => void
 }
@@ -34,6 +42,7 @@ export function SeriesCard({
   onEdit,
   onDelete,
   onClick,
+  onBulkScrape,
   selected = false,
   onSelect
 }: SeriesCardProps) {
@@ -165,29 +174,90 @@ export function SeriesCard({
         </div>
       </button>
 
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 overflow-hidden opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        <button
-          type="button"
-          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation()
-            onEdit()
-          }}
-          aria-label={`Edit ${series.title}`}
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          className="bg-background/80 hover:bg-destructive/15 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
-          onClick={(event) => {
-            event.stopPropagation()
-            onDelete()
-          }}
-          aria-label={`Delete ${series.title}`}
-        >
-          Delete
-        </button>
+      <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 w-8 items-center justify-center rounded-xl shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
+            onClick={(event) => event.stopPropagation()}
+            aria-label={`Actions for ${series.title}`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {onBulkScrape && (
+              <DropdownMenuItem onClick={() => onBulkScrape()}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-2 h-4 w-4"
+                >
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                  <path d="M16 16h5v5" />
+                </svg>
+                Bulk Scrape Prices
+              </DropdownMenuItem>
+            )}
+            {onBulkScrape && <DropdownMenuSeparator />}
+            <DropdownMenuItem onClick={() => onEdit()}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 h-4 w-4"
+              >
+                <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+              </svg>
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => onDelete()}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 h-4 w-4"
+              >
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   )

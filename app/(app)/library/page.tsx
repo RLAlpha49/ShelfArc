@@ -6,6 +6,7 @@ import { SeriesCard } from "@/components/library/series-card"
 import { SeriesDialog } from "@/components/library/series-dialog"
 import { AssignToSeriesDialog } from "@/components/library/assign-to-series-dialog"
 import { DuplicateMergeDialog } from "@/components/library/duplicate-merge-dialog"
+import { BulkScrapeDialog } from "@/components/library/bulk-scrape-dialog"
 import { VolumeDialog } from "@/components/library/volume-dialog"
 import { BookSearchDialog } from "@/components/library/book-search-dialog"
 import { LibraryToolbar } from "@/components/library/library-toolbar"
@@ -394,6 +395,7 @@ function VolumeActionsMenu({
   isCompleted,
   isWishlisted,
   rating,
+  onScrapePrice,
   onToggleRead,
   onToggleWishlist,
   onSetRating,
@@ -406,6 +408,7 @@ function VolumeActionsMenu({
   readonly isCompleted: boolean
   readonly isWishlisted: boolean
   readonly rating: number | null
+  readonly onScrapePrice?: () => void
   readonly onToggleRead?: () => void
   readonly onToggleWishlist?: () => void
   readonly onSetRating?: (rating: number | null) => void
@@ -462,6 +465,27 @@ function VolumeActionsMenu({
           <span className="truncate">Amazon</span>
           <span className="sr-only">{amazonLabel}</span>
         </DropdownMenuItem>
+
+        {onScrapePrice && (
+          <DropdownMenuItem onClick={() => onScrapePrice()}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-2 h-4 w-4"
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 16h5v5" />
+            </svg>
+            Scrape Price
+          </DropdownMenuItem>
+        )}
 
         {onToggleRead && (
           <DropdownMenuItem onClick={() => onToggleRead()}>
@@ -621,6 +645,7 @@ function VolumeGridItem({
   onClick,
   onEdit,
   onDelete,
+  onScrapePrice,
   onToggleRead,
   onToggleWishlist,
   onSetRating,
@@ -633,6 +658,7 @@ function VolumeGridItem({
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly onScrapePrice?: () => void
   readonly onToggleRead?: () => void
   readonly onToggleWishlist?: () => void
   readonly onSetRating?: (rating: number | null) => void
@@ -751,6 +777,7 @@ function VolumeGridItem({
           isCompleted={isCompleted}
           isWishlisted={isWishlisted}
           rating={item.volume.rating}
+          onScrapePrice={onScrapePrice}
           onToggleRead={onToggleRead}
           onToggleWishlist={onToggleWishlist}
           onSetRating={onSetRating}
@@ -771,6 +798,7 @@ function VolumeListItem({
   onClick,
   onEdit,
   onDelete,
+  onScrapePrice,
   onToggleRead,
   onToggleWishlist,
   onSetRating,
@@ -783,6 +811,7 @@ function VolumeListItem({
   readonly onClick: () => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly onScrapePrice?: () => void
   readonly onToggleRead?: () => void
   readonly onToggleWishlist?: () => void
   readonly onSetRating?: (rating: number | null) => void
@@ -928,6 +957,7 @@ function VolumeListItem({
           isCompleted={isCompleted}
           isWishlisted={isWishlisted}
           rating={item.volume.rating}
+          onScrapePrice={onScrapePrice}
           onToggleRead={onToggleRead}
           onToggleWishlist={onToggleWishlist}
           onSetRating={onSetRating}
@@ -1008,6 +1038,9 @@ export default function LibraryPage() {
   const [assignToSeriesDialogOpen, setAssignToSeriesDialogOpen] =
     useState(false)
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
+  const [scrapeTarget, setScrapeTarget] = useState<SeriesWithVolumes | null>(
+    null
+  )
 
   useEffect(() => {
     fetchSeries()
@@ -1242,6 +1275,40 @@ export default function LibraryPage() {
     },
     [selectedSeriesIds, series, editVolume]
   )
+
+  const handleBulkScrapeSelected = useCallback(() => {
+    let targets: SeriesWithVolumes[]
+    if (collectionView === "series") {
+      targets = filteredSeries.filter((s) => selectedSeriesIds.has(s.id))
+    } else {
+      const seriesMap = new Map<string, SeriesWithVolumes>()
+      for (const s of series) {
+        const selectedVols = s.volumes.filter((v) => selectedVolumeIds.has(v.id))
+        if (selectedVols.length > 0) {
+          seriesMap.set(s.id, { ...s, volumes: selectedVols })
+        }
+      }
+      targets = Array.from(seriesMap.values())
+    }
+    if (targets.length === 0) return
+
+    if (targets.length === 1) {
+      setScrapeTarget(targets[0])
+      return
+    }
+
+    // Combine all volumes into a single synthetic series, tagging each
+    // volume with its real series title so the scrape hook uses the
+    // correct Amazon search query per volume.
+    const allVolumes = targets.flatMap((s) =>
+      s.volumes.map((v) => ({ ...v, _seriesTitle: s.title }))
+    )
+    setScrapeTarget({
+      ...targets[0],
+      title: `${targets.length} series`,
+      volumes: allVolumes
+    })
+  }, [collectionView, filteredSeries, selectedSeriesIds, series, selectedVolumeIds])
 
   const applyVolumeOwnershipStatus = useCallback(
     async (status: OwnershipStatus) => {
@@ -1702,6 +1769,45 @@ export default function LibraryPage() {
     [editVolume]
   )
 
+  const openSeriesScrapeDialog = useCallback((seriesItem: SeriesWithVolumes) => {
+    setScrapeTarget(seriesItem)
+  }, [])
+
+  const openVolumeScrapeDialog = useCallback(
+    (volume: Volume, seriesItem?: SeriesWithVolumes) => {
+      if (seriesItem) {
+        setScrapeTarget({
+          ...seriesItem,
+          volumes: [volume]
+        })
+        return
+      }
+
+      const standaloneTitle = volume.title?.trim() || `Volume ${volume.volume_number}`
+      const standaloneSeries: SeriesWithVolumes = {
+        id: `unassigned-${volume.id}`,
+        user_id: volume.user_id,
+        title: standaloneTitle,
+        original_title: null,
+        description: null,
+        notes: null,
+        author: null,
+        artist: null,
+        publisher: null,
+        cover_image_url: volume.cover_image_url,
+        type: "other",
+        total_volumes: 1,
+        status: null,
+        tags: [],
+        created_at: volume.created_at,
+        updated_at: volume.updated_at,
+        volumes: [volume]
+      }
+      setScrapeTarget(standaloneSeries)
+    },
+    []
+  )
+
   const openAddDialog = useCallback(() => {
     setEditingSeries(null)
     setSearchDialogOpen(true)
@@ -1817,6 +1923,7 @@ export default function LibraryPage() {
                 onClick={() => handleVolumeItemClick(volume.id)}
                 onEdit={() => openEditVolumeDialog(volume)}
                 onDelete={() => openDeleteVolumeDialog(volume)}
+                onScrapePrice={() => openVolumeScrapeDialog(volume)}
                 onToggleRead={() => handleToggleRead(volume)}
                 onToggleWishlist={() => handleToggleWishlist(volume)}
                 onSetRating={(rating) => handleSetRating(volume, rating)}
@@ -1834,6 +1941,7 @@ export default function LibraryPage() {
                 onClick={() => handleVolumeItemClick(volume.id)}
                 onEdit={() => openEditVolumeDialog(volume)}
                 onDelete={() => openDeleteVolumeDialog(volume)}
+                onScrapePrice={() => openVolumeScrapeDialog(volume)}
                 onToggleRead={() => handleToggleRead(volume)}
                 onToggleWishlist={() => handleToggleWishlist(volume)}
                 onSetRating={(rating) => handleSetRating(volume, rating)}
@@ -1896,6 +2004,9 @@ export default function LibraryPage() {
                       onClick={() => handleVolumeItemClick(item.volume.id)}
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
+                      onScrapePrice={() =>
+                        openVolumeScrapeDialog(item.volume, item.series)
+                      }
                       onToggleRead={() => handleToggleRead(item.volume)}
                       onToggleWishlist={() => handleToggleWishlist(item.volume)}
                       onSetRating={(rating) =>
@@ -1917,6 +2028,9 @@ export default function LibraryPage() {
                       onClick={() => handleVolumeItemClick(item.volume.id)}
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
+                      onScrapePrice={() =>
+                        openVolumeScrapeDialog(item.volume, item.series)
+                      }
                       onToggleRead={() => handleToggleRead(item.volume)}
                       onToggleWishlist={() => handleToggleWishlist(item.volume)}
                       onSetRating={(rating) =>
@@ -1945,6 +2059,9 @@ export default function LibraryPage() {
                         onClick={() => handleVolumeItemClick(item.volume.id)}
                         onEdit={() => openEditVolumeDialog(item.volume)}
                         onDelete={() => openDeleteVolumeDialog(item.volume)}
+                        onScrapePrice={() =>
+                          openVolumeScrapeDialog(item.volume, item.series)
+                        }
                         onToggleRead={() => handleToggleRead(item.volume)}
                         onToggleWishlist={() =>
                           handleToggleWishlist(item.volume)
@@ -1969,6 +2086,9 @@ export default function LibraryPage() {
                       onClick={() => handleVolumeItemClick(item.volume.id)}
                       onEdit={() => openEditVolumeDialog(item.volume)}
                       onDelete={() => openDeleteVolumeDialog(item.volume)}
+                      onScrapePrice={() =>
+                        openVolumeScrapeDialog(item.volume, item.series)
+                      }
                       onToggleRead={() => handleToggleRead(item.volume)}
                       onToggleWishlist={() => handleToggleWishlist(item.volume)}
                       onSetRating={(rating) =>
@@ -2034,6 +2154,7 @@ export default function LibraryPage() {
                       series={series}
                       onEdit={() => openEditDialog(series)}
                       onDelete={() => openDeleteDialog(series)}
+                      onBulkScrape={() => openSeriesScrapeDialog(series)}
                       onClick={() => handleSeriesItemClick(series)}
                       selected={selectedSeriesIds.has(series.id)}
                       onSelect={() => toggleSeriesSelection(series.id)}
@@ -2048,6 +2169,7 @@ export default function LibraryPage() {
                       series={series}
                       onEdit={() => openEditDialog(series)}
                       onDelete={() => openDeleteDialog(series)}
+                      onBulkScrape={() => openSeriesScrapeDialog(series)}
                       onClick={() => handleSeriesItemClick(series)}
                       selected={selectedSeriesIds.has(series.id)}
                       onSelect={() => toggleSeriesSelection(series.id)}
@@ -2315,6 +2437,10 @@ export default function LibraryPage() {
                           Mark all unread
                         </DropdownMenuItem>
                       </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkScrapeSelected}>
+                        Bulk scrape prices
+                      </DropdownMenuItem>
                     </>
                   ) : (
                     <>
@@ -2360,6 +2486,10 @@ export default function LibraryPage() {
                           Mark dropped
                         </DropdownMenuItem>
                       </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleBulkScrapeSelected}>
+                        Bulk scrape prices
+                      </DropdownMenuItem>
                     </>
                   )}
                 </DropdownMenuContent>
@@ -2499,6 +2629,19 @@ export default function LibraryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {scrapeTarget && (
+        <BulkScrapeDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setScrapeTarget(null)
+            }
+          }}
+          series={scrapeTarget}
+          editVolume={editVolume}
+        />
+      )}
 
       <AlertDialog
         open={bulkDeleteDialogOpen}

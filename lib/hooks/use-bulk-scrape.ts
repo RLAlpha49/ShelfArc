@@ -26,6 +26,7 @@ export interface VolumeJob {
   volumeId: string
   volumeNumber: number
   title: string
+  seriesTitle?: string
   status: VolumeJobStatus
   errorMessage?: string
   priceResult?: number | null
@@ -437,6 +438,7 @@ export function useBulkScrape(
         volumeId: vol.id,
         volumeNumber: vol.volume_number,
         title: vol.title ?? "",
+        seriesTitle: (vol as Volume & { _seriesTitle?: string })._seriesTitle ?? series.title,
         status: shouldSkipVolume(vol, mode, skipExisting)
           ? "skipped"
           : "pending"
@@ -541,7 +543,7 @@ async function processJob(
   } = ctx
   const isLast = i >= jobs.length - 1
   const url = buildFetchUrl({
-    seriesTitle: series.title,
+    seriesTitle: jobs[i].seriesTitle ?? series.title,
     volumeNumber: jobs[i].volumeNumber,
     volumeTitle: jobs[i].title,
     formatHint,

@@ -480,6 +480,7 @@ const VolumeSelectionBar = ({
   onApplyReading,
   onEdit,
   onDelete,
+  onBulkScrape,
   onCancel
 }: {
   readonly selectedCount: number
@@ -491,6 +492,7 @@ const VolumeSelectionBar = ({
   readonly onApplyReading: (status: ReadingStatus) => void
   readonly onEdit: () => void
   readonly onDelete: () => void
+  readonly onBulkScrape?: () => void
   readonly onCancel: () => void
 }) => {
   if (selectedCount <= 0) return null
@@ -566,6 +568,14 @@ const VolumeSelectionBar = ({
                   Mark dropped
                 </DropdownMenuItem>
               </DropdownMenuGroup>
+              {onBulkScrape && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onBulkScrape}>
+                    Bulk scrape prices
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -897,6 +907,7 @@ const SeriesVolumesSection = ({
   onBulkDelete,
   onCancelSelection,
   onVolumeClick,
+  onScrapeVolume,
   onEditVolume,
   onDeleteVolume,
   onToggleRead,
@@ -919,6 +930,7 @@ const SeriesVolumesSection = ({
   readonly onBulkDelete: () => void
   readonly onCancelSelection: () => void
   readonly onVolumeClick: (volumeId: string) => void
+  readonly onScrapeVolume: (volume: Volume) => void
   readonly onEditVolume: (volume: Volume) => void
   readonly onDeleteVolume: (volume: Volume) => void
   readonly onToggleRead: (volume: Volume) => void
@@ -1006,6 +1018,7 @@ const SeriesVolumesSection = ({
         onApplyReading={onApplyReading}
         onEdit={onEditSelected}
         onDelete={onBulkDelete}
+        onBulkScrape={onOpenBulkScrape}
         onCancel={onCancelSelection}
       />
 
@@ -1044,6 +1057,7 @@ const SeriesVolumesSection = ({
                   volume={volume}
                   seriesTitle={currentSeries.title}
                   onClick={() => onVolumeClick(volume.id)}
+                  onScrapePrice={() => onScrapeVolume(volume)}
                   onEdit={() => onEditVolume(volume)}
                   onDelete={() => onDeleteVolume(volume)}
                   onToggleRead={() => onToggleRead(volume)}
@@ -1062,6 +1076,7 @@ const SeriesVolumesSection = ({
                   volume={volume}
                   seriesTitle={currentSeries.title}
                   onClick={() => onVolumeClick(volume.id)}
+                  onScrapePrice={() => onScrapeVolume(volume)}
                   onEdit={() => onEditVolume(volume)}
                   onDelete={() => onDeleteVolume(volume)}
                   onToggleRead={() => onToggleRead(volume)}
@@ -1119,6 +1134,8 @@ export default function SeriesDetailPage() {
   const [deleteVolumeDialogOpen, setDeleteVolumeDialogOpen] = useState(false)
   const [deleteSeriesDialogOpen, setDeleteSeriesDialogOpen] = useState(false)
   const [bulkScrapeDialogOpen, setBulkScrapeDialogOpen] = useState(false)
+  const [bulkScrapeTarget, setBulkScrapeTarget] =
+    useState<SeriesWithVolumes | null>(null)
   const [isDeletingSeries, setIsDeletingSeries] = useState(false)
   const [isDeletingVolume, setIsDeletingVolume] = useState(false)
   const [deletingVolume, setDeletingVolume] = useState<Volume | null>(null)
@@ -1481,6 +1498,24 @@ export default function SeriesDetailPage() {
     [editVolume]
   )
 
+  const openBulkScrapeForSeries = useCallback(() => {
+    if (!currentSeries) return
+    setBulkScrapeTarget(currentSeries)
+    setBulkScrapeDialogOpen(true)
+  }, [currentSeries])
+
+  const openBulkScrapeForVolume = useCallback(
+    (volume: Volume) => {
+      if (!currentSeries) return
+      setBulkScrapeTarget({
+        ...currentSeries,
+        volumes: [volume]
+      })
+      setBulkScrapeDialogOpen(true)
+    },
+    [currentSeries]
+  )
+
   const handleVolumeClick = useCallback(
     (volumeId: string) => {
       router.push(`/library/volume/${volumeId}`)
@@ -1832,7 +1867,7 @@ export default function SeriesDetailPage() {
         selectedCount={selectedCount}
         totalSelectableCount={totalSelectableCount}
         isAllSelected={isAllSelected}
-        onOpenBulkScrape={() => setBulkScrapeDialogOpen(true)}
+        onOpenBulkScrape={openBulkScrapeForSeries}
         onOpenAdd={openAddDialog}
         onSelectAll={handleSelectAll}
         onClearSelection={handleClearSelection}
@@ -1842,6 +1877,7 @@ export default function SeriesDetailPage() {
         onBulkDelete={handleBulkDelete}
         onCancelSelection={clearSelection}
         onVolumeClick={handleVolumeItemClick}
+        onScrapeVolume={openBulkScrapeForVolume}
         onEditVolume={openEditDialog}
         onDeleteVolume={openDeleteDialog}
         onToggleRead={handleToggleRead}
@@ -1903,8 +1939,13 @@ export default function SeriesDetailPage() {
 
       <BulkScrapeDialog
         open={bulkScrapeDialogOpen}
-        onOpenChange={setBulkScrapeDialogOpen}
-        series={currentSeries}
+        onOpenChange={(open) => {
+          setBulkScrapeDialogOpen(open)
+          if (!open) {
+            setBulkScrapeTarget(null)
+          }
+        }}
+        series={bulkScrapeTarget ?? currentSeries}
         editVolume={editVolume}
       />
 
