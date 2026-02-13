@@ -50,9 +50,9 @@ interface BulkScrapeState {
 }
 
 /** Minimum inter-request delay in milliseconds. @source */
-const MIN_DELAY_MS = 2000
+const MIN_DELAY_MS = 1000
 /** Maximum inter-request delay in milliseconds. @source */
-const MAX_DELAY_MS = 5000
+const MAX_DELAY_MS = 3000
 
 /** Returns a random delay between `MIN_DELAY_MS` and `MAX_DELAY_MS`. @source */
 const randomDelay = () =>
