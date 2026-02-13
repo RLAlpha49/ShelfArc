@@ -200,15 +200,22 @@ const buildSeriesInsights = (
     (acc, volume) => acc + (volume.page_count ?? 0),
     0
   )
-  const totalSpent = series.volumes.reduce(
+  const totalSpent = ownedVolumeEntries.reduce(
     (acc, volume) => acc + (volume.purchase_price ?? 0),
     0
   )
-  const pricedVolumeEntries = series.volumes.filter(
+  const pricedVolumeEntries = ownedVolumeEntries.filter(
+    (volume) => volume.purchase_price != null && volume.purchase_price > 0
+  )
+  const allTotalSpent = series.volumes.reduce(
+    (acc, volume) => acc + (volume.purchase_price ?? 0),
+    0
+  )
+  const allPricedVolumeEntries = series.volumes.filter(
     (volume) => volume.purchase_price != null && volume.purchase_price > 0
   )
   const pricedVolumes = pricedVolumeEntries.length
-  const averagePrice = pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
+  const averagePrice = allPricedVolumeEntries.length > 0 ? allTotalSpent / allPricedVolumeEntries.length : 0
   const readPercent =
     totalVolumes > 0 ? Math.round((readVolumes / totalVolumes) * 100) : 0
   const ratedVolumes = series.volumes.filter(
@@ -814,7 +821,7 @@ const SeriesHeaderSection = ({
               {formatPrice(insights.totalSpent)}
             </div>
             <div className="text-muted-foreground text-[10px]">
-              {insights.pricedVolumes} priced
+              {insights.pricedVolumes} owned
             </div>
           </div>
           <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
