@@ -76,6 +76,40 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createUserClient()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
+    if (!user) return apiError(401, "Not authenticated")
+
+    const body = await request.json()
+    const { id } = body
+
+    if (typeof id !== "string" || !id.trim()) {
+      return apiError(400, "id is required")
+    }
+
+    const { data, error } = await supabase
+      .from("price_alerts")
+      .update({
+        triggered_at: new Date().toISOString(),
+        enabled: false
+      })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select()
+      .single()
+
+    if (error) return apiError(500, "Failed to trigger price alert")
+    return NextResponse.json({ data })
+  } catch (error) {
+    console.error("Price alert trigger failed", error)
+    return apiError(500, "Failed to trigger price alert")
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createUserClient()

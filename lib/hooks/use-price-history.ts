@@ -3,6 +3,47 @@
 import { useCallback, useState } from "react"
 import type { PriceHistory, PriceAlert } from "@/lib/types/database"
 
+/** Persist a price entry via the API (standalone, no hook needed). */
+export async function persistPriceEntry(
+  volumeId: string,
+  price: number,
+  currency = "USD",
+  source = "amazon"
+) {
+  const res = await fetch("/api/books/price/history", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ volumeId, price, currency, source })
+  })
+  if (!res.ok) throw new Error("Failed to save price")
+  return res.json()
+}
+
+/** Fetch active alert for a volume and trigger it if the price qualifies. */
+export async function checkPriceAlert(
+  volumeId: string,
+  price: number
+): Promise<boolean> {
+  try {
+    const alertRes = await fetch(
+      "/api/books/price/alerts?volumeId=" + encodeURIComponent(volumeId)
+    )
+    if (!alertRes.ok) return false
+    const { data } = await alertRes.json()
+    const alert =
+      Array.isArray(data) && data.length > 0 ? data[0] : null
+    if (!alert?.enabled || price > alert.target_price) return false
+    const triggerRes = await fetch("/api/books/price/alerts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: alert.id })
+    })
+    return triggerRes.ok
+  } catch {
+    return false
+  }
+}
+
 export function usePriceHistory(volumeId: string) {
   const [history, setHistory] = useState<PriceHistory[]>([])
   const [activeAlert, setActiveAlert] = useState<PriceAlert | null>(null)
@@ -42,6 +83,31 @@ export function usePriceHistory(volumeId: string) {
       ? latestPrice - previousPrice
       : null
 
+  const checkAlert = useCallback(
+    async (price: number): Promise<boolean> => {
+      if (
+        !activeAlert?.enabled ||
+        price > activeAlert.target_price
+      ) {
+        return false
+      }
+      try {
+        const res = await fetch("/api/books/price/alerts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: activeAlert.id })
+        })
+        if (!res.ok) return false
+        const { data } = await res.json()
+        setActiveAlert(data ?? null)
+        return true
+      } catch {
+        return false
+      }
+    },
+    [activeAlert]
+  )
+
   const persistPrice = useCallback(
     async (price: number, currency?: string, source?: string) => {
       const res = await fetch("/api/books/price/history", {
@@ -55,9 +121,12 @@ export function usePriceHistory(volumeId: string) {
         })
       })
       if (!res.ok) throw new Error("Failed to save price")
-      return res.json()
+      const result = await res.json()
+      const alertTriggered = await checkAlert(price)
+      await fetchHistory()
+      return { ...result, alertTriggered }
     },
-    [volumeId]
+    [volumeId, checkAlert, fetchHistory]
   )
 
   const upsertAlert = useCallback(
@@ -74,8 +143,9 @@ export function usePriceHistory(volumeId: string) {
       if (!res.ok) throw new Error("Failed to save alert")
       const { data } = await res.json()
       setActiveAlert(data ?? null)
+      await fetchAlert()
     },
-    [volumeId]
+    [volumeId, fetchAlert]
   )
 
   const removeAlert = useCallback(async () => {
@@ -86,7 +156,8 @@ export function usePriceHistory(volumeId: string) {
     )
     if (!res.ok) throw new Error("Failed to delete alert")
     setActiveAlert(null)
-  }, [activeAlert])
+    await fetchAlert()
+  }, [activeAlert, fetchAlert])
 
   return {
     history,
@@ -97,6 +168,7 @@ export function usePriceHistory(volumeId: string) {
     fetchHistory,
     fetchAlert,
     persistPrice,
+    checkAlert,
     upsertAlert,
     removeAlert
   }

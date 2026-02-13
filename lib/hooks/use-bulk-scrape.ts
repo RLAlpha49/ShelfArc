@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 import { useLibraryStore } from "@/lib/store/library-store"
+import {
+  persistPriceEntry,
+  checkPriceAlert
+} from "@/lib/hooks/use-price-history"
 
 /** Scraping mode: price only, image only, or both. @source */
 export type BulkScrapeMode = "price" | "image" | "both"
@@ -627,6 +631,15 @@ async function handleSuccess(
       updateJob(i, { status: "failed", errorMessage: "Failed to save" }, setter)
       const continued = await interRequestDelay(controller.signal, isLast)
       return continued ? "ok" : "abort"
+    }
+  }
+
+  if (priceResult != null) {
+    try {
+      await persistPriceEntry(jobs[i].volumeId, priceResult, "USD", "amazon")
+      await checkPriceAlert(jobs[i].volumeId, priceResult)
+    } catch {
+      // Price history / alert check is non-critical during bulk scrape
     }
   }
 

@@ -40,6 +40,7 @@ import {
   useLibraryStore
 } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import { usePriceHistory } from "@/lib/hooks/use-price-history"
 import { cn } from "@/lib/utils"
 import type {
   SeriesWithVolumes,
@@ -535,6 +536,10 @@ export function VolumeDialog({
   const uploadAbortRef = useRef<AbortController | null>(null)
   const priceAbortRef = useRef<AbortController | null>(null)
   const [formData, setFormData] = useState(defaultFormData)
+  const {
+    persistPrice,
+    fetchAlert: fetchPriceAlert
+  } = usePriceHistory(volume?.id ?? "")
   const priceSource = useLibraryStore((state) => state.priceSource)
   const amazonDomain = useLibraryStore((state) => state.amazonDomain)
   const amazonPreferKindle = useLibraryStore(
@@ -702,6 +707,12 @@ export function VolumeDialog({
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (open && volume?.id) {
+      fetchPriceAlert()
+    }
+  }, [open, volume?.id, fetchPriceAlert])
 
   const setPreviewUrl = (url: string | null) => {
     if (previewUrlRef.current) {
@@ -973,6 +984,28 @@ export function VolumeDialog({
         if (options.includePrice) applyPriceResult(data.result)
         if (options.includeImage) applyImageResult(data.result?.imageUrl)
         if (data.result?.url) updateField("amazon_url", data.result.url)
+
+        if (
+          options.includePrice &&
+          volume?.id &&
+          data.result?.priceValue != null
+        ) {
+          try {
+            const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
+            const { alertTriggered } = await persistPrice(
+              data.result.priceValue,
+              currency,
+              "amazon"
+            )
+            if (alertTriggered) {
+              toast.info(
+                `Price alert triggered! Price dropped to $${data.result.priceValue.toFixed(2)}`
+              )
+            }
+          } catch {
+            // Price history save is non-critical
+          }
+        }
       } catch (error) {
         handleAmazonError(error)
       } finally {
