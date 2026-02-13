@@ -536,10 +536,9 @@ export function VolumeDialog({
   const uploadAbortRef = useRef<AbortController | null>(null)
   const priceAbortRef = useRef<AbortController | null>(null)
   const [formData, setFormData] = useState(defaultFormData)
-  const {
-    persistPrice,
-    fetchAlert: fetchPriceAlert
-  } = usePriceHistory(volume?.id ?? "")
+  const { persistPrice, fetchAlert: fetchPriceAlert } = usePriceHistory(
+    volume?.id ?? ""
+  )
   const priceSource = useLibraryStore((state) => state.priceSource)
   const amazonDomain = useLibraryStore((state) => state.amazonDomain)
   const amazonPreferKindle = useLibraryStore(
@@ -738,7 +737,9 @@ export function VolumeDialog({
         ownership_status: formData.ownership_status,
         reading_status: formData.reading_status,
         page_count: pageCount,
-        ...(formData.reading_status === "completed" && pageCount && pageCount > 0
+        ...(formData.reading_status === "completed" &&
+        pageCount &&
+        pageCount > 0
           ? { current_page: pageCount }
           : {}),
         rating: formData.rating ? Number.parseInt(formData.rating) : null,

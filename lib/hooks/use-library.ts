@@ -1098,10 +1098,8 @@ export function useLibrary() {
           )
         case "price":
           return (
-            ((a.volume.purchase_price ?? 0) -
-              (b.volume.purchase_price ?? 0)) *
-              multiplier ||
-            compareStrings(a.series.title, b.series.title)
+            ((a.volume.purchase_price ?? 0) - (b.volume.purchase_price ?? 0)) *
+              multiplier || compareStrings(a.series.title, b.series.title)
           )
         case "volume_count":
           return (

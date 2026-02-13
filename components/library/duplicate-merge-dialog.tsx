@@ -434,7 +434,7 @@ export function DuplicateMergeDialog({
                     <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
                       <Badge
                         variant="outline"
-                        className="rounded-lg text-[10px] uppercase tracking-wider"
+                        className="rounded-lg text-[10px] tracking-wider uppercase"
                       >
                         {group.reason === "isbn" ? "ISBN" : "Series"}
                       </Badge>
@@ -499,9 +499,7 @@ export function DuplicateMergeDialog({
                               }))
                             }
                             className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors ${
-                              isKept
-                                ? "bg-copper/5"
-                                : "hover:bg-muted/30"
+                              isKept ? "bg-copper/5" : "hover:bg-muted/30"
                             }`}
                           >
                             {/* Selection indicator */}
@@ -538,7 +536,7 @@ export function DuplicateMergeDialog({
                                   Vol. {volume.volume_number}
                                 </span>
                                 {isKept && (
-                                  <span className="text-copper text-[10px] font-semibold uppercase tracking-wider">
+                                  <span className="text-copper text-[10px] font-semibold tracking-wider uppercase">
                                     Keep
                                   </span>
                                 )}

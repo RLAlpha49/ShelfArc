@@ -30,8 +30,7 @@ export async function checkPriceAlert(
     )
     if (!alertRes.ok) return false
     const { data } = await alertRes.json()
-    const alert =
-      Array.isArray(data) && data.length > 0 ? data[0] : null
+    const alert = Array.isArray(data) && data.length > 0 ? data[0] : null
     if (!alert?.enabled || price > alert.target_price) return false
     const triggerRes = await fetch("/api/books/price/alerts", {
       method: "PATCH",
@@ -85,10 +84,7 @@ export function usePriceHistory(volumeId: string) {
 
   const checkAlert = useCallback(
     async (price: number): Promise<boolean> => {
-      if (
-        !activeAlert?.enabled ||
-        price > activeAlert.target_price
-      ) {
+      if (!activeAlert?.enabled || price > activeAlert.target_price) {
         return false
       }
       try {

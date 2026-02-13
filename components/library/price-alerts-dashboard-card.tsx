@@ -17,9 +17,7 @@ export function PriceAlertsDashboardCard() {
   const [alerts, setAlerts] = useState<PriceAlert[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const series = useLibraryStore((s) => s.series)
-  const priceDisplayCurrency = useLibraryStore(
-    (s) => s.priceDisplayCurrency
-  )
+  const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
 
   const fetchAlerts = useCallback(async () => {
@@ -53,10 +51,7 @@ export function PriceAlertsDashboardCard() {
   }, [priceDisplayCurrency])
 
   const volumeMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { volumeTitle: string; seriesTitle: string }
-    >()
+    const map = new Map<string, { volumeTitle: string; seriesTitle: string }>()
     for (const s of series) {
       for (const v of s.volumes) {
         map.set(v.id, {

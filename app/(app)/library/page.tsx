@@ -1206,7 +1206,9 @@ export default function LibraryPage() {
         targets.map((volume) =>
           editVolume(volume.series_id ?? null, volume.id, {
             reading_status: status,
-            ...(status === "completed" && volume.page_count && volume.page_count > 0
+            ...(status === "completed" &&
+            volume.page_count &&
+            volume.page_count > 0
               ? { current_page: volume.page_count }
               : {})
           })
@@ -1565,7 +1567,9 @@ export default function LibraryPage() {
       try {
         await editVolume(volume.series_id ?? null, volume.id, {
           reading_status: nextStatus,
-          ...(nextStatus === "completed" && volume.page_count && volume.page_count > 0
+          ...(nextStatus === "completed" &&
+          volume.page_count &&
+          volume.page_count > 0
             ? { current_page: volume.page_count }
             : {})
         })

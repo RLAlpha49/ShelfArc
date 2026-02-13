@@ -200,12 +200,12 @@ const buildSeriesInsights = (
     (acc, volume) => acc + (volume.page_count ?? 0),
     0
   )
-  const totalSpent = series.volumes
-    .reduce((acc, volume) => acc + (volume.purchase_price ?? 0), 0)
+  const totalSpent = series.volumes.reduce(
+    (acc, volume) => acc + (volume.purchase_price ?? 0),
+    0
+  )
   const pricedVolumeEntries = series.volumes.filter(
-    (volume) =>
-      volume.purchase_price != null &&
-      volume.purchase_price > 0
+    (volume) => volume.purchase_price != null && volume.purchase_price > 0
   )
   const pricedVolumes = pricedVolumeEntries.length
   const averagePrice = pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
@@ -1364,7 +1364,9 @@ export default function SeriesDetailPage() {
       try {
         await editVolume(volume.series_id, volume.id, {
           reading_status: nextStatus,
-          ...(nextStatus === "completed" && volume.page_count && volume.page_count > 0
+          ...(nextStatus === "completed" &&
+          volume.page_count &&
+          volume.page_count > 0
             ? { current_page: volume.page_count }
             : {})
         })
@@ -1511,7 +1513,9 @@ export default function SeriesDetailPage() {
         targets.map((volume) =>
           editVolume(currentSeries.id, volume.id, {
             reading_status: status,
-            ...(status === "completed" && volume.page_count && volume.page_count > 0
+            ...(status === "completed" &&
+            volume.page_count &&
+            volume.page_count > 0
               ? { current_page: volume.page_count }
               : {})
           })

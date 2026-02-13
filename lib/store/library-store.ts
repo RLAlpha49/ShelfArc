@@ -10,7 +10,14 @@ import type {
 } from "@/lib/types/database"
 
 /** Sort field options for the library view. @source */
-export type SortField = "title" | "created_at" | "updated_at" | "author" | "rating" | "volume_count" | "price"
+export type SortField =
+  | "title"
+  | "created_at"
+  | "updated_at"
+  | "author"
+  | "rating"
+  | "volume_count"
+  | "price"
 /** Sort direction. @source */
 export type SortOrder = "asc" | "desc"
 /** Display mode for the library grid. @source */

@@ -74,7 +74,7 @@ export function FilterPresetsControl() {
                   className={`focus-visible:ring-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-all focus-visible:ring-1 focus-visible:outline-none ${
                     isActive
                       ? "bg-copper text-white shadow-sm"
-                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent hover:border-border/50"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground hover:border-border/50 border border-transparent"
                   }`}
                 >
                   {isActive && (
