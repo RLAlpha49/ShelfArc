@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 import { useLibraryStore } from "@/lib/store/library-store"
 import {
@@ -637,7 +638,12 @@ async function handleSuccess(
   if (priceResult != null) {
     try {
       await persistPriceEntry(jobs[i].volumeId, priceResult, "USD", "amazon")
-      await checkPriceAlert(jobs[i].volumeId, priceResult)
+      const triggered = await checkPriceAlert(jobs[i].volumeId, priceResult)
+      if (triggered) {
+        toast.info(
+          `Price alert triggered! Vol. ${jobs[i].volumeNumber} dropped to $${priceResult.toFixed(2)}`
+        )
+      }
     } catch {
       // Price history / alert check is non-critical during bulk scrape
     }
