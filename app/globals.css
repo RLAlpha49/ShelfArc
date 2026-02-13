@@ -395,6 +395,13 @@
     0 12px 24px -16px oklch(0 0 0 / 35%);
 }
 
+/* Touch-device fallback: always show card actions on devices without hover */
+@media (hover: none) {
+  .touch-device\:opacity-100 {
+    opacity: 1;
+  }
+}
+
 /* Disable all animations and transitions when the user opts out */
 .no-animations *,
 .no-animations *::before,

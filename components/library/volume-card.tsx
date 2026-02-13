@@ -120,7 +120,7 @@ export function VolumeCard({
     <div className="card-hover hover-lift press-effect group relative h-full w-full">
       {showSelection && (
         <div
-          className={`bg-background/80 absolute top-2 left-2 z-10 rounded-lg p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          className={`bg-background/80 absolute top-2 left-2 z-10 rounded-lg p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 touch-device:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
@@ -221,7 +221,7 @@ export function VolumeCard({
           )}
         </div>
       </button>
-      <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+      <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 touch-device:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
             className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 w-8 items-center justify-center rounded-xl shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
