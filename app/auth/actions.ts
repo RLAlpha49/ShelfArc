@@ -7,6 +7,21 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { sanitizePlainText } from "@/lib/sanitize-html"
 import { isValidUsername } from "@/lib/validation"
 
+const ALLOWED_REDIRECT_PREFIXES = ["/dashboard", "/library", "/settings"]
+
+function getSafeRedirect(raw: unknown): string {
+  if (typeof raw !== "string") return "/library"
+  const path = raw.trim()
+  if (
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    !ALLOWED_REDIRECT_PREFIXES.some((p) => path.startsWith(p))
+  ) {
+    return "/library"
+  }
+  return path
+}
+
 /**
  * Authenticates a user with email and password, then redirects to the library.
  * @param formData - Form data containing `email` and `password` fields.
@@ -35,8 +50,9 @@ export async function login(formData: FormData) {
     return { error: error.message }
   }
 
+  const destination = getSafeRedirect(formData.get("redirectTo"))
   revalidatePath("/", "layout")
-  redirect("/library")
+  redirect(destination)
 }
 
 /**
@@ -99,8 +115,9 @@ export async function signup(formData: FormData) {
     return { error: error.message }
   }
 
+  const destination = getSafeRedirect(formData.get("redirectTo"))
   revalidatePath("/", "layout")
-  redirect("/library")
+  redirect(destination)
 }
 
 /**

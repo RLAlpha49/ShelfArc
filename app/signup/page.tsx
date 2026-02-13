@@ -1,17 +1,43 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signup } from "@/app/auth/actions"
+
+const ALLOWED_REDIRECT_PREFIXES = ["/dashboard", "/library", "/settings"]
+
+function getValidRedirect(raw: string | null): string | null {
+  if (!raw) return null
+  const path = raw.trim()
+  if (
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    !ALLOWED_REDIRECT_PREFIXES.some((p) => path.startsWith(p))
+  ) {
+    return null
+  }
+  return path
+}
 
 /**
  * Signup page with email/password/display-name form and decorative side panel.
  * @source
  */
 export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupContent />
+    </Suspense>
+  )
+}
+
+function SignupContent() {
+  const searchParams = useSearchParams()
+  const redirectTo = getValidRedirect(searchParams.get("redirect"))
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const errorRef = useRef<HTMLDivElement | null>(null)
@@ -132,6 +158,9 @@ export default function SignupPage() {
           </div>
 
           <form action={handleSubmit} className="space-y-5">
+            {redirectTo && (
+              <input type="hidden" name="redirectTo" value={redirectTo} />
+            )}
             {error && (
               <div
                 ref={errorRef}
