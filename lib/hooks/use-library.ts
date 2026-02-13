@@ -1039,6 +1039,23 @@ export function useLibrary() {
               new Date(b.volume.updated_at).getTime()) *
             multiplier
           )
+        case "rating":
+          return (
+            ((a.volume.rating ?? 0) - (b.volume.rating ?? 0)) * multiplier ||
+            compareStrings(a.series.title, b.series.title)
+          )
+        case "price":
+          return (
+            ((a.volume.purchase_price ?? 0) -
+              (b.volume.purchase_price ?? 0)) *
+              multiplier ||
+            compareStrings(a.series.title, b.series.title)
+          )
+        case "volume_count":
+          return (
+            (a.series.volumes.length - b.series.volumes.length) * multiplier ||
+            compareStrings(a.series.title, b.series.title)
+          )
         case "title":
         default:
           return (
