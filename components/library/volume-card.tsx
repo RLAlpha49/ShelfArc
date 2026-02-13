@@ -245,39 +245,6 @@ export function VolumeCard({
             align="end"
             onClick={(event) => event.stopPropagation()}
           >
-            {onToggleWishlist && (
-              <DropdownMenuItem onClick={() => onToggleWishlist()}>
-                {isWishlisted ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2 h-4 w-4"
-                  >
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2 h-4 w-4"
-                  >
-                    <path d="M12.17 8.09 10.34 6.26a2 2 0 0 0-2.83 0L5.67 8.09a2 2 0 0 0 0 2.83l6.36 6.36a2 2 0 0 0 2.83 0l6.36-6.36a2 2 0 0 0 0-2.83l-1.83-1.83a2 2 0 0 0-2.83 0z" />
-                  </svg>
-                )}
-                {isWishlisted ? "Mark as owned" : "Move to wishlist"}
-              </DropdownMenuItem>
-            )}
-
             <DropdownMenuItem
               onClick={() => {
                 if (amazonLink) {
@@ -315,7 +282,7 @@ export function VolumeCard({
                   <path d="m21 21-4.3-4.3" />
                 </svg>
               )}
-              {volume.amazon_url ? "Open on Amazon" : "Search Amazon"}
+              {volume.amazon_url ? "Amazon" : "Search Amazon"}
             </DropdownMenuItem>
             {onToggleRead && (
               <DropdownMenuItem onClick={() => onToggleRead()}>
@@ -348,6 +315,39 @@ export function VolumeCard({
                   </svg>
                 )}
                 {isCompleted ? "Mark as unread" : "Mark as read"}
+              </DropdownMenuItem>
+            )}
+
+            {onToggleWishlist && (
+              <DropdownMenuItem onClick={() => onToggleWishlist()}>
+                {isWishlisted ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-2 h-4 w-4"
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-2 h-4 w-4"
+                  >
+                    <path d="M12.17 8.09 10.34 6.26a2 2 0 0 0-2.83 0L5.67 8.09a2 2 0 0 0 0 2.83l6.36 6.36a2 2 0 0 0 2.83 0l6.36-6.36a2 2 0 0 0 0-2.83l-1.83-1.83a2 2 0 0 0-2.83 0z" />
+                  </svg>
+                )}
+                {isWishlisted ? "Mark as owned" : "Move to wishlist"}
               </DropdownMenuItem>
             )}
 
