@@ -1,73 +1,107 @@
 # ShelfArc
 
-ShelfArc is a personal library manager for **light novels** and **manga**—track series and volumes, ownership/wishlist status, reading progress, and collection insights.
+ShelfArc is a collector-focused library manager for **light novels** and **manga**.
 
-Built with **Next.js 16 (App Router)**, **React 19**, **TypeScript**, and **Supabase**.
+Think: _“my shelves, but searchable, analyzable, and actually enjoyable to maintain.”_
 
-## What’s in the app
+---
 
-- **Library**: series + volume management, grid/list browsing, bulk selection/actions, unassigned volumes (`/library`).
-- **Series details**: insights (owned/missing/reading/spend), tags, notes, bulk scrape (`/library/series/[id]`).
-- **Volume details**: progress, rating, purchase/publish metadata, notes (`/library/volume/[id]`).
-- **Dashboard**: recently added, what-to-buy-next suggestions, wishlist/spend breakdown (`/dashboard`).
-- **Settings**: profile + avatar, appearance, pricing preferences, import/export (`/settings`).
+## Why ShelfArc exists
 
-## Local development
+Most catalog tools are either too generic or too rigid for manga/LN collectors. ShelfArc is optimized for real collection workflows:
 
-### 1) Install
+- Track series and individual volumes with rich metadata
+- Manage owned vs wishlist states and reading progress
+- Import large batches (CSV/JSON)
+- Watch prices and alerts for specific volumes
+- Keep visual shelves tidy with cover images and assignment workflows
 
-- Use Bun (recommended for this repo):
+---
 
-  - `bun install`
+## Core capabilities
 
-### 2) Environment variables
+### Library and collection workflows
 
-This project expects Supabase + (optionally) Google Books keys.
+- Series + volume CRUD with structured status fields
+- Series insights (owned/missing/reading/spend)
+- Unassigned volume inbox and assign-to-series flow
+- Bulk actions, filter presets, and search/source-assisted entry
+- Duplicate detection + merge resolution dialog
 
-1. Copy the example file:
+### Discovery and enrichment
 
-   Duplicate `.env.example` into **either** `.env.local` (preferred for Next.js) **or** `.env`.
+- Google Books and Open Library search normalization
+- Volume lookup endpoint by external volume ID
+- Cover image resolution/upload pipeline
+- Amazon price scraping flow for price history updates
 
-2. Fill in values:
+### Dashboard and settings
 
-Required:
+- Dashboard views: recent additions, suggestions, wishlist/tracked views
+- Price history and alert widgets
+- Profile settings (display name/avatar), appearance/preferences
+- Data import/export routes and tools
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+---
 
-Server-only (required for admin operations like uploads/storage downloads):
+## Tech stack
 
-- `SUPABASE_SECRET_KEY`
+- **Framework:** Next.js 16 (App Router)
+- **UI:** React 19, shadcn/ui primitives, Tailwind CSS v4
+- **Language:** TypeScript 5 (strict mode)
+- **Data/Auth:** Supabase (`@supabase/ssr`, `@supabase/supabase-js`)
+- **State:** Zustand (persisted view/settings state)
+- **Validation/Sanitization:** runtime guards + DOMPurify-based sanitizers
+- **Tests:** Bun test runner (`bun test`)
 
-Optional (book search):
+---
 
-- `GOOGLE_BOOKS_API_KEY` (or `GOOGLE_BOOKS_API_KEYS` for rotation)
+## Local setup
 
-Optional (uploads bucket name):
+### 1) Install dependencies
 
-- `SUPABASE_STORAGE_BUCKET` (defaults to `media`)
+- `bun install`
 
-> Note: `.env`, `.env.local` are gitignored.
+### 2) Configure environment
 
-### 3) Supabase setup
+1. Copy `.env.example` to `.env.local`
+2. Fill required values:
 
-- Create a Supabase project.
-- Apply the schema:
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Browser-safe Supabase key |
+| `SUPABASE_SECRET_KEY` | Yes (server) | Service-role operations (server only) |
+| `GOOGLE_BOOKS_API_KEY` | Optional | Single Google Books API key |
+| `GOOGLE_BOOKS_API_KEYS` | Optional | Rotating key list |
+| `SUPABASE_STORAGE_BUCKET` | Optional | Upload bucket (default: `media`) |
 
-  - `supabase/schema.sql`
+Additional backup/distributed rate-limit related env vars are documented inline in `.env.example`.
 
-- Ensure a Storage bucket exists (default: `media`) if you want avatar/cover uploads.
+### 3) Provision database/storage
 
-### 4) Run the dev server
+- Apply `supabase/schema.sql` to your Supabase project.
+- Ensure storage bucket exists (default bucket name: `media`).
+
+### 4) Start development server
 
 - `bun run dev`
 
+---
+
 ## Scripts
 
-- `bun run dev` — start Next dev server (Turbopack)
+- `bun run dev` — Next.js dev server (Turbopack)
 - `bun run build` — production build
-- `bun run start` — run production server
+- `bun run start` — start production server
 - `bun run lint` — ESLint
-- `bun run typecheck` — TypeScript
-- `bun run format:write` — Prettier
+- `bun run typecheck` — TypeScript no-emit check
+- `bun run format:write` — Prettier formatting
 - `bun run test` — Bun tests
+- `bun run update` — dependency update sweep (`ncu -u`)
+
+---
+
+## License
+
+MIT — see `LICENSE`.

@@ -14,8 +14,6 @@
 - `strict: true`, `moduleResolution: bundler`.
 - Path alias: `@/*` mapped to project root.
 
-## UI conventions
-
 ## A11y / lint quirks
 
 - Prefer semantic elements over ARIA roles when possible:
