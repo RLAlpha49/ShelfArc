@@ -1,9 +1,10 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState, useSyncExternalStore } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -11,11 +12,18 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
+} from "@/components/ui/sheet"
 import { FilterPresetsControl } from "@/components/library/filter-presets-control"
 import { TagFilterControl } from "@/components/library/tag-filter-control"
 import { useLibraryStore } from "@/lib/store/library-store"
 import type { SortField } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import type {
   TitleType,
   OwnershipStatus,
@@ -42,6 +50,158 @@ const SORT_FIELDS: SortField[] = [
   "price"
 ]
 
+const noopSubscribe = () => () => {}
+const getIsMac = () => /mac|iphone|ipad/i.test(navigator.userAgent)
+const getIsMacServer = () => false
+
+interface FilterControlsProps {
+  readonly layout?: "horizontal" | "vertical"
+}
+
+function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
+  const { filters, setFilters, resetFilters, series } = useLibraryStore()
+
+  const availableTags = useMemo(() => {
+    const tagSet = new Set<string>()
+    for (const s of series) {
+      for (const tag of s.tags ?? []) tagSet.add(tag)
+    }
+    return [...tagSet].sort((a, b) => a.localeCompare(b))
+  }, [series])
+
+  const hasActiveFilters =
+    filters.type !== "all" ||
+    filters.ownershipStatus !== "all" ||
+    filters.readingStatus !== "all" ||
+    filters.tags.length > 0 ||
+    filters.excludeTags.length > 0
+
+  const isVertical = layout === "vertical"
+
+  return (
+    <div className={isVertical ? "flex flex-col gap-3" : "contents"}>
+      <FilterPresetsControl />
+
+      {/* Type Filter */}
+      <div className="space-y-1">
+        <Label
+          htmlFor="filter-type"
+          className="text-muted-foreground text-[11px] font-medium"
+        >
+          Type
+        </Label>
+        <Select
+          value={filters.type}
+          onValueChange={(value) => {
+            if (value) setFilters({ type: value as TitleType | "all" })
+          }}
+        >
+          <SelectTrigger
+            id="filter-type"
+            className="w-30 rounded-xl text-xs shadow-sm"
+          >
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="manga">Manga</SelectItem>
+            <SelectItem value="light_novel">Light Novel</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Ownership Filter */}
+      <div className="space-y-1">
+        <Label
+          htmlFor="filter-ownership"
+          className="text-muted-foreground text-[11px] font-medium"
+        >
+          Ownership
+        </Label>
+        <Select
+          value={filters.ownershipStatus}
+          onValueChange={(value) => {
+            if (value)
+              setFilters({
+                ownershipStatus: value as OwnershipStatus | "all"
+              })
+          }}
+        >
+          <SelectTrigger
+            id="filter-ownership"
+            className="w-30 rounded-xl text-xs shadow-sm"
+          >
+            <SelectValue placeholder="Ownership" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="owned">Owned</SelectItem>
+            <SelectItem value="wishlist">Wishlist</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Reading Status Filter */}
+      <div className="space-y-1">
+        <Label
+          htmlFor="filter-reading"
+          className="text-muted-foreground text-[11px] font-medium"
+        >
+          Reading
+        </Label>
+        <Select
+          value={filters.readingStatus}
+          onValueChange={(value) => {
+            if (value)
+              setFilters({
+                readingStatus: value as ReadingStatus | "all"
+              })
+          }}
+        >
+          <SelectTrigger
+            id="filter-reading"
+            className="w-30 rounded-xl text-xs shadow-sm"
+          >
+            <SelectValue placeholder="Reading" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="unread">Unread</SelectItem>
+            <SelectItem value="reading">Reading</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="on_hold">On Hold</SelectItem>
+            <SelectItem value="dropped">Dropped</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Tags Filter */}
+      {availableTags.length > 0 && (
+        <TagFilterControl
+          availableTags={availableTags}
+          includeTags={filters.tags}
+          excludeTags={filters.excludeTags}
+          onIncludeChange={(tags) => setFilters({ tags })}
+          onExcludeChange={(tags) => setFilters({ excludeTags: tags })}
+        />
+      )}
+
+      {/* Clear filters */}
+      {hasActiveFilters && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={resetFilters}
+          className="text-muted-foreground hover:text-foreground rounded-xl text-xs"
+        >
+          Clear
+        </Button>
+      )}
+    </div>
+  )
+}
+
 /** Props for the {@link LibraryToolbar} component. @source */
 interface LibraryToolbarProps {
   readonly onAddBook: () => void
@@ -67,19 +227,25 @@ export function LibraryToolbar({
     setSortField,
     setSortOrder,
     filters,
-    setFilters,
-    resetFilters,
-    series
+    setFilters
   } = useLibraryStore()
   const { cardSize, setCardSize } = useSettingsStore()
 
-  const availableTags = useMemo(() => {
-    const tagSet = new Set<string>()
-    for (const s of series) {
-      for (const tag of s.tags ?? []) tagSet.add(tag)
-    }
-    return [...tagSet].sort((a, b) => a.localeCompare(b))
-  }, [series])
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth > 0 && windowWidth < 768
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const isMac = useSyncExternalStore(noopSubscribe, getIsMac, getIsMacServer)
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.type !== "all") count++
+    if (filters.ownershipStatus !== "all") count++
+    if (filters.readingStatus !== "all") count++
+    if (filters.tags.length > 0) count++
+    if (filters.excludeTags.length > 0) count++
+    return count
+  }, [filters])
 
   const searchPlaceholder = "Search by title, author, or ISBN..."
 
@@ -113,8 +279,19 @@ export function LibraryToolbar({
                 placeholder={searchPlaceholder}
                 value={filters.search}
                 onChange={(e) => setFilters({ search: e.target.value })}
-                className="rounded-xl pl-9 shadow-sm"
+                className="rounded-xl pl-9 shadow-sm sm:pr-16"
               />
+              <button
+                type="button"
+                className="text-muted-foreground/50 hover:text-muted-foreground absolute top-1/2 right-3 hidden -translate-y-1/2 text-[11px] transition-colors sm:inline-flex"
+                onClick={() =>
+                  globalThis.dispatchEvent(
+                    new Event("open-command-palette")
+                  )
+                }
+              >
+                or {isMac ? "⌘" : "Ctrl+"}K
+              </button>
             </div>
 
             <Button
@@ -161,111 +338,35 @@ export function LibraryToolbar({
 
           {/* Row 2: Filters + View controls */}
           <div className="flex flex-wrap items-end gap-2">
-            <FilterPresetsControl />
-
-            {/* Type Filter */}
-            <div className="space-y-1">
-              <Label
-                htmlFor="filter-type"
-                className="text-muted-foreground text-[11px] font-medium"
+            {/* Filter controls: inline on desktop, sheet trigger on mobile */}
+            {isMobile ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl text-xs shadow-sm"
+                onClick={() => setFiltersOpen(true)}
               >
-                Type
-              </Label>
-              <Select
-                value={filters.type}
-                onValueChange={(value) => {
-                  if (value) setFilters({ type: value as TitleType | "all" })
-                }}
-              >
-                <SelectTrigger
-                  id="filter-type"
-                  className="w-30 rounded-xl text-xs shadow-sm"
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1.5 h-3.5 w-3.5"
                 >
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="manga">Manga</SelectItem>
-                  <SelectItem value="light_novel">Light Novel</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Ownership Filter */}
-            <div className="space-y-1">
-              <Label
-                htmlFor="filter-ownership"
-                className="text-muted-foreground text-[11px] font-medium"
-              >
-                Ownership
-              </Label>
-              <Select
-                value={filters.ownershipStatus}
-                onValueChange={(value) => {
-                  if (value)
-                    setFilters({
-                      ownershipStatus: value as OwnershipStatus | "all"
-                    })
-                }}
-              >
-                <SelectTrigger
-                  id="filter-ownership"
-                  className="w-30 rounded-xl text-xs shadow-sm"
-                >
-                  <SelectValue placeholder="Ownership" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="owned">Owned</SelectItem>
-                  <SelectItem value="wishlist">Wishlist</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Reading Status Filter */}
-            <div className="space-y-1">
-              <Label
-                htmlFor="filter-reading"
-                className="text-muted-foreground text-[11px] font-medium"
-              >
-                Reading
-              </Label>
-              <Select
-                value={filters.readingStatus}
-                onValueChange={(value) => {
-                  if (value)
-                    setFilters({
-                      readingStatus: value as ReadingStatus | "all"
-                    })
-                }}
-              >
-                <SelectTrigger
-                  id="filter-reading"
-                  className="w-30 rounded-xl text-xs shadow-sm"
-                >
-                  <SelectValue placeholder="Reading" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="unread">Unread</SelectItem>
-                  <SelectItem value="reading">Reading</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="on_hold">On Hold</SelectItem>
-                  <SelectItem value="dropped">Dropped</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Tags Filter */}
-            {availableTags.length > 0 && (
-              <TagFilterControl
-                availableTags={availableTags}
-                includeTags={filters.tags}
-                excludeTags={filters.excludeTags}
-                onIncludeChange={(tags) => setFilters({ tags })}
-                onExcludeChange={(tags) => setFilters({ excludeTags: tags })}
-              />
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                Filters
+                {activeFilterCount > 0 && (
+                  <Badge className="ml-1 h-4 min-w-4 px-1 text-[10px]">
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
+            ) : (
+              <FilterControls />
             )}
 
             {/* Sort */}
@@ -325,23 +426,6 @@ export function LibraryToolbar({
                 </button>
               </div>
             </div>
-
-            {/* Clear filters */}
-            {(filters.search ||
-              filters.type !== "all" ||
-              filters.ownershipStatus !== "all" ||
-              filters.readingStatus !== "all" ||
-              filters.tags.length > 0 ||
-              filters.excludeTags.length > 0) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={resetFilters}
-                className="text-muted-foreground hover:text-foreground rounded-xl text-xs"
-              >
-                Clear
-              </Button>
-            )}
 
             {/* Spacer */}
             <div className="flex-1" />
@@ -461,6 +545,20 @@ export function LibraryToolbar({
               </button>
             </fieldset>
           </div>
+
+          {/* Mobile filter drawer */}
+          {isMobile && (
+            <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+              <SheetContent side="right">
+                <SheetHeader>
+                  <SheetTitle>Filters</SheetTitle>
+                </SheetHeader>
+                <div className="space-y-4 p-6 pt-2">
+                  <FilterControls layout="vertical" />
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
         </div>
       </div>
     </div>
