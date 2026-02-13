@@ -1,8 +1,14 @@
 "use client"
 
+import { useSyncExternalStore } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -14,6 +20,10 @@ import {
 import { logout } from "@/app/auth/actions"
 import { cn } from "@/lib/utils"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
+
+const noopSubscribe = () => () => {}
+const getIsMac = () => /mac|iphone|ipad/i.test(navigator.userAgent)
+const getIsMacServer = () => false
 
 /** Props for the {@link Header} component. @source */
 interface HeaderProps {
@@ -34,6 +44,8 @@ interface HeaderProps {
 export function Header({ user }: HeaderProps) {
   const pathname = usePathname()
   const avatarUrl = resolveImageUrl(user?.user_metadata?.avatar_url)
+
+  const isMac = useSyncExternalStore(noopSubscribe, getIsMac, getIsMacServer)
 
   const navItems = [
     {
@@ -185,6 +197,42 @@ export function Header({ user }: HeaderProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          )}
+          {user && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    className="focus-visible:ring-ring focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-accent border-border/50 inline-flex h-8 items-center gap-1.5 rounded-lg border bg-transparent px-2 text-[11px] transition-all hover:shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    aria-label="Open command palette"
+                    onClick={() =>
+                      globalThis.dispatchEvent(
+                        new Event("open-command-palette")
+                      )
+                    }
+                  />
+                }
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-3 opacity-60"
+                >
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="m12.5 12.5-2.8-2.8" />
+                </svg>
+                <kbd className="pointer-events-none font-mono text-[10px] opacity-70">
+                  {isMac ? "⌘" : "Ctrl+"}K
+                </kbd>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Search commands</TooltipContent>
+            </Tooltip>
           )}
           <ThemeToggle />
 

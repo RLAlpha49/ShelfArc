@@ -621,6 +621,24 @@
   border: 1px solid oklch(0.92 0.01 75 / 8%);
 }
 
+/* Command palette glass effect */
+.command-palette-glass {
+  background: oklch(0.99 0.004 75 / 85%) !important;
+  backdrop-filter: blur(24px) saturate(1.3);
+  box-shadow:
+    0 0 0 1px oklch(0.55 0.14 45 / 8%),
+    0 20px 40px -12px oklch(0 0 0 / 18%),
+    inset 0 1px 0 oklch(1 0 0 / 40%);
+}
+
+.dark .command-palette-glass {
+  background: oklch(0.17 0.012 272 / 82%) !important;
+  box-shadow:
+    0 0 0 1px oklch(0.74 0.115 65 / 8%),
+    0 20px 40px -12px oklch(0 0 0 / 50%),
+    inset 0 1px 0 oklch(1 0 0 / 5%);
+}
+
 /* Progress bar fill animation */
 .progress-animate {
   animation: width-expand 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;

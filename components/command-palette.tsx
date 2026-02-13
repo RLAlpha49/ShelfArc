@@ -1,6 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState
+} from "react"
 import { useRouter } from "next/navigation"
 import {
   Command,
@@ -162,9 +168,133 @@ function collectVolumeJumpItemsFromUnassigned(
   return matches
 }
 
+const PLATFORM_MOD =
+  typeof navigator !== "undefined" &&
+  /mac|iphone|ipad/i.test(navigator.userAgent)
+    ? "⌘"
+    : "Ctrl+"
+
+function highlightMatch(text: string, query: string) {
+  if (!query || query.trim().length < 2) return text
+  const trimmed = query.trim()
+  const idx = text.toLowerCase().indexOf(trimmed.toLowerCase())
+  if (idx === -1) return text
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="text-copper bg-transparent font-semibold">
+        {text.slice(idx, idx + trimmed.length)}
+      </mark>
+      {text.slice(idx + trimmed.length)}
+    </>
+  )
+}
+
+function SectionHeading({
+  icon,
+  children
+}: Readonly<{
+  icon: ReactNode
+  children: ReactNode
+}>) {
+  return (
+    <span className="text-copper/70 flex items-center gap-1.5">
+      {icon}
+      {children}
+    </span>
+  )
+}
+
+const sectionIcons = {
+  navigate: (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+    >
+      <path d="M3 8h10M11 6l2 2-2 2" />
+    </svg>
+  ),
+  library: (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+    >
+      <path d="M3 13V3.5A1.5 1.5 0 0 1 4.5 2H13v12H4.5a1.5 1.5 0 0 1 0-3H13" />
+    </svg>
+  ),
+  views: (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+    >
+      <rect x="2" y="2" width="5" height="5" rx="1" />
+      <rect x="9" y="2" width="5" height="5" rx="1" />
+      <rect x="2" y="9" width="5" height="5" rx="1" />
+      <rect x="9" y="9" width="5" height="5" rx="1" />
+    </svg>
+  ),
+  shell: (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+    >
+      <rect x="2" y="2" width="12" height="12" rx="2" />
+      <path d="M6 2v12" />
+    </svg>
+  ),
+  series: (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+    >
+      <path d="M4 2v12M7 2v12M10 3l3 1v9l-3-1z" />
+    </svg>
+  ),
+  volume: (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+    >
+      <path d="M3 13V3.5A1.5 1.5 0 0 1 4.5 2H13v12H4.5a1.5 1.5 0 0 1 0-3H13" />
+      <path d="M7 5h3M7 7.5h2" />
+    </svg>
+  )
+}
+
 /** Global command palette (Ctrl/⌘+K) with navigation + library shortcuts. @source */
 export function CommandPalette() {
   const router = useRouter()
+  const mod = PLATFORM_MOD
 
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -238,6 +368,13 @@ export function CommandPalette() {
     return () => target.removeEventListener("keydown", toggleOpenFromShortcut)
   }, [toggleOpenFromShortcut])
 
+  useEffect(() => {
+    const handleOpen = () => setOpen(true)
+    globalThis.addEventListener("open-command-palette", handleOpen)
+    return () =>
+      globalThis.removeEventListener("open-command-palette", handleOpen)
+  }, [])
+
   const hintedEmptyMessage = useMemo(() => {
     if (!query.trim()) return "Type to search commands…"
     if (normalizedQuery.length < 2) {
@@ -258,52 +395,82 @@ export function CommandPalette() {
         setOpen(nextOpen)
         if (!nextOpen) setQuery("")
       }}
-      className="max-w-2xl"
+      className="command-palette-glass ring-copper/10 max-w-xl"
       title="Command Palette"
       description="Search for a command to run…"
       showCloseButton={false}
     >
-      <Command className="rounded-2xl" shouldFilter>
+      <Command className="rounded-2xl bg-transparent" shouldFilter>
         <CommandInput
-          placeholder="Search commands, or jump to a series/volume…"
+          placeholder="Search commands, series, volumes…"
           value={query}
           onValueChange={setQuery}
           autoFocus
         />
-        <CommandList className="pb-1">
-          <CommandEmpty>{hintedEmptyMessage}</CommandEmpty>
+        <CommandList className="max-h-80 pb-0">
+          <CommandEmpty>
+            <div className="flex flex-col items-center gap-2 py-6">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-muted-foreground/30 size-8"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <p className="text-muted-foreground text-xs">
+                {hintedEmptyMessage}
+              </p>
+            </div>
+          </CommandEmpty>
 
-          <CommandGroup heading="Navigation">
+          <CommandGroup
+            heading={
+              <SectionHeading icon={sectionIcons.navigate}>
+                Navigate
+              </SectionHeading>
+            }
+          >
             <CommandItem
               value="go to library navigate"
               onSelect={() => runCommand(() => router.push("/library"))}
             >
-              Library
+              {highlightMatch("Library", query)}
             </CommandItem>
             <CommandItem
               value="go to dashboard navigate"
               onSelect={() => runCommand(() => router.push("/dashboard"))}
             >
-              Dashboard
+              {highlightMatch("Dashboard", query)}
             </CommandItem>
             <CommandItem
               value="go to settings navigate"
               onSelect={() => runCommand(() => router.push("/settings"))}
             >
-              Settings
+              {highlightMatch("Settings", query)}
             </CommandItem>
           </CommandGroup>
 
           <CommandSeparator />
 
-          <CommandGroup heading="Library">
+          <CommandGroup
+            heading={
+              <SectionHeading icon={sectionIcons.library}>
+                Library
+              </SectionHeading>
+            }
+          >
             <CommandItem
               value="add book new volume"
               onSelect={() =>
                 runCommand(() => router.push("/library?add=book"))
               }
             >
-              Add book
+              {highlightMatch("Add book", query)}
             </CommandItem>
             <CommandItem
               value="add series new"
@@ -311,26 +478,30 @@ export function CommandPalette() {
                 runCommand(() => router.push("/library?add=series"))
               }
             >
-              Add series
+              {highlightMatch("Add series", query)}
             </CommandItem>
           </CommandGroup>
 
           <CommandSeparator />
 
-          <CommandGroup heading="Views">
+          <CommandGroup
+            heading={
+              <SectionHeading icon={sectionIcons.views}>Views</SectionHeading>
+            }
+          >
             <CommandItem
               value="view series collection"
               data-checked={collectionView === "series"}
               onSelect={() => runCommand(() => setCollectionView("series"))}
             >
-              Collection: Series
+              {highlightMatch("Collection: Series", query)}
             </CommandItem>
             <CommandItem
               value="view volumes collection"
               data-checked={collectionView === "volumes"}
               onSelect={() => runCommand(() => setCollectionView("volumes"))}
             >
-              Collection: Volumes
+              {highlightMatch("Collection: Volumes", query)}
             </CommandItem>
 
             <CommandSeparator />
@@ -340,33 +511,37 @@ export function CommandPalette() {
               data-checked={viewMode === "grid"}
               onSelect={() => runCommand(() => setViewMode("grid"))}
             >
-              Layout: Grid
+              {highlightMatch("Layout: Grid", query)}
             </CommandItem>
             <CommandItem
               value="layout list"
               data-checked={viewMode === "list"}
               onSelect={() => runCommand(() => setViewMode("list"))}
             >
-              Layout: List
+              {highlightMatch("Layout: List", query)}
             </CommandItem>
           </CommandGroup>
 
           <CommandSeparator />
 
-          <CommandGroup heading="Shell">
+          <CommandGroup
+            heading={
+              <SectionHeading icon={sectionIcons.shell}>Shell</SectionHeading>
+            }
+          >
             <CommandItem
               value="navigation sidebar"
               data-checked={navigationMode === "sidebar"}
               onSelect={() => runCommand(() => setNavigationMode("sidebar"))}
             >
-              Navigation: Sidebar
+              {highlightMatch("Navigation: Sidebar", query)}
             </CommandItem>
             <CommandItem
               value="navigation header"
               data-checked={navigationMode === "header"}
               onSelect={() => runCommand(() => setNavigationMode("header"))}
             >
-              Navigation: Header
+              {highlightMatch("Navigation: Header", query)}
             </CommandItem>
           </CommandGroup>
 
@@ -375,7 +550,13 @@ export function CommandPalette() {
               <CommandSeparator />
 
               {jumpItems.series.length > 0 && (
-                <CommandGroup heading="Jump to series">
+                <CommandGroup
+                  heading={
+                    <SectionHeading icon={sectionIcons.series}>
+                      Jump to series
+                    </SectionHeading>
+                  }
+                >
                   {jumpItems.series.map((item) => (
                     <CommandItem
                       key={item.id}
@@ -383,7 +564,9 @@ export function CommandPalette() {
                       onSelect={() => runCommand(() => router.push(item.href))}
                     >
                       <div className="min-w-0">
-                        <div className="truncate">{item.title}</div>
+                        <div className="truncate">
+                          {highlightMatch(item.title, query)}
+                        </div>
                         {item.subtitle && (
                           <div className="text-muted-foreground truncate text-[11px]">
                             {item.subtitle}
@@ -396,7 +579,13 @@ export function CommandPalette() {
               )}
 
               {jumpItems.volumes.length > 0 && (
-                <CommandGroup heading="Jump to volume">
+                <CommandGroup
+                  heading={
+                    <SectionHeading icon={sectionIcons.volume}>
+                      Jump to volume
+                    </SectionHeading>
+                  }
+                >
                   {jumpItems.volumes.map((item) => (
                     <CommandItem
                       key={item.id}
@@ -404,7 +593,9 @@ export function CommandPalette() {
                       onSelect={() => runCommand(() => router.push(item.href))}
                     >
                       <div className="min-w-0">
-                        <div className="truncate">{item.title}</div>
+                        <div className="truncate">
+                          {highlightMatch(item.title, query)}
+                        </div>
                         {item.subtitle && (
                           <div className="text-muted-foreground truncate text-[11px]">
                             {item.subtitle}
@@ -418,6 +609,36 @@ export function CommandPalette() {
             </>
           )}
         </CommandList>
+
+        {/* Keyboard navigation footer */}
+        <div className="border-border/50 flex items-center gap-4 border-t px-3 py-2">
+          <span className="text-muted-foreground flex items-center gap-1 text-[10px]">
+            <kbd className="bg-muted/80 rounded px-1 py-0.5 font-mono text-[9px]">
+              ↑
+            </kbd>
+            <kbd className="bg-muted/80 -ml-0.5 rounded px-1 py-0.5 font-mono text-[9px]">
+              ↓
+            </kbd>
+            <span>Navigate</span>
+          </span>
+          <span className="text-muted-foreground flex items-center gap-1 text-[10px]">
+            <kbd className="bg-muted/80 rounded px-1 py-0.5 font-mono text-[9px]">
+              ↵
+            </kbd>
+            <span>Select</span>
+          </span>
+          <span className="text-muted-foreground flex items-center gap-1 text-[10px]">
+            <kbd className="bg-muted/80 rounded px-1 py-0.5 font-mono text-[9px]">
+              Esc
+            </kbd>
+            <span>Close</span>
+          </span>
+          <span className="text-muted-foreground ml-auto flex items-center gap-1 text-[10px]">
+            <kbd className="bg-muted/80 rounded px-1 py-0.5 font-mono text-[9px]">
+              {mod}K
+            </kbd>
+          </span>
+        </div>
       </Command>
     </CommandDialog>
   )
