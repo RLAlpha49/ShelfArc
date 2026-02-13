@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS volumes (
   reading_status reading_status DEFAULT 'unread' NOT NULL,
   current_page INTEGER,
   amazon_url TEXT,
-  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  rating INTEGER CHECK (rating >= 1 AND rating <= 10),
   notes TEXT,
   started_at TIMESTAMPTZ,
   finished_at TIMESTAMPTZ,
@@ -656,25 +656,6 @@ BEGIN
     EXECUTE 'CREATE POLICY "Users can insert their own price history" ON public.price_history FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_history'
-      AND policyname = 'Users can update their own price history'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can update their own price history" ON public.price_history FOR UPDATE USING ((select auth.uid()) = user_id)';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_history'
-      AND policyname = 'Users can delete their own price history'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can delete their own price history" ON public.price_history FOR DELETE USING ((select auth.uid()) = user_id)';
-  END IF;
 END $$;
 
 -- RLS Policies for price_alerts
