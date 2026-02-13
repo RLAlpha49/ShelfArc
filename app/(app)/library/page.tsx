@@ -1205,7 +1205,10 @@ export default function LibraryPage() {
       const results = await Promise.allSettled(
         targets.map((volume) =>
           editVolume(volume.series_id ?? null, volume.id, {
-            reading_status: status
+            reading_status: status,
+            ...(status === "completed" && volume.page_count && volume.page_count > 0
+              ? { current_page: volume.page_count }
+              : {})
           })
         )
       )
@@ -1561,7 +1564,10 @@ export default function LibraryPage() {
         volume.reading_status === "completed" ? "unread" : "completed"
       try {
         await editVolume(volume.series_id ?? null, volume.id, {
-          reading_status: nextStatus
+          reading_status: nextStatus,
+          ...(nextStatus === "completed" && volume.page_count && volume.page_count > 0
+            ? { current_page: volume.page_count }
+            : {})
         })
         toast.success(
           nextStatus === "completed" ? "Marked as read" : "Marked as unread"

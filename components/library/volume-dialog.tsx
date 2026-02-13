@@ -714,6 +714,9 @@ export function VolumeDialog({
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
+    const pageCount = formData.page_count
+      ? Number.parseInt(formData.page_count)
+      : null
     try {
       await onSubmit({
         volume_number: formData.volume_number,
@@ -723,9 +726,10 @@ export function VolumeDialog({
         cover_image_url: formData.cover_image_url || null,
         ownership_status: formData.ownership_status,
         reading_status: formData.reading_status,
-        page_count: formData.page_count
-          ? Number.parseInt(formData.page_count)
-          : null,
+        page_count: pageCount,
+        ...(formData.reading_status === "completed" && pageCount && pageCount > 0
+          ? { current_page: pageCount }
+          : {}),
         rating: formData.rating ? Number.parseInt(formData.rating) : null,
         notes: formData.notes || null,
         publish_date: formData.publish_date || null,
