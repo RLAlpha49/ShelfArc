@@ -879,46 +879,98 @@ export function useLibrary() {
     [supabase, deleteVolume, deleteUnassignedVolume]
   )
 
-  // Filter series based on current filters
-  const filteredSeries = series.filter((s) => {
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase()
-      const matchesTitle = s.title.toLowerCase().includes(searchLower)
-      const matchesAuthor = s.author?.toLowerCase().includes(searchLower)
-      const matchesDescription = s.description
-        ?.toLowerCase()
-        .includes(searchLower)
-      if (!matchesTitle && !matchesAuthor && !matchesDescription) return false
+  // Filter and sort series based on current filters and sort settings
+  const filteredSeries = useMemo(() => {
+    const filtered = series.filter((s) => {
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase()
+        const matchesTitle = s.title.toLowerCase().includes(searchLower)
+        const matchesAuthor = s.author?.toLowerCase().includes(searchLower)
+        const matchesDescription = s.description
+          ?.toLowerCase()
+          .includes(searchLower)
+        if (!matchesTitle && !matchesAuthor && !matchesDescription) return false
+      }
+
+      // Type filter
+      if (filters.type !== "all" && s.type !== filters.type) return false
+
+      // Tags filter
+      if (filters.tags.length > 0) {
+        const hasTags = filters.tags.every((tag) => s.tags.includes(tag))
+        if (!hasTags) return false
+      }
+
+      // Ownership status filter (check volumes)
+      if (filters.ownershipStatus !== "all") {
+        const hasMatchingVolume = s.volumes.some(
+          (v) => v.ownership_status === filters.ownershipStatus
+        )
+        if (!hasMatchingVolume) return false
+      }
+
+      // Reading status filter (check volumes)
+      if (filters.readingStatus !== "all") {
+        const hasMatchingVolume = s.volumes.some(
+          (v) => v.reading_status === filters.readingStatus
+        )
+        if (!hasMatchingVolume) return false
+      }
+
+      return true
+    })
+
+    const multiplier = sortOrder === "asc" ? 1 : -1
+    const compareStrings = (a?: string | null, b?: string | null) =>
+      (a ?? "").localeCompare(b ?? "", undefined, { sensitivity: "base" })
+
+    const avgRating = (s: SeriesWithVolumes) => {
+      const rated = s.volumes.filter((v) => v.rating != null)
+      if (rated.length === 0) return 0
+      return rated.reduce((sum, v) => sum + (v.rating ?? 0), 0) / rated.length
     }
 
-    // Type filter
-    if (filters.type !== "all" && s.type !== filters.type) return false
+    const totalPrice = (s: SeriesWithVolumes) =>
+      s.volumes.reduce((sum, v) => sum + (v.purchase_price ?? 0), 0)
 
-    // Tags filter
-    if (filters.tags.length > 0) {
-      const hasTags = filters.tags.every((tag) => s.tags.includes(tag))
-      if (!hasTags) return false
-    }
-
-    // Ownership status filter (check volumes)
-    if (filters.ownershipStatus !== "all") {
-      const hasMatchingVolume = s.volumes.some(
-        (v) => v.ownership_status === filters.ownershipStatus
-      )
-      if (!hasMatchingVolume) return false
-    }
-
-    // Reading status filter (check volumes)
-    if (filters.readingStatus !== "all") {
-      const hasMatchingVolume = s.volumes.some(
-        (v) => v.reading_status === filters.readingStatus
-      )
-      if (!hasMatchingVolume) return false
-    }
-
-    return true
-  })
+    return filtered.sort((a, b) => {
+      switch (sortField) {
+        case "author":
+          return compareStrings(a.author, b.author) * multiplier
+        case "created_at":
+          return (
+            (new Date(a.created_at).getTime() -
+              new Date(b.created_at).getTime()) *
+            multiplier
+          )
+        case "updated_at":
+          return (
+            (new Date(a.updated_at).getTime() -
+              new Date(b.updated_at).getTime()) *
+            multiplier
+          )
+        case "rating":
+          return (
+            (avgRating(a) - avgRating(b)) * multiplier ||
+            compareStrings(a.title, b.title)
+          )
+        case "volume_count":
+          return (
+            (a.volumes.length - b.volumes.length) * multiplier ||
+            compareStrings(a.title, b.title)
+          )
+        case "price":
+          return (
+            (totalPrice(a) - totalPrice(b)) * multiplier ||
+            compareStrings(a.title, b.title)
+          )
+        case "title":
+        default:
+          return compareStrings(a.title, b.title) * multiplier
+      }
+    })
+  }, [series, filters, sortField, sortOrder])
 
   const allVolumes = useMemo<VolumeWithSeries[]>(() => {
     return series.flatMap((item) =>
