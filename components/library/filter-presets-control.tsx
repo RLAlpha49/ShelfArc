@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -11,17 +11,13 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,43 +31,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useLibraryStore } from "@/lib/store/library-store"
 
-function CheckIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="mr-1.5 h-3.5 w-3.5"
-      aria-hidden="true"
-    >
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  )
-}
-
-function BookmarkIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="mr-1.5 h-3.5 w-3.5"
-      aria-hidden="true"
-    >
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-    </svg>
-  )
-}
-
-/** Compact dropdown + dialogs for saved filter presets. Intended for LibraryToolbar. @source */
+/** Horizontal preset pill strip + dialogs for saved filter presets. Intended for LibraryToolbar. @source */
 export function FilterPresetsControl() {
   const filterPresets = useLibraryStore((s) => s.filterPresets)
   const activeFilterPresetId = useLibraryStore((s) => s.activeFilterPresetId)
@@ -84,17 +44,12 @@ export function FilterPresetsControl() {
     return [...filterPresets].sort((a, b) => a.name.localeCompare(b.name))
   }, [filterPresets])
 
-  const activePreset = useMemo(() => {
-    return presets.find((p) => p.id === activeFilterPresetId) ?? null
-  }, [activeFilterPresetId, presets])
-
   const [saveOpen, setSaveOpen] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
-
   const [presetName, setPresetName] = useState("")
   const [includeSortAndView, setIncludeSortAndView] = useState(false)
-
   const [draftNames, setDraftNames] = useState<Record<string, string>>({})
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const canSave = presetName.trim().length > 0
 
@@ -104,53 +59,113 @@ export function FilterPresetsControl() {
         <span className="text-muted-foreground text-[11px] font-medium">
           Presets
         </span>
-        <DropdownMenu>
-          <DropdownMenuTrigger className="focus-visible:ring-ring bg-background border-input hover:bg-accent inline-flex h-9 items-center justify-center rounded-xl border px-3 text-xs font-medium shadow-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
-            <BookmarkIcon />
-            {activePreset ? `Preset: ${activePreset.name}` : "Presets"}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64 rounded-xl">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Apply preset</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {presets.length === 0 ? (
-                <DropdownMenuItem disabled className="text-muted-foreground">
-                  No presets yet
-                </DropdownMenuItem>
-              ) : (
-                presets.map((preset) => {
-                  const isActive = preset.id === activeFilterPresetId
-                  return (
-                    <DropdownMenuItem
-                      key={preset.id}
-                      onClick={() => applyFilterPreset(preset.id)}
-                      className={isActive ? "bg-accent font-medium" : ""}
+        <div className="flex items-center gap-1.5">
+          <div
+            ref={scrollRef}
+            className="scrollbar-none flex items-center gap-1.5 overflow-x-auto"
+          >
+            {presets.map((preset) => {
+              const isActive = preset.id === activeFilterPresetId
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyFilterPreset(preset.id)}
+                  className={`focus-visible:ring-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-all focus-visible:ring-1 focus-visible:outline-none ${
+                    isActive
+                      ? "bg-copper text-white shadow-sm"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent hover:border-border/50"
+                  }`}
+                >
+                  {isActive && (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3 w-3"
+                      aria-hidden="true"
                     >
-                      {isActive && <CheckIcon />}
-                      <span className="truncate">{preset.name}</span>
-                    </DropdownMenuItem>
-                  )
-                })
-              )}
-            </DropdownMenuGroup>
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  )}
+                  {preset.name}
+                </button>
+              )
+            })}
+          </div>
 
-            <DropdownMenuSeparator />
-
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => setSaveOpen(true)}
-                className="font-medium"
+          {/* Save current filters as new preset */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => setSaveOpen(true)}
+                  className="focus-visible:ring-ring border-input text-muted-foreground hover:border-copper/40 hover:text-copper inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed transition-all focus-visible:ring-1 focus-visible:outline-none"
+                  aria-label="Save current filters as preset"
+                />
+              }
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3.5 w-3.5"
               >
-                Save current...
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setManageOpen(true)}>
-                Manage presets
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Save current filters</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Manage presets */}
+          {presets.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    onClick={() => setManageOpen(true)}
+                    className="focus-visible:ring-ring text-muted-foreground hover:text-foreground inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-1 focus-visible:outline-none"
+                    aria-label="Manage presets"
+                  />
+                }
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3.5 w-3.5"
+                >
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="19" cy="12" r="1" />
+                  <circle cx="5" cy="12" r="1" />
+                </svg>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Manage presets</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
+      {/* Save Dialog */}
       <Dialog
         open={saveOpen}
         onOpenChange={(nextOpen) => {
@@ -220,6 +235,7 @@ export function FilterPresetsControl() {
         </DialogContent>
       </Dialog>
 
+      {/* Manage Dialog */}
       <Dialog
         open={manageOpen}
         onOpenChange={(nextOpen) => {
@@ -235,8 +251,7 @@ export function FilterPresetsControl() {
           <DialogHeader>
             <DialogTitle>Manage presets</DialogTitle>
             <DialogDescription>
-              Rename or delete saved presets. Applying a preset is available
-              from the dropdown.
+              Rename or delete saved presets.
             </DialogDescription>
           </DialogHeader>
 
