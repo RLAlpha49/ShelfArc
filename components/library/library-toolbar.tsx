@@ -12,6 +12,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { FilterPresetsControl } from "@/components/library/filter-presets-control"
+import { TagFilterControl } from "@/components/library/tag-filter-control"
 import { useLibraryStore } from "@/lib/store/library-store"
 import type { SortField } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -258,36 +259,13 @@ export function LibraryToolbar({
 
             {/* Tags Filter */}
             {availableTags.length > 0 && (
-              <div className="space-y-1">
-                <Label
-                  htmlFor="filter-tags"
-                  className="text-muted-foreground text-[11px] font-medium"
-                >
-                  Tags
-                </Label>
-                <Select
-                  value={filters.tags.length > 0 ? filters.tags[0] : "all"}
-                  onValueChange={(value) => {
-                    if (value)
-                      setFilters({ tags: value === "all" ? [] : [value] })
-                  }}
-                >
-                  <SelectTrigger
-                    id="filter-tags"
-                    className="w-30 rounded-xl text-xs shadow-sm"
-                  >
-                    <SelectValue placeholder="Tags" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="all">All</SelectItem>
-                    {availableTags.map((tag) => (
-                      <SelectItem key={tag} value={tag}>
-                        {tag}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <TagFilterControl
+                availableTags={availableTags}
+                includeTags={filters.tags}
+                excludeTags={filters.excludeTags}
+                onIncludeChange={(tags) => setFilters({ tags })}
+                onExcludeChange={(tags) => setFilters({ excludeTags: tags })}
+              />
             )}
 
             {/* Sort */}
@@ -353,7 +331,8 @@ export function LibraryToolbar({
               filters.type !== "all" ||
               filters.ownershipStatus !== "all" ||
               filters.readingStatus !== "all" ||
-              filters.tags.length > 0) && (
+              filters.tags.length > 0 ||
+              filters.excludeTags.length > 0) && (
               <Button
                 variant="ghost"
                 size="sm"

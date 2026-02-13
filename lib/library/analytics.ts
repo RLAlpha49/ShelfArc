@@ -365,7 +365,7 @@ export function computeSuggestedBuys(
   }
 
   const sorted = suggestions.toSorted((a, b) => b.score - a.score)
-  return limit != null ? sorted.slice(0, limit) : sorted
+  return limit == null ? sorted : sorted.slice(0, limit)
 }
 
 export function getRecentSeries(

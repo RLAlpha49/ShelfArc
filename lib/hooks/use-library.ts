@@ -865,6 +865,20 @@ export function useLibrary() {
     [supabase, deleteVolume, deleteUnassignedVolume]
   )
 
+  const matchesTagFilters = useCallback(
+    (seriesTags: string[]) => {
+      if (filters.tags.length > 0) {
+        if (!filters.tags.every((tag) => seriesTags.includes(tag))) return false
+      }
+      if (filters.excludeTags.length > 0) {
+        if (filters.excludeTags.some((tag) => seriesTags.includes(tag)))
+          return false
+      }
+      return true
+    },
+    [filters.tags, filters.excludeTags]
+  )
+
   // Filter and sort series based on current filters and sort settings
   const filteredSeries = useMemo(() => {
     const filtered = series.filter((s) => {
@@ -883,16 +897,7 @@ export function useLibrary() {
       if (filters.type !== "all" && s.type !== filters.type) return false
 
       // Tags filter
-      if (filters.tags.length > 0) {
-        const hasTags = filters.tags.every((tag) => s.tags.includes(tag))
-        if (!hasTags) return false
-      }
-
-      // Exclude tags filter
-      if (filters.excludeTags.length > 0) {
-        const hasExcluded = filters.excludeTags.some((tag) => s.tags.includes(tag))
-        if (hasExcluded) return false
-      }
+      if (!matchesTagFilters(s.tags)) return false
 
       // Ownership status filter (check volumes)
       if (filters.ownershipStatus !== "all") {
@@ -962,7 +967,7 @@ export function useLibrary() {
           return compareStrings(a.title, b.title) * multiplier
       }
     })
-  }, [series, filters, sortField, sortOrder])
+  }, [series, sortOrder, filters.search, filters.type, filters.ownershipStatus, filters.readingStatus, matchesTagFilters, sortField])
 
   const allVolumes = useMemo<VolumeWithSeries[]>(() => {
     return series.flatMap((item) =>
@@ -998,19 +1003,7 @@ export function useLibrary() {
       if (filters.type !== "all" && seriesItem.type !== filters.type)
         return false
 
-      if (filters.tags.length > 0) {
-        const hasTags = filters.tags.every((tag) =>
-          seriesItem.tags.includes(tag)
-        )
-        if (!hasTags) return false
-      }
-
-      if (filters.excludeTags.length > 0) {
-        const hasExcluded = filters.excludeTags.some((tag) =>
-          seriesItem.tags.includes(tag)
-        )
-        if (hasExcluded) return false
-      }
+      if (!matchesTagFilters(seriesItem.tags)) return false
 
       if (
         filters.ownershipStatus !== "all" &&
@@ -1028,7 +1021,7 @@ export function useLibrary() {
 
       return true
     })
-  }, [allVolumes, filters])
+  }, [allVolumes, filters.ownershipStatus, filters.readingStatus, filters.search, filters.type, matchesTagFilters])
 
   const filteredUnassignedVolumes = useMemo(() => {
     return unassignedVolumes.filter((volume) => {
