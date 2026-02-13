@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useLibrary } from "@/lib/hooks/use-library"
+import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -977,6 +978,7 @@ export default function LibraryPage() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  useLibraryUrlSync()
   const consumedAddParamRef = useRef<string | null>(null)
   const {
     series,
