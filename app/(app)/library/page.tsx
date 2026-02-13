@@ -221,13 +221,13 @@ function SeriesListItem({
     <div className="group relative">
       {showSelection && (
         <div
-          className={`absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-lg bg-background/80 p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          className={`bg-background/80 absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-lg p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
             onCheckedChange={() => onSelect?.()}
             aria-label={`Select ${series.title}`}
-            className="h-6 w-6 border-2 border-foreground/50"
+            className="border-foreground/50 h-6 w-6 border-2"
           />
         </div>
       )}
@@ -667,13 +667,13 @@ function VolumeGridItem({
     <div className="group relative">
       {showSelection && (
         <div
-          className={`absolute top-2 left-2 z-10 rounded-lg bg-background/80 p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          className={`bg-background/80 absolute top-2 left-2 z-10 rounded-lg p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
             onCheckedChange={() => onSelect?.()}
             aria-label={`Select ${coverAlt}`}
-            className="h-6 w-6 border-2 border-foreground/50"
+            className="border-foreground/50 h-6 w-6 border-2"
           />
         </div>
       )}
@@ -817,13 +817,13 @@ function VolumeListItem({
     <div className="group relative">
       {showSelection && (
         <div
-          className={`absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-lg bg-background/80 p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          className={`bg-background/80 absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-lg p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
             onCheckedChange={() => onSelect?.()}
             aria-label={`Select ${coverAlt}`}
-            className="h-6 w-6 border-2 border-foreground/50"
+            className="border-foreground/50 h-6 w-6 border-2"
           />
         </div>
       )}
@@ -2115,7 +2115,9 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="relative px-6 py-8 lg:px-10">
+    <div
+      className={`relative px-6 py-8 lg:px-10 ${selectedCount > 0 ? "pb-20" : ""}`}
+    >
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
 
@@ -2188,188 +2190,185 @@ export default function LibraryPage() {
       />
 
       {selectedCount > 0 && (
-        <div className="glass-card animate-fade-in stagger-2 mt-4 rounded-2xl p-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-3">
-              <span className="text-muted-foreground text-[11px] tracking-widest uppercase">
-                Selection
-              </span>
-              <span className="font-display text-sm font-semibold">
-                {selectedCount} selected
-              </span>
-            </div>
+        <div className="animate-slide-up-fade bg-background/90 fixed inset-x-0 bottom-0 z-50 border-t shadow-[0_-4px_12px_-1px_rgba(0,0,0,0.1)] backdrop-blur-md">
+          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-3">
+                <span className="font-display text-sm font-semibold">
+                  {selectedCount} selected
+                </span>
+              </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSelectAll}
-              disabled={totalSelectableCount === 0 || isAllSelected}
-              className="rounded-xl"
-            >
-              Select all
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearSelection}
-              disabled={selectedCount === 0}
-              className="rounded-xl"
-            >
-              Clear
-            </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSelectAll}
+                disabled={totalSelectableCount === 0 || isAllSelected}
+                className="rounded-xl"
+              >
+                Select all
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSelection}
+                disabled={selectedCount === 0}
+                className="rounded-xl"
+              >
+                Clear
+              </Button>
 
-            {collectionView === "volumes" && selectedUnassignedCount > 0 && (
+              {collectionView === "volumes" && selectedUnassignedCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAssignToSeriesDialogOpen(true)}
+                  className="rounded-xl"
+                >
+                  Assign to series ({selectedUnassignedCount})
+                </Button>
+              )}
+
+              <div className="flex-1" />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={buttonVariants({
+                    variant: "outline",
+                    size: "sm",
+                    className: "rounded-xl"
+                  })}
+                  disabled={selectedCount === 0}
+                >
+                  Bulk actions
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl">
+                  {collectionView === "series" ? (
+                    <>
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Series type</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => applySeriesType("light_novel")}
+                        >
+                          Set to Light Novel
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => applySeriesType("manga")}
+                        >
+                          Set to Manga
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => applySeriesType("other")}
+                        >
+                          Set to Other
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Set all volumes</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => applySeriesVolumesOwnership("owned")}
+                        >
+                          Mark all owned
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            applySeriesVolumesOwnership("wishlist")
+                          }
+                        >
+                          Mark all wishlisted
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            applySeriesVolumesReadingStatus("completed")
+                          }
+                        >
+                          Mark all completed
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            applySeriesVolumesReadingStatus("unread")
+                          }
+                        >
+                          Mark all unread
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Ownership</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => applyVolumeOwnershipStatus("owned")}
+                        >
+                          Mark owned
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => applyVolumeOwnershipStatus("wishlist")}
+                        >
+                          Mark wishlist
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Reading status</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => applyVolumeReadingStatus("unread")}
+                        >
+                          Mark unread
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => applyVolumeReadingStatus("reading")}
+                        >
+                          Mark reading
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => applyVolumeReadingStatus("completed")}
+                        >
+                          Mark completed
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => applyVolumeReadingStatus("on_hold")}
+                        >
+                          Mark on hold
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => applyVolumeReadingStatus("dropped")}
+                        >
+                          Mark dropped
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setAssignToSeriesDialogOpen(true)}
+                onClick={handleEditSelected}
+                disabled={selectedCount !== 1}
                 className="rounded-xl"
               >
-                Assign to series ({selectedUnassignedCount})
+                Edit
               </Button>
-            )}
-
-            <div className="flex-1" />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={buttonVariants({
-                  variant: "outline",
-                  size: "sm",
-                  className: "rounded-xl"
-                })}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
                 disabled={selectedCount === 0}
+                className="rounded-xl"
               >
-                Bulk actions
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-xl">
-                {collectionView === "series" ? (
-                  <>
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel>Series type</DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() => applySeriesType("light_novel")}
-                      >
-                        Set to Light Novel
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => applySeriesType("manga")}
-                      >
-                        Set to Manga
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => applySeriesType("other")}
-                      >
-                        Set to Other
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel>Set all volumes</DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          applySeriesVolumesOwnership("owned")
-                        }
-                      >
-                        Mark all owned
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          applySeriesVolumesOwnership("wishlist")
-                        }
-                      >
-                        Mark all wishlisted
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          applySeriesVolumesReadingStatus("completed")
-                        }
-                      >
-                        Mark all completed
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          applySeriesVolumesReadingStatus("unread")
-                        }
-                      >
-                        Mark all unread
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel>Ownership</DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() => applyVolumeOwnershipStatus("owned")}
-                      >
-                        Mark owned
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => applyVolumeOwnershipStatus("wishlist")}
-                      >
-                        Mark wishlist
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel>Reading status</DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() => applyVolumeReadingStatus("unread")}
-                      >
-                        Mark unread
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => applyVolumeReadingStatus("reading")}
-                      >
-                        Mark reading
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => applyVolumeReadingStatus("completed")}
-                      >
-                        Mark completed
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => applyVolumeReadingStatus("on_hold")}
-                      >
-                        Mark on hold
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => applyVolumeReadingStatus("dropped")}
-                      >
-                        Mark dropped
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEditSelected}
-              disabled={selectedCount !== 1}
-              className="rounded-xl"
-            >
-              Edit
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleBulkDelete}
-              disabled={selectedCount === 0}
-              className="rounded-xl"
-            >
-              Delete
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => clearSelection()}
-              className="rounded-xl"
-            >
-              Cancel
-            </Button>
+                Delete
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => clearSelection()}
+                className="rounded-xl"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}

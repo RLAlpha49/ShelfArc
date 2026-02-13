@@ -489,107 +489,106 @@ const VolumeSelectionBar = ({
   if (selectedCount <= 0) return null
 
   return (
-    <div className="glass-card animate-fade-in-up mb-6 rounded-2xl p-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-3">
-          <span className="text-muted-foreground text-[11px] tracking-widest uppercase">
-            Selection
-          </span>
-          <span className="font-display text-sm font-semibold">
-            {selectedCount} selected
-          </span>
-        </div>
+    <div className="animate-slide-up-fade bg-background/90 fixed inset-x-0 bottom-0 z-50 border-t shadow-[0_-4px_12px_-1px_rgba(0,0,0,0.1)] backdrop-blur-md">
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-3">
+            <span className="font-display text-sm font-semibold">
+              {selectedCount} selected
+            </span>
+          </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onSelectAll}
-          disabled={totalSelectableCount === 0 || isAllSelected}
-          className="rounded-xl"
-        >
-          Select all
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClear}
-          disabled={selectedCount === 0}
-          className="rounded-xl"
-        >
-          Clear
-        </Button>
-
-        <div className="flex-1" />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className={buttonVariants({
-              variant: "outline",
-              size: "sm",
-              className: "rounded-xl"
-            })}
-            disabled={selectedCount === 0}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSelectAll}
+            disabled={totalSelectableCount === 0 || isAllSelected}
+            className="rounded-xl"
           >
-            Bulk actions
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="rounded-xl">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Ownership</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onApplyOwnership("owned")}>
-                Mark owned
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onApplyOwnership("wishlist")}>
-                Mark wishlist
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Reading status</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onApplyReading("unread")}>
-                Mark unread
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onApplyReading("reading")}>
-                Mark reading
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onApplyReading("completed")}>
-                Mark completed
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onApplyReading("on_hold")}>
-                Mark on hold
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onApplyReading("dropped")}>
-                Mark dropped
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            Select all
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClear}
+            disabled={selectedCount === 0}
+            className="rounded-xl"
+          >
+            Clear
+          </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onEdit}
-          disabled={selectedCount !== 1}
-          className="rounded-xl"
-        >
-          Edit
-        </Button>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={onDelete}
-          disabled={selectedCount === 0}
-          className="rounded-xl"
-        >
-          Delete
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onCancel}
-          className="rounded-xl"
-        >
-          Cancel
-        </Button>
+          <div className="flex-1" />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "rounded-xl"
+              })}
+              disabled={selectedCount === 0}
+            >
+              Bulk actions
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Ownership</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => onApplyOwnership("owned")}>
+                  Mark owned
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onApplyOwnership("wishlist")}>
+                  Mark wishlist
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Reading status</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => onApplyReading("unread")}>
+                  Mark unread
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onApplyReading("reading")}>
+                  Mark reading
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onApplyReading("completed")}>
+                  Mark completed
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onApplyReading("on_hold")}>
+                  Mark on hold
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onApplyReading("dropped")}>
+                  Mark dropped
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onEdit}
+            disabled={selectedCount !== 1}
+            className="rounded-xl"
+          >
+            Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onDelete}
+            disabled={selectedCount === 0}
+            className="rounded-xl"
+          >
+            Delete
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCancel}
+            className="rounded-xl"
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -711,9 +710,7 @@ const SeriesHeaderSection = ({
                   >
                     Mark all completed
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onApplyAllReading("unread")}
-                  >
+                  <DropdownMenuItem onClick={() => onApplyAllReading("unread")}>
                     Mark all unread
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
@@ -1770,7 +1767,9 @@ export default function SeriesDetailPage() {
   const primaryIsbn = primaryVolume?.isbn ?? null
 
   return (
-    <div className="relative px-6 py-8 lg:px-10">
+    <div
+      className={`relative px-6 py-8 lg:px-10 ${selectedCount > 0 ? "pb-20" : ""}`}
+    >
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_30%_20%,var(--warm-glow-strong),transparent_70%)]" />
 
