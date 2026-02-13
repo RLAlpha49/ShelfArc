@@ -17,6 +17,7 @@ import {
   isValidTitleType
 } from "@/lib/validation"
 import type { BookSearchResult } from "@/lib/books/search"
+import { fetchBookVolume } from "@/lib/api/endpoints"
 import type {
   Series,
   SeriesWithVolumes,
@@ -85,23 +86,8 @@ export function useLibrary() {
   } = useLibraryStore()
 
   const fetchGoogleVolumeDetails = useCallback(async (volumeId: string) => {
-    const response = await fetch(
-      `/api/books/volume/${encodeURIComponent(volumeId)}`
-    )
-    const data = (await response.json()) as {
-      result?: BookSearchResult
-      error?: string
-    }
-
-    if (!response.ok) {
-      throw new Error(data.error ?? "Google Books volume lookup failed")
-    }
-
-    if (!data.result) {
-      throw new Error("Google Books volume lookup failed")
-    }
-
-    return data.result
+    const { result } = await fetchBookVolume(volumeId)
+    return result
   }, [])
 
   const resolveSearchResultDetails = useCallback(

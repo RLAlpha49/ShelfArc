@@ -34,6 +34,7 @@ import {
   type BookSearchResult,
   type BookSearchSource
 } from "@/lib/books/search"
+import { searchBooks } from "@/lib/api/endpoints"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -217,25 +218,11 @@ export function BookSearchDialog({
     }
     setError(null)
 
-    fetch(
-      `/api/books/search?q=${encodeURIComponent(
-        debouncedQuery
-      )}&source=${source}&page=${page}&limit=${RESULTS_PAGE_SIZE}`,
-      {
-        signal: controller.signal
-      }
+    searchBooks(
+      { q: debouncedQuery, source, page, limit: RESULTS_PAGE_SIZE },
+      controller.signal
     )
-      .then(async (response) => {
-        const data = (await response.json()) as {
-          results?: BookSearchResult[]
-          sourceUsed?: BookSearchSource | null
-          error?: string
-        }
-
-        if (!response.ok) {
-          throw new Error(data.error ?? "Search failed")
-        }
-
+      .then((data) => {
         const incomingResults = data.results ?? []
         const dedupedIncoming = dedupeResults(incomingResults)
         setResults((prev) => {

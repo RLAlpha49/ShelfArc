@@ -53,12 +53,6 @@ Using exploration tools does not require switching to the Plan agent. Any code e
 
 Use to clarify ambiguous requirements or confirm high-risk decisions.
 
-### Key constraints
-
-- Up to **4** questions per call.
-- Each question requires: a header, question text, and up to 6 predefined options (an automatic 'Other' free-text option is always added).
-- Response structure: Each question returns an object `{ selected?: string, freeText?: string }` keyed by the header value.
-
 ### Recommended Pattern — Options + automatic "Other"
 
 Use a single question with a few options. If the user needs a custom value, they type it in **Other**. Parse `Header.freeText` when present; otherwise use `selected`.
@@ -81,6 +75,6 @@ If **Other** is used, read `Files.freeText` (e.g., `app/api/**` or `app/page.tsx
 
 - Use Context7 / `get_library_documentation` for external library docs
 
-## Memory policy
+## Serena Memory policy
 
 - Store only essential project context (patterns, decisions). Do not store docs or large summaries.

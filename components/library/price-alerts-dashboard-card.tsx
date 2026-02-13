@@ -6,6 +6,7 @@ import { useLibraryStore } from "@/lib/store/library-store"
 import { formatDate } from "@/lib/format-date"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { PriceAlert } from "@/lib/types/database"
+import { fetchPriceAlerts } from "@/lib/api/endpoints"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface AlertWithInfo extends PriceAlert {
@@ -23,10 +24,10 @@ export function PriceAlertsDashboardCard() {
   const fetchAlerts = useCallback(async () => {
     setIsLoading(true)
     try {
-      const res = await fetch("/api/books/price/alerts")
-      if (!res.ok) return
-      const { data } = await res.json()
+      const { data } = await fetchPriceAlerts()
       setAlerts(data ?? [])
+    } catch {
+      // Silently ignore errors — matches original behavior
     } finally {
       setIsLoading(false)
     }

@@ -39,6 +39,8 @@ import {
   DEFAULT_CURRENCY_CODE,
   useLibraryStore
 } from "@/lib/store/library-store"
+import { fetchPrice as fetchPriceEndpoint } from "@/lib/api/endpoints"
+import type { FetchPriceParams } from "@/lib/api/types"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { usePriceHistory } from "@/lib/hooks/use-price-history"
 import { cn } from "@/lib/utils"
@@ -863,8 +865,8 @@ export function VolumeDialog({
   }
 
   const parsePriceFromResult = (result?: {
-    priceText?: string
-    priceValue?: number
+    priceText?: string | null
+    priceValue?: number | null
     priceError?: string | null
   }) => {
     if (result?.priceError) return ""
@@ -879,8 +881,8 @@ export function VolumeDialog({
 
   /** Apply price result from Amazon response. */
   const applyPriceResult = (result?: {
-    priceText?: string
-    priceValue?: number
+    priceText?: string | null
+    priceValue?: number | null
     priceError?: string | null
     priceBinding?: string | null
   }) => {
@@ -913,7 +915,7 @@ export function VolumeDialog({
     }
   }
 
-  /** Build the full URL and validate pre-conditions. Returns null on failure. */
+  /** Validate pre-conditions and build typed params. Returns null on failure. */
   const prepareAmazonFetch = (options: {
     includePrice: boolean
     includeImage: boolean
@@ -929,14 +931,22 @@ export function VolumeDialog({
       return null
     }
 
-    buildResult.params.set("domain", amazonDomain)
-    if (options.includeImage) buildResult.params.set("includeImage", "true")
-    if (!options.includePrice) buildResult.params.set("includePrice", "false")
-    if (options.includePrice && !amazonPreferKindle && amazonFallbackToKindle) {
-      buildResult.params.set("fallbackToKindle", "true")
+    const priceParams: FetchPriceParams = {
+      title: buildResult.params.get("title") ?? "",
+      volume: buildResult.params.get("volume") ?? "0",
+      volumeTitle: buildResult.params.get("volumeTitle") ?? undefined,
+      format: buildResult.params.get("format") ?? undefined,
+      binding: buildResult.params.get("binding") ?? "Paperback",
+      domain: amazonDomain,
+      includeImage: options.includeImage || undefined,
+      includePrice: options.includePrice ? undefined : false,
+      fallbackToKindle:
+        options.includePrice && !amazonPreferKindle && amazonFallbackToKindle
+          ? true
+          : undefined
     }
 
-    return `/api/books/price?${buildResult.params}`
+    return priceParams
   }
 
   const handleAmazonError = (error: unknown) => {
@@ -956,8 +966,8 @@ export function VolumeDialog({
   /** Core Amazon fetch — returns both price and image when requested. */
   const fetchFromAmazon = useCallback(
     async (options: { includePrice: boolean; includeImage: boolean }) => {
-      const url = prepareAmazonFetch(options)
-      if (!url) return
+      const params = prepareAmazonFetch(options)
+      if (!params) return
 
       if (priceAbortRef.current) priceAbortRef.current.abort()
       const controller = new AbortController()
@@ -967,20 +977,7 @@ export function VolumeDialog({
       if (options.includeImage) setIsFetchingImage(true)
 
       try {
-        const response = await fetch(url, { signal: controller.signal })
-        const data = (await response.json()) as {
-          result?: {
-            priceText?: string
-            priceValue?: number
-            priceError?: string | null
-            priceBinding?: string | null
-            imageUrl?: string | null
-            url?: string | null
-          }
-          error?: string
-        }
-
-        if (!response.ok) throw new Error(data.error ?? "Amazon lookup failed")
+        const data = await fetchPriceEndpoint(params, controller.signal)
 
         if (options.includePrice) applyPriceResult(data.result)
         if (options.includeImage) applyImageResult(data.result?.imageUrl)

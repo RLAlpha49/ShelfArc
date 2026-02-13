@@ -10,6 +10,7 @@ import type {
   IsbnImportItem
 } from "@/lib/csv/types"
 import type { BookSearchResult, BookSearchSource } from "@/lib/books/search"
+import { searchBooks } from "@/lib/api/endpoints"
 import type { OwnershipStatus } from "@/lib/types/database"
 
 /** Minimum score to accept a result from the primary source. @source */
@@ -45,17 +46,10 @@ async function searchIsbn(
   source: BookSearchSource,
   signal: AbortSignal
 ): Promise<BookSearchResult[]> {
-  const url = `/api/books/search?q=${encodeURIComponent(isbn)}&source=${source}&limit=${SEARCH_LIMIT}`
-  const response = await fetch(url, { signal })
-
-  if (!response.ok) {
-    const data = (await response.json().catch(() => ({}))) as {
-      error?: string
-    }
-    throw new Error(data.error ?? `Search failed (${response.status})`)
-  }
-
-  const data = (await response.json()) as { results?: BookSearchResult[] }
+  const data = await searchBooks(
+    { q: isbn, source, limit: SEARCH_LIMIT },
+    signal
+  )
   return data.results ?? []
 }
 

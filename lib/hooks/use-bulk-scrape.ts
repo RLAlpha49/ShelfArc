@@ -8,6 +8,8 @@ import {
   persistPriceEntry,
   checkPriceAlert
 } from "@/lib/hooks/use-price-history"
+import { fetchPrice } from "@/lib/api/endpoints"
+import { ApiClientError } from "@/lib/api/client"
 
 /** Scraping mode: price only, image only, or both. @source */
 export type BulkScrapeMode = "price" | "image" | "both"
@@ -139,8 +141,8 @@ const shouldSkipVolume = (
 /** Shape of the price API JSON response. @source */
 interface AmazonResponseData {
   result?: {
-    priceText?: string
-    priceValue?: number
+    priceText?: string | null
+    priceValue?: number | null
     priceError?: string | null
     priceBinding?: string | null
     imageUrl?: string | null
@@ -224,52 +226,6 @@ function finalize(setter: StateSetter) {
       summary: buildSummary(nextJobs)
     }
   })
-}
-
-/** Options for building the price API fetch URL. @source */
-interface FetchUrlOptions {
-  seriesTitle: string
-  volumeNumber: number
-  volumeTitle: string
-  formatHint: string
-  domain: string
-  bindingLabel: string
-  fallbackToKindle: boolean
-  includePrice: boolean
-  includeImage: boolean
-}
-
-/**
- * Constructs the price API URL from the given options.
- * @param options - Fetch URL configuration.
- * @returns The fully-qualified API URL string.
- * @source
- */
-function buildFetchUrl(options: FetchUrlOptions): string {
-  const {
-    seriesTitle,
-    volumeNumber,
-    volumeTitle,
-    formatHint,
-    domain,
-    bindingLabel,
-    fallbackToKindle,
-    includePrice,
-    includeImage
-  } = options
-  const params = new URLSearchParams()
-  params.set("title", seriesTitle)
-  params.set("volume", String(volumeNumber))
-  if (volumeTitle.trim()) params.set("volumeTitle", volumeTitle)
-  if (formatHint) params.set("format", formatHint)
-  params.set("binding", bindingLabel)
-  params.set("domain", domain)
-  if (includeImage) params.set("includeImage", "true")
-  if (!includePrice) params.set("includePrice", "false")
-  if (includePrice && fallbackToKindle) {
-    params.set("fallbackToKindle", "true")
-  }
-  return `/api/books/price?${params}`
 }
 
 /**
@@ -544,48 +500,52 @@ async function processJob(
     setter
   } = ctx
   const isLast = i >= jobs.length - 1
-  const url = buildFetchUrl({
-    seriesTitle: jobs[i].seriesTitle ?? series.title,
-    volumeNumber: jobs[i].volumeNumber,
-    volumeTitle: jobs[i].title,
-    formatHint,
-    domain: amazonDomain,
-    bindingLabel,
-    fallbackToKindle,
-    includePrice,
-    includeImage
-  })
 
   try {
-    const response = await fetch(url, { signal: controller.signal })
-    const data = (await response.json()) as AmazonResponseData
-
-    if (response.ok) {
-      return await handleSuccess(i, data, isLast, ctx)
-    }
-
-    // 429 → halt
-    if (response.status === 429) {
-      handleRateLimit(i, data, setter)
-      return "halt"
-    }
-
-    // Other HTTP errors — non-fatal
-    updateJob(
-      i,
+    const data = await fetchPrice(
       {
-        status: "failed",
-        errorMessage: data.error ?? `HTTP ${response.status}`
+        title: jobs[i].seriesTitle ?? series.title,
+        volume: jobs[i].volumeNumber,
+        volumeTitle: jobs[i].title,
+        format: formatHint || undefined,
+        domain: amazonDomain,
+        binding: bindingLabel,
+        fallbackToKindle,
+        includePrice: includePrice || undefined,
+        includeImage: includeImage || undefined
       },
-      setter
+      controller.signal
     )
-    await interRequestDelay(controller.signal, isLast)
-    return "ok"
+
+    return await handleSuccess(i, data, isLast, ctx)
   } catch (error) {
+    if (error instanceof ApiClientError) {
+      const details = (error.details ?? {}) as AmazonResponseData
+
+      // 429 → halt
+      if (error.status === 429) {
+        handleRateLimit(i, details, setter)
+        return "halt"
+      }
+
+      // Other HTTP errors — non-fatal
+      updateJob(
+        i,
+        {
+          status: "failed",
+          errorMessage: details.error ?? `HTTP ${error.status}`
+        },
+        setter
+      )
+      await interRequestDelay(controller.signal, isLast)
+      return "ok"
+    }
+
     if (error instanceof DOMException && error.name === "AbortError") {
       updateJob(i, { status: "cancelled", errorMessage: "Cancelled" }, setter)
       return "abort"
     }
+
     updateJob(
       i,
       {
