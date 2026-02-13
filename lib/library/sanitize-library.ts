@@ -66,7 +66,7 @@ export const normalizeVolumeDates = <T extends VolumeDateFields>(data: T) => {
 
 /** Type guard for valid volume ratings (0–10). @source */
 const isValidRating = (value: unknown): value is number =>
-  typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10
+  typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 10
 
 /** Coerces a nullable value through a validator, returning `null` on failure. @source */
 const coerceNullable = <T>(
