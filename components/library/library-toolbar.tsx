@@ -10,18 +10,9 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
 import { FilterPresetsControl } from "@/components/library/filter-presets-control"
 import { useLibraryStore } from "@/lib/store/library-store"
-import type { SortField, SortOrder } from "@/lib/store/library-store"
+import type { SortField } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
   TitleType,
@@ -29,25 +20,25 @@ import type {
   ReadingStatus
 } from "@/lib/types/database"
 
-const SORT_LABELS: Record<string, string> = {
-  "title-asc": "Title \u2191",
-  "title-desc": "Title \u2193",
-  "author-asc": "Author \u2191",
-  "author-desc": "Author \u2193",
-  "created_at-asc": "Added \u2191",
-  "created_at-desc": "Added \u2193",
-  "updated_at-asc": "Updated \u2191",
-  "updated_at-desc": "Updated \u2193"
+const SORT_LABELS: Record<SortField, string> = {
+  title: "Title",
+  author: "Author",
+  created_at: "Date Added",
+  updated_at: "Date Updated",
+  rating: "Rating",
+  volume_count: "Volume Count",
+  price: "Price"
 }
 
-function isSortActive(
-  field: SortField,
-  order: SortOrder,
-  currentField: SortField,
-  currentOrder: SortOrder
-) {
-  return field === currentField && order === currentOrder
-}
+const SORT_FIELDS: SortField[] = [
+  "title",
+  "author",
+  "created_at",
+  "updated_at",
+  "rating",
+  "volume_count",
+  "price"
+]
 
 /** Props for the {@link LibraryToolbar} component. @source */
 interface LibraryToolbarProps {
@@ -81,8 +72,6 @@ export function LibraryToolbar({
     series
   } = useLibraryStore()
   const { cardSize, setCardSize } = useSettingsStore()
-
-  const sortLabel = SORT_LABELS[`${sortField}-${sortOrder}`] ?? "Sort"
 
   const availableTags = useMemo(() => {
     const tagSet = new Set<string>()
@@ -293,177 +282,56 @@ export function LibraryToolbar({
             )}
 
             {/* Sort */}
-            <DropdownMenu>
-              <DropdownMenuTrigger className="focus-visible:ring-ring bg-background border-input hover:bg-accent inline-flex h-9 items-center justify-center rounded-xl border px-3 text-xs font-medium shadow-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mr-1.5 h-3.5 w-3.5"
+            <div className="space-y-1">
+              <span className="text-muted-foreground text-[11px] font-medium">
+                Sort
+              </span>
+              <div className="flex items-center gap-1">
+                <Select
+                  value={sortField}
+                  onValueChange={(value) => {
+                    if (value) setSortField(value as SortField)
+                  }}
                 >
-                  <path d="m3 16 4 4 4-4" />
-                  <path d="M7 20V4" />
-                  <path d="m21 8-4-4-4 4" />
-                  <path d="M17 4v16" />
-                </svg>
-                Sort: {sortLabel}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-xl">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortField("title")
-                      setSortOrder("asc")
-                    }}
-                    className={
-                      isSortActive("title", "asc", sortField, sortOrder)
-                        ? "bg-accent font-medium"
-                        : ""
-                    }
+                  <SelectTrigger className="w-34 rounded-xl text-xs shadow-sm">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {SORT_FIELDS.map((field) => (
+                      <SelectItem key={field} value={field}>
+                        {SORT_LABELS[field]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                  }
+                  className="focus-visible:ring-ring border-input hover:bg-accent inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-all focus-visible:ring-1 focus-visible:outline-none"
+                  aria-label={
+                    sortOrder === "asc" ? "Sort ascending" : "Sort descending"
+                  }
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`h-3.5 w-3.5 transition-transform ${
+                      sortOrder === "desc" ? "rotate-180" : ""
+                    }`}
                   >
-                    {isSortActive("title", "asc", sortField, sortOrder) && (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-1.5 h-3.5 w-3.5"
-                      >
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    )}
-                    Title (A-Z)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortField("title")
-                      setSortOrder("desc")
-                    }}
-                    className={
-                      isSortActive("title", "desc", sortField, sortOrder)
-                        ? "bg-accent font-medium"
-                        : ""
-                    }
-                  >
-                    {isSortActive("title", "desc", sortField, sortOrder) && (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-1.5 h-3.5 w-3.5"
-                      >
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    )}
-                    Title (Z-A)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortField("author")
-                      setSortOrder("asc")
-                    }}
-                    className={
-                      isSortActive("author", "asc", sortField, sortOrder)
-                        ? "bg-accent font-medium"
-                        : ""
-                    }
-                  >
-                    {isSortActive("author", "asc", sortField, sortOrder) && (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-1.5 h-3.5 w-3.5"
-                      >
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    )}
-                    Author (A-Z)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortField("created_at")
-                      setSortOrder("desc")
-                    }}
-                    className={
-                      isSortActive("created_at", "desc", sortField, sortOrder)
-                        ? "bg-accent font-medium"
-                        : ""
-                    }
-                  >
-                    {isSortActive(
-                      "created_at",
-                      "desc",
-                      sortField,
-                      sortOrder
-                    ) && (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-1.5 h-3.5 w-3.5"
-                      >
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    )}
-                    Recently Added
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSortField("updated_at")
-                      setSortOrder("desc")
-                    }}
-                    className={
-                      isSortActive("updated_at", "desc", sortField, sortOrder)
-                        ? "bg-accent font-medium"
-                        : ""
-                    }
-                  >
-                    {isSortActive(
-                      "updated_at",
-                      "desc",
-                      sortField,
-                      sortOrder
-                    ) && (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-1.5 h-3.5 w-3.5"
-                      >
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    )}
-                    Recently Updated
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <path d="m5 12 7-7 7 7" />
+                    <path d="M12 19V5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
 
             {/* Clear filters */}
             {(filters.search ||
