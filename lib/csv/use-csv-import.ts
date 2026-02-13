@@ -119,14 +119,22 @@ export function useCsvImport({
   const parseFile = useCallback(
     async (file: File) => {
       const text = await file.text()
-      const { isbns, invalidCount, duplicateCount, detectedColumns } =
-        parseIsbns(text)
+      const {
+        isbns,
+        invalidCount,
+        duplicateCount,
+        invalidIsbns,
+        duplicateIsbns,
+        detectedColumns
+      } = parseIsbns(text)
 
       let existingCount = 0
+      const existingIsbnList: string[] = []
       const filteredIsbns = existingIsbns
         ? isbns.filter((isbn) => {
             if (existingIsbns.has(isbn)) {
               existingCount += 1
+              existingIsbnList.push(isbn)
               return false
             }
             return true
@@ -143,7 +151,10 @@ export function useCsvImport({
         detectedColumns,
         invalidCount,
         duplicateCount,
-        existingCount
+        existingCount,
+        invalidIsbns,
+        duplicateIsbns,
+        existingIsbns: existingIsbnList
       })
       setFileName(file.name)
       setPhase("parsed")

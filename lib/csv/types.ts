@@ -44,4 +44,7 @@ export interface CsvParseMeta {
   invalidCount: number
   duplicateCount: number
   existingCount: number
+  invalidIsbns: string[]
+  duplicateIsbns: string[]
+  existingIsbns: string[]
 }

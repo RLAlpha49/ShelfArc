@@ -28,6 +28,8 @@ import type {
   IsbnImportStatus
 } from "@/lib/csv/types"
 import type { OwnershipStatus } from "@/lib/types/database"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { FileDownloadIcon } from "@hugeicons/core-free-icons"
 
 /* ─── Constants ─────────────────────────────────────────── */
 
@@ -96,6 +98,54 @@ const STATUS_CONFIG: Record<
 }
 
 /* ─── Helpers ───────────────────────────────────────────── */
+
+/**
+ * Escapes a CSV field value, wrapping in quotes if it contains commas, quotes, or newlines.
+ * @source
+ */
+function escapeCsvField(value: string): string {
+  if (/[,"\n\r]/.test(value)) {
+    return `"${value.replaceAll('"', '""')}"`
+  }
+  return value
+}
+
+/**
+ * Generates a CSV reconciliation report showing which ISBNs will be imported vs skipped.
+ * @source
+ */
+function generateReconciliationReport(
+  willImport: string[],
+  existingIsbns: string[],
+  invalidIsbns: string[],
+  duplicateIsbns: string[]
+): string {
+  const lines: string[] = []
+  lines.push("Category,ISBN")
+  for (const isbn of willImport)
+    lines.push(`Will Import,${escapeCsvField(isbn)}`)
+  for (const isbn of existingIsbns)
+    lines.push(`Skipped - Already in Library,${escapeCsvField(isbn)}`)
+  for (const isbn of invalidIsbns)
+    lines.push(`Skipped - Invalid Format,${escapeCsvField(isbn)}`)
+  for (const isbn of duplicateIsbns)
+    lines.push(`Skipped - Duplicate in File,${escapeCsvField(isbn)}`)
+  return lines.join("\n")
+}
+
+/**
+ * Triggers a browser download of text content as a file.
+ * @source
+ */
+function downloadCsv(content: string, filename: string): void {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 /**
  * Returns a human-readable headline for the completion summary.
@@ -361,6 +411,7 @@ function ParsedPhase({
         fileName={fileName}
         stats={stats}
         parseMeta={parseMeta}
+        items={items}
         onReset={onReset}
       />
 
@@ -391,11 +442,13 @@ function ParsedFileSummary({
   fileName,
   stats,
   parseMeta,
+  items,
   onReset
 }: Readonly<{
   fileName: string | null
   stats: CsvImportStats
   parseMeta: CsvParseMeta | null
+  items: readonly IsbnImportItem[]
   onReset: () => void
 }>) {
   const invalidLabel = (() => {
@@ -459,6 +512,29 @@ function ParsedFileSummary({
             ))}
           </p>
         )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-2 gap-1.5 rounded-xl text-xs"
+          onClick={() => {
+            const willImport = items.map((item) => item.isbn)
+            const report = generateReconciliationReport(
+              willImport,
+              parseMeta?.existingIsbns ?? [],
+              parseMeta?.invalidIsbns ?? [],
+              parseMeta?.duplicateIsbns ?? []
+            )
+            downloadCsv(report, "reconciliation-report.csv")
+          }}
+        >
+          <HugeiconsIcon
+            icon={FileDownloadIcon}
+            className="h-3.5 w-3.5"
+            strokeWidth={2}
+          />
+          Download reconciliation report
+        </Button>
       </div>
     </div>
   )

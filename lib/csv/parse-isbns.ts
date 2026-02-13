@@ -5,6 +5,8 @@ interface ParseIsbnsResult {
   isbns: string[]
   invalidCount: number
   duplicateCount: number
+  invalidIsbns: string[]
+  duplicateIsbns: string[]
   detectedColumns: string[]
 }
 
@@ -168,9 +170,17 @@ function extractIsbn(cell: string | undefined): string | null {
 function collectIsbns(
   dataRows: string[][],
   columnIndices: number[]
-): { isbns: string[]; invalidCount: number; duplicateCount: number } {
+): {
+  isbns: string[]
+  invalidCount: number
+  duplicateCount: number
+  invalidIsbns: string[]
+  duplicateIsbns: string[]
+} {
   const seen = new Set<string>()
   const isbns: string[] = []
+  const invalidIsbns: string[] = []
+  const duplicateIsbns: string[] = []
   let invalidCount = 0
   let duplicateCount = 0
 
@@ -182,11 +192,13 @@ function collectIsbns(
       const isbn = extractIsbn(raw)
       if (!isbn) {
         invalidCount += 1
+        invalidIsbns.push(raw)
         continue
       }
 
       if (seen.has(isbn)) {
         duplicateCount += 1
+        duplicateIsbns.push(isbn)
         continue
       }
 
@@ -195,7 +207,7 @@ function collectIsbns(
     }
   }
 
-  return { isbns, invalidCount, duplicateCount }
+  return { isbns, invalidCount, duplicateCount, invalidIsbns, duplicateIsbns }
 }
 
 /* ─── Public API ────────────────────────────────────────── */
@@ -205,6 +217,8 @@ const EMPTY_RESULT: ParseIsbnsResult = {
   isbns: [],
   invalidCount: 0,
   duplicateCount: 0,
+  invalidIsbns: [],
+  duplicateIsbns: [],
   detectedColumns: []
 }
 
@@ -221,15 +235,15 @@ export function parseIsbns(csvText: string): ParseIsbnsResult {
   const { indices, names } = detectIsbnColumns(rows[0])
   if (indices.length === 0) return EMPTY_RESULT
 
-  const { isbns, invalidCount, duplicateCount } = collectIsbns(
-    rows.slice(1),
-    indices
-  )
+  const { isbns, invalidCount, duplicateCount, invalidIsbns, duplicateIsbns } =
+    collectIsbns(rows.slice(1), indices)
 
   return {
     isbns,
     invalidCount,
     duplicateCount,
+    invalidIsbns,
+    duplicateIsbns,
     detectedColumns: names
   }
 }
