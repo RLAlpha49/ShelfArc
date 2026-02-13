@@ -221,13 +221,13 @@ function SeriesListItem({
     <div className="group relative">
       {showSelection && (
         <div
-          className={`absolute top-1/2 left-4 z-10 -translate-y-1/2 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+          className={`absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-lg bg-background/80 p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
             onCheckedChange={() => onSelect?.()}
             aria-label={`Select ${series.title}`}
-            className="h-5 w-5 border-2"
+            className="h-6 w-6 border-2 border-foreground/50"
           />
         </div>
       )}
@@ -667,13 +667,13 @@ function VolumeGridItem({
     <div className="group relative">
       {showSelection && (
         <div
-          className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+          className={`absolute top-2 left-2 z-10 rounded-lg bg-background/80 p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
             onCheckedChange={() => onSelect?.()}
             aria-label={`Select ${coverAlt}`}
-            className="h-5 w-5 border-2"
+            className="h-6 w-6 border-2 border-foreground/50"
           />
         </div>
       )}
@@ -817,13 +817,13 @@ function VolumeListItem({
     <div className="group relative">
       {showSelection && (
         <div
-          className={`absolute top-1/2 left-4 z-10 -translate-y-1/2 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+          className={`absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-lg bg-background/80 p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
             onCheckedChange={() => onSelect?.()}
             aria-label={`Select ${coverAlt}`}
-            className="h-5 w-5 border-2"
+            className="h-6 w-6 border-2 border-foreground/50"
           />
         </div>
       )}
@@ -1162,6 +1162,85 @@ export default function LibraryPage() {
       }
     },
     [selectedSeriesIds, editSeries]
+  )
+
+  const applySeriesVolumesOwnership = useCallback(
+    async (status: OwnershipStatus) => {
+      if (selectedSeriesIds.size === 0) return
+      const targetVolumes: Volume[] = []
+      for (const sid of selectedSeriesIds) {
+        const targetSeries = series.find((s) => s.id === sid)
+        if (targetSeries) {
+          targetVolumes.push(...targetSeries.volumes)
+        }
+      }
+      if (targetVolumes.length === 0) return
+      const results = await Promise.allSettled(
+        targetVolumes.map((volume) =>
+          editVolume(volume.series_id ?? null, volume.id, {
+            ownership_status: status
+          })
+        )
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [selectedSeriesIds, series, editVolume]
+  )
+
+  const applySeriesVolumesReadingStatus = useCallback(
+    async (status: ReadingStatus) => {
+      if (selectedSeriesIds.size === 0) return
+      const targetVolumes: Volume[] = []
+      for (const sid of selectedSeriesIds) {
+        const targetSeries = series.find((s) => s.id === sid)
+        if (targetSeries) {
+          targetVolumes.push(...targetSeries.volumes)
+        }
+      }
+      if (targetVolumes.length === 0) return
+      const results = await Promise.allSettled(
+        targetVolumes.map((volume) =>
+          editVolume(volume.series_id ?? null, volume.id, {
+            reading_status: status,
+            ...(status === "completed" &&
+            volume.page_count &&
+            volume.page_count > 0
+              ? { current_page: volume.page_count }
+              : {})
+          })
+        )
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status.replace("_", " ")}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [selectedSeriesIds, series, editVolume]
   )
 
   const applyVolumeOwnershipStatus = useCallback(
@@ -2164,20 +2243,58 @@ export default function LibraryPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="rounded-xl">
                 {collectionView === "series" ? (
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Series type</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => applySeriesType("light_novel")}
-                    >
-                      Set to Light Novel
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => applySeriesType("manga")}>
-                      Set to Manga
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => applySeriesType("other")}>
-                      Set to Other
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
+                  <>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Series type</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => applySeriesType("light_novel")}
+                      >
+                        Set to Light Novel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applySeriesType("manga")}
+                      >
+                        Set to Manga
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applySeriesType("other")}
+                      >
+                        Set to Other
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Set all volumes</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          applySeriesVolumesOwnership("owned")
+                        }
+                      >
+                        Mark all owned
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          applySeriesVolumesOwnership("wishlist")
+                        }
+                      >
+                        Mark all wishlisted
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          applySeriesVolumesReadingStatus("completed")
+                        }
+                      >
+                        Mark all completed
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          applySeriesVolumesReadingStatus("unread")
+                        }
+                      >
+                        Mark all unread
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </>
                 ) : (
                   <>
                     <DropdownMenuGroup>

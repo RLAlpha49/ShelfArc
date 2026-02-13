@@ -603,7 +603,9 @@ const SeriesHeaderSection = ({
   descriptionHtml,
   formatPrice,
   onEditSeries,
-  onDeleteSeries
+  onDeleteSeries,
+  onApplyAllOwnership,
+  onApplyAllReading
 }: {
   readonly currentSeries: SeriesWithVolumes
   readonly insights: SeriesInsightData
@@ -612,6 +614,8 @@ const SeriesHeaderSection = ({
   readonly formatPrice: (value: number) => string
   readonly onEditSeries: () => void
   readonly onDeleteSeries: () => void
+  readonly onApplyAllOwnership: (status: OwnershipStatus) => void
+  readonly onApplyAllReading: (status: ReadingStatus) => void
 }) => (
   <div className="relative mb-10">
     <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-[radial-gradient(ellipse_at_30%_50%,var(--warm-glow-strong),transparent_70%)]" />
@@ -675,6 +679,46 @@ const SeriesHeaderSection = ({
             )}
           </div>
           <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={buttonVariants({
+                  variant: "outline",
+                  className:
+                    "rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+                })}
+              >
+                Set all volumes
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-xl">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Ownership</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => onApplyAllOwnership("owned")}
+                  >
+                    Mark all owned
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onApplyAllOwnership("wishlist")}
+                  >
+                    Mark all wishlisted
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Reading</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => onApplyAllReading("completed")}
+                  >
+                    Mark all completed
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onApplyAllReading("unread")}
+                  >
+                    Mark all unread
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="outline"
               className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
@@ -1540,6 +1584,73 @@ export default function SeriesDetailPage() {
     [currentSeries, selectedVolumeIds, editVolume]
   )
 
+  const applyAllVolumesOwnership = useCallback(
+    async (status: OwnershipStatus) => {
+      if (!currentSeries) return
+      const targets = currentSeries.volumes
+      if (targets.length === 0) return
+      const results = await Promise.allSettled(
+        targets.map((volume) =>
+          editVolume(currentSeries.id, volume.id, {
+            ownership_status: status
+          })
+        )
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [currentSeries, editVolume]
+  )
+
+  const applyAllVolumesReadingStatus = useCallback(
+    async (status: ReadingStatus) => {
+      if (!currentSeries) return
+      const targets = currentSeries.volumes
+      if (targets.length === 0) return
+      const results = await Promise.allSettled(
+        targets.map((volume) =>
+          editVolume(currentSeries.id, volume.id, {
+            reading_status: status,
+            ...(status === "completed" &&
+            volume.page_count &&
+            volume.page_count > 0
+              ? { current_page: volume.page_count }
+              : {})
+          })
+        )
+      )
+      const successCount = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length
+      const failureCount = results.length - successCount
+
+      if (successCount > 0) {
+        toast.success(
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status.replace("_", " ")}`
+        )
+      }
+      if (failureCount > 0) {
+        toast.error(
+          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
+        )
+      }
+    },
+    [currentSeries, editVolume]
+  )
+
   const deleteSelectedVolumes = useCallback(async () => {
     if (!currentSeries) return
     const targets = Array.from(selectedVolumeIds)
@@ -1703,6 +1814,8 @@ export default function SeriesDetailPage() {
         formatPrice={formatPrice}
         onEditSeries={() => setSeriesDialogOpen(true)}
         onDeleteSeries={() => setDeleteSeriesDialogOpen(true)}
+        onApplyAllOwnership={applyAllVolumesOwnership}
+        onApplyAllReading={applyAllVolumesReadingStatus}
       />
 
       <div className="my-10 border-t" />

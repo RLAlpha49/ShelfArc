@@ -118,13 +118,13 @@ export function VolumeCard({
     <div className="card-hover hover-lift group relative h-full w-full">
       {showSelection && (
         <div
-          className={`absolute top-2 left-2 z-10 transition-opacity ${selected ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+          className={`absolute top-2 left-2 z-10 rounded-lg bg-background/80 p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           <Checkbox
             checked={selected}
             onCheckedChange={() => onSelect?.()}
             aria-label={`Select volume ${volume.volume_number}`}
-            className="h-5 w-5 border-2"
+            className="h-6 w-6 border-2 border-foreground/50"
           />
         </div>
       )}
