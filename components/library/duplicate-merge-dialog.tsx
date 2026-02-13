@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Badge } from "@/components/ui/badge"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { normalizeIsbn } from "@/lib/books/isbn"
@@ -216,6 +216,37 @@ function buildAutoMergePatch(
   return patch
 }
 
+/** Comparison fields to highlight differences between duplicate volumes. */
+const COMPARE_FIELDS = [
+  { key: "isbn", label: "ISBN" },
+  { key: "title", label: "Title" },
+  { key: "edition", label: "Edition" },
+  { key: "format", label: "Format" },
+  { key: "page_count", label: "Pages" },
+  { key: "rating", label: "Rating" },
+  { key: "purchase_price", label: "Price" },
+  { key: "notes", label: "Notes" }
+] as const
+
+function getDifferingFields(items: VolumeRef[]): Set<string> {
+  const differing = new Set<string>()
+  if (items.length < 2) return differing
+
+  const first = items[0].volume
+  for (const { key } of COMPARE_FIELDS) {
+    const firstVal = safeTrim(String(first[key] ?? ""))
+    for (let i = 1; i < items.length; i++) {
+      const otherVal = safeTrim(String(items[i].volume[key] ?? ""))
+      if (firstVal !== otherVal) {
+        differing.add(key)
+        break
+      }
+    }
+  }
+
+  return differing
+}
+
 /** Dialog that finds duplicate volumes and helps resolve them by merging/deleting. @source */
 export function DuplicateMergeDialog({
   open,
@@ -236,11 +267,9 @@ export function DuplicateMergeDialog({
   const [busyGroupId, setBusyGroupId] = useState<string | null>(null)
   const [autoMerge, setAutoMerge] = useState(true)
 
-  const groupsSummary = useMemo(() => {
-    if (groups.length === 0) return "No duplicates detected"
-    const label = groups.length === 1 ? "duplicate group" : "duplicate groups"
-    return `${groups.length} ${label} found`
-  }, [groups.length])
+  const totalDuplicateVolumes = useMemo(() => {
+    return groups.reduce((sum, g) => sum + g.items.length, 0)
+  }, [groups])
 
   const resolveGroup = useCallback(
     async (group: DuplicateGroup) => {
@@ -288,18 +317,43 @@ export function DuplicateMergeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl rounded-2xl">
+      <DialogContent className="max-w-4xl rounded-2xl">
         <DialogHeader>
-          <DialogTitle>Duplicate detection</DialogTitle>
+          <DialogTitle className="font-display text-lg">
+            Duplicate Detection
+          </DialogTitle>
           <DialogDescription>
-            Find and resolve possible duplicate volumes (by ISBN or by repeated
-            series/volume entries). You control which entry is kept.
+            Find and resolve possible duplicate volumes by ISBN or repeated
+            series/volume entries.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="bg-muted/20 flex flex-wrap items-center gap-2 rounded-xl border p-3">
-            <div className="text-muted-foreground text-xs">{groupsSummary}</div>
+          {/* Summary bar */}
+          <div className="bg-muted/30 flex flex-wrap items-center gap-3 rounded-xl border p-3">
+            <div className="flex items-center gap-2">
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold ${
+                  groups.length > 0
+                    ? "bg-copper/15 text-copper"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {groups.length}
+              </div>
+              <div>
+                <div className="text-xs font-medium">
+                  {groups.length === 1
+                    ? "1 duplicate group"
+                    : `${groups.length} duplicate groups`}
+                </div>
+                {groups.length > 0 && (
+                  <div className="text-muted-foreground text-[11px]">
+                    {totalDuplicateVolumes} volumes affected
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="flex-1" />
 
@@ -310,7 +364,7 @@ export function DuplicateMergeDialog({
                 onCheckedChange={(next) => setAutoMerge(Boolean(next))}
               />
               <Label htmlFor="auto-merge-duplicates" className="text-xs">
-                Auto-merge missing fields into kept volume
+                Auto-merge missing fields
               </Label>
             </div>
 
@@ -333,35 +387,65 @@ export function DuplicateMergeDialog({
           </div>
 
           {!hasAnyData && (
-            <div className="text-muted-foreground rounded-xl border p-4 text-xs">
+            <div className="text-muted-foreground rounded-xl border border-dashed p-6 text-center text-xs">
               Your library hasn&apos;t been loaded yet. Open the Library page
               (or click Refresh) and try again.
             </div>
           )}
 
+          {hasAnyData && groups.length === 0 && (
+            <div className="rounded-xl border border-dashed p-6 text-center">
+              <div className="text-muted-foreground mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5 text-emerald-600 dark:text-emerald-400"
+                >
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </div>
+              <div className="text-sm font-medium">No duplicates found</div>
+              <div className="text-muted-foreground mt-1 text-xs">
+                Your library looks clean!
+              </div>
+            </div>
+          )}
+
           {groups.length > 0 && (
-            <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+            <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
               {groups.map((group) => {
                 const defaultKeep =
                   group.items.toSorted(newestFirst)[0]?.volume.id
                 const keepValue = keepByGroupId[group.id] ?? defaultKeep
                 const busy = busyGroupId === group.id
+                const differingFields = getDifferingFields(group.items)
 
                 return (
                   <div
                     key={group.id}
-                    className="bg-card/60 rounded-2xl border p-4"
+                    className="bg-card/60 overflow-hidden rounded-2xl border"
                   >
-                    <div className="flex flex-wrap items-start gap-2">
+                    {/* Group header */}
+                    <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+                      <Badge
+                        variant="outline"
+                        className="rounded-lg text-[10px] uppercase tracking-wider"
+                      >
+                        {group.reason === "isbn" ? "ISBN" : "Series"}
+                      </Badge>
                       <div className="min-w-0 flex-1">
                         <div className="font-display truncate text-sm font-semibold">
                           {group.title}
                         </div>
-                        <div className="text-muted-foreground mt-0.5 text-xs">
-                          {group.subtitle}
-                        </div>
                       </div>
-
+                      <span className="text-muted-foreground text-xs tabular-nums">
+                        {group.items.length} entries
+                      </span>
                       <Button
                         variant="outline"
                         size="sm"
@@ -369,72 +453,179 @@ export function DuplicateMergeDialog({
                         disabled={busy || !keepValue}
                         className="rounded-xl"
                       >
-                        {busy ? "Resolving…" : "Resolve"}
+                        {busy ? "Resolving\u2026" : "Resolve"}
                       </Button>
                     </div>
 
-                    <div className="mt-3">
-                      <div className="text-muted-foreground mb-2 text-[11px] font-medium">
-                        Keep
-                      </div>
-                      <RadioGroup
-                        value={keepValue}
-                        onValueChange={(next) =>
-                          setKeepByGroupId((prev) => ({
-                            ...prev,
-                            [group.id]: next
-                          }))
-                        }
-                        className="gap-2"
-                      >
-                        {group.items.map((ref) => {
-                          const volume = ref.volume
-                          const seriesLabel = ref.seriesTitle ?? "Unassigned"
-                          const title =
-                            safeTrim(volume.title) ||
-                            `Vol. ${volume.volume_number}`
-
-                          return (
-                            <label
-                              key={volume.id}
-                              className="hover:bg-muted/20 flex cursor-pointer items-start gap-3 rounded-xl border p-3"
+                    {/* Differing fields indicator */}
+                    {differingFields.size > 0 && (
+                      <div className="border-b px-4 py-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-muted-foreground text-[11px]">
+                            Differences:
+                          </span>
+                          {COMPARE_FIELDS.filter((f) =>
+                            differingFields.has(f.key)
+                          ).map((f) => (
+                            <span
+                              key={f.key}
+                              className="bg-copper/10 text-copper rounded-md px-1.5 py-0.5 text-[10px] font-medium"
                             >
-                              <RadioGroupItem value={volume.id} />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <div className="truncate text-xs font-medium">
-                                    {seriesLabel}
-                                  </div>
-                                  <span className="text-muted-foreground text-[11px]">
-                                    · Vol. {volume.volume_number}
+                              {f.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Side-by-side volume comparison */}
+                    <div className="grid gap-0 divide-y">
+                      {group.items.map((ref) => {
+                        const volume = ref.volume
+                        const isKept = volume.id === keepValue
+                        const seriesLabel = ref.seriesTitle ?? "Unassigned"
+                        const title =
+                          safeTrim(volume.title) ||
+                          `Vol. ${volume.volume_number}`
+
+                        return (
+                          <button
+                            key={volume.id}
+                            type="button"
+                            onClick={() =>
+                              setKeepByGroupId((prev) => ({
+                                ...prev,
+                                [group.id]: volume.id
+                              }))
+                            }
+                            className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors ${
+                              isKept
+                                ? "bg-copper/5"
+                                : "hover:bg-muted/30"
+                            }`}
+                          >
+                            {/* Selection indicator */}
+                            <div
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                                isKept
+                                  ? "border-copper bg-copper text-white"
+                                  : "border-muted-foreground/30"
+                              }`}
+                            >
+                              {isKept && (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="h-3 w-3"
+                                >
+                                  <path d="M20 6 9 17l-5-5" />
+                                </svg>
+                              )}
+                            </div>
+
+                            {/* Volume details */}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="truncate text-xs font-medium">
+                                  {seriesLabel}
+                                </span>
+                                <span className="text-muted-foreground text-[11px]">
+                                  Vol. {volume.volume_number}
+                                </span>
+                                {isKept && (
+                                  <span className="text-copper text-[10px] font-semibold uppercase tracking-wider">
+                                    Keep
                                   </span>
-                                </div>
-                                <div className="text-muted-foreground mt-0.5 truncate text-xs">
-                                  {title}
-                                </div>
-                                <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                                  {volume.isbn && (
-                                    <span className="tabular-nums">
-                                      ISBN {volume.isbn}
+                                )}
+                              </div>
+                              <div className="text-muted-foreground mt-0.5 truncate text-xs">
+                                {title}
+                              </div>
+
+                              {/* Field details grid */}
+                              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                                {volume.isbn && (
+                                  <div className="text-[11px]">
+                                    <span
+                                      className={`font-medium ${differingFields.has("isbn") ? "text-copper" : "text-muted-foreground"}`}
+                                    >
+                                      ISBN
+                                    </span>{" "}
+                                    <span className="text-foreground tabular-nums">
+                                      {volume.isbn}
                                     </span>
-                                  )}
-                                  {volume.edition && (
-                                    <span>{volume.edition}</span>
-                                  )}
-                                  {volume.format && (
-                                    <span>{volume.format}</span>
-                                  )}
-                                  {volume.rating != null && (
-                                    <span className="tabular-nums">
+                                  </div>
+                                )}
+                                {volume.edition && (
+                                  <div className="text-[11px]">
+                                    <span
+                                      className={`font-medium ${differingFields.has("edition") ? "text-copper" : "text-muted-foreground"}`}
+                                    >
+                                      Edition
+                                    </span>{" "}
+                                    <span className="text-foreground">
+                                      {volume.edition}
+                                    </span>
+                                  </div>
+                                )}
+                                {volume.format && (
+                                  <div className="text-[11px]">
+                                    <span
+                                      className={`font-medium ${differingFields.has("format") ? "text-copper" : "text-muted-foreground"}`}
+                                    >
+                                      Format
+                                    </span>{" "}
+                                    <span className="text-foreground">
+                                      {volume.format}
+                                    </span>
+                                  </div>
+                                )}
+                                {volume.page_count != null && (
+                                  <div className="text-[11px]">
+                                    <span
+                                      className={`font-medium ${differingFields.has("page_count") ? "text-copper" : "text-muted-foreground"}`}
+                                    >
+                                      Pages
+                                    </span>{" "}
+                                    <span className="text-foreground tabular-nums">
+                                      {volume.page_count}
+                                    </span>
+                                  </div>
+                                )}
+                                {volume.rating != null && (
+                                  <div className="text-[11px]">
+                                    <span
+                                      className={`font-medium ${differingFields.has("rating") ? "text-copper" : "text-muted-foreground"}`}
+                                    >
+                                      Rating
+                                    </span>{" "}
+                                    <span className="text-foreground tabular-nums">
                                       {volume.rating}/10
                                     </span>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
+                                {volume.purchase_price != null && (
+                                  <div className="text-[11px]">
+                                    <span
+                                      className={`font-medium ${differingFields.has("purchase_price") ? "text-copper" : "text-muted-foreground"}`}
+                                    >
+                                      Price
+                                    </span>{" "}
+                                    <span className="text-foreground tabular-nums">
+                                      ${volume.purchase_price}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
-                            </label>
-                          )
-                        })}
-                      </RadioGroup>
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 )
