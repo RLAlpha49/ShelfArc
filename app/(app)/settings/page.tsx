@@ -13,6 +13,7 @@ import type {
   DefaultOwnershipStatus,
   SearchSource
 } from "@/lib/store/settings-store"
+import type { BulkScrapeMode } from "@/lib/hooks/use-bulk-scrape"
 import { cn } from "@/lib/utils"
 import { sanitizePlainText } from "@/lib/sanitize-html"
 import { USERNAME_PATTERN } from "@/lib/validation"
@@ -114,6 +115,12 @@ const ownershipStatusOptions: Array<{
 const searchSourceOptions: Array<{ value: SearchSource; label: string }> = [
   { value: "google_books", label: "Google Books" },
   { value: "open_library", label: "Open Library" }
+]
+
+const scrapeModeOptions: Array<{ value: BulkScrapeMode; label: string }> = [
+  { value: "both", label: "Price & Cover" },
+  { value: "price", label: "Price only" },
+  { value: "image", label: "Cover only" }
 ]
 
 /** Selectable date display formats with live examples. @source */
@@ -247,6 +254,8 @@ export default function SettingsPage() {
     setDefaultOwnershipStatus,
     defaultSearchSource,
     setDefaultSearchSource,
+    defaultScrapeMode,
+    setDefaultScrapeMode,
     sidebarCollapsed,
     setSidebarCollapsed,
     dateFormat,
@@ -1097,6 +1106,42 @@ export default function SettingsPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {searchSourceOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="border-border/40 border-t" />
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor="default-scrape-mode"
+                        className="font-medium"
+                      >
+                        Default scrape mode
+                      </Label>
+                      <p className="text-muted-foreground text-sm">
+                        What to fetch when bulk scraping from Amazon.
+                      </p>
+                    </div>
+                    <Select
+                      value={defaultScrapeMode}
+                      onValueChange={(value) => {
+                        if (isValidOption(value, scrapeModeOptions)) {
+                          setDefaultScrapeMode(value)
+                        }
+                      }}
+                    >
+                      <SelectTrigger
+                        id="default-scrape-mode"
+                        className="sm:w-48"
+                      >
+                        <SelectValue placeholder="Select mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {scrapeModeOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>

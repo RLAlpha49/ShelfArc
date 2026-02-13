@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import type { BulkScrapeMode } from "@/lib/hooks/use-bulk-scrape"
 
 /** Available display (heading) font families. @source */
 export type DisplayFont = "playfair" | "lora" | "crimson-text" | "source-serif"
@@ -27,6 +28,7 @@ interface SettingsState {
   confirmBeforeDelete: boolean
   defaultOwnershipStatus: DefaultOwnershipStatus
   defaultSearchSource: SearchSource
+  defaultScrapeMode: BulkScrapeMode
   autoPurchaseDate: boolean
 
   // Layout
@@ -45,6 +47,7 @@ interface SettingsState {
   setConfirmBeforeDelete: (value: boolean) => void
   setDefaultOwnershipStatus: (value: DefaultOwnershipStatus) => void
   setDefaultSearchSource: (value: SearchSource) => void
+  setDefaultScrapeMode: (value: BulkScrapeMode) => void
   setAutoPurchaseDate: (value: boolean) => void
   setSidebarCollapsed: (value: boolean) => void
   setEnableAnimations: (value: boolean) => void
@@ -98,6 +101,7 @@ export const useSettingsStore = create<SettingsState>()(
       confirmBeforeDelete: true,
       defaultOwnershipStatus: "owned",
       defaultSearchSource: "google_books",
+      defaultScrapeMode: "both",
       autoPurchaseDate: false,
 
       // Layout
@@ -118,6 +122,7 @@ export const useSettingsStore = create<SettingsState>()(
       setDefaultOwnershipStatus: (value) =>
         set({ defaultOwnershipStatus: value }),
       setDefaultSearchSource: (value) => set({ defaultSearchSource: value }),
+      setDefaultScrapeMode: (value) => set({ defaultScrapeMode: value }),
       setAutoPurchaseDate: (value) => set({ autoPurchaseDate: value }),
       setSidebarCollapsed: (value) => set({ sidebarCollapsed: value }),
       setEnableAnimations: (value) => set({ enableAnimations: value }),
@@ -137,6 +142,7 @@ export const useSettingsStore = create<SettingsState>()(
         confirmBeforeDelete: state.confirmBeforeDelete,
         defaultOwnershipStatus: state.defaultOwnershipStatus,
         defaultSearchSource: state.defaultSearchSource,
+        defaultScrapeMode: state.defaultScrapeMode,
         autoPurchaseDate: state.autoPurchaseDate,
         sidebarCollapsed: state.sidebarCollapsed,
         enableAnimations: state.enableAnimations,

@@ -26,6 +26,7 @@ import {
   type VolumeJobStatus
 } from "@/lib/hooks/use-bulk-scrape"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** Props for the {@link BulkScrapeDialog} component. @source */
@@ -211,7 +212,8 @@ export function BulkScrapeDialog({
   series,
   editVolume
 }: BulkScrapeDialogProps) {
-  const [mode, setMode] = useState<BulkScrapeMode>("both")
+  const defaultScrapeMode = useSettingsStore((s) => s.defaultScrapeMode)
+  const [mode, setMode] = useState<BulkScrapeMode>(defaultScrapeMode)
   const [skipExisting, setSkipExisting] = useState(false)
   const showAmazonDisclaimer = useLibraryStore((s) => s.showAmazonDisclaimer)
   const setShowAmazonDisclaimer = useLibraryStore(
