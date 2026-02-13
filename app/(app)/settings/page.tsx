@@ -540,12 +540,13 @@ export default function SettingsPage() {
       </div>
 
       {/* Mobile section tabs */}
-      <div className="-mx-6 mb-8 overflow-x-auto border-b px-6 lg:hidden">
+      <nav aria-label="Settings sections" className="-mx-6 mb-8 overflow-x-auto border-b px-6 lg:hidden">
         <div className="flex gap-1 pb-px">
           {settingsNav.map((section) => (
             <a
               key={section.id}
               href={`#${section.id}`}
+              aria-current={activeSection === section.id ? "true" : undefined}
               className={cn(
                 "relative shrink-0 px-3 py-2.5 text-sm font-medium transition-colors",
                 activeSection === section.id
@@ -560,17 +561,18 @@ export default function SettingsPage() {
             </a>
           ))}
         </div>
-      </div>
+      </nav>
 
       <div className="grid gap-10 lg:grid-cols-[200px_1fr] lg:gap-14">
         {/* Desktop section nav */}
-        <nav className="hidden lg:block">
+        <nav aria-label="Settings sections" className="hidden lg:block">
           <div className="sticky top-6">
             <ul className="space-y-1">
               {settingsNav.map((section) => (
                 <li key={section.id}>
                   <a
                     href={`#${section.id}`}
+                    aria-current={activeSection === section.id ? "true" : undefined}
                     className={cn(
                       "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                       activeSection === section.id

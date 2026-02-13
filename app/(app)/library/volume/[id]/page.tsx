@@ -459,7 +459,7 @@ export default function VolumeDetailPage() {
           </>
         )}
         <span className="text-muted-foreground">/</span>
-        <span className="font-medium">{breadcrumbLabel}</span>
+        <span className="font-medium" aria-current="page">{breadcrumbLabel}</span>
       </nav>
 
       {/* Series-style header + content */}

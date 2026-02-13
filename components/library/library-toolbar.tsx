@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -107,6 +108,7 @@ export function LibraryToolbar({
                 <path d="m21 21-4.3-4.3" />
               </svg>
               <Input
+                aria-label="Search library"
                 placeholder={searchPlaceholder}
                 value={filters.search}
                 onChange={(e) => setFilters({ search: e.target.value })}
@@ -162,16 +164,16 @@ export function LibraryToolbar({
 
             {/* Type Filter */}
             <div className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">
+              <Label htmlFor="filter-type" className="text-muted-foreground text-[11px] font-medium">
                 Type
-              </span>
+              </Label>
               <Select
                 value={filters.type}
                 onValueChange={(value) => {
                   if (value) setFilters({ type: value as TitleType | "all" })
                 }}
               >
-                <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
+                <SelectTrigger id="filter-type" className="w-30 rounded-xl text-xs shadow-sm">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -185,9 +187,9 @@ export function LibraryToolbar({
 
             {/* Ownership Filter */}
             <div className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">
+              <Label htmlFor="filter-ownership" className="text-muted-foreground text-[11px] font-medium">
                 Ownership
-              </span>
+              </Label>
               <Select
                 value={filters.ownershipStatus}
                 onValueChange={(value) => {
@@ -197,7 +199,7 @@ export function LibraryToolbar({
                     })
                 }}
               >
-                <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
+                <SelectTrigger id="filter-ownership" className="w-30 rounded-xl text-xs shadow-sm">
                   <SelectValue placeholder="Ownership" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -210,9 +212,9 @@ export function LibraryToolbar({
 
             {/* Reading Status Filter */}
             <div className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">
+              <Label htmlFor="filter-reading" className="text-muted-foreground text-[11px] font-medium">
                 Reading
-              </span>
+              </Label>
               <Select
                 value={filters.readingStatus}
                 onValueChange={(value) => {
@@ -222,7 +224,7 @@ export function LibraryToolbar({
                     })
                 }}
               >
-                <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
+                <SelectTrigger id="filter-reading" className="w-30 rounded-xl text-xs shadow-sm">
                   <SelectValue placeholder="Reading" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -239,9 +241,9 @@ export function LibraryToolbar({
             {/* Tags Filter */}
             {availableTags.length > 0 && (
               <div className="space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium">
+                <Label htmlFor="filter-tags" className="text-muted-foreground text-[11px] font-medium">
                   Tags
-                </span>
+                </Label>
                 <Select
                   value={filters.tags.length > 0 ? filters.tags[0] : "all"}
                   onValueChange={(value) => {
@@ -249,7 +251,7 @@ export function LibraryToolbar({
                       setFilters({ tags: value === "all" ? [] : [value] })
                   }}
                 >
-                  <SelectTrigger className="w-30 rounded-xl text-xs shadow-sm">
+                  <SelectTrigger id="filter-tags" className="w-30 rounded-xl text-xs shadow-sm">
                     <SelectValue placeholder="Tags" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
@@ -266,9 +268,9 @@ export function LibraryToolbar({
 
             {/* Sort */}
             <div className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">
+              <Label htmlFor="sort-field" className="text-muted-foreground text-[11px] font-medium">
                 Sort
-              </span>
+              </Label>
               <div className="flex items-center gap-1">
                 <Select
                   value={sortField}
@@ -276,7 +278,7 @@ export function LibraryToolbar({
                     if (value) setSortField(value as SortField)
                   }}
                 >
-                  <SelectTrigger className="w-34 rounded-xl text-xs shadow-sm">
+                  <SelectTrigger id="sort-field" className="w-34 rounded-xl text-xs shadow-sm">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">

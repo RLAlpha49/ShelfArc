@@ -1844,7 +1844,7 @@ export default function SeriesDetailPage() {
           Library
         </Link>
         <span className="text-muted-foreground">/</span>
-        <span className="font-medium">{currentSeries.title}</span>
+        <span className="font-medium" aria-current="page">{currentSeries.title}</span>
       </nav>
 
       <SeriesHeaderSection
