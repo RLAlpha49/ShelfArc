@@ -115,7 +115,7 @@ export function VolumeCard({
   const amazonLink = volume.amazon_url || amazonSearchUrl
 
   return (
-    <div className="card-hover hover-lift group relative h-full w-full">
+    <div className="card-hover hover-lift press-effect group relative h-full w-full">
       {showSelection && (
         <div
           className={`bg-background/80 absolute top-2 left-2 z-10 rounded-lg p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
@@ -131,7 +131,7 @@ export function VolumeCard({
 
       <button
         type="button"
-        className={`press-effect group bg-card hover:bg-accent/50 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-all hover:shadow-lg ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`group bg-card hover:bg-accent/50 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-all hover:shadow-lg ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
@@ -222,7 +222,7 @@ export function VolumeCard({
       <div className="absolute top-2 right-2 z-10 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 w-8 items-center justify-center rounded-xl shadow-sm backdrop-blur-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
+            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 w-8 items-center justify-center rounded-xl shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
             onClick={(event) => event.stopPropagation()}
             aria-label={`Actions for volume ${volume.volume_number}`}
           >

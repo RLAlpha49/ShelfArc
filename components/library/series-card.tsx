@@ -62,7 +62,7 @@ export function SeriesCard({
   const showSelection = Boolean(onSelect)
 
   return (
-    <div className="card-hover hover-lift group relative h-full w-full">
+    <div className="card-hover hover-lift press-effect group relative h-full w-full">
       {showSelection && (
         <div
           className={`bg-background/80 absolute top-2 left-2 z-10 rounded-lg p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
@@ -78,7 +78,7 @@ export function SeriesCard({
 
       <button
         type="button"
-        className={`press-effect bg-card hover:bg-accent/50 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-all hover:shadow-lg ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
+        className={`bg-card hover:bg-accent/50 relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left transition-all hover:shadow-lg ${selected ? "ring-primary/40 ring-offset-background ring-2 ring-offset-2" : ""}`}
         onClick={onClick}
         aria-pressed={showSelection ? selected : undefined}
       >
@@ -168,7 +168,7 @@ export function SeriesCard({
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2 overflow-hidden opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
         <button
           type="button"
-          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
+          className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
           onClick={(event) => {
             event.stopPropagation()
             onEdit()
@@ -179,7 +179,7 @@ export function SeriesCard({
         </button>
         <button
           type="button"
-          className="bg-background/80 hover:bg-destructive/15 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-all hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
+          className="bg-background/80 hover:bg-destructive/15 text-destructive focus-visible:ring-ring inline-flex h-8 items-center justify-center rounded-xl px-2 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
           onClick={(event) => {
             event.stopPropagation()
             onDelete()
