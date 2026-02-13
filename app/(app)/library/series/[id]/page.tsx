@@ -201,11 +201,9 @@ const buildSeriesInsights = (
     0
   )
   const totalSpent = series.volumes
-    .filter((volume) => volume.ownership_status === "owned")
     .reduce((acc, volume) => acc + (volume.purchase_price ?? 0), 0)
   const pricedVolumeEntries = series.volumes.filter(
     (volume) =>
-      volume.ownership_status === "owned" &&
       volume.purchase_price != null &&
       volume.purchase_price > 0
   )
