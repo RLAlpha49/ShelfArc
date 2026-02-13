@@ -8,6 +8,7 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 import type { DateFormat } from "@/lib/store/settings-store"
 import { formatDate } from "@/lib/format-date"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PriceAlertsDashboardCard } from "@/components/library/price-alerts-dashboard-card"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** A volume entry augmented with its parent series title and ID. @source */
@@ -1562,6 +1563,20 @@ export default function DashboardPage() {
                 </Link>
               </div>
             )}
+          </div>
+
+          {/* Price Alerts */}
+          <div className="animate-fade-in-up stagger-9">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-semibold tracking-tight">
+                Price Alerts
+              </h2>
+              <p className="text-muted-foreground text-xs">
+                Track price drops on your volumes
+              </p>
+            </div>
+
+            <PriceAlertsDashboardCard />
           </div>
         </div>
       </section>
