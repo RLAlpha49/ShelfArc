@@ -5,10 +5,11 @@ import { redirect } from "next/navigation"
  * @param params - Route params containing the series ID.
  * @source
  */
-export default function SeriesRedirectPage({
+export default async function SeriesRedirectPage({
   params
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  redirect(`/library/series/${params.id}`)
+  const { id } = await params
+  redirect(`/library/series/${id}`)
 }
