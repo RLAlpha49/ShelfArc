@@ -79,6 +79,27 @@ export interface WishlistStats {
   totalCount: number
 }
 
+export interface ReleaseItem {
+  volumeId: string
+  seriesId: string
+  seriesTitle: string
+  seriesType: string
+  volumeNumber: number | null
+  volumeTitle: string
+  publishDate: Date
+  isOwned: boolean
+  isWishlisted: boolean
+  coverUrl: string | null
+}
+
+export interface MonthGroup {
+  /** Display label, e.g. "March 2026" */
+  label: string
+  /** Sortable key, e.g. "2026-03" */
+  yearMonth: string
+  items: ReleaseItem[]
+}
+
 // ── Pure functions ─────────────────────────────────────────────────────
 
 export function computeCollectionStats(
@@ -449,4 +470,65 @@ export function getCurrentlyReading(
     )
     .filter((v) => v.reading_status === "reading")
     .slice(0, limit)
+}
+
+export function computeReleases(
+  series: SeriesWithVolumes[],
+  referenceDate?: Date
+): { upcoming: MonthGroup[]; past: MonthGroup[] } {
+  const now = referenceDate ?? new Date()
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+
+  const monthFormatter = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "long"
+  })
+
+  const groupMap = new Map<string, MonthGroup>()
+
+  for (const s of series) {
+    for (const v of s.volumes) {
+      if (!v.publish_date) continue
+      const d = new Date(v.publish_date)
+      if (Number.isNaN(d.getTime())) continue
+
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+      let group = groupMap.get(ym)
+      if (!group) {
+        group = { label: monthFormatter.format(d), yearMonth: ym, items: [] }
+        groupMap.set(ym, group)
+      }
+
+      group.items.push({
+        volumeId: v.id,
+        seriesId: s.id,
+        seriesTitle: s.title,
+        seriesType: s.type,
+        volumeNumber: v.volume_number,
+        volumeTitle: v.title ?? `Volume ${v.volume_number}`,
+        publishDate: d,
+        isOwned: v.ownership_status === "owned",
+        isWishlisted: v.ownership_status === "wishlist",
+        coverUrl: v.cover_image_url
+      })
+    }
+  }
+
+  // Sort items within each group by date
+  for (const group of groupMap.values()) {
+    group.items.sort(
+      (a, b) => a.publishDate.getTime() - b.publishDate.getTime()
+    )
+  }
+
+  const allGroups = [...groupMap.values()].sort((a, b) =>
+    a.yearMonth.localeCompare(b.yearMonth)
+  )
+
+  const upcoming = allGroups.filter((g) => g.yearMonth >= currentYearMonth)
+  const past = allGroups
+    .filter((g) => g.yearMonth < currentYearMonth)
+    .reverse()
+
+  return { upcoming, past }
 }

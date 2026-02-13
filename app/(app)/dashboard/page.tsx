@@ -17,6 +17,7 @@ import {
   computeWishlistStats,
   computeSuggestedBuys,
   computeSuggestionCounts,
+  computeReleases,
   getRecentSeries,
   getRecentVolumes,
   getCurrentlyReading
@@ -299,6 +300,12 @@ export default function DashboardPage() {
     [series]
   )
 
+  // Upcoming releases (nearest future publish dates)
+  const upcomingReleases = useMemo(() => {
+    const { upcoming } = computeReleases(series)
+    return upcoming.flatMap((g) => g.items).slice(0, 5)
+  }, [series])
+
   // Reading completion percentage
   const readPercentage =
     stats.totalVolumes > 0
@@ -513,6 +520,25 @@ export default function DashboardPage() {
                 className="h-4 w-4"
               >
                 <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+              </svg>
+            )
+          },
+          {
+            href: "/dashboard/releases",
+            label: "Releases",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-4 w-4"
+              >
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                <line x1="16" x2="16" y1="2" y2="6" />
+                <line x1="8" x2="8" y1="2" y2="6" />
+                <line x1="3" x2="21" y1="10" y2="10" />
               </svg>
             )
           }
@@ -1249,8 +1275,94 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Price Alerts */}
+          {/* Upcoming Releases */}
           <div className="animate-fade-in-up stagger-9">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-semibold tracking-tight">
+                  Upcoming Releases
+                </h2>
+                <p className="text-muted-foreground text-xs">
+                  Next volumes by publish date
+                </p>
+              </div>
+              {upcomingReleases.length > 0 && (
+                <Link
+                  href="/dashboard/releases"
+                  className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+                >
+                  View all
+                </Link>
+              )}
+            </div>
+
+            {upcomingReleases.length === 0 ? (
+              <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+                <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="h-5 w-5"
+                  >
+                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                    <line x1="16" x2="16" y1="2" y2="6" />
+                    <line x1="8" x2="8" y1="2" y2="6" />
+                    <line x1="3" x2="21" y1="10" y2="10" />
+                  </svg>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  No upcoming releases
+                </p>
+                <p className="text-muted-foreground/60 mt-1 text-xs">
+                  Add publish dates to volumes to track releases
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-px overflow-hidden rounded-xl border">
+                {upcomingReleases.map((r) => (
+                  <Link
+                    key={r.volumeId}
+                    href={`/library/volume/${r.volumeId}`}
+                    className="bg-card group hover:bg-accent/60 flex items-center justify-between p-3 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
+                        {r.seriesTitle}
+                        {r.volumeNumber != null && (
+                          <span className="text-muted-foreground ml-1.5 text-xs font-normal">
+                            Vol. {r.volumeNumber}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground mt-0.5 text-xs">
+                        {formatDate(r.publishDate, dateFormat)}
+                        <span className="text-muted-foreground/40"> · </span>
+                        {r.seriesType === "light_novel"
+                          ? "Light Novel"
+                          : "Manga"}
+                      </div>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+                    >
+                      <polyline points="9,18 15,12 9,6" />
+                    </svg>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Price Alerts */}
+          <div className="animate-fade-in-up stagger-10">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Price Alerts
