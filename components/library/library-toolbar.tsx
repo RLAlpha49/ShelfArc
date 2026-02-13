@@ -285,9 +285,7 @@ export function LibraryToolbar({
                 type="button"
                 className="text-muted-foreground/50 hover:text-muted-foreground absolute top-1/2 right-3 hidden -translate-y-1/2 text-[11px] transition-colors sm:inline-flex"
                 onClick={() =>
-                  globalThis.dispatchEvent(
-                    new Event("open-command-palette")
-                  )
+                  globalThis.dispatchEvent(new Event("open-command-palette"))
                 }
               >
                 or {isMac ? "⌘" : "Ctrl+"}K

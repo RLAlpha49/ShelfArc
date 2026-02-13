@@ -477,11 +477,17 @@ export function useBulkScrape(
  * @returns The params, or `null` after marking the job as failed.
  * @source
  */
-function buildJobParams(
-  i: number,
-  ctx: JobContext
-): FetchPriceParams | null {
-  const { jobs, series, amazonDomain, preferKindle, fallbackToKindle, includePrice, includeImage, setter } = ctx
+function buildJobParams(i: number, ctx: JobContext): FetchPriceParams | null {
+  const {
+    jobs,
+    series,
+    amazonDomain,
+    preferKindle,
+    fallbackToKindle,
+    includePrice,
+    includeImage,
+    setter
+  } = ctx
   const result = buildFetchPriceParams({
     seriesTitle: jobs[i].seriesTitle ?? series.title,
     volumeTitle: jobs[i].title || undefined,

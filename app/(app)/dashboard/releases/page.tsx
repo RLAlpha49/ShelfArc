@@ -71,10 +71,7 @@ function ReleaseRow({ item }: { readonly item: ReleaseItem }) {
           </Badge>
         )}
         {item.isWishlisted && (
-          <Badge
-            variant="secondary"
-            className="bg-gold/10 text-gold"
-          >
+          <Badge variant="secondary" className="bg-gold/10 text-gold">
             Wishlist
           </Badge>
         )}
@@ -153,7 +150,11 @@ function EmptyMessage({
   readonly formatFilter: FormatFilter
 }) {
   if (!hasAnyReleases) return <>No volumes have publish dates yet</>
-  return <>No {activeTab} releases{getFormatLabel(formatFilter)}</>
+  return (
+    <>
+      No {activeTab} releases{getFormatLabel(formatFilter)}
+    </>
+  )
 }
 
 function EmptyHint({

@@ -31,6 +31,16 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog"
+import {
   type BookSearchResult,
   type BookSearchSource
 } from "@/lib/books/search"
@@ -38,6 +48,12 @@ import { searchBooks } from "@/lib/api/endpoints"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import { useLibraryStore } from "@/lib/store/library-store"
+import {
+  findDuplicateCandidates,
+  DUPLICATE_REASON_LABELS,
+  type DuplicateCandidate
+} from "@/lib/library/duplicate-detection"
 import type { OwnershipStatus } from "@/lib/types/database"
 
 /** Whether the search dialog is used to add a series or a volume. @source */
@@ -133,6 +149,8 @@ export function BookSearchDialog({
     (s) => s.defaultOwnershipStatus
   )
   const defaultSearchSource = useSettingsStore((s) => s.defaultSearchSource)
+  const librarySeries = useLibraryStore((s) => s.series)
+  const unassignedVolumes = useLibraryStore((s) => s.unassignedVolumes)
 
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -155,6 +173,10 @@ export function BookSearchDialog({
   )
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
   const [showJumpToTop, setShowJumpToTop] = useState(false)
+  const [duplicateConfirm, setDuplicateConfirm] = useState<{
+    candidates: DuplicateCandidate[]
+    onConfirm: () => void
+  } | null>(null)
 
   const manualLabel =
     context === "volume" ? "Add volume manually" : "Add book manually"
@@ -176,6 +198,7 @@ export function BookSearchDialog({
       setIsBulkAdding(false)
       setShowJumpToTop(false)
       setOwnershipStatus(defaultOwnershipStatus)
+      setDuplicateConfirm(null)
     }
   }, [open, defaultOwnershipStatus, defaultSearchSource])
 
@@ -260,7 +283,7 @@ export function BookSearchDialog({
     setShowJumpToTop(false)
   }, [open, page, queryKey])
 
-  const handleSelect = useCallback(
+  const performSelect = useCallback(
     async (result: BookSearchResult) => {
       setSelectingId(result.id)
       try {
@@ -271,6 +294,28 @@ export function BookSearchDialog({
       }
     },
     [onOpenChange, onSelectResult, ownershipStatus]
+  )
+
+  const handleSelect = useCallback(
+    (result: BookSearchResult) => {
+      const candidates = findDuplicateCandidates(
+        result,
+        librarySeries,
+        unassignedVolumes
+      )
+      if (candidates.length > 0) {
+        setDuplicateConfirm({
+          candidates,
+          onConfirm: () => {
+            setDuplicateConfirm(null)
+            void performSelect(result)
+          }
+        })
+        return
+      }
+      void performSelect(result)
+    },
+    [librarySeries, unassignedVolumes, performSelect]
   )
 
   const existingIsbnSet = useMemo(() => {
@@ -328,7 +373,7 @@ export function BookSearchDialog({
     })
   }, [])
 
-  const handleAddSelected = useCallback(async () => {
+  const performAddSelected = useCallback(async () => {
     if (selectedResults.length === 0) return
     const resultsToAdd = selectedResults.filter((result) => {
       const normalizedIsbn = result.isbn ? normalizeIsbn(result.isbn) : null
@@ -359,6 +404,24 @@ export function BookSearchDialog({
     ownershipStatus,
     selectedResults
   ])
+
+  const handleAddSelected = useCallback(() => {
+    if (selectedResults.length === 0) return
+    const allCandidates = selectedResults.flatMap((result) =>
+      findDuplicateCandidates(result, librarySeries, unassignedVolumes)
+    )
+    if (allCandidates.length > 0) {
+      setDuplicateConfirm({
+        candidates: allCandidates,
+        onConfirm: () => {
+          setDuplicateConfirm(null)
+          void performAddSelected()
+        }
+      })
+      return
+    }
+    void performAddSelected()
+  }, [selectedResults, librarySeries, unassignedVolumes, performAddSelected])
 
   const selectedSource = sourceCopy[source]
   const activeSourceLabel = sourceCopy[sourceUsed ?? source].label
@@ -1175,6 +1238,63 @@ export function BookSearchDialog({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Duplicate confirmation dialog */}
+      <AlertDialog
+        open={duplicateConfirm !== null}
+        onOpenChange={(next) => {
+          if (!next) setDuplicateConfirm(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Possible Duplicate Detected</AlertDialogTitle>
+            <AlertDialogDescription>
+              {duplicateConfirm?.candidates.length === 1
+                ? "This book may already be in your library:"
+                : "These books may already be in your library:"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {duplicateConfirm && (
+            <ul className="max-h-48 space-y-2 overflow-y-auto text-xs">
+              {duplicateConfirm.candidates.map((c, i) => (
+                <li
+                  key={`${c.reason}-${c.existingIsbn ?? i}`}
+                  className="bg-muted/40 rounded-lg p-2.5"
+                >
+                  <span className="bg-copper/10 text-copper mr-1.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium">
+                    {DUPLICATE_REASON_LABELS[c.reason]}
+                  </span>
+                  <span className="font-medium">
+                    {c.existingSeriesTitle}
+                    {c.existingVolumeNumber != null &&
+                      ` Vol. ${c.existingVolumeNumber}`}
+                  </span>
+                  {c.existingVolumeTitle && (
+                    <span className="text-muted-foreground">
+                      {" \u2014 "}
+                      {c.existingVolumeTitle}
+                    </span>
+                  )}
+                  {c.existingIsbn && (
+                    <span className="text-muted-foreground/70 ml-1 font-mono text-[10px]">
+                      ({c.existingIsbn})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => duplicateConfirm?.onConfirm()}>
+              Add Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

@@ -81,9 +81,7 @@ export function buildPriceQuery(
       error: "Add a series title or volume title before fetching from Amazon."
     }
   }
-  const formatHint = options.seriesType
-    ? getFormatHint(options.seriesType)
-    : ""
+  const formatHint = options.seriesType ? getFormatHint(options.seriesType) : ""
   const binding = options.preferKindle ? "Kindle" : "Paperback"
 
   const params: PriceQueryResult = {

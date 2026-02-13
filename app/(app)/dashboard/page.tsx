@@ -266,10 +266,7 @@ export default function DashboardPage() {
 
   const recentSeries = useMemo(() => getRecentSeries(series), [series])
 
-  const currentlyReading = useMemo(
-    () => getCurrentlyReading(series),
-    [series]
-  )
+  const currentlyReading = useMemo(() => getCurrentlyReading(series), [series])
 
   // Recently added volumes (across all series)
   const recentVolumes = useMemo(() => getRecentVolumes(series), [series])
@@ -278,16 +275,10 @@ export default function DashboardPage() {
   const [recentTab, setRecentTab] = useState<"series" | "volumes">("series")
 
   // Price tracking breakdown
-  const priceBreakdown = useMemo(
-    () => computePriceBreakdown(series),
-    [series]
-  )
+  const priceBreakdown = useMemo(() => computePriceBreakdown(series), [series])
 
   // Wishlist stats
-  const wishlistStats = useMemo(
-    () => computeWishlistStats(series),
-    [series]
-  )
+  const wishlistStats = useMemo(() => computeWishlistStats(series), [series])
 
   // What to buy next suggestions
   const suggestedNextBuys = useMemo(

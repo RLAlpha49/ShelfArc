@@ -188,7 +188,7 @@ export function TagFilterControl({
             {/* Active filters summary */}
             {activeCount > 0 && (
               <div className="border-border space-y-1.5 border-t pt-2">
-                <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+                <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
                   Active filters
                 </span>
                 <div className="flex flex-wrap gap-1">

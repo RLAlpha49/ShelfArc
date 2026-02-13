@@ -12,12 +12,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent
-} from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   computeSuggestedBuys,
   computeSuggestionCounts
@@ -31,7 +26,7 @@ type CategoryTab = "all" | SuggestionCategory
 
 const CATEGORY_LABELS: Record<SuggestionCategory, string> = {
   gap_fill: "Gap Fills",
-  "continue": "Continue",
+  continue: "Continue",
   complete_series: "Complete Series",
   continue_reading: "Continue Reading"
 }
@@ -62,10 +57,7 @@ export default function SuggestionsPage() {
     }
   }, [priceDisplayCurrency])
 
-  const allSuggestions = useMemo(
-    () => computeSuggestedBuys(series),
-    [series]
-  )
+  const allSuggestions = useMemo(() => computeSuggestedBuys(series), [series])
 
   const categoryCounts = useMemo(
     () => computeSuggestionCounts(allSuggestions),
@@ -220,9 +212,7 @@ export default function SuggestionsPage() {
           onValueChange={(v) => setActiveTab(v as CategoryTab)}
         >
           <TabsList className="mb-6 w-full">
-            <TabsTrigger value="all">
-              All ({stats.total})
-            </TabsTrigger>
+            <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
             <TabsTrigger value="gap_fill">
               Gaps ({categoryCounts.gap_fill})
             </TabsTrigger>

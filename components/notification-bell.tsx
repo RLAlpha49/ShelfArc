@@ -26,11 +26,7 @@ export function NotificationBell() {
           />
         }
       >
-        <HugeiconsIcon
-          icon={Notification02Icon}
-          size={16}
-          strokeWidth={1.5}
-        />
+        <HugeiconsIcon icon={Notification02Icon} size={16} strokeWidth={1.5} />
         {unreadCount > 0 && (
           <span className="bg-destructive absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium text-white">
             {unreadCount > 9 ? "9+" : unreadCount}

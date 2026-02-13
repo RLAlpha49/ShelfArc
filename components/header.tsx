@@ -231,9 +231,7 @@ export function Header({ user }: HeaderProps) {
                     <path d="m12.5 12.5-2.8-2.8" />
                   </svg>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Search commands
-                </TooltipContent>
+                <TooltipContent side="bottom">Search commands</TooltipContent>
               </Tooltip>
               {/* Command palette – search bar (desktop) */}
               <button
@@ -241,9 +239,7 @@ export function Header({ user }: HeaderProps) {
                 className="focus-visible:ring-ring focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-accent border-border/50 hidden h-8 min-w-48 items-center gap-2 rounded-lg border bg-transparent px-3 transition-all hover:shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:inline-flex"
                 aria-label="Open command palette"
                 onClick={() =>
-                  globalThis.dispatchEvent(
-                    new Event("open-command-palette")
-                  )
+                  globalThis.dispatchEvent(new Event("open-command-palette"))
                 }
               >
                 <svg

@@ -967,7 +967,16 @@ export function useLibrary() {
           return compareStrings(a.title, b.title) * multiplier
       }
     })
-  }, [series, sortOrder, filters.search, filters.type, filters.ownershipStatus, filters.readingStatus, matchesTagFilters, sortField])
+  }, [
+    series,
+    sortOrder,
+    filters.search,
+    filters.type,
+    filters.ownershipStatus,
+    filters.readingStatus,
+    matchesTagFilters,
+    sortField
+  ])
 
   const allVolumes = useMemo<VolumeWithSeries[]>(() => {
     return series.flatMap((item) =>
@@ -1021,7 +1030,14 @@ export function useLibrary() {
 
       return true
     })
-  }, [allVolumes, filters.ownershipStatus, filters.readingStatus, filters.search, filters.type, matchesTagFilters])
+  }, [
+    allVolumes,
+    filters.ownershipStatus,
+    filters.readingStatus,
+    filters.search,
+    filters.type,
+    matchesTagFilters
+  ])
 
   const filteredUnassignedVolumes = useMemo(() => {
     return unassignedVolumes.filter((volume) => {

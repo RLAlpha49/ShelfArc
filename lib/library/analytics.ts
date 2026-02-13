@@ -106,9 +106,7 @@ export function computeCollectionStats(
   series: SeriesWithVolumes[]
 ): CollectionStats {
   const totalSeries = series.length
-  const lightNovelSeries = series.filter(
-    (s) => s.type === "light_novel"
-  ).length
+  const lightNovelSeries = series.filter((s) => s.type === "light_novel").length
   const mangaSeries = series.filter((s) => s.type === "manga").length
 
   const volumes = series.flatMap((s) => s.volumes)
@@ -125,13 +123,8 @@ export function computeCollectionStats(
     (v) => v.reading_status === "reading"
   ).length
 
-  const totalSpent = owned.reduce(
-    (acc, v) => acc + (v.purchase_price ?? 0),
-    0
-  )
-  const pricedVolumes = owned.filter(
-    (v) => (v.purchase_price ?? 0) > 0
-  ).length
+  const totalSpent = owned.reduce((acc, v) => acc + (v.purchase_price ?? 0), 0)
+  const pricedVolumes = owned.filter((v) => (v.purchase_price ?? 0) > 0).length
   const averagePricePerTrackedVolume =
     pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
 
@@ -363,9 +356,7 @@ export function computeSuggestedBuys(
   }
 
   for (const s of series) {
-    const ownedVolumes = s.volumes.filter(
-      (v) => v.ownership_status === "owned"
-    )
+    const ownedVolumes = s.volumes.filter((v) => v.ownership_status === "owned")
     if (ownedVolumes.length === 0) continue
 
     const ownedNumbers = new Set(ownedVolumes.map((v) => v.volume_number))
@@ -526,9 +517,7 @@ export function computeReleases(
   )
 
   const upcoming = allGroups.filter((g) => g.yearMonth >= currentYearMonth)
-  const past = allGroups
-    .filter((g) => g.yearMonth < currentYearMonth)
-    .reverse()
+  const past = allGroups.filter((g) => g.yearMonth < currentYearMonth).reverse()
 
   return { upcoming, past }
 }

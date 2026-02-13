@@ -143,9 +143,7 @@ export function NotificationCenter() {
             strokeWidth={1.5}
             className="text-muted-foreground/40 mb-2"
           />
-          <p className="text-muted-foreground text-sm">
-            No notifications yet
-          </p>
+          <p className="text-muted-foreground text-sm">No notifications yet</p>
         </div>
       ) : (
         <ScrollArea className="max-h-96">

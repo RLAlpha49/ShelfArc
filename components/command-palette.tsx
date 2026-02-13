@@ -427,8 +427,7 @@ export function CommandPalette() {
               </p>
               {!query.trim() && (
                 <p className="text-muted-foreground/50 mt-1 max-w-56 text-center text-[11px] leading-relaxed">
-                  Try: go to dashboard, switch to grid view, search a
-                  series…
+                  Try: go to dashboard, switch to grid view, search a series…
                 </p>
               )}
             </div>
