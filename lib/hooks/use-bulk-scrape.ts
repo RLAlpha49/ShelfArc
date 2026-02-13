@@ -12,6 +12,7 @@ import { fetchPrice } from "@/lib/api/endpoints"
 import { buildFetchPriceParams } from "@/lib/books/amazon-query"
 import type { FetchPriceParams } from "@/lib/api/types"
 import { ApiClientError } from "@/lib/api/client"
+import { useNotificationStore } from "@/lib/store/notification-store"
 
 /** Scraping mode: price only, image only, or both. @source */
 export type BulkScrapeMode = "price" | "image" | "both"
@@ -201,7 +202,8 @@ function cancelRemaining(startIdx: number, setter: StateSetter) {
  * @param setter - React state setter.
  * @source
  */
-function finalize(setter: StateSetter) {
+function finalize(setter: StateSetter): BulkScrapeSummary {
+  let finalSummary = EMPTY_SUMMARY
   setter((prev) => {
     const nextJobs = prev.jobs.map((job) => {
       if (job.status === "pending" || job.status === "scraping") {
@@ -209,13 +211,15 @@ function finalize(setter: StateSetter) {
       }
       return job
     })
+    finalSummary = buildSummary(nextJobs)
     return {
       ...prev,
       jobs: nextJobs,
       isRunning: false,
-      summary: buildSummary(nextJobs)
+      summary: finalSummary
     }
   })
+  return finalSummary
 }
 
 /**
@@ -432,7 +436,13 @@ export function useBulkScrape(
         if (outcome === "abort") break
       }
 
-      finalize(setState)
+      const summary = finalize(setState)
+
+      useNotificationStore.getState().addNotification({
+        type: "scrape_complete",
+        title: "Bulk Scrape Complete",
+        message: `Processed ${summary.total} volumes: ${summary.done} updated, ${summary.failed} failed.`
+      })
     },
     [
       series,

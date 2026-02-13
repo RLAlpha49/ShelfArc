@@ -12,6 +12,7 @@ import type {
 import type { BookSearchResult, BookSearchSource } from "@/lib/books/search"
 import { searchBooks } from "@/lib/api/endpoints"
 import type { OwnershipStatus } from "@/lib/types/database"
+import { useNotificationStore } from "@/lib/store/notification-store"
 
 /** Minimum score to accept a result from the primary source. @source */
 const PRIMARY_SCORE_THRESHOLD = 20
@@ -223,15 +224,37 @@ export function useCsvImport({
   )
 
   const markCancelledAndComplete = useCallback((wasAborted: boolean) => {
-    if (wasAborted) {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.status === "pending"
-            ? { ...item, status: "error", error: "Cancelled" }
-            : item
-        )
-      )
-    }
+    let added = 0
+    let notFound = 0
+    let errors = 0
+
+    setItems((prev) => {
+      const finalItems = wasAborted
+        ? prev.map((item) =>
+            item.status === "pending"
+              ? { ...item, status: "error" as const, error: "Cancelled" }
+              : item
+          )
+        : prev
+
+      added = 0
+      notFound = 0
+      errors = 0
+      for (const item of finalItems) {
+        if (item.status === "added") added += 1
+        else if (item.status === "not-found") notFound += 1
+        else if (item.status === "error") errors += 1
+      }
+
+      return finalItems
+    })
+
+    useNotificationStore.getState().addNotification({
+      type: "import_complete",
+      title: "CSV Import Complete",
+      message: `Added ${added} volumes. ${notFound} not found, ${errors} errors.`
+    })
+
     setPhase("complete")
     abortRef.current = null
   }, [])

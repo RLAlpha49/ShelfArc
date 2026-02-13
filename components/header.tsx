@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { NotificationBell } from "@/components/notification-bell"
 import {
   Tooltip,
   TooltipContent,
@@ -265,6 +266,7 @@ export function Header({ user }: HeaderProps) {
               </button>
             </>
           )}
+          {user && <NotificationBell />}
           <ThemeToggle />
 
           {user ? (
