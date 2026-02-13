@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -398,30 +397,37 @@ export function BookSearchDialog({
       const { result, isAlreadyAdded, isSelected } = item
       return (
         <div
-          className={`glass-card flex w-full items-center gap-3 rounded-xl p-3 text-left transition ${
+          className={`group/card relative flex w-full items-stretch gap-4 rounded-xl border p-3 pr-4 text-left transition-all duration-300 ${
             isSelected
-              ? "border-copper/40 bg-warm/40 ring-copper/30 ring-1"
-              : "border-border/70"
-          } ${isAlreadyAdded ? "opacity-70" : "hover:border-copper/25 hover:bg-warm/20"}`}
+              ? "border-copper/50 bg-copper/6 shadow-[0_0_20px_-4px_var(--warm-glow),inset_0_1px_0_var(--copper)/0.08]"
+              : "border-border/60 bg-card/60"
+          } ${isAlreadyAdded ? "opacity-60" : "hover:border-copper/30 hover:bg-warm/15 hover:-translate-y-px hover:shadow-[0_8px_24px_-8px_var(--warm-glow)]"}`}
         >
-          <Button
+          {/* Selection checkbox */}
+          <button
             type="button"
-            variant={isSelected ? "default" : "outline"}
-            size="icon-sm"
             aria-pressed={isSelected}
-            className="shrink-0"
+            className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all duration-200 ${
+              isSelected
+                ? "border-copper bg-copper text-white shadow-[0_0_8px_var(--warm-glow)]"
+                : "border-border/80 bg-background hover:border-copper/50"
+            } ${isAlreadyAdded || isBulkAdding ? "pointer-events-none opacity-40" : "cursor-pointer"}`}
             disabled={isAlreadyAdded || isBulkAdding}
             onClick={() => toggleSelected(result)}
           >
-            <span className="text-[10px] font-semibold">
-              {isSelected ? "✓" : ""}
-            </span>
+            {isSelected && (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M2.5 6.5L4.5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
             <span className="sr-only">
               {isSelected ? "Deselect" : "Select"} book
             </span>
-          </Button>
+          </button>
 
-          <div className="bg-muted relative h-20 w-14 shrink-0 overflow-hidden rounded-lg">
+          {/* Cover image — prominent, bookshelf-style */}
+          <div className="relative h-30 w-20 shrink-0 overflow-hidden rounded-lg shadow-[2px_4px_12px_-2px_oklch(0_0_0/0.15)] transition-shadow duration-300 group-hover/card:shadow-[3px_6px_16px_-2px_oklch(0_0_0/0.2)]">
+            <div className="absolute inset-y-0 left-0 z-10 w-0.75 bg-linear-to-r from-black/8 to-transparent" />
             <CoverImage
               isbn={result.isbn}
               coverImageUrl={result.coverUrl}
@@ -430,52 +436,87 @@ export function BookSearchDialog({
               loading="lazy"
               decoding="async"
               fallback={
-                <div className="text-muted-foreground/60 flex h-full w-full items-center justify-center text-xs">
-                  No cover
+                <div className="from-warm/80 to-warm/40 flex h-full w-full flex-col items-center justify-center bg-linear-to-br p-2">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-muted-foreground/40 mb-1" aria-hidden="true">
+                    <path d="M4 4.5A2.5 2.5 0 016.5 2H14l6 6v11.5a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 19.5v-15z" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-muted-foreground/50 text-center text-[9px] leading-tight">No cover</span>
                 </div>
               }
             />
           </div>
-          <div className="min-w-0 flex-1 space-y-1">
+
+          {/* Book details — editorial typography hierarchy */}
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 py-0.5">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="line-clamp-1 text-sm font-semibold">
+              <h3 className="font-display line-clamp-2 text-[15px] leading-snug font-semibold tracking-tight">
                 {result.title}
               </h3>
               {isAlreadyAdded && (
-                <Badge variant="outline" className="text-[10px]">
-                  Added
-                </Badge>
+                <span className="bg-copper/10 text-copper inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path d="M2.5 6.5L4.5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  In Library
+                </span>
               )}
               {selectingId === result.id && (
-                <Badge variant="outline" className="text-[10px]">
-                  Adding...
-                </Badge>
+                <span className="bg-copper/10 text-copper inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium">
+                  <svg className="h-2.5 w-2.5 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                    <path d="M14 8a6 6 0 00-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Adding…
+                </span>
               )}
             </div>
-            <p className="text-muted-foreground line-clamp-1 text-sm">
+            <p className="text-muted-foreground line-clamp-1 text-[13px]">
               {result.authors.length > 0
                 ? result.authors.join(", ")
                 : "Unknown author"}
             </p>
-            <div className="text-muted-foreground text-xs">
-              {result.isbn && <span>ISBN {result.isbn}</span>}
+            <div className="text-muted-foreground/70 flex items-center gap-2 text-[11px]">
+              {result.isbn && (
+                <span className="font-mono tracking-wide">{result.isbn}</span>
+              )}
+              {result.isbn && result.publishedDate && (
+                <span className="bg-border/60 inline-block h-3 w-px" aria-hidden="true" />
+              )}
               {result.publishedDate && (
-                <span className={result.isbn ? "ml-2" : undefined}>
-                  {result.publishedDate}
-                </span>
+                <span>{result.publishedDate}</span>
+              )}
+              {result.pageCount && (
+                <>
+                  <span className="bg-border/60 inline-block h-3 w-px" aria-hidden="true" />
+                  <span>{result.pageCount} pp.</span>
+                </>
               )}
             </div>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2">
+
+          {/* Action button — right-aligned */}
+          <div className="flex shrink-0 items-center">
             {!isAlreadyAdded && (
               <Button
                 type="button"
                 size="sm"
-                variant="secondary"
+                variant={selectingId === result.id ? "outline" : "secondary"}
+                className="rounded-lg px-3 text-xs"
                 disabled={selectingId === result.id || isBulkAdding}
                 onClick={() => handleSelect(result)}
               >
-                {selectingId === result.id ? "Adding..." : "Add"}
+                {selectingId === result.id ? (
+                  <span className="flex items-center gap-1.5">
+                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                      <path d="M14 8a6 6 0 00-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    Adding…
+                  </span>
+                ) : (
+                  "Add"
+                )}
               </Button>
             )}
           </div>
@@ -502,159 +543,225 @@ export function BookSearchDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl p-0 sm:max-w-3xl"
+        className="noise-overlay flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl border-none p-0 shadow-[0_24px_64px_-16px_oklch(0_0_0/0.25),0_0_0_1px_var(--copper)/0.1] sm:max-w-3xl"
         aria-busy={isAdding}
       >
+        {/* Adding overlay — glass effect */}
         {isAdding && (
-          <div className="bg-background/65 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm">
-            <div className="glass-card border-copper/30 bg-background/80 flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-lg">
-              <div className="border-muted-foreground/40 border-t-copper h-5 w-5 animate-spin rounded-full border-2" />
-              <output className="text-sm font-medium" aria-live="polite">
+          <div className="animate-fade-in absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-md">
+            <div className="animate-scale-in glass-card flex items-center gap-4 rounded-2xl px-6 py-4 shadow-[0_12px_40px_-8px_oklch(0_0_0/0.2),0_0_0_1px_var(--copper)/0.15]">
+              <div className="from-copper/20 to-gold/20 flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br">
+                <svg className="text-copper h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+                  <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+              </div>
+              <output className="font-display text-sm font-semibold" aria-live="polite">
                 {addingLabel}
               </output>
             </div>
           </div>
         )}
-        <DialogHeader className="bg-warm/30 shrink-0 border-b px-6 pt-6 pb-4">
-          <div className="flex flex-col gap-1">
-            <DialogTitle className="font-display text-base">
+
+        {/* Header — search engine-style prominent input */}
+        <DialogHeader className="bg-warm/20 relative shrink-0 overflow-hidden px-6 pt-6 pb-5">
+          {/* Subtle decorative gradient wash */}
+          <div className="from-copper/4 via-gold/2 pointer-events-none absolute inset-0 bg-linear-to-br to-transparent" aria-hidden="true" />
+
+          <div className="relative flex flex-col gap-1">
+            <DialogTitle className="font-display text-lg font-semibold tracking-tight">
               {contextCopy[context].title}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground/80 text-[13px]">
               {contextCopy[context].description}
             </DialogDescription>
           </div>
 
-          <div className="mt-4 flex flex-col gap-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="flex-1">
-                <Input
-                  placeholder={SEARCH_PLACEHOLDER}
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="rounded-xl"
-                />
-                <p className="text-muted-foreground mt-2 text-[11px]">
-                  Tip: search by title, author, or ISBN.
-                </p>
-              </div>
+          {/* Search input — large, prominent */}
+          <div className="relative mt-5">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-muted-foreground/50 z-10" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
             </div>
+            <Input
+              placeholder={SEARCH_PLACEHOLDER}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="h-12 rounded-xl border-none bg-background/80 pl-11 text-base shadow-[inset_0_1px_2px_oklch(0_0_0/0.06),0_0_0_1px_var(--border)/0.5] backdrop-blur-sm transition-shadow duration-300 placeholder:text-sm focus-visible:shadow-[inset_0_1px_2px_oklch(0_0_0/0.04),0_0_0_1px_var(--copper)/0.4,0_0_24px_-4px_var(--warm-glow)]"
+            />
+            {isDebouncing && (
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                <svg className="text-copper h-4 w-4 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                  <path d="M14 8a6 6 0 00-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
+            )}
+          </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground text-xs font-medium">
-                  Search in
-                </span>
-                <Tabs
-                  value={source}
-                  onValueChange={(value) =>
-                    setSource(value as BookSearchSource)
-                  }
+          {/* Source tabs + ownership selector row */}
+          <div className="relative mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2.5">
+              <Tabs
+                value={source}
+                onValueChange={(value) =>
+                  setSource(value as BookSearchSource)
+                }
+              >
+                <TabsList className="h-8 rounded-lg bg-background/60">
+                  <TabsTrigger value="google_books" className="text-[11px]">Google Books</TabsTrigger>
+                  <TabsTrigger value="open_library" className="text-[11px]">Open Library</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <span className="text-muted-foreground/50 hidden text-[10px] sm:inline">
+                {selectedSource.hint}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="ownership_status"
+                className="text-muted-foreground/70 text-[11px] font-medium uppercase tracking-wider"
+              >
+                Add as
+              </Label>
+              <Select
+                value={ownershipStatus}
+                onValueChange={(value) =>
+                  setOwnershipStatus(value as OwnershipStatus)
+                }
+              >
+                <SelectTrigger
+                  id="ownership_status"
+                  className="h-8 w-32 rounded-lg text-xs"
                 >
-                  <TabsList className="h-9 rounded-xl">
-                    <TabsTrigger value="google_books">Google Books</TabsTrigger>
-                    <TabsTrigger value="open_library">Open Library</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label
-                  htmlFor="ownership_status"
-                  className="text-muted-foreground text-xs font-medium"
-                >
-                  Add as
-                </Label>
-                <Select
-                  value={ownershipStatus}
-                  onValueChange={(value) =>
-                    setOwnershipStatus(value as OwnershipStatus)
-                  }
-                >
-                  <SelectTrigger
-                    id="ownership_status"
-                    className="h-9 w-40 rounded-xl"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="owned">Owned</SelectItem>
-                    <SelectItem value="wishlist">Wishlist</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owned">Owned</SelectItem>
+                  <SelectItem value="wishlist">Wishlist</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+
+          {/* Decorative divider with book icon */}
+          <div className="border-border/40 relative mt-5 border-t" aria-hidden="true"/>
         </DialogHeader>
 
+        {/* Scrollable results area */}
         <ScrollArea
-          className="min-h-0 flex-1 overflow-y-auto"
+          className="relative min-h-0 flex-1 overflow-y-auto"
           viewportRef={scrollViewportRef}
           viewportClassName="scroll-smooth"
         >
-          <div className="space-y-4 px-6 py-4">
-            {!isQueryReady && (
-              <div className="text-muted-foreground text-sm">
-                Start typing to search. We&apos;ll show matches from{" "}
-                {selectedSource.label}.
+          <div className="px-6 py-4">
+            {/* Initial state — no query */}
+            {!isQueryReady && !isDebouncing && (
+              <div className="animate-fade-in flex flex-col items-center justify-center py-20 text-center">
+                <div className="from-warm/60 to-warm/20 mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br shadow-[0_0_40px_var(--warm-glow)]">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-copper/60" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    <path d="M8 8.5h6M8 11h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <p className="font-display text-muted-foreground/80 text-sm font-medium">
+                  Search by title, author, or ISBN
+                </p>
+                <p className="text-muted-foreground/50 mt-1 text-xs">
+                  We&apos;ll find matches from {selectedSource.label}
+                </p>
               </div>
             )}
 
+            {/* Loading skeletons — atmospheric book-shaped */}
             {isLoading && (
-              <div className="space-y-3">
-                {SKELETON_ROWS.map((row) => (
+              <div className="animate-fade-in space-y-3">
+                <p className="text-muted-foreground/60 mb-4 flex items-center gap-2 text-xs">
+                  <svg className="text-copper/50 h-4 w-4 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                    <path d="M14 8a6 6 0 00-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  <span className="font-display italic">Searching the shelves…</span>
+                </p>
+                {SKELETON_ROWS.map((row, i) => (
                   <div
                     key={`skeleton-${row}`}
-                    className="flex gap-3 rounded-lg border p-3"
+                    className="flex gap-4 rounded-xl border p-3 opacity-0 animate-fade-in-up"
+                    style={{ animationDelay: `${i * 120}ms`, animationFillMode: "forwards" }}
                   >
-                    <Skeleton className="h-20 w-14" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-2/3" />
-                      <Skeleton className="h-3 w-1/2" />
-                      <Skeleton className="h-3 w-1/3" />
+                    <Skeleton className="h-30 w-20 shrink-0 rounded-lg" />
+                    <div className="flex flex-1 flex-col justify-center gap-2.5 py-1">
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
+                      <Skeleton className="h-3 w-2/5 rounded" />
                     </div>
+                    <Skeleton className="h-7 w-12 self-center rounded-lg" />
                   </div>
                 ))}
               </div>
             )}
 
+            {/* Debouncing state */}
             {!isLoading && isDebouncing && (
-              <div className="flex items-center gap-2 py-2">
-                <div className="border-muted-foreground/40 border-t-copper h-4 w-4 animate-spin rounded-full border-2" />
-                <span className="text-muted-foreground text-sm">
-                  Searching...
+              <div className="animate-fade-in flex items-center gap-2.5 py-4">
+                <svg className="text-copper/60 h-4 w-4 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                  <path d="M14 8a6 6 0 00-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <span className="text-muted-foreground font-display text-sm italic">
+                  Searching the shelves…
                 </span>
               </div>
             )}
 
+            {/* Error state */}
             {!isLoading && error && (
-              <div className="text-destructive text-sm">{error}</div>
+              <div className="animate-fade-in flex flex-col items-center py-12 text-center">
+                <div className="bg-destructive/10 mb-4 flex h-14 w-14 items-center justify-center rounded-2xl">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-destructive/70" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <p className="font-display text-sm font-semibold">Something went wrong</p>
+                <p className="text-destructive/80 mt-1 max-w-xs text-xs">{error}</p>
+              </div>
             )}
 
+            {/* Empty state — evocative, atmospheric */}
             {showEmptyState && !isDebouncing && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="from-copper/20 to-gold/20 mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br shadow-[0_0_30px_var(--warm-glow)]">
-                  <span className="text-2xl">📚</span>
+              <div className="animate-fade-in flex flex-col items-center justify-center py-20 text-center">
+                <div className="from-copper/15 to-gold/10 mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br shadow-[0_0_40px_var(--warm-glow)]">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-copper/50" aria-hidden="true">
+                    <path d="M4 19.5v-15A2.5 2.5 0 016.5 2H20v20H6.5a2.5 2.5 0 010-5H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M9 7h6M9 10h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+                  </svg>
                 </div>
-                <p className="font-display text-lg font-semibold">
-                  No results found
+                <p className="font-display text-base font-semibold tracking-tight">
+                  No volumes found
                 </p>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Try a different query or switch sources.
+                <p className="text-muted-foreground/70 mt-1.5 max-w-70 text-[13px] leading-relaxed">
+                  We couldn&apos;t find any matches. Try adjusting your search or switching to {source === "google_books" ? "Open Library" : "Google Books"}.
                 </p>
               </div>
             )}
 
+            {/* Results header */}
             {!isLoading && !error && results.length > 0 && (
-              <div className="text-muted-foreground flex items-center justify-between text-[11px]">
-                <span className="tracking-widest uppercase">
+              <div className="text-muted-foreground/60 mb-4 flex items-center justify-between">
+                <span className="text-[10px] font-medium uppercase tracking-[0.15em]">
                   Results from {activeSourceLabel}
                 </span>
-                <span>
+                <span className="bg-warm/40 rounded-full px-2 py-0.5 text-[10px] font-medium tabular-nums">
                   {results.length} result{results.length === 1 ? "" : "s"}
                 </span>
               </div>
             )}
 
+            {/* Results list */}
             {decoratedResults.length > 0 && (
               <div className="relative w-full">
                 {shouldVirtualize ? (
@@ -672,7 +779,7 @@ export function BookSearchDialog({
                           key={item.result.id}
                           ref={rowVirtualizer.measureElement}
                           data-index={virtualRow.index}
-                          className="absolute top-0 left-0 w-full pb-4"
+                          className="absolute top-0 left-0 w-full pb-3"
                           style={{
                             transform: `translateY(${virtualRow.start}px)`
                           }}
@@ -684,7 +791,7 @@ export function BookSearchDialog({
                   </ul>
                 ) : (
                   <ul
-                    className="m-0 list-none space-y-4 p-0"
+                    className="m-0 list-none space-y-3 p-0"
                     aria-label="Search results"
                   >
                     {decoratedResults.map((item) => (
@@ -695,74 +802,101 @@ export function BookSearchDialog({
               </div>
             )}
 
+            {/* Load more */}
             {!isLoading && !error && results.length > 0 && hasMore && (
-              <div className="flex justify-center pt-2">
+              <div className="flex justify-center pt-4">
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-xl"
+                  className="border-copper/20 hover:border-copper/40 hover:bg-copper/5 rounded-xl px-6 text-xs transition-colors"
                   onClick={() => setPage((prev) => prev + 1)}
                   disabled={isLoadingMore}
                 >
-                  {isLoadingMore ? "Loading more..." : "Load more"}
-                </Button>
-              </div>
-            )}
-            {isLoadingMore && (
-              <div className="text-muted-foreground text-center text-xs">
-                Loading more...
-              </div>
-            )}
-            {showJumpToTop && (
-              <div className="pointer-events-none sticky bottom-3 flex justify-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="pointer-events-auto rounded-xl shadow-sm"
-                  onClick={() =>
-                    scrollViewportRef.current?.scrollTo({
-                      top: 0,
-                      behavior: "smooth"
-                    })
-                  }
-                >
-                  Jump to top
+                  {isLoadingMore ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                        <path d="M14 8a6 6 0 00-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                      Loading more…
+                    </span>
+                  ) : (
+                    "Load more results"
+                  )}
                 </Button>
               </div>
             )}
           </div>
+
+          {/* Jump to top — floating pill */}
+          {showJumpToTop && (
+            <div className="pointer-events-none absolute right-4 bottom-4 z-10">
+              <button
+                type="button"
+                className="pointer-events-auto bg-background/90 border-border/60 text-muted-foreground hover:text-foreground hover:border-copper/30 animate-fade-in-up flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium shadow-lg backdrop-blur-sm transition-colors"
+                onClick={() =>
+                  scrollViewportRef.current?.scrollTo({
+                    top: 0,
+                    behavior: "smooth"
+                  })
+                }
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M6 9V3M3 5.5L6 2.5L9 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Top
+              </button>
+            </div>
+          )}
         </ScrollArea>
 
-        <DialogFooter className="bg-background shrink-0 border-t px-6 py-4 shadow-[0_-6px_16px_-12px_var(--warm-glow)]">
-          {selectedCount > 0 && (
-            <Button
-              type="button"
-              className="rounded-xl shadow-sm"
-              onClick={handleAddSelected}
-              disabled={isBulkAdding}
-            >
-              {isBulkAdding
-                ? `Adding ${selectedCount}...`
-                : `Add selected (${selectedCount})`}
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            type="button"
-            className="rounded-xl"
-            onClick={onAddManual}
-          >
-            {manualLabel}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="rounded-xl"
-            onClick={() => onOpenChange(false)}
-          >
-            Close
-          </Button>
+        {/* Footer — sticky with selected count */}
+        <DialogFooter className="bg-background/95 shrink-0 border-t px-6 py-3 backdrop-blur-sm">
+          <div className="flex w-full items-center justify-between gap-3">
+            {/* Left — selected count pill */}
+            <div className="flex items-center gap-2">
+              {selectedCount > 0 && (
+                <span className="bg-copper/10 text-copper animate-scale-in inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path d="M2.5 6.5L4.5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {selectedCount} selected
+                </span>
+              )}
+            </div>
+
+            {/* Right — action buttons */}
+            <div className="flex items-center gap-2">
+              {selectedCount > 0 && (
+                <Button
+                  type="button"
+                  className="bg-copper hover:bg-copper/90 press-effect rounded-xl px-4 text-xs text-white shadow-[0_2px_8px_var(--warm-glow)]"
+                  onClick={handleAddSelected}
+                  disabled={isBulkAdding}
+                >
+                  {isBulkAdding
+                    ? `Adding ${selectedCount}…`
+                    : `Add ${selectedCount} ${addingUnit}`}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                type="button"
+                className="border-border/60 hover:border-copper/30 hover:bg-warm/20 rounded-xl text-xs transition-colors"
+                onClick={onAddManual}
+              >
+                {manualLabel}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground rounded-xl text-xs"
+                onClick={() => onOpenChange(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
