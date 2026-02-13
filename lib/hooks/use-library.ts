@@ -888,6 +888,12 @@ export function useLibrary() {
         if (!hasTags) return false
       }
 
+      // Exclude tags filter
+      if (filters.excludeTags.length > 0) {
+        const hasExcluded = filters.excludeTags.some((tag) => s.tags.includes(tag))
+        if (hasExcluded) return false
+      }
+
       // Ownership status filter (check volumes)
       if (filters.ownershipStatus !== "all") {
         const hasMatchingVolume = s.volumes.some(
@@ -999,6 +1005,13 @@ export function useLibrary() {
         if (!hasTags) return false
       }
 
+      if (filters.excludeTags.length > 0) {
+        const hasExcluded = filters.excludeTags.some((tag) =>
+          seriesItem.tags.includes(tag)
+        )
+        if (hasExcluded) return false
+      }
+
       if (
         filters.ownershipStatus !== "all" &&
         volume.ownership_status !== filters.ownershipStatus
@@ -1031,6 +1044,7 @@ export function useLibrary() {
 
       if (filters.type !== "all") return false
       if (filters.tags.length > 0) return false
+      if (filters.excludeTags.length > 0) return false
 
       if (
         filters.ownershipStatus !== "all" &&

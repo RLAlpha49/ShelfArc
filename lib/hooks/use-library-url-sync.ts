@@ -59,6 +59,7 @@ function applyUrlToStore(searchParams: URLSearchParams) {
     "ownership",
     "reading",
     "tags",
+    "excludeTags",
     "sort",
     "order",
     "view",
@@ -95,6 +96,9 @@ function applyUrlToStore(searchParams: URLSearchParams) {
 
   const tags = searchParams.get("tags")
   if (tags) updates.tags = tags.split(",").filter(Boolean)
+
+  const excludeTags = searchParams.get("excludeTags")
+  if (excludeTags) updates.excludeTags = excludeTags.split(",").filter(Boolean)
 
   if (Object.keys(updates).length > 0) {
     store.setFilters(updates as Parameters<typeof store.setFilters>[0])
@@ -153,6 +157,8 @@ export function useLibraryUrlSync() {
         params.set("reading", state.filters.readingStatus)
       if (state.filters.tags.length > 0)
         params.set("tags", state.filters.tags.join(","))
+      if (state.filters.excludeTags.length > 0)
+        params.set("excludeTags", state.filters.excludeTags.join(","))
       if (state.sortField !== DEFAULT_SORT_FIELD)
         params.set("sort", state.sortField)
       if (state.sortOrder !== DEFAULT_SORT_ORDER)

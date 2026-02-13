@@ -47,6 +47,7 @@ interface FilterState {
   ownershipStatus: OwnershipStatus | "all"
   readingStatus: ReadingStatus | "all"
   tags: string[]
+  excludeTags: string[]
 }
 
 /** Persisted, user-defined filter preset (optionally includes sort/view). @source */
@@ -86,7 +87,8 @@ function cloneFilters(filters: FilterState): FilterState {
     type: filters.type,
     ownershipStatus: filters.ownershipStatus,
     readingStatus: filters.readingStatus,
-    tags: [...filters.tags]
+    tags: [...filters.tags],
+    excludeTags: [...filters.excludeTags]
   }
 }
 
@@ -169,7 +171,8 @@ const defaultFilters: FilterState = {
   type: "all",
   ownershipStatus: "all",
   readingStatus: "all",
-  tags: []
+  tags: [],
+  excludeTags: []
 }
 
 const DEFAULT_FILTER_PRESETS: FilterPreset[] = [
