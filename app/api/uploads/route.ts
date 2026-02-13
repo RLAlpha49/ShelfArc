@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 import { isSafeStoragePath } from "@/lib/storage/safe-path"
 import { apiError } from "@/lib/api-response"
+import { enforceSameOrigin } from "@/lib/csrf"
 import {
   ConcurrencyLimitError,
   ConcurrencyLimiter
@@ -70,40 +71,6 @@ const getErrorMessage = (error: unknown) =>
 /** Builds a JSON error response with the given status. @source */
 const buildError = (message: string, status: number) =>
   apiError(status, message)
-
-/**
- * Basic CSRF hardening for cookie-auth endpoints.
- * Rejects cross-site browser requests and mismatched Origin/Host.
- * @source
- */
-const enforceSameOrigin = (request: Request) => {
-  const headers = (request as unknown as { headers?: Headers }).headers
-  if (!headers || typeof headers.get !== "function") {
-    return undefined
-  }
-
-  const fetchSite = headers.get("sec-fetch-site")
-  if (fetchSite === "cross-site") {
-    return buildError("Forbidden", 403)
-  }
-
-  const origin = headers.get("origin")?.trim() ?? ""
-  if (!origin) return undefined
-
-  const host = headers.get("x-forwarded-host") ?? headers.get("host")
-  if (!host) return undefined
-
-  try {
-    const originUrl = new URL(origin)
-    if (originUrl.host !== host) {
-      return buildError("Forbidden", 403)
-    }
-  } catch {
-    return buildError("Forbidden", 403)
-  }
-
-  return undefined
-}
 
 /** Metadata stored when a previous-file deletion fails during replacement. @source */
 type FailedDeletionRecord = {

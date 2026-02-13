@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
 import { apiError } from "@/lib/api-response"
+import { enforceSameOrigin } from "@/lib/csrf"
 import { isNonNegativeFinite } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
@@ -34,6 +35,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const csrfResult = enforceSameOrigin(request)
+  if (csrfResult) return csrfResult
+
   try {
     const supabase = await createUserClient()
     const {
@@ -77,6 +81,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const csrfResult = enforceSameOrigin(request)
+  if (csrfResult) return csrfResult
+
   try {
     const supabase = await createUserClient()
     const {
@@ -111,6 +118,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const csrfResult = enforceSameOrigin(request)
+  if (csrfResult) return csrfResult
+
   try {
     const supabase = await createUserClient()
     const {
