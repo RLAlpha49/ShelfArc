@@ -16,10 +16,12 @@ import {
   computePriceBreakdown,
   computeWishlistStats,
   computeSuggestedBuys,
+  computeSuggestionCounts,
   getRecentSeries,
   getRecentVolumes,
   getCurrentlyReading
 } from "@/lib/library/analytics"
+import { RecommendationsCard } from "@/components/library/recommendations-card"
 
 /** Empty state shown when the user has no series yet. @source */
 function RecentSeriesEmpty() {
@@ -289,6 +291,11 @@ export default function DashboardPage() {
   // What to buy next suggestions
   const suggestedNextBuys = useMemo(
     () => computeSuggestedBuys(series, 8),
+    [series]
+  )
+
+  const suggestionCounts = useMemo(
+    () => computeSuggestionCounts(computeSuggestedBuys(series)),
     [series]
   )
 
@@ -711,7 +718,7 @@ export default function DashboardPage() {
                   href="/dashboard/suggestions"
                   className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
                 >
-                  View all
+                  View all recommendations
                 </Link>
               )}
             </div>
@@ -741,56 +748,36 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-2">
+                {/* Category breakdown */}
+                <div className="mb-1 flex flex-wrap gap-1.5">
+                  {suggestionCounts.gap_fill > 0 && (
+                    <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                      {suggestionCounts.gap_fill} gaps
+                    </span>
+                  )}
+                  {suggestionCounts.continue_reading > 0 && (
+                    <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-600 dark:text-purple-400">
+                      {suggestionCounts.continue_reading} reading
+                    </span>
+                  )}
+                  {suggestionCounts.complete_series > 0 && (
+                    <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
+                      {suggestionCounts.complete_series} completable
+                    </span>
+                  )}
+                  {suggestionCounts.continue > 0 && (
+                    <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                      {suggestionCounts.continue} next
+                    </span>
+                  )}
+                </div>
+
                 {suggestedNextBuys.map((buy) => (
-                  <Link
+                  <RecommendationsCard
                     key={`${buy.seriesId}-${buy.volumeNumber}`}
-                    href={`/library/series/${buy.seriesId}`}
-                    className="glass-card group block rounded-xl p-4 transition-all hover:shadow-md"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
-                            {buy.seriesTitle}
-                          </span>
-                          {buy.isReading && (
-                            <span className="bg-primary/10 text-primary shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium">
-                              Reading
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
-                          <span>Volume {buy.volumeNumber}</span>
-                          {buy.isGap && (
-                            <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                              Gap
-                            </span>
-                          )}
-                          {buy.isWishlisted && (
-                            <span className="bg-gold/10 text-gold rounded px-1.5 py-0.5 text-[10px] font-medium">
-                              Wishlisted
-                            </span>
-                          )}
-                          {buy.estimatedPrice != null &&
-                            buy.estimatedPrice > 0 && (
-                              <span className="text-muted-foreground/60">
-                                {priceFormatter.format(buy.estimatedPrice)}
-                              </span>
-                            )}
-                        </div>
-                      </div>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
-                      >
-                        <polyline points="9,18 15,12 9,6" />
-                      </svg>
-                    </div>
-                  </Link>
+                    suggestion={buy}
+                    currencyFormatter={priceFormatter}
+                  />
                 ))}
               </div>
             )}

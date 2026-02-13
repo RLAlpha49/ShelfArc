@@ -8,6 +8,13 @@ export interface AugmentedVolume extends Volume {
   seriesId: string
 }
 
+/** Categorizes a suggested purchase by its strategic priority. */
+export type SuggestionCategory =
+  | "gap_fill"
+  | "continue"
+  | "complete_series"
+  | "continue_reading"
+
 /** A suggested next-purchase item computed from collection gaps and reading status. */
 export interface SuggestedBuy {
   seriesId: string
@@ -19,7 +26,11 @@ export interface SuggestedBuy {
   estimatedPrice: number | null
   score: number
   isReading: boolean
+  category: SuggestionCategory
 }
+
+/** Per-category counts for a list of suggestions. */
+export type SuggestionCounts = Record<SuggestionCategory, number>
 
 export interface CollectionStats {
   totalSeries: number
@@ -297,9 +308,20 @@ export function computeSuggestedBuys(
     isGap: boolean,
     wishlistMap: Map<number, Volume>,
     isReading: boolean,
-    ownedCount: number
+    ownedCount: number,
+    ownershipRatio: number
   ): SuggestedBuy => {
     const wishlistVol = wishlistMap.get(volumeNumber)
+    let category: SuggestionCategory
+    if (isGap) {
+      category = "gap_fill"
+    } else if (isReading) {
+      category = "continue_reading"
+    } else if (ownershipRatio >= 0.8) {
+      category = "complete_series"
+    } else {
+      category = "continue"
+    }
     return {
       seriesId: s.id,
       seriesTitle: s.title,
@@ -314,7 +336,8 @@ export function computeSuggestedBuys(
         ownedCount,
         !!wishlistVol?.purchase_price
       ),
-      isReading
+      isReading,
+      category
     }
   }
 
@@ -332,6 +355,10 @@ export function computeSuggestedBuys(
     )
     const isReading = s.volumes.some((v) => v.reading_status === "reading")
     const maxOwned = Math.max(...ownedNumbers)
+    const ownershipRatio =
+      s.total_volumes && s.total_volumes > 0
+        ? ownedVolumes.length / s.total_volumes
+        : 0
 
     for (let i = 1; i < maxOwned; i++) {
       if (!ownedNumbers.has(i)) {
@@ -342,7 +369,8 @@ export function computeSuggestedBuys(
             true,
             wishlistMap,
             isReading,
-            ownedVolumes.length
+            ownedVolumes.length,
+            ownershipRatio
           )
         )
       }
@@ -358,7 +386,8 @@ export function computeSuggestedBuys(
           false,
           wishlistMap,
           isReading,
-          ownedVolumes.length
+          ownedVolumes.length,
+          ownershipRatio
         )
       )
     }
@@ -366,6 +395,21 @@ export function computeSuggestedBuys(
 
   const sorted = suggestions.toSorted((a, b) => b.score - a.score)
   return limit == null ? sorted : sorted.slice(0, limit)
+}
+
+export function computeSuggestionCounts(
+  suggestions: SuggestedBuy[]
+): SuggestionCounts {
+  const counts: SuggestionCounts = {
+    gap_fill: 0,
+    continue: 0,
+    complete_series: 0,
+    continue_reading: 0
+  }
+  for (const s of suggestions) {
+    counts[s.category]++
+  }
+  return counts
 }
 
 export function getRecentSeries(
