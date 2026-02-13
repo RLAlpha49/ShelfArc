@@ -13,19 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
-
-interface SuggestedBuy {
-  seriesId: string
-  seriesTitle: string
-  seriesType: string
-  volumeNumber: number
-  isGap: boolean
-  isWishlisted: boolean
-  estimatedPrice: number | null
-  score: number
-  isReading: boolean
-}
+import { computeSuggestedBuys } from "@/lib/library/analytics"
 
 type FormatFilter = "all" | "light_novel" | "manga" | "other"
 type PriorityFilter = "all" | "gaps" | "next" | "reading"
@@ -57,97 +45,10 @@ export default function SuggestionsPage() {
     }
   }, [priceDisplayCurrency])
 
-  const allSuggestions = useMemo(() => {
-    const suggestions: SuggestedBuy[] = []
-
-    const computeScore = (
-      isGap: boolean,
-      isReading: boolean,
-      ownedCount: number,
-      hasPrice: boolean
-    ) => {
-      let score = isGap ? 20 : 10
-      if (isReading) score += 30
-      score += ownedCount
-      if (hasPrice) score += 5
-      return score
-    }
-
-    const makeSuggestion = (
-      s: SeriesWithVolumes,
-      volumeNumber: number,
-      isGap: boolean,
-      wishlistMap: Map<number, Volume>,
-      isReading: boolean,
-      ownedCount: number
-    ): SuggestedBuy => {
-      const wishlistVol = wishlistMap.get(volumeNumber)
-      return {
-        seriesId: s.id,
-        seriesTitle: s.title,
-        seriesType: s.type,
-        volumeNumber,
-        isGap,
-        isWishlisted: wishlistMap.has(volumeNumber),
-        estimatedPrice: wishlistVol?.purchase_price ?? null,
-        score: computeScore(
-          isGap,
-          isReading,
-          ownedCount,
-          !!wishlistVol?.purchase_price
-        ),
-        isReading
-      }
-    }
-
-    for (const s of series) {
-      const ownedVolumes = s.volumes.filter(
-        (v) => v.ownership_status === "owned"
-      )
-      if (ownedVolumes.length === 0) continue
-
-      const ownedNumbers = new Set(ownedVolumes.map((v) => v.volume_number))
-      const wishlistMap = new Map(
-        s.volumes
-          .filter((v) => v.ownership_status === "wishlist")
-          .map((v) => [v.volume_number, v] as const)
-      )
-      const isReading = s.volumes.some((v) => v.reading_status === "reading")
-      const maxOwned = Math.max(...ownedNumbers)
-
-      for (let i = 1; i < maxOwned; i++) {
-        if (!ownedNumbers.has(i)) {
-          suggestions.push(
-            makeSuggestion(
-              s,
-              i,
-              true,
-              wishlistMap,
-              isReading,
-              ownedVolumes.length
-            )
-          )
-        }
-      }
-
-      const nextNum = maxOwned + 1
-      const isInRange = !s.total_volumes || nextNum <= s.total_volumes
-      if (!ownedNumbers.has(nextNum) && isInRange) {
-        suggestions.push(
-          makeSuggestion(
-            s,
-            nextNum,
-            false,
-            wishlistMap,
-            isReading,
-            ownedVolumes.length
-          )
-        )
-      }
-    }
-
-    return suggestions.toSorted((a, b) => b.score - a.score)
-  }, [series])
+  const allSuggestions = useMemo(
+    () => computeSuggestedBuys(series),
+    [series]
+  )
 
   const filtered = useMemo(() => {
     return allSuggestions.filter((buy) => {

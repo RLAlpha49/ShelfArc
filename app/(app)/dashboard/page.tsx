@@ -9,26 +9,17 @@ import type { DateFormat } from "@/lib/store/settings-store"
 import { formatDate } from "@/lib/format-date"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PriceAlertsDashboardCard } from "@/components/library/price-alerts-dashboard-card"
-import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
-
-/** A volume entry augmented with its parent series title and ID. @source */
-interface RecentVolumeItem extends Volume {
-  seriesTitle: string
-  seriesId: string
-}
-
-/** A suggested next-purchase item computed from collection gaps and reading status. @source */
-interface SuggestedBuy {
-  seriesId: string
-  seriesTitle: string
-  seriesType: string
-  volumeNumber: number
-  isGap: boolean
-  isWishlisted: boolean
-  estimatedPrice: number | null
-  score: number
-  isReading: boolean
-}
+import type { SeriesWithVolumes } from "@/lib/types/database"
+import type { AugmentedVolume } from "@/lib/library/analytics"
+import {
+  computeCollectionStats,
+  computePriceBreakdown,
+  computeWishlistStats,
+  computeSuggestedBuys,
+  getRecentSeries,
+  getRecentVolumes,
+  getCurrentlyReading
+} from "@/lib/library/analytics"
 
 /** Empty state shown when the user has no series yet. @source */
 function RecentSeriesEmpty() {
@@ -155,7 +146,7 @@ function RecentVolumesList({
   priceFormatter,
   dateFormat
 }: {
-  readonly items: readonly RecentVolumeItem[]
+  readonly items: readonly AugmentedVolume[]
   readonly priceFormatter: Intl.NumberFormat
   readonly dateFormat: DateFormat
 }) {
@@ -219,7 +210,7 @@ function RecentlyAddedContent({
 }: {
   readonly tab: "series" | "volumes"
   readonly recentSeries: readonly SeriesWithVolumes[]
-  readonly recentVolumes: readonly RecentVolumeItem[]
+  readonly recentVolumes: readonly AugmentedVolume[]
   readonly priceFormatter: Intl.NumberFormat
   readonly dateFormat: DateFormat
 }) {
@@ -254,64 +245,7 @@ export default function DashboardPage() {
     }
   }, [series.length, fetchSeries])
 
-  const stats = useMemo(() => {
-    const totalSeries = series.length
-    const lightNovelSeries = series.filter(
-      (s) => s.type === "light_novel"
-    ).length
-    const mangaSeries = series.filter((s) => s.type === "manga").length
-
-    const volumes = series.flatMap((s) => s.volumes)
-    const totalVolumes = volumes.length
-    const owned = volumes.filter((v) => v.ownership_status === "owned")
-    const ownedVolumes = owned.length
-    const wishlistCount = volumes.filter(
-      (v) => v.ownership_status === "wishlist"
-    ).length
-    const readVolumes = volumes.filter(
-      (v) => v.reading_status === "completed"
-    ).length
-    const readingVolumes = volumes.filter(
-      (v) => v.reading_status === "reading"
-    ).length
-
-    const totalSpent = owned.reduce(
-      (acc, v) => acc + (v.purchase_price ?? 0),
-      0
-    )
-    const pricedVolumes = owned.filter(
-      (v) => (v.purchase_price ?? 0) > 0
-    ).length
-    const averagePricePerTrackedVolume =
-      pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
-
-    const completeSets = series.filter((s) => {
-      const hintedTotal = s.total_volumes
-      if (!hintedTotal || hintedTotal <= 0) return false
-      if (s.volumes.length === 0) return false
-
-      const ownedCount = s.volumes.filter(
-        (v) => v.ownership_status === "owned"
-      ).length
-      const allOwned = ownedCount === s.volumes.length
-      return allOwned && ownedCount >= hintedTotal
-    }).length
-
-    return {
-      totalSeries,
-      totalVolumes,
-      ownedVolumes,
-      readVolumes,
-      readingVolumes,
-      lightNovelSeries,
-      mangaSeries,
-      totalSpent,
-      pricedVolumes,
-      averagePricePerTrackedVolume,
-      wishlistCount,
-      completeSets
-    }
-  }, [series])
+  const stats = useMemo(() => computeCollectionStats(series), [series])
 
   const priceFormatter = useMemo(() => {
     try {
@@ -327,273 +261,36 @@ export default function DashboardPage() {
     }
   }, [priceDisplayCurrency])
 
-  const recentSeries = useMemo(() => {
-    return [...series]
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, 8)
-  }, [series])
+  const recentSeries = useMemo(() => getRecentSeries(series), [series])
 
-  const currentlyReading = useMemo(() => {
-    return series
-      .flatMap((s) =>
-        s.volumes.map((v) => ({ ...v, seriesTitle: s.title, seriesId: s.id }))
-      )
-      .filter((v) => v.reading_status === "reading")
-      .slice(0, 5)
-  }, [series])
+  const currentlyReading = useMemo(
+    () => getCurrentlyReading(series),
+    [series]
+  )
 
   // Recently added volumes (across all series)
-  const recentVolumes = useMemo(() => {
-    return series
-      .flatMap((s) =>
-        s.volumes.map((v) => ({ ...v, seriesTitle: s.title, seriesId: s.id }))
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, 8)
-  }, [series])
+  const recentVolumes = useMemo(() => getRecentVolumes(series), [series])
 
   // Recently added tab state
   const [recentTab, setRecentTab] = useState<"series" | "volumes">("series")
 
   // Price tracking breakdown
-  const priceBreakdown = useMemo(() => {
-    const allPricedVolumes = series.flatMap((s) =>
-      s.volumes
-        .filter((v) => v.ownership_status === "owned")
-        .filter((v) => v.purchase_price != null && v.purchase_price > 0)
-        .map((v) => ({ ...v, seriesTitle: s.title, seriesType: s.type }))
-    )
-
-    const lnSpent = series
-      .filter((s) => s.type === "light_novel")
-      .reduce(
-        (acc, s) =>
-          acc +
-          s.volumes
-            .filter((v) => v.ownership_status === "owned")
-            .reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
-        0
-      )
-
-    const mangaSpent = series
-      .filter((s) => s.type === "manga")
-      .reduce(
-        (acc, s) =>
-          acc +
-          s.volumes
-            .filter((v) => v.ownership_status === "owned")
-            .reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
-        0
-      )
-
-    const prices = allPricedVolumes.map((v) => v.purchase_price!)
-    const minPrice = prices.length > 0 ? Math.min(...prices) : 0
-    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0
-    const medianPrice =
-      prices.length > 0
-        ? (() => {
-            const sorted = [...prices].sort((a, b) => a - b)
-            const mid = Math.floor(sorted.length / 2)
-            return sorted.length % 2 === 0
-              ? (sorted[mid - 1] + sorted[mid]) / 2
-              : sorted[mid]
-          })()
-        : 0
-
-    // Top 5 most expensive series
-    const spendingBySeries = series
-      .map((s) => {
-        const owned = s.volumes.filter((v) => v.ownership_status === "owned")
-        return {
-          id: s.id,
-          title: s.title,
-          type: s.type,
-          total: owned.reduce((acc, v) => acc + (v.purchase_price || 0), 0),
-          volumeCount: owned.filter(
-            (v) => v.purchase_price != null && v.purchase_price > 0
-          ).length
-        }
-      })
-      .filter((s) => s.total > 0)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5)
-
-    const maxSeriesSpent =
-      spendingBySeries.length > 0 ? spendingBySeries[0].total : 0
-
-    return {
-      lnSpent,
-      mangaSpent,
-      minPrice,
-      maxPrice,
-      medianPrice,
-      trackedCount: allPricedVolumes.length,
-      spendingBySeries,
-      maxSeriesSpent
-    }
-  }, [series])
+  const priceBreakdown = useMemo(
+    () => computePriceBreakdown(series),
+    [series]
+  )
 
   // Wishlist stats
-  const wishlistStats = useMemo(() => {
-    const wishlistVolumes = series.flatMap((s) =>
-      s.volumes
-        .filter((v) => v.ownership_status === "wishlist")
-        .map((v) => ({
-          ...v,
-          seriesTitle: s.title,
-          seriesId: s.id,
-          seriesType: s.type
-        }))
-    )
-
-    const totalWishlistCost = wishlistVolumes
-      .filter((v) => v.purchase_price != null && v.purchase_price > 0)
-      .reduce((acc, v) => acc + v.purchase_price!, 0)
-
-    const wishlistPricedCount = wishlistVolumes.filter(
-      (v) => v.purchase_price != null && v.purchase_price > 0
-    ).length
-
-    const averageWishlistPrice =
-      wishlistPricedCount > 0 ? totalWishlistCost / wishlistPricedCount : 0
-
-    // Top wishlisted series
-    const seriesMap = new Map<
-      string,
-      { id: string; title: string; type: string; count: number; cost: number }
-    >()
-    for (const v of wishlistVolumes) {
-      const existing = seriesMap.get(v.seriesId)
-      if (existing) {
-        existing.count++
-        existing.cost += v.purchase_price ?? 0
-      } else {
-        seriesMap.set(v.seriesId, {
-          id: v.seriesId,
-          title: v.seriesTitle,
-          type: v.seriesType,
-          count: 1,
-          cost: v.purchase_price ?? 0
-        })
-      }
-    }
-    const topWishlistedSeries = [...seriesMap.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
-
-    const maxWishlistSeriesCount =
-      topWishlistedSeries.length > 0 ? topWishlistedSeries[0].count : 0
-
-    return {
-      totalWishlistCost,
-      wishlistPricedCount,
-      averageWishlistPrice,
-      topWishlistedSeries,
-      maxWishlistSeriesCount,
-      totalCount: wishlistVolumes.length
-    }
-  }, [series])
+  const wishlistStats = useMemo(
+    () => computeWishlistStats(series),
+    [series]
+  )
 
   // What to buy next suggestions
-  const suggestedNextBuys = useMemo(() => {
-    const suggestions: SuggestedBuy[] = []
-
-    const computeScore = (
-      isGap: boolean,
-      isReading: boolean,
-      ownedCount: number,
-      hasPrice: boolean
-    ) => {
-      let score = isGap ? 20 : 10
-      if (isReading) score += 30
-      score += ownedCount
-      if (hasPrice) score += 5
-      return score
-    }
-
-    const makeSuggestion = (
-      s: SeriesWithVolumes,
-      volumeNumber: number,
-      isGap: boolean,
-      wishlistMap: Map<number, Volume>,
-      isReading: boolean,
-      ownedCount: number
-    ): SuggestedBuy => {
-      const wishlistVol = wishlistMap.get(volumeNumber)
-      return {
-        seriesId: s.id,
-        seriesTitle: s.title,
-        seriesType: s.type,
-        volumeNumber,
-        isGap,
-        isWishlisted: wishlistMap.has(volumeNumber),
-        estimatedPrice: wishlistVol?.purchase_price ?? null,
-        score: computeScore(
-          isGap,
-          isReading,
-          ownedCount,
-          !!wishlistVol?.purchase_price
-        ),
-        isReading
-      }
-    }
-
-    for (const s of series) {
-      const ownedVolumes = s.volumes.filter(
-        (v) => v.ownership_status === "owned"
-      )
-      if (ownedVolumes.length === 0) continue
-
-      const ownedNumbers = new Set(ownedVolumes.map((v) => v.volume_number))
-      const wishlistMap = new Map(
-        s.volumes
-          .filter((v) => v.ownership_status === "wishlist")
-          .map((v) => [v.volume_number, v] as const)
-      )
-      const isReading = s.volumes.some((v) => v.reading_status === "reading")
-      const maxOwned = Math.max(...ownedNumbers)
-
-      // Find gaps
-      for (let i = 1; i < maxOwned; i++) {
-        if (!ownedNumbers.has(i)) {
-          suggestions.push(
-            makeSuggestion(
-              s,
-              i,
-              true,
-              wishlistMap,
-              isReading,
-              ownedVolumes.length
-            )
-          )
-        }
-      }
-
-      // Next sequential volume
-      const nextNum = maxOwned + 1
-      const isInRange = !s.total_volumes || nextNum <= s.total_volumes
-      if (!ownedNumbers.has(nextNum) && isInRange) {
-        suggestions.push(
-          makeSuggestion(
-            s,
-            nextNum,
-            false,
-            wishlistMap,
-            isReading,
-            ownedVolumes.length
-          )
-        )
-      }
-    }
-
-    return suggestions.toSorted((a, b) => b.score - a.score).slice(0, 8)
-  }, [series])
+  const suggestedNextBuys = useMemo(
+    () => computeSuggestedBuys(series, 8),
+    [series]
+  )
 
   // Reading completion percentage
   const readPercentage =
