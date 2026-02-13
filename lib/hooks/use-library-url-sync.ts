@@ -72,13 +72,25 @@ function applyUrlToStore(searchParams: URLSearchParams) {
   const q = searchParams.get("q")
   if (q != null) updates.search = q
 
-  const type = getValidParam<TitleType | "all">(searchParams, "type", VALID_TYPES)
+  const type = getValidParam<TitleType | "all">(
+    searchParams,
+    "type",
+    VALID_TYPES
+  )
   if (type) updates.type = type
 
-  const ownership = getValidParam<OwnershipStatus | "all">(searchParams, "ownership", VALID_OWNERSHIP)
+  const ownership = getValidParam<OwnershipStatus | "all">(
+    searchParams,
+    "ownership",
+    VALID_OWNERSHIP
+  )
   if (ownership) updates.ownershipStatus = ownership
 
-  const reading = getValidParam<ReadingStatus | "all">(searchParams, "reading", VALID_READING)
+  const reading = getValidParam<ReadingStatus | "all">(
+    searchParams,
+    "reading",
+    VALID_READING
+  )
   if (reading) updates.readingStatus = reading
 
   const tags = searchParams.get("tags")
@@ -91,10 +103,18 @@ function applyUrlToStore(searchParams: URLSearchParams) {
   const sort = getValidParam<SortField>(searchParams, "sort", VALID_SORT_FIELDS)
   if (sort) store.setSortField(sort)
 
-  const order = getValidParam<SortOrder>(searchParams, "order", VALID_SORT_ORDERS)
+  const order = getValidParam<SortOrder>(
+    searchParams,
+    "order",
+    VALID_SORT_ORDERS
+  )
   if (order) store.setSortOrder(order)
 
-  const view = getValidParam<CollectionView>(searchParams, "view", VALID_COLLECTION_VIEWS)
+  const view = getValidParam<CollectionView>(
+    searchParams,
+    "view",
+    VALID_COLLECTION_VIEWS
+  )
   if (view) store.setCollectionView(view)
 
   const mode = getValidParam<ViewMode>(searchParams, "mode", VALID_VIEW_MODES)

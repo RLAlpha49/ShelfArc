@@ -408,7 +408,11 @@ export function BulkScrapeDialog({
 
           {/* Progress bar — shown during/after run */}
           {hasStarted && (
-            <output className="block space-y-2 px-6 pt-5" aria-live="polite" aria-atomic="true">
+            <output
+              className="block space-y-2 px-6 pt-5"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">
                   {isRunning ? "Scraping..." : "Complete"}

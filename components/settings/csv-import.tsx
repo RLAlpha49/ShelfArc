@@ -671,7 +671,11 @@ function ActivePhaseHeader({
   onCancel: () => void
 }>) {
   return (
-    <div className="glass-card sticky top-0 z-10 space-y-3 rounded-2xl p-5" aria-live="polite" aria-atomic="true">
+    <div
+      className="glass-card sticky top-0 z-10 space-y-3 rounded-2xl p-5"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-display text-base font-semibold">

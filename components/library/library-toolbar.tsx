@@ -164,7 +164,10 @@ export function LibraryToolbar({
 
             {/* Type Filter */}
             <div className="space-y-1">
-              <Label htmlFor="filter-type" className="text-muted-foreground text-[11px] font-medium">
+              <Label
+                htmlFor="filter-type"
+                className="text-muted-foreground text-[11px] font-medium"
+              >
                 Type
               </Label>
               <Select
@@ -173,7 +176,10 @@ export function LibraryToolbar({
                   if (value) setFilters({ type: value as TitleType | "all" })
                 }}
               >
-                <SelectTrigger id="filter-type" className="w-30 rounded-xl text-xs shadow-sm">
+                <SelectTrigger
+                  id="filter-type"
+                  className="w-30 rounded-xl text-xs shadow-sm"
+                >
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -187,7 +193,10 @@ export function LibraryToolbar({
 
             {/* Ownership Filter */}
             <div className="space-y-1">
-              <Label htmlFor="filter-ownership" className="text-muted-foreground text-[11px] font-medium">
+              <Label
+                htmlFor="filter-ownership"
+                className="text-muted-foreground text-[11px] font-medium"
+              >
                 Ownership
               </Label>
               <Select
@@ -199,7 +208,10 @@ export function LibraryToolbar({
                     })
                 }}
               >
-                <SelectTrigger id="filter-ownership" className="w-30 rounded-xl text-xs shadow-sm">
+                <SelectTrigger
+                  id="filter-ownership"
+                  className="w-30 rounded-xl text-xs shadow-sm"
+                >
                   <SelectValue placeholder="Ownership" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -212,7 +224,10 @@ export function LibraryToolbar({
 
             {/* Reading Status Filter */}
             <div className="space-y-1">
-              <Label htmlFor="filter-reading" className="text-muted-foreground text-[11px] font-medium">
+              <Label
+                htmlFor="filter-reading"
+                className="text-muted-foreground text-[11px] font-medium"
+              >
                 Reading
               </Label>
               <Select
@@ -224,7 +239,10 @@ export function LibraryToolbar({
                     })
                 }}
               >
-                <SelectTrigger id="filter-reading" className="w-30 rounded-xl text-xs shadow-sm">
+                <SelectTrigger
+                  id="filter-reading"
+                  className="w-30 rounded-xl text-xs shadow-sm"
+                >
                   <SelectValue placeholder="Reading" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -241,7 +259,10 @@ export function LibraryToolbar({
             {/* Tags Filter */}
             {availableTags.length > 0 && (
               <div className="space-y-1">
-                <Label htmlFor="filter-tags" className="text-muted-foreground text-[11px] font-medium">
+                <Label
+                  htmlFor="filter-tags"
+                  className="text-muted-foreground text-[11px] font-medium"
+                >
                   Tags
                 </Label>
                 <Select
@@ -251,7 +272,10 @@ export function LibraryToolbar({
                       setFilters({ tags: value === "all" ? [] : [value] })
                   }}
                 >
-                  <SelectTrigger id="filter-tags" className="w-30 rounded-xl text-xs shadow-sm">
+                  <SelectTrigger
+                    id="filter-tags"
+                    className="w-30 rounded-xl text-xs shadow-sm"
+                  >
                     <SelectValue placeholder="Tags" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
@@ -268,7 +292,10 @@ export function LibraryToolbar({
 
             {/* Sort */}
             <div className="space-y-1">
-              <Label htmlFor="sort-field" className="text-muted-foreground text-[11px] font-medium">
+              <Label
+                htmlFor="sort-field"
+                className="text-muted-foreground text-[11px] font-medium"
+              >
                 Sort
               </Label>
               <div className="flex items-center gap-1">
@@ -278,7 +305,10 @@ export function LibraryToolbar({
                     if (value) setSortField(value as SortField)
                   }}
                 >
-                  <SelectTrigger id="sort-field" className="w-34 rounded-xl text-xs shadow-sm">
+                  <SelectTrigger
+                    id="sort-field"
+                    className="w-34 rounded-xl text-xs shadow-sm"
+                  >
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">

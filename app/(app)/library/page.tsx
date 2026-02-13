@@ -1285,7 +1285,9 @@ export default function LibraryPage() {
     } else {
       const seriesMap = new Map<string, SeriesWithVolumes>()
       for (const s of series) {
-        const selectedVols = s.volumes.filter((v) => selectedVolumeIds.has(v.id))
+        const selectedVols = s.volumes.filter((v) =>
+          selectedVolumeIds.has(v.id)
+        )
         if (selectedVols.length > 0) {
           seriesMap.set(s.id, { ...s, volumes: selectedVols })
         }
@@ -1310,7 +1312,13 @@ export default function LibraryPage() {
       title: `${targets.length} series`,
       volumes: allVolumes
     })
-  }, [collectionView, filteredSeries, selectedSeriesIds, series, selectedVolumeIds])
+  }, [
+    collectionView,
+    filteredSeries,
+    selectedSeriesIds,
+    series,
+    selectedVolumeIds
+  ])
 
   const applyVolumeOwnershipStatus = useCallback(
     async (status: OwnershipStatus) => {
@@ -1771,9 +1779,12 @@ export default function LibraryPage() {
     [editVolume]
   )
 
-  const openSeriesScrapeDialog = useCallback((seriesItem: SeriesWithVolumes) => {
-    setScrapeTarget(seriesItem)
-  }, [])
+  const openSeriesScrapeDialog = useCallback(
+    (seriesItem: SeriesWithVolumes) => {
+      setScrapeTarget(seriesItem)
+    },
+    []
+  )
 
   const openVolumeScrapeDialog = useCallback(
     (volume: Volume, seriesItem?: SeriesWithVolumes) => {
@@ -1785,7 +1796,8 @@ export default function LibraryPage() {
         return
       }
 
-      const standaloneTitle = volume.title?.trim() || `Volume ${volume.volume_number}`
+      const standaloneTitle =
+        volume.title?.trim() || `Volume ${volume.volume_number}`
       const standaloneSeries: SeriesWithVolumes = {
         id: `unassigned-${volume.id}`,
         user_id: volume.user_id,
@@ -2239,9 +2251,7 @@ export default function LibraryPage() {
   }
 
   return (
-    <div
-      className="relative px-6 py-8 lg:px-10"
-    >
+    <div className="relative px-6 py-8 lg:px-10">
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
 

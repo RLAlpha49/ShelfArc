@@ -128,9 +128,7 @@ describe("GET /api/books/price/history", () => {
 
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest(
-        "http://localhost/api/books/price/history?volumeId=vol-1"
-      )
+      makeNextRequest("http://localhost/api/books/price/history?volumeId=vol-1")
     )
 
     const body = await readJson<{ error: string }>(response)
@@ -152,9 +150,7 @@ describe("GET /api/books/price/history", () => {
   it("returns data array on success", async () => {
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest(
-        "http://localhost/api/books/price/history?volumeId=vol-1"
-      )
+      makeNextRequest("http://localhost/api/books/price/history?volumeId=vol-1")
     )
 
     const body = await readJson<{
@@ -174,9 +170,7 @@ describe("GET /api/books/price/history", () => {
 
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest(
-        "http://localhost/api/books/price/history?volumeId=vol-1"
-      )
+      makeNextRequest("http://localhost/api/books/price/history?volumeId=vol-1")
     )
 
     const body = await readJson<{ error: string }>(response)

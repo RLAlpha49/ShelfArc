@@ -509,7 +509,11 @@ function ImportProgress({
   const isComplete = phases.every((p) => p.status === "complete")
 
   return (
-    <div className="glass-card animate-fade-in-up rounded-2xl p-5" aria-live="polite" aria-atomic="true">
+    <div
+      className="glass-card animate-fade-in-up rounded-2xl p-5"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <div className="mb-4 flex items-center gap-2">
         <div className="from-copper to-gold h-1.5 w-6 rounded-full bg-linear-to-r" />
         <h4 className="text-sm font-semibold tracking-wide uppercase">

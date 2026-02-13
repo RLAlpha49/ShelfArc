@@ -215,7 +215,10 @@ const buildSeriesInsights = (
     (volume) => volume.purchase_price != null && volume.purchase_price > 0
   )
   const pricedVolumes = pricedVolumeEntries.length
-  const averagePrice = allPricedVolumeEntries.length > 0 ? allTotalSpent / allPricedVolumeEntries.length : 0
+  const averagePrice =
+    allPricedVolumeEntries.length > 0
+      ? allTotalSpent / allPricedVolumeEntries.length
+      : 0
   const readPercent =
     totalVolumes > 0 ? Math.round((readVolumes / totalVolumes) * 100) : 0
   const ratedVolumes = series.volumes.filter(
@@ -1844,7 +1847,9 @@ export default function SeriesDetailPage() {
           Library
         </Link>
         <span className="text-muted-foreground">/</span>
-        <span className="font-medium" aria-current="page">{currentSeries.title}</span>
+        <span className="font-medium" aria-current="page">
+          {currentSeries.title}
+        </span>
       </nav>
 
       <SeriesHeaderSection

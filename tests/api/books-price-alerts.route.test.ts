@@ -151,9 +151,7 @@ describe("GET /api/books/price/alerts", () => {
   it("filters by volumeId when provided", async () => {
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest(
-        "http://localhost/api/books/price/alerts?volumeId=vol-1"
-      )
+      makeNextRequest("http://localhost/api/books/price/alerts?volumeId=vol-1")
     )
 
     expect(response.status).toBe(200)
@@ -391,9 +389,7 @@ describe("DELETE /api/books/price/alerts", () => {
 
     const { DELETE } = await loadRoute()
     const response = await DELETE(
-      makeNextRequest(
-        "http://localhost/api/books/price/alerts?id=alert-1"
-      )
+      makeNextRequest("http://localhost/api/books/price/alerts?id=alert-1")
     )
 
     const body = await readJson<{ error: string }>(response)
@@ -415,9 +411,7 @@ describe("DELETE /api/books/price/alerts", () => {
   it("returns success on delete", async () => {
     const { DELETE } = await loadRoute()
     const response = await DELETE(
-      makeNextRequest(
-        "http://localhost/api/books/price/alerts?id=alert-1"
-      )
+      makeNextRequest("http://localhost/api/books/price/alerts?id=alert-1")
     )
 
     const body = await readJson<{ success: boolean }>(response)
@@ -432,9 +426,7 @@ describe("DELETE /api/books/price/alerts", () => {
 
     const { DELETE } = await loadRoute()
     const response = await DELETE(
-      makeNextRequest(
-        "http://localhost/api/books/price/alerts?id=alert-1"
-      )
+      makeNextRequest("http://localhost/api/books/price/alerts?id=alert-1")
     )
 
     const body = await readJson<{ error: string }>(response)
@@ -445,9 +437,7 @@ describe("DELETE /api/books/price/alerts", () => {
   it("calls enforceSameOrigin for CSRF protection", async () => {
     const { DELETE } = await loadRoute()
     await DELETE(
-      makeNextRequest(
-        "http://localhost/api/books/price/alerts?id=alert-1"
-      )
+      makeNextRequest("http://localhost/api/books/price/alerts?id=alert-1")
     )
 
     expect(enforceSameOriginMock).toHaveBeenCalled()

@@ -540,7 +540,10 @@ export default function SettingsPage() {
       </div>
 
       {/* Mobile section tabs */}
-      <nav aria-label="Settings sections" className="-mx-6 mb-8 overflow-x-auto border-b px-6 lg:hidden">
+      <nav
+        aria-label="Settings sections"
+        className="-mx-6 mb-8 overflow-x-auto border-b px-6 lg:hidden"
+      >
         <div className="flex gap-1 pb-px">
           {settingsNav.map((section) => (
             <a
@@ -572,7 +575,9 @@ export default function SettingsPage() {
                 <li key={section.id}>
                   <a
                     href={`#${section.id}`}
-                    aria-current={activeSection === section.id ? "true" : undefined}
+                    aria-current={
+                      activeSection === section.id ? "true" : undefined
+                    }
                     className={cn(
                       "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                       activeSection === section.id

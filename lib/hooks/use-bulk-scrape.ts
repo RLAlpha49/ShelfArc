@@ -438,7 +438,9 @@ export function useBulkScrape(
         volumeId: vol.id,
         volumeNumber: vol.volume_number,
         title: vol.title ?? "",
-        seriesTitle: (vol as Volume & { _seriesTitle?: string })._seriesTitle ?? series.title,
+        seriesTitle:
+          (vol as Volume & { _seriesTitle?: string })._seriesTitle ??
+          series.title,
         status: shouldSkipVolume(vol, mode, skipExisting)
           ? "skipped"
           : "pending"
