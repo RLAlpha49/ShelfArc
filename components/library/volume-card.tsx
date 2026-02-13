@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { buildAmazonSearchUrl } from "@/lib/books/amazon-query"
 import type { Volume } from "@/lib/types/database"
 
 /** Props for the {@link VolumeCard} component. @source */
@@ -50,38 +51,6 @@ const READING_COLORS: Record<string, string> = {
 }
 
 /**
- * Builds an Amazon search URL for a volume using ISBN or title+number tokens.
- * @param options - Volume metadata used to construct the search query.
- * @returns Fully-qualified Amazon search URL.
- * @source
- */
-const buildAmazonSearchUrl = (options: {
-  amazonDomain: string
-  isbn?: string | null
-  seriesTitle?: string | null
-  volumeTitle?: string | null
-  volumeNumber: number
-  format?: string | null
-  bindingLabel?: string | null
-}) => {
-  const domain = options.amazonDomain?.trim() || "amazon.com"
-  const isbn = options.isbn?.trim()
-  if (isbn) {
-    return `https://www.${domain}/s?k=${encodeURIComponent(isbn)}`
-  }
-  const tokens = [options.seriesTitle, options.volumeTitle]
-    .map((value) => value?.trim())
-    .filter(Boolean) as string[]
-  if (Number.isFinite(options.volumeNumber)) {
-    tokens.push(`Volume ${options.volumeNumber}`)
-  }
-  if (options.format?.trim()) tokens.push(options.format.trim())
-  if (options.bindingLabel) tokens.push(options.bindingLabel)
-  const query = tokens.join(" ").trim()
-  return `https://www.${domain}/s?k=${encodeURIComponent(query)}`
-}
-
-/**
  * Card displaying a single volume with cover, badges, rating, and overlay action buttons.
  * @param props - {@link VolumeCardProps}
  * @source
@@ -106,7 +75,7 @@ export function VolumeCard({
   const isCompleted = volume.reading_status === "completed"
   const isWishlisted = volume.ownership_status === "wishlist"
   const amazonSearchUrl = buildAmazonSearchUrl({
-    amazonDomain,
+    domain: amazonDomain,
     isbn: volume.isbn,
     seriesTitle,
     volumeTitle: volume.title,

@@ -9,6 +9,8 @@ import {
   checkPriceAlert
 } from "@/lib/hooks/use-price-history"
 import { fetchPrice } from "@/lib/api/endpoints"
+import { buildFetchPriceParams } from "@/lib/books/amazon-query"
+import type { FetchPriceParams } from "@/lib/api/types"
 import { ApiClientError } from "@/lib/api/client"
 
 /** Scraping mode: price only, image only, or both. @source */
@@ -81,18 +83,6 @@ const abortableDelay = (ms: number, signal: AbortSignal): Promise<void> =>
     }
     signal.addEventListener("abort", onAbort, { once: true })
   })
-
-/**
- * Maps a series type to a human-readable format hint for the price API.
- * @param seriesType - The series type string.
- * @returns A format hint like "Light Novel" or "Manga".
- * @source
- */
-const getFormatHint = (seriesType: string): string => {
-  if (seriesType === "light_novel") return "Light Novel"
-  if (seriesType === "manga") return "Manga"
-  return ""
-}
 
 /**
  * Builds an aggregate summary from the current jobs array.
@@ -329,9 +319,8 @@ async function interRequestDelay(
 interface JobContext {
   jobs: VolumeJob[]
   series: SeriesWithVolumes
-  formatHint: string
   amazonDomain: string
-  bindingLabel: string
+  preferKindle: boolean
   fallbackToKindle: boolean
   includePrice: boolean
   includeImage: boolean
@@ -413,10 +402,8 @@ export function useBulkScrape(
         cooldownMessage: null
       })
 
-      const formatHint = getFormatHint(series.type)
       const includePrice = mode === "price" || mode === "both"
       const includeImage = mode === "image" || mode === "both"
-      const bindingLabel = amazonPreferKindle ? "Kindle" : "Paperback"
       const fallbackToKindle = !amazonPreferKindle && amazonFallbackToKindle
 
       for (let i = 0; i < jobs.length; i++) {
@@ -429,9 +416,8 @@ export function useBulkScrape(
         const ctx: JobContext = {
           jobs,
           series,
-          formatHint,
           amazonDomain,
-          bindingLabel,
+          preferKindle: amazonPreferKindle,
           fallbackToKindle,
           includePrice,
           includeImage,
@@ -477,6 +463,34 @@ export function useBulkScrape(
 }
 
 /**
+ * Builds `FetchPriceParams` for a single bulk-scrape job.
+ * @returns The params, or `null` after marking the job as failed.
+ * @source
+ */
+function buildJobParams(
+  i: number,
+  ctx: JobContext
+): FetchPriceParams | null {
+  const { jobs, series, amazonDomain, preferKindle, fallbackToKindle, includePrice, includeImage, setter } = ctx
+  const result = buildFetchPriceParams({
+    seriesTitle: jobs[i].seriesTitle ?? series.title,
+    volumeTitle: jobs[i].title || undefined,
+    volumeNumber: jobs[i].volumeNumber,
+    seriesType: series.type,
+    preferKindle,
+    domain: amazonDomain,
+    fallbackToKindle,
+    includePrice: includePrice || undefined,
+    includeImage: includeImage || undefined
+  })
+  if ("error" in result) {
+    updateJob(i, { status: "failed", errorMessage: result.error }, setter)
+    return null
+  }
+  return result.params
+}
+
+/**
  * Processes a single volume job: fetches data, saves updates, and handles errors.
  * @param i - Job index.
  * @param ctx - Shared job context.
@@ -487,35 +501,14 @@ async function processJob(
   i: number,
   ctx: JobContext
 ): Promise<"ok" | "halt" | "abort"> {
-  const {
-    jobs,
-    series,
-    formatHint,
-    amazonDomain,
-    bindingLabel,
-    fallbackToKindle,
-    includePrice,
-    includeImage,
-    controller,
-    setter
-  } = ctx
+  const { jobs, controller, setter } = ctx
   const isLast = i >= jobs.length - 1
 
+  const params = buildJobParams(i, ctx)
+  if (!params) return "ok"
+
   try {
-    const data = await fetchPrice(
-      {
-        title: jobs[i].seriesTitle ?? series.title,
-        volume: jobs[i].volumeNumber,
-        volumeTitle: jobs[i].title,
-        format: formatHint || undefined,
-        domain: amazonDomain,
-        binding: bindingLabel,
-        fallbackToKindle,
-        includePrice: includePrice || undefined,
-        includeImage: includeImage || undefined
-      },
-      controller.signal
-    )
+    const data = await fetchPrice(params, controller.signal)
 
     return await handleSuccess(i, data, isLast, ctx)
   } catch (error) {

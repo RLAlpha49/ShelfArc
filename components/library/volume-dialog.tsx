@@ -40,7 +40,12 @@ import {
   useLibraryStore
 } from "@/lib/store/library-store"
 import { fetchPrice as fetchPriceEndpoint } from "@/lib/api/endpoints"
-import type { FetchPriceParams } from "@/lib/api/types"
+import {
+  buildAmazonSearchUrl,
+  buildPriceQuery,
+  buildFetchPriceParams,
+  getFormatHint
+} from "@/lib/books/amazon-query"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { usePriceHistory } from "@/lib/hooks/use-price-history"
 import { cn } from "@/lib/utils"
@@ -682,11 +687,7 @@ export function VolumeDialog({
       setFormData({
         ...defaultFormData,
         volume_number: nextVolumeNumber,
-        format: (() => {
-          if (selectedSeriesOption?.type === "light_novel") return "Light Novel"
-          if (selectedSeriesOption?.type === "manga") return "Manga"
-          return ""
-        })()
+        format: getFormatHint(selectedSeriesOption?.type ?? "")
       })
     }
   }, [open, volume, nextVolumeNumber, selectedSeriesOption?.type])
@@ -811,51 +812,23 @@ export function VolumeDialog({
     }
   }
 
-  const getFormatHint = () => {
-    if (selectedSeriesOption?.type === "light_novel") return "Light Novel"
-    if (selectedSeriesOption?.type === "manga") return "Manga"
-    return ""
-  }
-
-  const buildPriceParams = () => {
-    const seriesTitle = selectedSeriesOption?.title?.trim() ?? ""
-    const volumeTitle = formData.title.trim()
-    const queryTitle = seriesTitle || volumeTitle
-    if (!queryTitle) {
-      return {
-        error: "Add a series title or volume title before fetching from Amazon."
-      }
-    }
-
-    const params = new URLSearchParams()
-    params.set("title", queryTitle)
-    params.set("volume", String(formData.volume_number))
-    const formatHint = getFormatHint()
-    if (formatHint) params.set("format", formatHint)
-    const bindingLabel = amazonPreferKindle ? "Kindle" : "Paperback"
-    params.set("binding", bindingLabel)
-    if (seriesTitle && volumeTitle) {
-      params.set("volumeTitle", volumeTitle)
-    }
-    return { params }
-  }
-
   const getAmazonSearchUrl = () => {
-    const buildResult = buildPriceParams()
-    if ("error" in buildResult) return ""
-    const title = buildResult.params.get("title") || ""
-    const volume = buildResult.params.get("volume")
-    const format = buildResult.params.get("format")
-    const binding = buildResult.params.get("binding")
-    const searchTokens = [
-      title,
-      volume ? `Volume ${volume}` : null,
+    const queryResult = buildPriceQuery({
+      seriesTitle: selectedSeriesOption?.title,
+      volumeTitle: formData.title,
+      volumeNumber: formData.volume_number,
+      seriesType: selectedSeriesOption?.type,
+      preferKindle: amazonPreferKindle
+    })
+    if ("error" in queryResult) return ""
+    const { title, volume, format, binding } = queryResult.params
+    return buildAmazonSearchUrl({
+      domain: amazonDomain,
+      seriesTitle: title,
+      volumeNumber: Number(volume),
       format,
-      binding
-    ].filter(Boolean)
-    const searchQuery = searchTokens.join(" ")
-    if (!searchQuery) return ""
-    return `https://www.${amazonDomain}/s?k=${encodeURIComponent(searchQuery)}`
+      bindingLabel: binding
+    })
   }
 
   const handleOpenAmazonPage = () => {
@@ -925,18 +898,12 @@ export function VolumeDialog({
       return null
     }
 
-    const buildResult = buildPriceParams()
-    if ("error" in buildResult) {
-      toast.error(buildResult.error)
-      return null
-    }
-
-    const priceParams: FetchPriceParams = {
-      title: buildResult.params.get("title") ?? "",
-      volume: buildResult.params.get("volume") ?? "0",
-      volumeTitle: buildResult.params.get("volumeTitle") ?? undefined,
-      format: buildResult.params.get("format") ?? undefined,
-      binding: buildResult.params.get("binding") ?? "Paperback",
+    const result = buildFetchPriceParams({
+      seriesTitle: selectedSeriesOption?.title,
+      volumeTitle: formData.title,
+      volumeNumber: formData.volume_number,
+      seriesType: selectedSeriesOption?.type,
+      preferKindle: amazonPreferKindle,
       domain: amazonDomain,
       includeImage: options.includeImage || undefined,
       includePrice: options.includePrice ? undefined : false,
@@ -944,9 +911,14 @@ export function VolumeDialog({
         options.includePrice && !amazonPreferKindle && amazonFallbackToKindle
           ? true
           : undefined
+    })
+
+    if ("error" in result) {
+      toast.error(result.error)
+      return null
     }
 
-    return priceParams
+    return result.params
   }
 
   const handleAmazonError = (error: unknown) => {
