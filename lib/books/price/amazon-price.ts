@@ -1366,8 +1366,6 @@ export const parseAmazonResult = (
   context: SearchContext,
   options: { includePrice: boolean; includeImage: boolean }
 ): AmazonPriceParseResult => {
-  const parseStart = performance.now()
-
   const subtitleWeight = context.volumeSubtitle ? 0.35 : 0
   const bindingLabels = context.bindingLabels.length
     ? context.bindingLabels
@@ -1377,7 +1375,6 @@ export const parseAmazonResult = (
     : "Price not found"
 
   const $ = cheerio.load(html)
-  const cheerioMs = Math.round(performance.now() - parseStart)
 
   const resultElements = getSearchResults($)
 
@@ -1390,9 +1387,6 @@ export const parseAmazonResult = (
       results: resultElements.map((el) => extractResultTitle($(el)))
     }
   )
-
-  const scoreStart = performance.now()
-  let skippedResults = 0
 
   const scoredResults = resultElements
     .map((el, index) => {
@@ -1466,8 +1460,6 @@ export const parseAmazonResult = (
     })
     .filter((item): item is ScoredResult => item !== null)
 
-  const scoreMs = Math.round(performance.now() - scoreStart)
-
   if (!scoredResults.length) {
     throw new ApiError(404, "No search results found")
   }
@@ -1524,8 +1516,6 @@ export const parseAmazonResult = (
       item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
   )
 
-  const priceStart = performance.now()
-
   const priceSelection = resolvePriceSelection({
     $,
     includePrice: options.includePrice,
@@ -1537,25 +1527,11 @@ export const parseAmazonResult = (
     priceErrorMessage
   })
 
-  const priceMs = Math.round(performance.now() - priceStart)
-
   const selected = priceSelection.selected
   const productUrl = extractProductUrl(selected.result, context.host)
   const imageUrl = options.includeImage
     ? extractImageUrl(selected.result)
     : null
-
-  const totalParseMs = Math.round(performance.now() - parseStart)
-  console.info("[amazon-price] parse pipeline", {
-    cheerioMs,
-    scoreMs,
-    priceMs,
-    totalParseMs,
-    results: resultElements.length,
-    scored: scoredResults.length,
-    skipped: skippedResults,
-    eligible: eligibleCandidates.length
-  })
 
   return {
     resultTitle: selected.resultTitle,
