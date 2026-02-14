@@ -92,6 +92,25 @@ function cloneFilters(filters: FilterState): FilterState {
   }
 }
 
+function normalizeFilterPreset(preset: FilterPreset): FilterPreset {
+  const filters = preset.state?.filters
+  return {
+    ...preset,
+    state: {
+      ...preset.state,
+      filters: cloneFilters({
+        search: filters?.search ?? defaultFilters.search,
+        type: filters?.type ?? defaultFilters.type,
+        ownershipStatus:
+          filters?.ownershipStatus ?? defaultFilters.ownershipStatus,
+        readingStatus: filters?.readingStatus ?? defaultFilters.readingStatus,
+        tags: filters?.tags ?? defaultFilters.tags,
+        excludeTags: filters?.excludeTags ?? defaultFilters.excludeTags
+      })
+    }
+  }
+}
+
 /** Combined data, UI, and action state for the library Zustand store. @source */
 interface LibraryState {
   // Data
@@ -478,6 +497,9 @@ export const useLibraryStore = create<LibraryState>()(
     {
       name: "shelfarc-library",
       onRehydrateStorage: () => (state) => {
+        if (state?.filterPresets.length) {
+          state.filterPresets = state.filterPresets.map(normalizeFilterPreset)
+        }
         state?.ensureDefaultFilterPresets()
       },
       partialize: (state) => ({

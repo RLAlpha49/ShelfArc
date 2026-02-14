@@ -37,24 +37,24 @@ function summarizePresetFilters(preset: {
       type: string
       ownershipStatus: string
       readingStatus: string
-      tags: string[]
-      excludeTags: string[]
+      tags?: string[]
+      excludeTags?: string[]
     }
   }
 }): string[] {
   const labels: string[] = []
   const { filters } = preset.state
+  const tags = filters.tags ?? []
+  const excludeTags = filters.excludeTags ?? []
   if (filters.type !== "all") labels.push(`Type: ${filters.type}`)
   if (filters.ownershipStatus !== "all")
     labels.push(`Ownership: ${filters.ownershipStatus}`)
   if (filters.readingStatus !== "all")
     labels.push(`Reading: ${filters.readingStatus}`)
-  if (filters.tags.length > 0)
-    labels.push(
-      `${filters.tags.length} tag${filters.tags.length > 1 ? "s" : ""}`
-    )
-  if (filters.excludeTags.length > 0)
-    labels.push(`${filters.excludeTags.length} excluded`)
+  if (tags.length > 0)
+    labels.push(`${tags.length} tag${tags.length > 1 ? "s" : ""}`)
+  if (excludeTags.length > 0)
+    labels.push(`${excludeTags.length} excluded`)
   return labels
 }
 
