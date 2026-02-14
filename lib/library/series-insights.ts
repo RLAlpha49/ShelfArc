@@ -105,8 +105,84 @@ export type SeriesInsightData = {
   readPercent: number
 }
 
+interface InsightAccumulator {
+  ownedVolumes: number
+  wishlistVolumes: number
+  readingVolumes: number
+  readVolumes: number
+  totalPages: number
+  ownedSpent: number
+  allSpent: number
+  allPricedCount: number
+  ratingSum: number
+  ratedCount: number
+  latestVolume: Volume | null
+  ownedVolumeNumbers: number[]
+}
+
+/** Tallies ownership and reading status counters. */
+function tallyStatuses(
+  volumes: Volume[],
+  acc: InsightAccumulator
+): void {
+  for (const v of volumes) {
+    if (v.ownership_status === "owned") {
+      acc.ownedVolumes++
+      acc.ownedSpent += v.purchase_price ?? 0
+      if (Number.isFinite(v.volume_number)) acc.ownedVolumeNumbers.push(v.volume_number)
+    }
+    if (v.ownership_status === "wishlist") acc.wishlistVolumes++
+    if (v.reading_status === "reading") acc.readingVolumes++
+    if (v.reading_status === "completed") acc.readVolumes++
+  }
+}
+
+/** Tallies pricing, rating, and metadata metrics. */
+function tallyMetrics(
+  volumes: Volume[],
+  acc: InsightAccumulator
+): void {
+  for (const v of volumes) {
+    acc.totalPages += v.page_count ?? 0
+    const price = v.purchase_price ?? 0
+    acc.allSpent += price
+    if (price > 0) acc.allPricedCount++
+    if (typeof v.rating === "number") {
+      acc.ratingSum += v.rating
+      acc.ratedCount++
+    }
+    if (!acc.latestVolume || v.volume_number > acc.latestVolume.volume_number) {
+      acc.latestVolume = v
+    }
+  }
+}
+
+/** Single-pass volume aggregation for series insights. */
+function accumulateVolumes(volumes: Volume[]): InsightAccumulator {
+  const acc: InsightAccumulator = {
+    ownedVolumes: 0,
+    wishlistVolumes: 0,
+    readingVolumes: 0,
+    readVolumes: 0,
+    totalPages: 0,
+    ownedSpent: 0,
+    allSpent: 0,
+    allPricedCount: 0,
+    ratingSum: 0,
+    ratedCount: 0,
+    latestVolume: null,
+    ownedVolumeNumbers: []
+  }
+
+  tallyStatuses(volumes, acc)
+  tallyMetrics(volumes, acc)
+
+  return acc
+}
+
 /**
  * Computes collection insight metrics for a series.
+ * O(V) single-pass (was ~12 separate filter/reduce passes).
  * @param series - The series including its volumes.
  * @param dateFormat - User's preferred date format.
  * @returns Aggregated insight data.
@@ -116,97 +192,43 @@ export const buildSeriesInsights = (
   series: SeriesWithVolumes,
   dateFormat: DateFormat
 ): SeriesInsightData => {
-  const ownedVolumeEntries = series.volumes.filter(
-    (volume) => volume.ownership_status === "owned"
-  )
-  const wishlistVolumes = series.volumes.filter(
-    (volume) => volume.ownership_status === "wishlist"
-  ).length
-  const ownedVolumes = ownedVolumeEntries.length
-  const readingVolumes = series.volumes.filter(
-    (volume) => volume.reading_status === "reading"
-  ).length
-  const readVolumes = series.volumes.filter(
-    (volume) => volume.reading_status === "completed"
-  ).length
+  const a = accumulateVolumes(series.volumes)
+
   const totalVolumes = series.total_volumes ?? series.volumes.length
-  const collectionPercent =
-    totalVolumes > 0 ? Math.round((ownedVolumes / totalVolumes) * 100) : 0
-  const missingVolumes =
-    series.total_volumes && series.total_volumes > 0
-      ? Math.max(series.total_volumes - ownedVolumes, 0)
-      : null
-  const totalPages = series.volumes.reduce(
-    (acc, volume) => acc + (volume.page_count ?? 0),
-    0
-  )
-  const totalSpent = ownedVolumeEntries.reduce(
-    (acc, volume) => acc + (volume.purchase_price ?? 0),
-    0
-  )
-  const pricedVolumeEntries = ownedVolumeEntries.filter(
-    (volume) => volume.purchase_price != null && volume.purchase_price > 0
-  )
-  const allTotalSpent = series.volumes.reduce(
-    (acc, volume) => acc + (volume.purchase_price ?? 0),
-    0
-  )
-  const allPricedVolumeEntries = series.volumes.filter(
-    (volume) => volume.purchase_price != null && volume.purchase_price > 0
-  )
-  const pricedVolumes = pricedVolumeEntries.length
-  const averagePrice =
-    allPricedVolumeEntries.length > 0
-      ? allTotalSpent / allPricedVolumeEntries.length
-      : 0
-  const readPercent =
-    totalVolumes > 0 ? Math.round((readVolumes / totalVolumes) * 100) : 0
-  const ratedVolumes = series.volumes.filter(
-    (volume) => typeof volume.rating === "number"
-  )
-  const averageRating =
-    ratedVolumes.length > 0
-      ? Math.round(
-          (ratedVolumes.reduce((acc, volume) => acc + (volume.rating ?? 0), 0) /
-            ratedVolumes.length) *
-            10
-        ) / 10
-      : null
-  const latestVolume = series.volumes.reduce<Volume | null>((best, volume) => {
-    if (!best || volume.volume_number > best.volume_number) return volume
-    return best
-  }, null)
-  const ownedVolumeNumbers = ownedVolumeEntries
-    .map((volume) => volume.volume_number)
-    .filter((value) => Number.isFinite(value))
-  const nextVolumeNumber = getNextOwnedVolumeNumber(ownedVolumeNumbers)
-  const volumeRangeLabel = buildVolumeRangeLabel(ownedVolumeNumbers)
-  const nextVolumeLabel =
-    series.total_volumes && nextVolumeNumber > series.total_volumes
-      ? "Complete"
-      : `Vol. ${nextVolumeNumber}`
+  const nextVolumeNumber = getNextOwnedVolumeNumber(a.ownedVolumeNumbers)
 
   return {
-    ownedVolumes,
-    wishlistVolumes,
-    readingVolumes,
-    readVolumes,
+    ownedVolumes: a.ownedVolumes,
+    wishlistVolumes: a.wishlistVolumes,
+    readingVolumes: a.readingVolumes,
+    readVolumes: a.readVolumes,
     totalVolumes,
-    collectionPercent,
-    missingVolumes,
-    totalPages,
-    averageRating,
-    latestVolume,
-    volumeRangeLabel,
-    nextVolumeLabel,
+    collectionPercent:
+      totalVolumes > 0 ? Math.round((a.ownedVolumes / totalVolumes) * 100) : 0,
+    missingVolumes:
+      series.total_volumes && series.total_volumes > 0
+        ? Math.max(series.total_volumes - a.ownedVolumes, 0)
+        : null,
+    totalPages: a.totalPages,
+    averageRating:
+      a.ratedCount > 0
+        ? Math.round((a.ratingSum / a.ratedCount) * 10) / 10
+        : null,
+    latestVolume: a.latestVolume,
+    volumeRangeLabel: buildVolumeRangeLabel(a.ownedVolumeNumbers),
+    nextVolumeLabel:
+      series.total_volumes && nextVolumeNumber > series.total_volumes
+        ? "Complete"
+        : `Vol. ${nextVolumeNumber}`,
     nextVolumeNumber,
     catalogedVolumes: series.volumes.length,
     officialTotalVolumes: series.total_volumes,
     createdLabel: formatDate(series.created_at, dateFormat),
     updatedLabel: formatDate(series.updated_at, dateFormat),
-    totalSpent,
-    averagePrice,
-    pricedVolumes,
-    readPercent
+    totalSpent: a.ownedSpent,
+    averagePrice: a.allPricedCount > 0 ? a.allSpent / a.allPricedCount : 0,
+    pricedVolumes: a.allPricedCount,
+    readPercent:
+      totalVolumes > 0 ? Math.round((a.readVolumes / totalVolumes) * 100) : 0
   }
 }

@@ -100,48 +100,76 @@ export interface MonthGroup {
   items: ReleaseItem[]
 }
 
-// ── Pure functions ─────────────────────────────────────────────────────
+interface VolumeTally {
+  owned: number
+  wishlist: number
+  read: number
+  reading: number
+  spent: number
+  priced: number
+}
 
+/** Tallies volume-level counters in a single pass. O(V) total. */
+function tallyVolumes(volumes: Volume[]): VolumeTally {
+  let owned = 0
+  let wishlist = 0
+  let read = 0
+  let reading = 0
+  let spent = 0
+  let priced = 0
+  for (const v of volumes) {
+    if (v.ownership_status === "owned") {
+      owned++
+      const price = v.purchase_price ?? 0
+      spent += price
+      if (price > 0) priced++
+    }
+    if (v.ownership_status === "wishlist") wishlist++
+    if (v.reading_status === "completed") read++
+    if (v.reading_status === "reading") reading++
+  }
+  return { owned, wishlist, read, reading, spent, priced }
+}
+
+// O(S + V) single-pass over series and volumes
 export function computeCollectionStats(
   series: SeriesWithVolumes[]
 ): CollectionStats {
-  const totalSeries = series.length
-  const lightNovelSeries = series.filter((s) => s.type === "light_novel").length
-  const mangaSeries = series.filter((s) => s.type === "manga").length
+  let lightNovelSeries = 0
+  let mangaSeries = 0
+  let totalVolumes = 0
+  let ownedVolumes = 0
+  let wishlistCount = 0
+  let readVolumes = 0
+  let readingVolumes = 0
+  let totalSpent = 0
+  let pricedVolumes = 0
+  let completeSets = 0
 
-  const volumes = series.flatMap((s) => s.volumes)
-  const totalVolumes = volumes.length
-  const owned = volumes.filter((v) => v.ownership_status === "owned")
-  const ownedVolumes = owned.length
-  const wishlistCount = volumes.filter(
-    (v) => v.ownership_status === "wishlist"
-  ).length
-  const readVolumes = volumes.filter(
-    (v) => v.reading_status === "completed"
-  ).length
-  const readingVolumes = volumes.filter(
-    (v) => v.reading_status === "reading"
-  ).length
+  for (const s of series) {
+    if (s.type === "light_novel") lightNovelSeries++
+    else if (s.type === "manga") mangaSeries++
 
-  const totalSpent = owned.reduce((acc, v) => acc + (v.purchase_price ?? 0), 0)
-  const pricedVolumes = owned.filter((v) => (v.purchase_price ?? 0) > 0).length
-  const averagePricePerTrackedVolume =
-    pricedVolumes > 0 ? totalSpent / pricedVolumes : 0
+    const vols = s.volumes
+    totalVolumes += vols.length
+    const t = tallyVolumes(vols)
+    ownedVolumes += t.owned
+    wishlistCount += t.wishlist
+    readVolumes += t.read
+    readingVolumes += t.reading
+    totalSpent += t.spent
+    pricedVolumes += t.priced
 
-  const completeSets = series.filter((s) => {
-    const hintedTotal = s.total_volumes
-    if (!hintedTotal || hintedTotal <= 0) return false
-    if (s.volumes.length === 0) return false
-
-    const ownedCount = s.volumes.filter(
-      (v) => v.ownership_status === "owned"
-    ).length
-    const allOwned = ownedCount === s.volumes.length
-    return allOwned && ownedCount >= hintedTotal
-  }).length
+    const isComplete =
+      (s.total_volumes ?? 0) > 0 &&
+      vols.length > 0 &&
+      t.owned === vols.length &&
+      t.owned >= s.total_volumes!
+    if (isComplete) completeSets++
+  }
 
   return {
-    totalSeries,
+    totalSeries: series.length,
     totalVolumes,
     ownedVolumes,
     readVolumes,
@@ -150,150 +178,157 @@ export function computeCollectionStats(
     mangaSeries,
     totalSpent,
     pricedVolumes,
-    averagePricePerTrackedVolume,
+    averagePricePerTrackedVolume:
+      pricedVolumes > 0 ? totalSpent / pricedVolumes : 0,
     wishlistCount,
     completeSets
   }
 }
 
+interface PriceAccumulator {
+  prices: number[]
+  lnSpent: number
+  mangaSpent: number
+  seriesSpending: Map<
+    string,
+    { id: string; title: string; type: string; total: number; volumeCount: number }
+  >
+}
+
+/** Processes a single series' owned-volume prices into the accumulator. */
+function accumulateSeriesPrices(
+  acc: PriceAccumulator,
+  s: SeriesWithVolumes
+): void {
+  let seriesTotal = 0
+  let seriesPricedCount = 0
+
+  for (const v of s.volumes) {
+    if (v.ownership_status !== "owned") continue
+    const price = v.purchase_price ?? 0
+    if (price > 0) {
+      acc.prices.push(price)
+      seriesTotal += price
+      seriesPricedCount++
+    }
+    if (s.type === "light_novel") acc.lnSpent += price
+    else if (s.type === "manga") acc.mangaSpent += price
+  }
+
+  if (seriesTotal > 0) {
+    acc.seriesSpending.set(s.id, {
+      id: s.id,
+      title: s.title,
+      type: s.type,
+      total: seriesTotal,
+      volumeCount: seriesPricedCount
+    })
+  }
+}
+
+function computeMedian(sorted: number[]): number {
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid]
+}
+
+// O(S + V + P·log P) single-pass aggregation (was ~6 full passes over all volumes)
 export function computePriceBreakdown(
   series: SeriesWithVolumes[],
   topLimit = 5
 ): PriceBreakdown {
-  const allPricedVolumes = series.flatMap((s) =>
-    s.volumes
-      .filter((v) => v.ownership_status === "owned")
-      .filter((v) => v.purchase_price != null && v.purchase_price > 0)
-      .map((v) => ({ ...v, seriesTitle: s.title, seriesType: s.type }))
-  )
+  const acc: PriceAccumulator = {
+    prices: [],
+    lnSpent: 0,
+    mangaSpent: 0,
+    seriesSpending: new Map()
+  }
 
-  const lnSpent = series
-    .filter((s) => s.type === "light_novel")
-    .reduce(
-      (acc, s) =>
-        acc +
-        s.volumes
-          .filter((v) => v.ownership_status === "owned")
-          .reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
-      0
-    )
+  for (const s of series) {
+    accumulateSeriesPrices(acc, s)
+  }
 
-  const mangaSpent = series
-    .filter((s) => s.type === "manga")
-    .reduce(
-      (acc, s) =>
-        acc +
-        s.volumes
-          .filter((v) => v.ownership_status === "owned")
-          .reduce((vAcc, v) => vAcc + (v.purchase_price || 0), 0),
-      0
-    )
+  const { prices } = acc
+  let minPrice = 0
+  let maxPrice = 0
+  let medianPrice = 0
+  if (prices.length > 0) {
+    prices.sort((a, b) => a - b)
+    minPrice = prices[0]
+    maxPrice = prices.at(-1)!
+    medianPrice = computeMedian(prices)
+  }
 
-  const prices = allPricedVolumes.map((v) => v.purchase_price!)
-  const minPrice = prices.length > 0 ? Math.min(...prices) : 0
-  const maxPrice = prices.length > 0 ? Math.max(...prices) : 0
-  const medianPrice =
-    prices.length > 0
-      ? (() => {
-          const sorted = [...prices].sort((a, b) => a - b)
-          const mid = Math.floor(sorted.length / 2)
-          return sorted.length % 2 === 0
-            ? (sorted[mid - 1] + sorted[mid]) / 2
-            : sorted[mid]
-        })()
-      : 0
-
-  const spendingBySeries = series
-    .map((s) => {
-      const owned = s.volumes.filter((v) => v.ownership_status === "owned")
-      return {
-        id: s.id,
-        title: s.title,
-        type: s.type,
-        total: owned.reduce((acc, v) => acc + (v.purchase_price || 0), 0),
-        volumeCount: owned.filter(
-          (v) => v.purchase_price != null && v.purchase_price > 0
-        ).length
-      }
-    })
-    .filter((s) => s.total > 0)
+  const spendingBySeries = [...acc.seriesSpending.values()]
     .sort((a, b) => b.total - a.total)
     .slice(0, topLimit)
 
-  const maxSeriesSpent =
-    spendingBySeries.length > 0 ? spendingBySeries[0].total : 0
-
   return {
-    lnSpent,
-    mangaSpent,
+    lnSpent: acc.lnSpent,
+    mangaSpent: acc.mangaSpent,
     minPrice,
     maxPrice,
     medianPrice,
-    trackedCount: allPricedVolumes.length,
+    trackedCount: prices.length,
     spendingBySeries,
-    maxSeriesSpent
+    maxSeriesSpent: spendingBySeries.length > 0 ? spendingBySeries[0].total : 0
   }
 }
 
+// O(V + W·log W) single-pass (was 2 extra filter passes over wishlist volumes)
 export function computeWishlistStats(
   series: SeriesWithVolumes[],
   topLimit = 5
 ): WishlistStats {
-  const wishlistVolumes = series.flatMap((s) =>
-    s.volumes
-      .filter((v) => v.ownership_status === "wishlist")
-      .map((v) => ({
-        ...v,
-        seriesTitle: s.title,
-        seriesId: s.id,
-        seriesType: s.type
-      }))
-  )
-
-  const totalWishlistCost = wishlistVolumes
-    .filter((v) => v.purchase_price != null && v.purchase_price > 0)
-    .reduce((acc, v) => acc + v.purchase_price!, 0)
-
-  const wishlistPricedCount = wishlistVolumes.filter(
-    (v) => v.purchase_price != null && v.purchase_price > 0
-  ).length
-
-  const averageWishlistPrice =
-    wishlistPricedCount > 0 ? totalWishlistCost / wishlistPricedCount : 0
+  let totalCount = 0
+  let totalWishlistCost = 0
+  let wishlistPricedCount = 0
 
   const seriesMap = new Map<
     string,
     { id: string; title: string; type: string; count: number; cost: number }
   >()
-  for (const v of wishlistVolumes) {
-    const existing = seriesMap.get(v.seriesId)
-    if (existing) {
-      existing.count++
-      existing.cost += v.purchase_price ?? 0
-    } else {
-      seriesMap.set(v.seriesId, {
-        id: v.seriesId,
-        title: v.seriesTitle,
-        type: v.seriesType,
-        count: 1,
-        cost: v.purchase_price ?? 0
-      })
+
+  // Single pass: iterate volumes, accumulate totals and per-series counts together
+  for (const s of series) {
+    for (const v of s.volumes) {
+      if (v.ownership_status !== "wishlist") continue
+      totalCount++
+      const price = v.purchase_price ?? 0
+      if (price > 0) {
+        totalWishlistCost += price
+        wishlistPricedCount++
+      }
+      const existing = seriesMap.get(s.id)
+      if (existing) {
+        existing.count++
+        existing.cost += price
+      } else {
+        seriesMap.set(s.id, {
+          id: s.id,
+          title: s.title,
+          type: s.type,
+          count: 1,
+          cost: price
+        })
+      }
     }
   }
+
   const topWishlistedSeries = [...seriesMap.values()]
     .sort((a, b) => b.count - a.count)
     .slice(0, topLimit)
 
-  const maxWishlistSeriesCount =
-    topWishlistedSeries.length > 0 ? topWishlistedSeries[0].count : 0
-
   return {
     totalWishlistCost,
     wishlistPricedCount,
-    averageWishlistPrice,
+    averageWishlistPrice:
+      wishlistPricedCount > 0 ? totalWishlistCost / wishlistPricedCount : 0,
     topWishlistedSeries,
-    maxWishlistSeriesCount,
-    totalCount: wishlistVolumes.length
+    maxWishlistSeriesCount:
+      topWishlistedSeries.length > 0 ? topWishlistedSeries[0].count : 0,
+    totalCount
   }
 }
 
@@ -436,31 +471,64 @@ export function getRecentSeries(
     .slice(0, limit)
 }
 
+/** Binary-inserts `item` into a descending-by-time array, trimming to `limit`. */
+function insertRecent(
+  result: AugmentedVolume[],
+  item: AugmentedVolume,
+  time: number,
+  limit: number
+): number {
+  let lo = 0
+  let hi = result.length
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1
+    if (new Date(result[mid].created_at).getTime() > time) lo = mid + 1
+    else hi = mid
+  }
+  result.splice(lo, 0, item)
+  if (result.length > limit) result.pop()
+  return result.length >= limit
+    ? new Date(result.at(-1)!.created_at).getTime()
+    : 0
+}
+
+// O(V) scan + O(V·log L) bounded insertion (was flatMap + full sort + slice)
 export function getRecentVolumes(
   series: SeriesWithVolumes[],
   limit = 8
 ): AugmentedVolume[] {
-  return series
-    .flatMap((s) =>
-      s.volumes.map((v) => ({ ...v, seriesTitle: s.title, seriesId: s.id }))
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-    .slice(0, limit)
+  const result: AugmentedVolume[] = []
+  let minTime = 0
+
+  for (const s of series) {
+    for (const v of s.volumes) {
+      const time = new Date(v.created_at).getTime()
+      if (result.length >= limit && time <= minTime) continue
+      const augmented: AugmentedVolume = {
+        ...v,
+        seriesTitle: s.title,
+        seriesId: s.id
+      }
+      minTime = insertRecent(result, augmented, time, limit)
+    }
+  }
+  return result
 }
 
+// O(V) early-exit scan (was flatMap of all volumes + filter + slice)
 export function getCurrentlyReading(
   series: SeriesWithVolumes[],
   limit = 5
 ): AugmentedVolume[] {
-  return series
-    .flatMap((s) =>
-      s.volumes.map((v) => ({ ...v, seriesTitle: s.title, seriesId: s.id }))
-    )
-    .filter((v) => v.reading_status === "reading")
-    .slice(0, limit)
+  const result: AugmentedVolume[] = []
+  for (const s of series) {
+    for (const v of s.volumes) {
+      if (v.reading_status !== "reading") continue
+      result.push({ ...v, seriesTitle: s.title, seriesId: s.id })
+      if (result.length >= limit) return result
+    }
+  }
+  return result
 }
 
 export function computeReleases(

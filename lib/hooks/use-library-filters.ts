@@ -10,6 +10,75 @@ export interface VolumeWithSeries {
   series: SeriesWithVolumes
 }
 
+const compareStrings = (a?: string | null, b?: string | null) =>
+  (a ?? "").localeCompare(b ?? "", undefined, { sensitivity: "base" })
+
+/** Build a pre-computed numeric cache over volumes for the given extractor. O(S·V) */
+function buildVolumeCache(
+  filtered: SeriesWithVolumes[],
+  extract: (v: Volume) => number | null | undefined,
+  aggregate: "sum" | "avg"
+): Map<string, number> {
+  const cache = new Map<string, number>()
+  for (const s of filtered) {
+    let sum = 0
+    let count = 0
+    for (const v of s.volumes) {
+      const val = extract(v)
+      if (val != null) { sum += val; count++ }
+    }
+    cache.set(s.id, aggregate === "avg" && count > 0 ? sum / count : sum)
+  }
+  return cache
+}
+
+/** Sort series in-place with pre-computed caches for expensive fields. O(S·V + S·log S) */
+function sortSeriesInPlace(
+  filtered: SeriesWithVolumes[],
+  sortField: string,
+  sortOrder: string
+): SeriesWithVolumes[] {
+  const multiplier = sortOrder === "asc" ? 1 : -1
+  let cache: Map<string, number> | undefined
+
+  // Pre-compute expensive per-series values once O(S·V) instead of
+  // recomputing them O(S·V·log S) times inside the sort comparator
+  if (sortField === "rating") {
+    cache = buildVolumeCache(filtered, (v) => v.rating, "avg")
+  } else if (sortField === "price") {
+    cache = buildVolumeCache(filtered, (v) => v.purchase_price, "sum")
+  }
+
+  return filtered.sort((a, b) => {
+    const primary = getSortValue(a, b, sortField, cache) * multiplier
+    return primary || compareStrings(a.title, b.title)
+  })
+}
+
+/** Return a raw comparison value for the given sort field. */
+function getSortValue(
+  a: SeriesWithVolumes,
+  b: SeriesWithVolumes,
+  field: string,
+  cache?: Map<string, number>
+): number {
+  switch (field) {
+    case "author":
+      return compareStrings(a.author, b.author)
+    case "created_at":
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    case "updated_at":
+      return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
+    case "rating":
+    case "price":
+      return cache!.get(a.id)! - cache!.get(b.id)!
+    case "volume_count":
+      return a.volumes.length - b.volumes.length
+    default:
+      return compareStrings(a.title, b.title)
+  }
+}
+
 export function useLibraryFilters() {
   const { series, unassignedVolumes, filters, sortField, sortOrder } =
     useLibraryStore()
@@ -67,55 +136,7 @@ export function useLibraryFilters() {
       return true
     })
 
-    const multiplier = sortOrder === "asc" ? 1 : -1
-    const compareStrings = (a?: string | null, b?: string | null) =>
-      (a ?? "").localeCompare(b ?? "", undefined, { sensitivity: "base" })
-
-    const avgRating = (s: SeriesWithVolumes) => {
-      const rated = s.volumes.filter((v) => v.rating != null)
-      if (rated.length === 0) return 0
-      return rated.reduce((sum, v) => sum + (v.rating ?? 0), 0) / rated.length
-    }
-
-    const totalPrice = (s: SeriesWithVolumes) =>
-      s.volumes.reduce((sum, v) => sum + (v.purchase_price ?? 0), 0)
-
-    return filtered.sort((a, b) => {
-      switch (sortField) {
-        case "author":
-          return compareStrings(a.author, b.author) * multiplier
-        case "created_at":
-          return (
-            (new Date(a.created_at).getTime() -
-              new Date(b.created_at).getTime()) *
-            multiplier
-          )
-        case "updated_at":
-          return (
-            (new Date(a.updated_at).getTime() -
-              new Date(b.updated_at).getTime()) *
-            multiplier
-          )
-        case "rating":
-          return (
-            (avgRating(a) - avgRating(b)) * multiplier ||
-            compareStrings(a.title, b.title)
-          )
-        case "volume_count":
-          return (
-            (a.volumes.length - b.volumes.length) * multiplier ||
-            compareStrings(a.title, b.title)
-          )
-        case "price":
-          return (
-            (totalPrice(a) - totalPrice(b)) * multiplier ||
-            compareStrings(a.title, b.title)
-          )
-        case "title":
-        default:
-          return compareStrings(a.title, b.title) * multiplier
-      }
-    })
+    return sortSeriesInPlace(filtered, sortField, sortOrder)
   }, [
     series,
     sortOrder,

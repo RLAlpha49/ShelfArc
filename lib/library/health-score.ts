@@ -22,191 +22,190 @@ function getLabel(score: number): HealthScore["label"] {
   return "Needs Work"
 }
 
-export function computeHealthScore(
+interface VolumeCounts {
+  total: number
+  read: number
+  owned: number
+  pricedOwned: number
+  unpricedOwned: number
+  wishlisted: number
+  withCover: number
+  withIsbn: number
+  withDesc: number
+  missingMeta: number
+}
+
+interface SeriesCounts {
+  withTotal: number
+  completenessRatioSum: number
+  untracked: number
+}
+
+/** Single-pass tally of all volume-level and series-level counters. O(S + V) */
+function tallyAll(
   series: readonly SeriesWithVolumes[]
-): HealthScore {
-  const allVolumes = series.flatMap((s) => s.volumes)
-  const totalVolumes = allVolumes.length
+): { vol: VolumeCounts; ser: SeriesCounts } {
+  const vol: VolumeCounts = {
+    total: 0,
+    read: 0,
+    owned: 0,
+    pricedOwned: 0,
+    unpricedOwned: 0,
+    wishlisted: 0,
+    withCover: 0,
+    withIsbn: 0,
+    withDesc: 0,
+    missingMeta: 0
+  }
+  const ser: SeriesCounts = { withTotal: 0, completenessRatioSum: 0, untracked: 0 }
 
-  // 1. Completion Rate
-  const readVolumes = allVolumes.filter(
-    (v) => v.reading_status === "completed"
-  ).length
-  const completionScore =
-    totalVolumes > 0 ? (readVolumes / totalVolumes) * 20 : 0
+  for (const s of series) {
+    if (s.total_volumes != null && s.total_volumes > 0) {
+      ser.withTotal++
+      ser.completenessRatioSum += Math.min(s.volumes.length / s.total_volumes, 1)
+    } else {
+      ser.untracked++
+    }
 
-  // 2. Ownership
-  const ownedVolumes = allVolumes.filter(
-    (v) => v.ownership_status === "owned"
-  ).length
-  const ownershipScore =
-    totalVolumes > 0 ? (ownedVolumes / totalVolumes) * 20 : 0
-
-  // 3. Series Completeness
-  const seriesWithTotal = series.filter(
-    (s) => s.total_volumes != null && s.total_volumes > 0
-  )
-  let completenessScore: number
-  if (seriesWithTotal.length > 0) {
-    const ratioSum = seriesWithTotal.reduce((sum, s) => {
-      const ratio = Math.min(s.volumes.length / s.total_volumes!, 1)
-      return sum + ratio
-    }, 0)
-    completenessScore = (ratioSum / seriesWithTotal.length) * 20
-  } else {
-    completenessScore = 10
+    for (const v of s.volumes) {
+      vol.total++
+      if (v.reading_status === "completed") vol.read++
+      if (v.ownership_status === "owned") {
+        vol.owned++
+        if (v.purchase_price != null && v.purchase_price > 0) vol.pricedOwned++
+        else vol.unpricedOwned++
+      }
+      if (v.ownership_status === "wishlist") vol.wishlisted++
+      if (v.cover_image_url) vol.withCover++
+      if (v.isbn) vol.withIsbn++
+      if (v.description) vol.withDesc++
+      if (!v.cover_image_url || !v.isbn || !v.description) vol.missingMeta++
+    }
   }
 
-  // 4. Price Tracking
-  let pricingScore: number
-  if (ownedVolumes > 0) {
-    const pricedOwned = allVolumes.filter(
-      (v) =>
-        v.ownership_status === "owned" &&
-        v.purchase_price != null &&
-        v.purchase_price > 0
-    ).length
-    pricingScore = (pricedOwned / ownedVolumes) * 20
-  } else {
-    pricingScore = 10
-  }
+  return { vol, ser }
+}
 
-  // 5. Metadata Quality
-  let metadataScore: number
-  if (totalVolumes > 0) {
-    const withCover = allVolumes.filter((v) => v.cover_image_url).length
-    const withIsbn = allVolumes.filter((v) => v.isbn).length
-    const withDesc = allVolumes.filter((v) => v.description).length
-    const avgFraction =
-      (withCover / totalVolumes +
-        withIsbn / totalVolumes +
-        withDesc / totalVolumes) /
-      3
-    metadataScore = avgFraction * 20
-  } else {
-    metadataScore = 0
-  }
+function computeFactors(vol: VolumeCounts, ser: SeriesCounts): HealthScoreFactor[] {
+  const { total, read, owned, pricedOwned, withCover, withIsbn, withDesc } = vol
 
-  const factors: HealthScoreFactor[] = [
+  const completionScore = total > 0 ? (read / total) * 20 : 0
+  const ownershipScore = total > 0 ? (owned / total) * 20 : 0
+  const completenessScore =
+    ser.withTotal > 0
+      ? (ser.completenessRatioSum / ser.withTotal) * 20
+      : 10
+  const pricingScore = owned > 0 ? (pricedOwned / owned) * 20 : 10
+  const metadataScore =
+    total > 0
+      ? ((withCover / total + withIsbn / total + withDesc / total) / 3) * 20
+      : 0
+
+  const round1 = (n: number) => Math.round(n * 10) / 10
+  return [
     {
       id: "completion",
       label: "Completion Rate",
-      score: Math.round(completionScore * 10) / 10,
+      score: round1(completionScore),
       maxScore: 20,
-      description: `${readVolumes} of ${totalVolumes} volumes read`
+      description: `${read} of ${total} volumes read`
     },
     {
       id: "ownership",
       label: "Ownership",
-      score: Math.round(ownershipScore * 10) / 10,
+      score: round1(ownershipScore),
       maxScore: 20,
-      description: `${ownedVolumes} of ${totalVolumes} volumes owned`
+      description: `${owned} of ${total} volumes owned`
     },
     {
       id: "completeness",
       label: "Series Completeness",
-      score: Math.round(completenessScore * 10) / 10,
+      score: round1(completenessScore),
       maxScore: 20,
       description:
-        seriesWithTotal.length > 0
-          ? `${seriesWithTotal.length} series with tracked totals`
+        ser.withTotal > 0
+          ? `${ser.withTotal} series with tracked totals`
           : "No series have total volume counts set"
     },
     {
       id: "pricing",
       label: "Price Tracking",
-      score: Math.round(pricingScore * 10) / 10,
+      score: round1(pricingScore),
       maxScore: 20,
       description:
-        ownedVolumes > 0
-          ? `${allVolumes.filter((v) => v.ownership_status === "owned" && v.purchase_price != null && v.purchase_price > 0).length} of ${ownedVolumes} owned volumes priced`
+        owned > 0
+          ? `${pricedOwned} of ${owned} owned volumes priced`
           : "No owned volumes yet"
     },
     {
       id: "metadata",
       label: "Metadata Quality",
-      score: Math.round(metadataScore * 10) / 10,
+      score: round1(metadataScore),
       maxScore: 20,
-      description:
-        totalVolumes > 0
-          ? "Covers, ISBNs, and descriptions"
-          : "No volumes to evaluate"
+      description: total > 0 ? "Covers, ISBNs, and descriptions" : "No volumes to evaluate"
     }
   ]
+}
 
-  const overall = Math.round(factors.reduce((s, f) => s + f.score, 0))
+const SUGGESTION_BUILDERS: Record<
+  string,
+  (vol: VolumeCounts, ser: SeriesCounts) => string | null
+> = {
+  completion: (vol) => {
+    const remaining = vol.total - vol.read
+    return remaining > 0
+      ? `Mark ${remaining} more volume${remaining === 1 ? "" : "s"} as read to improve your completion rate`
+      : null
+  },
+  ownership: (vol) =>
+    vol.wishlisted > 0
+      ? `You have ${vol.wishlisted} wishlisted volume${vol.wishlisted === 1 ? "" : "s"} — consider purchasing some`
+      : null,
+  completeness: (_vol, ser) =>
+    ser.untracked > 0
+      ? `Set total volume counts on ${ser.untracked} series to track completeness`
+      : null,
+  pricing: (vol) =>
+    vol.unpricedOwned > 0
+      ? `Add purchase prices to ${vol.unpricedOwned} owned volume${vol.unpricedOwned === 1 ? "" : "s"} for better tracking`
+      : null,
+  metadata: (vol) =>
+    vol.missingMeta > 0
+      ? `Add cover images, ISBNs, or descriptions to ${vol.missingMeta} volume${vol.missingMeta === 1 ? "" : "s"}`
+      : null
+}
 
-  // Generate suggestions for lowest-scoring factors
+function buildSuggestions(
+  factors: HealthScoreFactor[],
+  vol: VolumeCounts,
+  ser: SeriesCounts
+): string[] {
   const sorted = [...factors].sort((a, b) => a.score - b.score)
   const suggestions: string[] = []
 
   for (const factor of sorted) {
     if (suggestions.length >= 3) break
     if (factor.score >= factor.maxScore * 0.8) continue
-
-    switch (factor.id) {
-      case "completion": {
-        const remaining = totalVolumes - readVolumes
-        if (remaining > 0) {
-          suggestions.push(
-            `Mark ${remaining} more volume${remaining === 1 ? "" : "s"} as read to improve your completion rate`
-          )
-        }
-        break
-      }
-      case "ownership": {
-        const wishlisted = allVolumes.filter(
-          (v) => v.ownership_status === "wishlist"
-        ).length
-        if (wishlisted > 0) {
-          suggestions.push(
-            `You have ${wishlisted} wishlisted volume${wishlisted === 1 ? "" : "s"} — consider purchasing some`
-          )
-        }
-        break
-      }
-      case "completeness": {
-        const untracked = series.filter(
-          (s) => s.total_volumes == null || s.total_volumes === 0
-        ).length
-        if (untracked > 0) {
-          suggestions.push(
-            `Set total volume counts on ${untracked} series to track completeness`
-          )
-        }
-        break
-      }
-      case "pricing": {
-        const unpricedOwned = allVolumes.filter(
-          (v) =>
-            v.ownership_status === "owned" &&
-            (v.purchase_price == null || v.purchase_price <= 0)
-        ).length
-        if (unpricedOwned > 0) {
-          suggestions.push(
-            `Add purchase prices to ${unpricedOwned} owned volume${unpricedOwned === 1 ? "" : "s"} for better tracking`
-          )
-        }
-        break
-      }
-      case "metadata": {
-        const missingMeta = allVolumes.filter(
-          (v) => !v.cover_image_url || !v.isbn || !v.description
-        ).length
-        if (missingMeta > 0) {
-          suggestions.push(
-            `Add cover images, ISBNs, or descriptions to ${missingMeta} volume${missingMeta === 1 ? "" : "s"}`
-          )
-        }
-        break
-      }
-    }
+    const builder = SUGGESTION_BUILDERS[factor.id]
+    const msg = builder?.(vol, ser)
+    if (msg) suggestions.push(msg)
   }
+
+  return suggestions
+}
+
+// O(S + V) single-pass aggregation (was ~11 separate filter passes over all volumes)
+export function computeHealthScore(
+  series: readonly SeriesWithVolumes[]
+): HealthScore {
+  const { vol, ser } = tallyAll(series)
+  const factors = computeFactors(vol, ser)
+  const overall = Math.round(factors.reduce((s, f) => s + f.score, 0))
 
   return {
     overall,
     label: getLabel(overall),
     factors,
-    suggestions
+    suggestions: buildSuggestions(factors, vol, ser)
   }
 }
