@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
@@ -10,9 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PriceAlertsDashboardCard } from "@/components/library/price-alerts-dashboard-card"
 import { RecentlyAddedContent } from "@/components/dashboard/recently-added"
 import {
-  computeCollectionStats,
-  computePriceBreakdown,
-  computeWishlistStats,
   computeSuggestedBuys,
   computeSuggestionCounts,
   computeReleases,
@@ -20,7 +17,71 @@ import {
   getRecentVolumes,
   getCurrentlyReading
 } from "@/lib/library/analytics"
+import type {
+  CollectionStats,
+  PriceBreakdown,
+  WishlistStats
+} from "@/lib/library/analytics"
+import { fetchAnalytics } from "@/lib/api/endpoints"
+import type { FetchAnalyticsResponse } from "@/lib/api/types"
 import { RecommendationsCard } from "@/components/library/recommendations-card"
+
+const EMPTY_COLLECTION_STATS: CollectionStats = {
+  totalSeries: 0,
+  totalVolumes: 0,
+  ownedVolumes: 0,
+  readVolumes: 0,
+  readingVolumes: 0,
+  lightNovelSeries: 0,
+  mangaSeries: 0,
+  totalSpent: 0,
+  pricedVolumes: 0,
+  averagePricePerTrackedVolume: 0,
+  wishlistCount: 0,
+  completeSets: 0
+}
+
+const EMPTY_PRICE_BREAKDOWN: PriceBreakdown = {
+  lnSpent: 0,
+  mangaSpent: 0,
+  minPrice: 0,
+  maxPrice: 0,
+  medianPrice: 0,
+  trackedCount: 0,
+  spendingBySeries: [],
+  maxSeriesSpent: 0
+}
+
+const EMPTY_WISHLIST_STATS: WishlistStats = {
+  totalWishlistCost: 0,
+  wishlistPricedCount: 0,
+  averageWishlistPrice: 0,
+  topWishlistedSeries: [],
+  maxWishlistSeriesCount: 0,
+  totalCount: 0
+}
+
+function useAnalytics() {
+  const [data, setData] = useState<FetchAnalyticsResponse | null>(null)
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true)
+
+  const refetch = useCallback(async () => {
+    try {
+      const result = await fetchAnalytics()
+      setData(result)
+    } catch {
+      // Fall through to null
+    } finally {
+      setIsAnalyticsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refetch()
+  }, [refetch])
+
+  return { analytics: data, isAnalyticsLoading, refetchAnalytics: refetch }
+}
 
 /**
  * Dashboard page displaying collection stats, reading progress, price tracking, and suggested purchases.
@@ -28,6 +89,7 @@ import { RecommendationsCard } from "@/components/library/recommendations-card"
  */
 export default function DashboardPage() {
   const { series, fetchSeries, isLoading } = useLibrary()
+  const { analytics, isAnalyticsLoading } = useAnalytics()
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
   )
@@ -39,7 +101,9 @@ export default function DashboardPage() {
     }
   }, [series.length, fetchSeries])
 
-  const stats = useMemo(() => computeCollectionStats(series), [series])
+  const stats = analytics?.collectionStats ?? EMPTY_COLLECTION_STATS
+  const priceBreakdown = analytics?.priceBreakdown ?? EMPTY_PRICE_BREAKDOWN
+  const wishlistStats = analytics?.wishlistStats ?? EMPTY_WISHLIST_STATS
 
   const priceFormatter = useMemo(() => {
     try {
@@ -65,21 +129,15 @@ export default function DashboardPage() {
   // Recently added tab state
   const [recentTab, setRecentTab] = useState<"series" | "volumes">("series")
 
-  // Price tracking breakdown
-  const priceBreakdown = useMemo(() => computePriceBreakdown(series), [series])
-
-  // Wishlist stats
-  const wishlistStats = useMemo(() => computeWishlistStats(series), [series])
-
   // What to buy next suggestions
+  const allSuggestions = useMemo(() => computeSuggestedBuys(series), [series])
   const suggestedNextBuys = useMemo(
-    () => computeSuggestedBuys(series, 8),
-    [series]
+    () => allSuggestions.slice(0, 8),
+    [allSuggestions]
   )
-
   const suggestionCounts = useMemo(
-    () => computeSuggestionCounts(computeSuggestedBuys(series)),
-    [series]
+    () => computeSuggestionCounts(allSuggestions),
+    [allSuggestions]
   )
 
   // Upcoming releases (nearest future publish dates)
@@ -98,7 +156,7 @@ export default function DashboardPage() {
       ? Math.round((stats.ownedVolumes / stats.totalVolumes) * 100)
       : 0
 
-  if (isLoading && series.length === 0) {
+  if ((isLoading && series.length === 0) || isAnalyticsLoading) {
     return (
       <div className="dashboard-container mx-auto max-w-7xl px-6 py-10 lg:px-10">
         <Skeleton className="mb-1 h-8 w-36" />

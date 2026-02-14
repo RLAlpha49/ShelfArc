@@ -1,4 +1,9 @@
 import type { BookSearchResult, BookSearchSource } from "@/lib/books/search"
+import type {
+  CollectionStats,
+  PriceBreakdown,
+  WishlistStats
+} from "@/lib/library/analytics"
 import type { PriceAlert } from "@/lib/types/database"
 
 // ── Search ──────────────────────────────────────────────────────────
@@ -62,6 +67,15 @@ export interface FetchPriceResponse {
 
 export interface FetchAlertsResponse {
   data: PriceAlert[]
+}
+
+// ── Analytics ───────────────────────────────────────────────────────
+
+/** Pre-computed dashboard analytics response. @source */
+export interface FetchAnalyticsResponse {
+  collectionStats: CollectionStats
+  priceBreakdown: PriceBreakdown
+  wishlistStats: WishlistStats
 }
 
 // ── Library ─────────────────────────────────────────────────────────

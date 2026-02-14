@@ -1,6 +1,7 @@
 import { apiFetch } from "./client"
 import type {
   FetchAlertsResponse,
+  FetchAnalyticsResponse,
   FetchLibraryParams,
   FetchLibrarySeriesResponse,
   FetchLibraryVolumesResponse,
@@ -56,6 +57,12 @@ export function fetchPriceAlerts(
   signal?: AbortSignal
 ): Promise<FetchAlertsResponse> {
   return apiFetch<FetchAlertsResponse>("/api/books/price/alerts", { signal })
+}
+
+export function fetchAnalytics(
+  signal?: AbortSignal
+): Promise<FetchAnalyticsResponse> {
+  return apiFetch<FetchAnalyticsResponse>("/api/library/analytics", { signal })
 }
 
 export function fetchLibrary(
