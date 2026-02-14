@@ -28,6 +28,7 @@ import type {
   IsbnImportStatus
 } from "@/lib/csv/types"
 import type { OwnershipStatus } from "@/lib/types/database"
+import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { FileDownloadIcon } from "@hugeicons/core-free-icons"
 
@@ -76,12 +77,12 @@ const STATUS_CONFIG: Record<
     icon: "📖"
   },
   adding: {
-    label: "Adding…",
+    label: "Importing…",
     color: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
     icon: "📥"
   },
   added: {
-    label: "Added",
+    label: "Imported",
     color: "bg-green-500/10 text-green-700 dark:text-green-400",
     icon: "✓"
   },
@@ -316,6 +317,10 @@ function IdlePhase({
 }>) {
   return (
     <div className="space-y-6">
+      <p className="text-muted-foreground text-sm">
+        Import books by providing a file with ISBN numbers. ShelfArc will look
+        up each ISBN and add matching books to your library.
+      </p>
       <button
         type="button"
         className={`relative w-full cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
@@ -763,7 +768,7 @@ function ActivePhaseHeader({
             </span>
             {stats.added > 0 && (
               <span className="text-green-600 dark:text-green-400">
-                {stats.added} added
+                {stats.added} imported
               </span>
             )}
             {stats.notFound > 0 && <span>{stats.notFound} not found</span>}
@@ -815,7 +820,7 @@ function CompletionSummary({
         <div className="text-muted-foreground mt-2 flex justify-center gap-4 text-sm">
           {stats.added > 0 && (
             <span className="text-green-600 dark:text-green-400">
-              ✓ {stats.added} added
+              ✓ {stats.added} imported
             </span>
           )}
           {stats.notFound > 0 && <span>✗ {stats.notFound} not found</span>}
@@ -933,7 +938,12 @@ export function CsvImport() {
       const ext = file.name.toLowerCase()
       const isValid =
         ext.endsWith(".csv") || ext.endsWith(".tsv") || ext.endsWith(".txt")
-      if (isValid) void parseFile(file)
+      if (isValid) {
+        void parseFile(file)
+      } else {
+        const fileExt = file.name.split(".").pop() ?? "unknown"
+        toast.error(`Expected a .csv, .tsv, or .txt file, got .${fileExt}`)
+      }
     },
     [parseFile]
   )

@@ -285,7 +285,7 @@ async function importReplace(
     .select()
 
   if (seriesError || !insertedSeries) {
-    throw new Error("Failed to insert series")
+    throw new Error("Failed to import series. Please try again.")
   }
 
   const allVolumes = collectVolumes(
@@ -299,7 +299,7 @@ async function importReplace(
   onPhase(2, `Importing ${allVolumes.length} volumes...`)
   if (allVolumes.length > 0) {
     const { error: volError } = await volumesTable.insert(allVolumes)
-    if (volError) throw new Error("Failed to insert volumes")
+    if (volError) throw new Error("Failed to import volumes. Please try again.")
   }
 
   return `Imported ${insertedSeries.length} series with ${allVolumes.length} volumes`
@@ -394,7 +394,8 @@ async function importMerge(
     .select("id, title, type")
     .eq("user_id", userId)
 
-  if (fetchError) throw new Error("Failed to fetch existing series")
+  if (fetchError)
+    throw new Error("Failed to read existing collection. Please try again.")
 
   const { newPairs, matchedPairs } = categoriseSeriesPairs(
     seriesPairs,
@@ -410,7 +411,8 @@ async function importMerge(
     const { data, error } = await seriesTable
       .insert(newPairs.map((p) => p.insert))
       .select()
-    if (error || !data) throw new Error("Failed to insert new series")
+    if (error || !data)
+      throw new Error("Failed to import new series. Please try again.")
     newSeriesIds = data
   }
 
@@ -433,7 +435,8 @@ async function importMerge(
       .select("id, series_id, volume_number, edition")
       .eq("user_id", userId)
 
-    if (volFetchError) throw new Error("Failed to fetch existing volumes")
+    if (volFetchError)
+      throw new Error("Failed to read existing volumes. Please try again.")
 
     const { toInsert } = partitionVolumes(allVolumes, existingVolumes ?? [])
 
@@ -443,7 +446,8 @@ async function importMerge(
     // strategies now safely insert only non-existing volumes.
     if (toInsert.length > 0) {
       const { error: insertError } = await volumesTable.insert(toInsert)
-      if (insertError) throw new Error("Failed to insert volumes")
+      if (insertError)
+        throw new Error("Failed to import volumes. Please try again.")
     }
   }
 
@@ -663,7 +667,10 @@ export function JsonImport() {
       const content = await file.text()
 
       if (!file.name.endsWith(".json")) {
-        throw new TypeError("Please select a JSON file exported from ShelfArc")
+        const ext = file.name.split(".").pop() ?? "unknown"
+        throw new TypeError(
+          `Expected a .json file, got .${ext}. Only ShelfArc JSON exports are supported.`
+        )
       }
 
       const data = parseImportJson(content)
@@ -677,7 +684,9 @@ export function JsonImport() {
 
       setPreview({ seriesCount: data.length, volumeCount, data })
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to parse file")
+      toast.error(
+        err instanceof Error ? err.message : "Failed to read the import file"
+      )
       setPreview(null)
     }
   }
@@ -725,7 +734,7 @@ export function JsonImport() {
       const {
         data: { user }
       } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not authenticated")
+      if (!user) throw new Error("You must be signed in to import data")
 
       const seriesTable = supabase.from(
         "series"
@@ -741,7 +750,9 @@ export function JsonImport() {
       }
 
       if (seriesPairs.length === 0) {
-        toast.success("No valid series to import")
+        toast.info(
+          "No valid series found. Ensure each series in the file has a title."
+        )
         return
       }
 
@@ -773,7 +784,11 @@ export function JsonImport() {
         fileInputRef.current.value = ""
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to import data")
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Failed to import data. Please try again."
+      )
       setImportPhases([])
     } finally {
       setIsImporting(false)
@@ -782,8 +797,12 @@ export function JsonImport() {
 
   return (
     <div className="space-y-6">
+      <p className="text-muted-foreground text-sm">
+        Restore your collection from a ShelfArc JSON export. You can merge into
+        your existing library or replace it entirely.
+      </p>
       <div className="space-y-3">
-        <Label htmlFor="json-file">Select File</Label>
+        <Label htmlFor="json-file">Select JSON file</Label>
         <input
           ref={fileInputRef}
           type="file"
@@ -793,7 +812,8 @@ export function JsonImport() {
           className="text-muted-foreground file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 block w-full cursor-pointer text-sm file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium"
         />
         <p className="text-muted-foreground text-xs">
-          Only JSON exports from ShelfArc are supported
+          Accepts .json files previously exported from ShelfArc. Other formats
+          are not supported.
         </p>
       </div>
 
@@ -826,11 +846,11 @@ export function JsonImport() {
               <RadioGroupItem value="merge" id="merge" className="mt-1" />
               <div className="space-y-1">
                 <Label htmlFor="merge" className="cursor-pointer font-medium">
-                  Add to Collection
+                  Merge into Collection
                 </Label>
                 <p className="text-muted-foreground text-sm">
-                  Import entries into your existing collection. Choose how to
-                  handle conflicts below.
+                  Import new entries into your existing collection. Choose how
+                  to handle duplicates below.
                 </p>
               </div>
             </div>
@@ -844,8 +864,8 @@ export function JsonImport() {
                   Replace Collection
                 </Label>
                 <p className="text-muted-foreground text-sm">
-                  Delete all existing data and import fresh. This cannot be
-                  undone.
+                  Delete all existing data and import from scratch. This action
+                  cannot be undone.
                 </p>
               </div>
             </div>

@@ -1730,7 +1730,7 @@ export default function SettingsPage() {
                     Export Data
                   </h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    Download your collection as JSON or CSV for backup or
+                    Export your collection as JSON or CSV for backup or
                     migration.
                   </p>
                 </div>

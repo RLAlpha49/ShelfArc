@@ -58,7 +58,7 @@ export default function ImportPage() {
                   CSV Import
                 </TabsTrigger>
                 <TabsTrigger value="json" className="rounded-lg">
-                  JSON Backup
+                  JSON Import
                 </TabsTrigger>
               </TabsList>
             </CardHeader>

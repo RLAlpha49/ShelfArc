@@ -252,7 +252,7 @@ export function useCsvImport({
     useNotificationStore.getState().addNotification({
       type: "import_complete",
       title: "CSV Import Complete",
-      message: `Added ${added} volumes. ${notFound} not found, ${errors} errors.`
+      message: `Imported ${added} book${added === 1 ? "" : "s"}. ${notFound} not found, ${errors} error${errors === 1 ? "" : "s"}.`
     })
 
     setPhase("complete")
@@ -299,7 +299,10 @@ export function useCsvImport({
           }
           updateItem(i, {
             status: "error",
-            error: err instanceof Error ? err.message : "Unknown error"
+            error:
+              err instanceof Error
+                ? err.message
+                : "An unexpected error occurred"
           })
         }
 

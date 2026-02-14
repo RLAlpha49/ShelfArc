@@ -165,10 +165,7 @@ describe("library-store", () => {
       useLibraryStore.getState().setSeries([sw1])
 
       const v2 = makeVolume({ id: "v2", series_id: "s2" })
-      const sw2 = makeSeriesWithVolumes(
-        { id: "s2", title: "Second" },
-        [v2]
-      )
+      const sw2 = makeSeriesWithVolumes({ id: "s2", title: "Second" }, [v2])
       useLibraryStore.getState().addSeries(sw2)
 
       const s = useLibraryStore.getState()
@@ -303,9 +300,9 @@ describe("library-store", () => {
       const v = makeVolume({ id: "v1", series_id: "s1" })
       const sw = makeSeriesWithVolumes({ id: "s1" }, [v])
       useLibraryStore.getState().setSeries([sw])
-      useLibraryStore.getState().setSelectedSeries(
-        useLibraryStore.getState().series[0]
-      )
+      useLibraryStore
+        .getState()
+        .setSelectedSeries(useLibraryStore.getState().series[0])
 
       useLibraryStore.getState().deleteVolume("s1", "v1")
 
@@ -341,9 +338,7 @@ describe("library-store", () => {
 
     it("updateUnassignedVolume is a no-op for unknown id", () => {
       const before = useLibraryStore.getState()
-      useLibraryStore
-        .getState()
-        .updateUnassignedVolume("nope", { rating: 1 })
+      useLibraryStore.getState().updateUnassignedVolume("nope", { rating: 1 })
       expect(useLibraryStore.getState()).toBe(before)
     })
 
@@ -683,9 +678,7 @@ describe("library-store", () => {
       const sw = makeSeriesWithVolumes({ id: "s1" }, [v])
       useLibraryStore.getState().setSeries([sw])
 
-      expect(
-        selectVolumeById(useLibraryStore.getState(), "v1")?.id
-      ).toBe("v1")
+      expect(selectVolumeById(useLibraryStore.getState(), "v1")?.id).toBe("v1")
     })
 
     it("selectVolumeById returns undefined for unknown id", () => {
@@ -705,9 +698,9 @@ describe("library-store", () => {
     })
 
     it("selectSeriesVolumes returns empty for unknown series", () => {
-      expect(
-        selectSeriesVolumes(useLibraryStore.getState(), "nope")
-      ).toEqual([])
+      expect(selectSeriesVolumes(useLibraryStore.getState(), "nope")).toEqual(
+        []
+      )
     })
 
     it("selectAllVolumes returns all assigned and unassigned", () => {

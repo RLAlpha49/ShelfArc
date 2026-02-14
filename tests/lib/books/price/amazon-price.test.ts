@@ -14,7 +14,9 @@ import { ApiError } from "@/lib/books/price/api-error"
 const params = (obj: Record<string, string>) => new URLSearchParams(obj)
 
 /** Build a minimal SearchContext for parseAmazonResult tests. */
-const makeContext = (overrides: Partial<SearchContext> = {}): SearchContext => ({
+const makeContext = (
+  overrides: Partial<SearchContext> = {}
+): SearchContext => ({
   domain: "amazon.com",
   host: "www.amazon.com",
   title: "One Piece",
@@ -64,9 +66,7 @@ const makeResultItem = ({
   const priceBlock = price
     ? `<span class="a-price"><span class="a-offscreen">${price}</span></span>`
     : ""
-  const imgBlock = imageUrl
-    ? `<img class="s-image" src="${imageUrl}" />`
-    : ""
+  const imgBlock = imageUrl ? `<img class="s-image" src="${imageUrl}" />` : ""
 
   return `
     <div data-component-type="s-search-result" data-asin="${asin}"${adAttr}>
@@ -673,9 +673,7 @@ describe("parseAmazonResult — URL & image extraction", () => {
       includePrice: true,
       includeImage: false
     })
-    expect(result.productUrl).toBe(
-      "https://www.amazon.com/dp/B0MYASIN01"
-    )
+    expect(result.productUrl).toBe("https://www.amazon.com/dp/B0MYASIN01")
   })
 
   it("extracts full-size image URL from thumbnail", () => {
@@ -683,8 +681,7 @@ describe("parseAmazonResult — URL & image extraction", () => {
       makeResultItem({
         title: "One Piece, Vol. 1",
         price: "$9.99",
-        imageUrl:
-          "https://m.media-amazon.com/images/I/51abc123._AC_UY218_.jpg"
+        imageUrl: "https://m.media-amazon.com/images/I/51abc123._AC_UY218_.jpg"
       })
     )
     const ctx = makeContext()
@@ -702,8 +699,7 @@ describe("parseAmazonResult — URL & image extraction", () => {
       makeResultItem({
         title: "One Piece, Vol. 1",
         price: "$9.99",
-        imageUrl:
-          "https://m.media-amazon.com/images/I/51abc123._AC_UY218_.jpg"
+        imageUrl: "https://m.media-amazon.com/images/I/51abc123._AC_UY218_.jpg"
       })
     )
     const ctx = makeContext()
@@ -762,9 +758,7 @@ describe("parseAmazonResult — URL & image extraction", () => {
       includePrice: true,
       includeImage: false
     })
-    expect(result.productUrl).toBe(
-      "https://www.amazon.co.uk/dp/B0UK12345"
-    )
+    expect(result.productUrl).toBe("https://www.amazon.co.uk/dp/B0UK12345")
   })
 })
 
@@ -924,8 +918,7 @@ describe("parseAmazonResult — result shape", () => {
         asin: "B012345",
         title: "One Piece, Vol. 1",
         price: "$9.99",
-        imageUrl:
-          "https://m.media-amazon.com/images/I/51test._AC_UY218_.jpg"
+        imageUrl: "https://m.media-amazon.com/images/I/51test._AC_UY218_.jpg"
       })
     )
     const ctx = makeContext()
@@ -986,8 +979,7 @@ describe("parseAmazonResult — multi-result ranking", () => {
     const html = wrapInSearchPage(
       makeResultItem({
         asin: "A1",
-        title:
-          "One Piece, Vol. 1 Collector Premium Deluxe Gold Limited Legacy",
+        title: "One Piece, Vol. 1 Collector Premium Deluxe Gold Limited Legacy",
         price: "$49.99"
       }),
       makeResultItem({

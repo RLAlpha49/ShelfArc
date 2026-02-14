@@ -291,7 +291,7 @@ export default function ExportPage() {
         `Exported ${payload.series.length} series and ${payload.volumes.length} volume${payload.volumes.length === 1 ? "" : "s"}`
       )
     } catch {
-      toast.error("Failed to export data")
+      toast.error("Failed to export data. Please try again.")
     } finally {
       setIsExporting(false)
     }
@@ -328,9 +328,9 @@ export default function ExportPage() {
           <CardHeader>
             <CardTitle>Export Your Library</CardTitle>
             <CardDescription>
-              Download your entire collection—or export just a subset for
-              sharing or migration. Use JSON for backup &amp; re-import; CSV is
-              best for spreadsheets and manual editing.
+              Export your entire collection or just a subset for sharing or
+              migration. Use JSON for backup and re-import, or CSV for
+              spreadsheets and manual editing.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

@@ -14,7 +14,12 @@ import { NextRequest, NextResponse } from "next/server"
 /* ------------------------------------------------------------------ */
 
 const getUserMock = mock(async () => ({
-  data: { user: { id: "user-1", email: "test@example.com" } as { id: string; email: string } | null },
+  data: {
+    user: { id: "user-1", email: "test@example.com" } as {
+      id: string
+      email: string
+    } | null
+  },
   error: null
 }))
 
@@ -22,7 +27,11 @@ const getUserMock = mock(async () => ({
 const setAllSpy = mock((_: unknown[]) => {})
 
 const createServerClientMock = mock(
-  (_url: string, _key: string, opts: { cookies: { setAll: typeof setAllSpy } }) => {
+  (
+    _url: string,
+    _key: string,
+    opts: { cookies: { setAll: typeof setAllSpy } }
+  ) => {
     setAllSpy.mockImplementation((cookiesToSet: unknown[]) => {
       opts.cookies.setAll(cookiesToSet as never)
     })
@@ -86,8 +95,7 @@ function redirectLocation(res: NextResponse): string {
   return res.headers.get("location") ?? ""
 }
 
-const loadModule = async () =>
-  await import("../../../lib/supabase/middleware")
+const loadModule = async () => await import("../../../lib/supabase/middleware")
 
 /* ================================================================== */
 /*  Tests                                                              */
@@ -148,15 +156,11 @@ describe("lib/supabase/middleware — updateSession", () => {
 
     it("preserves sub-paths in redirect param", async () => {
       const { updateSession } = await loadModule()
-      const res = await updateSession(
-        makeRequest("/library/series/one-piece")
-      )
+      const res = await updateSession(makeRequest("/library/series/one-piece"))
 
       const loc = new URL(redirectLocation(res))
       expect(loc.pathname).toBe("/login")
-      expect(loc.searchParams.get("redirect")).toBe(
-        "/library/series/one-piece"
-      )
+      expect(loc.searchParams.get("redirect")).toBe("/library/series/one-piece")
     })
 
     it("does not call Supabase when cookie is absent", async () => {
@@ -189,9 +193,7 @@ describe("lib/supabase/middleware — updateSession", () => {
       getUserMock.mockResolvedValueOnce({ data: { user: null }, error: null })
 
       const { updateSession } = await loadModule()
-      await updateSession(
-        makeRequest("/library", { withAuthCookie: true })
-      )
+      await updateSession(makeRequest("/library", { withAuthCookie: true }))
 
       expect(createServerClientMock).toHaveBeenCalledTimes(1)
       expect(getUserMock).toHaveBeenCalledTimes(1)
@@ -234,9 +236,7 @@ describe("lib/supabase/middleware — updateSession", () => {
 
     it("refreshes session by calling getUser", async () => {
       const { updateSession } = await loadModule()
-      await updateSession(
-        makeRequest("/dashboard", { withAuthCookie: true })
-      )
+      await updateSession(makeRequest("/dashboard", { withAuthCookie: true }))
 
       expect(getUserMock).toHaveBeenCalledTimes(1)
     })
@@ -331,7 +331,9 @@ describe("lib/supabase/middleware — updateSession", () => {
       const cookieOpts = createServerClientMock.mock.calls[0][2]
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accessing runtime-injected getAll from mock
       const cookies = (cookieOpts.cookies as any).getAll()
-      expect(cookies.some((c: { name: string }) => c.name === "sb-test-auth-token")).toBe(true)
+      expect(
+        cookies.some((c: { name: string }) => c.name === "sb-test-auth-token")
+      ).toBe(true)
     })
   })
 
