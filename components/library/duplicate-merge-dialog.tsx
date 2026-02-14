@@ -216,15 +216,47 @@ function buildAutoMergePatch(
   return patch
 }
 
+function buildMergedPatch(
+  keep: Volume,
+  others: Volume[],
+  allItems: VolumeRef[],
+  overrides: Record<string, string> | undefined,
+  shouldAutoMerge: boolean
+): Partial<Volume> | null {
+  const patch: Record<string, unknown> = shouldAutoMerge
+    ? (buildAutoMergePatch(keep, others) ?? {})
+    : {}
+
+  if (overrides) {
+    const allVolumes = allItems.map((r) => r.volume)
+    for (const [fieldKey, volumeId] of Object.entries(overrides)) {
+      const source = allVolumes.find((v) => v.id === volumeId)
+      if (source) patch[fieldKey] = source[fieldKey as keyof Volume]
+    }
+  }
+
+  const keepRecord = keep as Record<string, unknown>
+  for (const key of Object.keys(patch)) {
+    if (patch[key] === keepRecord[key]) delete patch[key]
+  }
+
+  return Object.keys(patch).length > 0 ? (patch as Partial<Volume>) : null
+}
+
 /** Comparison fields to highlight differences between duplicate volumes. */
 const COMPARE_FIELDS = [
-  { key: "isbn", label: "ISBN" },
   { key: "title", label: "Title" },
+  { key: "isbn", label: "ISBN" },
   { key: "edition", label: "Edition" },
   { key: "format", label: "Format" },
   { key: "page_count", label: "Pages" },
-  { key: "rating", label: "Rating" },
+  { key: "publish_date", label: "Published" },
+  { key: "purchase_date", label: "Purchased" },
   { key: "purchase_price", label: "Price" },
+  { key: "ownership_status", label: "Ownership" },
+  { key: "reading_status", label: "Reading" },
+  { key: "rating", label: "Rating" },
+  { key: "amazon_url", label: "Amazon" },
   { key: "notes", label: "Notes" }
 ] as const
 
@@ -247,6 +279,21 @@ function getDifferingFields(items: VolumeRef[]): Set<string> {
   return differing
 }
 
+function formatFieldValue(key: string, value: unknown): string {
+  if (value == null || value === "") return "—"
+  if (key === "purchase_price") return `$${value}`
+  if (key === "rating") return `${value}/10`
+  if (key === "amazon_url") {
+    const s = String(value)
+    return s.length > 40 ? s.slice(0, 40) + "…" : s
+  }
+  if (key === "notes") {
+    const s = String(value)
+    return s.length > 60 ? s.slice(0, 60) + "…" : s
+  }
+  return String(value)
+}
+
 /** Dialog that finds duplicate volumes and helps resolve them by merging/deleting. @source */
 export function DuplicateMergeDialog({
   open,
@@ -266,6 +313,12 @@ export function DuplicateMergeDialog({
   const [keepByGroupId, setKeepByGroupId] = useState<Record<string, string>>({})
   const [busyGroupId, setBusyGroupId] = useState<string | null>(null)
   const [autoMerge, setAutoMerge] = useState(true)
+  const [fieldDiffOpen, setFieldDiffOpen] = useState<Record<string, boolean>>(
+    {}
+  )
+  const [fieldOverrides, setFieldOverrides] = useState<
+    Record<string, Record<string, string>>
+  >({})
 
   const totalDuplicateVolumes = useMemo(() => {
     return groups.reduce((sum, g) => sum + g.items.length, 0)
@@ -289,11 +342,16 @@ export function DuplicateMergeDialog({
 
       setBusyGroupId(group.id)
       try {
-        if (autoMerge) {
-          const patch = buildAutoMergePatch(keep, others)
-          if (patch) {
-            await editVolume(keep.series_id ?? null, keep.id, patch)
-          }
+        const overrides = fieldOverrides[group.id]
+        const patch = buildMergedPatch(
+          keep,
+          others,
+          group.items,
+          overrides,
+          autoMerge
+        )
+        if (patch) {
+          await editVolume(keep.series_id ?? null, keep.id, patch)
         }
 
         for (const other of others) {
@@ -310,7 +368,7 @@ export function DuplicateMergeDialog({
         setBusyGroupId(null)
       }
     },
-    [autoMerge, editVolume, keepByGroupId, removeVolume]
+    [autoMerge, editVolume, fieldOverrides, keepByGroupId, removeVolume]
   )
 
   const hasAnyData = series.length > 0 || unassignedVolumes.length > 0
@@ -446,6 +504,25 @@ export function DuplicateMergeDialog({
                       <span className="text-muted-foreground text-xs tabular-nums">
                         {group.items.length} entries
                       </span>
+                      {differingFields.size > 0 && (
+                        <Button
+                          variant={
+                            fieldDiffOpen[group.id] ? "secondary" : "ghost"
+                          }
+                          size="sm"
+                          onClick={() =>
+                            setFieldDiffOpen((prev) => ({
+                              ...prev,
+                              [group.id]: !prev[group.id]
+                            }))
+                          }
+                          className="rounded-xl text-xs"
+                          aria-expanded={fieldDiffOpen[group.id] ?? false}
+                          aria-controls={`field-diff-${group.id}`}
+                        >
+                          {fieldDiffOpen[group.id] ? "Hide Diff" : "Compare"}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -492,12 +569,17 @@ export function DuplicateMergeDialog({
                           <button
                             key={volume.id}
                             type="button"
-                            onClick={() =>
+                            onClick={() => {
                               setKeepByGroupId((prev) => ({
                                 ...prev,
                                 [group.id]: volume.id
                               }))
-                            }
+                              setFieldOverrides((prev) => {
+                                const next = { ...prev }
+                                delete next[group.id]
+                                return next
+                              })
+                            }}
                             className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors ${
                               isKept ? "bg-copper/5" : "hover:bg-muted/30"
                             }`}
@@ -625,6 +707,147 @@ export function DuplicateMergeDialog({
                         )
                       })}
                     </div>
+
+                    {/* Field-diff comparison table */}
+                    {fieldDiffOpen[group.id] && differingFields.size > 0 && (
+                      <section
+                        id={`field-diff-${group.id}`}
+                        className="border-t"
+                        aria-label="Field comparison"
+                      >
+                        <div className="flex items-stretch border-b bg-muted/20">
+                          <div className="flex w-24 shrink-0 items-center px-3 py-2 sm:w-28">
+                            <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+                              Field
+                            </span>
+                          </div>
+                          <div className="flex flex-1 items-stretch divide-x">
+                            {group.items.map((ref) => (
+                              <div
+                                key={ref.volume.id}
+                                className="flex flex-1 items-center px-3 py-2"
+                              >
+                                <span
+                                  className={`truncate text-[10px] font-medium ${
+                                    ref.volume.id === keepValue
+                                      ? "text-copper"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  Vol. {ref.volume.volume_number}
+                                  {ref.volume.id === keepValue && " · primary"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="divide-y">
+                          {COMPARE_FIELDS.filter((field) =>
+                            group.items.some((ref) => {
+                              const v =
+                                ref.volume[field.key as keyof Volume]
+                              return v != null && v !== ""
+                            })
+                          ).map((field) => {
+                            const isDiffering = differingFields.has(field.key)
+                            const selectedId =
+                              fieldOverrides[group.id]?.[field.key] ?? keepValue
+
+                            return (
+                              <div
+                                key={field.key}
+                                className={`flex items-stretch ${
+                                  isDiffering ? "" : "opacity-40"
+                                }`}
+                              >
+                                <div className="flex w-24 shrink-0 items-center border-r px-3 py-1.5 sm:w-28">
+                                  <span
+                                    className={`text-[11px] font-medium ${
+                                      isDiffering
+                                        ? "text-copper"
+                                        : "text-muted-foreground"
+                                    }`}
+                                  >
+                                    {field.label}
+                                  </span>
+                                </div>
+                                <div className="flex flex-1 items-stretch divide-x">
+                                  {group.items.map((ref) => {
+                                    const value =
+                                      ref.volume[field.key as keyof Volume]
+                                    const isSelected =
+                                      ref.volume.id === selectedId
+                                    const display = formatFieldValue(
+                                      field.key,
+                                      value
+                                    )
+
+                                    return isDiffering ? (
+                                      <button
+                                        key={ref.volume.id}
+                                        type="button"
+                                        onClick={() =>
+                                          setFieldOverrides((prev) => ({
+                                            ...prev,
+                                            [group.id]: {
+                                              ...prev[group.id],
+                                              [field.key]: ref.volume.id
+                                            }
+                                          }))
+                                        }
+                                        className={`flex flex-1 items-center gap-1.5 px-3 py-1.5 text-left text-[11px] transition-colors ${
+                                          isSelected
+                                            ? "bg-copper/8 text-foreground"
+                                            : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                                        }`}
+                                        aria-pressed={isSelected}
+                                        aria-label={`Use ${field.label} value from volume ${ref.volume.volume_number}`}
+                                      >
+                                        <span
+                                          className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${
+                                            isSelected
+                                              ? "border-copper bg-copper"
+                                              : "border-muted-foreground/40"
+                                          }`}
+                                          aria-hidden="true"
+                                        >
+                                          {isSelected && (
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              viewBox="0 0 24 24"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              strokeWidth="3"
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              className="h-1.5 w-1.5 text-white"
+                                            >
+                                              <path d="M20 6 9 17l-5-5" />
+                                            </svg>
+                                          )}
+                                        </span>
+                                        <span className="truncate">
+                                          {display}
+                                        </span>
+                                      </button>
+                                    ) : (
+                                      <div
+                                        key={ref.volume.id}
+                                        className="text-muted-foreground flex flex-1 items-center px-3 py-1.5 text-[11px]"
+                                      >
+                                        <span className="truncate">
+                                          {display}
+                                        </span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </section>
+                    )}
                   </div>
                 )
               })}
