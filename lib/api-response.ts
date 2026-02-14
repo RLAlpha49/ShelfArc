@@ -12,6 +12,8 @@ export type ApiErrorOptions = {
   details?: unknown
   /** Optional extra top-level fields to preserve existing response shapes. @source */
   extra?: Record<string, unknown>
+  /** Optional correlation ID to include in the response body and headers. @source */
+  correlationId?: string
 }
 
 /**
@@ -29,13 +31,20 @@ export const apiError = (
 ) => {
   const extra = options?.extra ?? {}
   const details = options?.details
+  const correlationId = options?.correlationId
 
   const body: ApiErrorEnvelope & Record<string, unknown> = {
     ...extra,
     error,
-    ...(details === undefined ? {} : { details })
+    ...(details === undefined ? {} : { details }),
+    ...(correlationId ? { correlationId } : {})
   }
-  return NextResponse.json(body, { status })
+
+  const headers: HeadersInit = correlationId
+    ? { "x-correlation-id": correlationId }
+    : {}
+
+  return NextResponse.json(body, { status, headers })
 }
 
 /**

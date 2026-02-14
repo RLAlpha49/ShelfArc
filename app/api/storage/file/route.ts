@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 import { isSafeStoragePath } from "@/lib/storage/safe-path"
 import { apiError } from "@/lib/api-response"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { logger } from "@/lib/logger"
 
 /** Supabase Storage bucket for user media files. @source */
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media"
@@ -14,6 +16,9 @@ const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media"
  * @source
  */
 export async function GET(request: NextRequest) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
   const path = request.nextUrl.searchParams.get("path")?.trim()
 
   if (!path) {
@@ -45,7 +50,9 @@ export async function GET(request: NextRequest) {
     .download(path)
 
   if (error || !data) {
-    console.error("Storage download failed", error)
+    log.error("Storage download failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(404, "Not found")
   }
 
@@ -61,6 +68,8 @@ export async function GET(request: NextRequest) {
   if (typeof contentLength === "number") {
     headers["Content-Length"] = String(contentLength)
   }
+
+  headers[CORRELATION_HEADER] = correlationId
 
   return new Response(data, { headers })
 }

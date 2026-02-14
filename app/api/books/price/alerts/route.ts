@@ -3,10 +3,15 @@ import { createUserClient } from "@/lib/supabase/server"
 import { apiError } from "@/lib/api-response"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { isNonNegativeFinite } from "@/lib/validation"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
   try {
     const supabase = await createUserClient()
     const {
@@ -27,9 +32,13 @@ export async function GET(request: NextRequest) {
     })
 
     if (error) return apiError(500, "Failed to fetch price alerts")
-    return NextResponse.json({ data })
+    const response = NextResponse.json({ data })
+    response.headers.set(CORRELATION_HEADER, correlationId)
+    return response
   } catch (error) {
-    console.error("Price alerts fetch failed", error)
+    log.error("Price alerts fetch failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(500, "Failed to fetch price alerts")
   }
 }
@@ -37,6 +46,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
+
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
 
   try {
     const supabase = await createUserClient()
@@ -73,9 +85,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) return apiError(500, "Failed to save price alert")
-    return NextResponse.json({ data })
+    const response = NextResponse.json({ data })
+    response.headers.set(CORRELATION_HEADER, correlationId)
+    return response
   } catch (error) {
-    console.error("Price alert save failed", error)
+    log.error("Price alert save failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(500, "Failed to save price alert")
   }
 }
@@ -83,6 +99,9 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
+
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
 
   try {
     const supabase = await createUserClient()
@@ -110,9 +129,13 @@ export async function PATCH(request: NextRequest) {
       .single()
 
     if (error) return apiError(500, "Failed to trigger price alert")
-    return NextResponse.json({ data })
+    const response = NextResponse.json({ data })
+    response.headers.set(CORRELATION_HEADER, correlationId)
+    return response
   } catch (error) {
-    console.error("Price alert trigger failed", error)
+    log.error("Price alert trigger failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(500, "Failed to trigger price alert")
   }
 }
@@ -120,6 +143,9 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
+
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
 
   try {
     const supabase = await createUserClient()
@@ -138,9 +164,13 @@ export async function DELETE(request: NextRequest) {
       .eq("user_id", user.id)
 
     if (error) return apiError(500, "Failed to delete price alert")
-    return NextResponse.json({ success: true })
+    const response = NextResponse.json({ success: true })
+    response.headers.set(CORRELATION_HEADER, correlationId)
+    return response
   } catch (error) {
-    console.error("Price alert delete failed", error)
+    log.error("Price alert delete failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(500, "Failed to delete price alert")
   }
 }

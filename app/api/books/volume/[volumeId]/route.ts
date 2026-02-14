@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { normalizeGoogleBooksItems } from "@/lib/books/search"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
 import { apiError } from "@/lib/api-response"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { logger } from "@/lib/logger"
 
 /** Google Books Volumes API base URL. @source */
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -74,6 +76,9 @@ interface RouteContext {
  * @source
  */
 export async function GET(request: NextRequest, { params }: RouteContext) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
   const { volumeId: paramVolumeId } = await params
   const volumeIdFromParams = paramVolumeId.trim()
   const fallbackSegment = request.nextUrl.pathname
@@ -111,9 +116,13 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       return apiError(404, "Google Books volume not found")
     }
 
-    return NextResponse.json({ result })
+    const jsonResponse = NextResponse.json({ result })
+    jsonResponse.headers.set(CORRELATION_HEADER, correlationId)
+    return jsonResponse
   } catch (error) {
-    console.error("Google Books volume fetch failed", error)
+    log.error("Google Books volume fetch failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(502, "Google Books volume fetch failed")
   }
 }

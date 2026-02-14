@@ -1,6 +1,8 @@
 import { type NextRequest } from "next/server"
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
 import { apiError } from "@/lib/api-response"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { logger } from "@/lib/logger"
 
 /** Base URL for the Open Library Covers API. @source */
 const OPEN_LIBRARY_BASE = "https://covers.openlibrary.org/b/isbn"
@@ -18,6 +20,9 @@ const FETCH_TIMEOUT_MS = 5000
  * @source
  */
 export async function GET(request: NextRequest) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
   const isbnRaw = request.nextUrl.searchParams.get("isbn")?.trim() ?? ""
   const sizeRaw = request.nextUrl.searchParams.get("size")?.trim() ?? "L"
 
@@ -46,7 +51,9 @@ export async function GET(request: NextRequest) {
     ) {
       return new Response(null, { status: 504 })
     }
-    console.error("Open Library cover fetch failed", error)
+    log.error("Open Library cover fetch failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return new Response(null, { status: 502 })
   }
 
@@ -87,6 +94,7 @@ export async function GET(request: NextRequest) {
     "public, max-age=86400, stale-while-revalidate=604800"
   )
   headers.set("X-Content-Type-Options", "nosniff")
+  headers.set(CORRELATION_HEADER, correlationId)
 
   return new Response(response.body, { headers })
 }

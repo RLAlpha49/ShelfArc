@@ -3,10 +3,15 @@ import { createUserClient } from "@/lib/supabase/server"
 import { apiError } from "@/lib/api-response"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { isNonNegativeFinite } from "@/lib/validation"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
   try {
     const supabase = await createUserClient()
     const {
@@ -26,9 +31,13 @@ export async function GET(request: NextRequest) {
       .limit(100)
 
     if (error) return apiError(500, "Failed to fetch price history")
-    return NextResponse.json({ data })
+    const response = NextResponse.json({ data })
+    response.headers.set(CORRELATION_HEADER, correlationId)
+    return response
   } catch (error) {
-    console.error("Price history fetch failed", error)
+    log.error("Price history fetch failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(500, "Failed to fetch price history")
   }
 }
@@ -36,6 +45,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
+
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
 
   try {
     const supabase = await createUserClient()
@@ -77,9 +89,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) return apiError(500, "Failed to save price history")
-    return NextResponse.json({ data })
+    const response = NextResponse.json({ data })
+    response.headers.set(CORRELATION_HEADER, correlationId)
+    return response
   } catch (error) {
-    console.error("Price history save failed", error)
+    log.error("Price history save failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(500, "Failed to save price history")
   }
 }

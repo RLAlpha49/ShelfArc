@@ -17,6 +17,8 @@ import {
   ConcurrencyLimitError,
   ConcurrencyLimiter
 } from "@/lib/concurrency/limiter"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { logger } from "@/lib/logger"
 
 /** Forces dynamic (uncached) rendering for this route. @source */
 export const dynamic = "force-dynamic"
@@ -148,6 +150,9 @@ const enforceRequestRateLimit = async (requestLimitKey: string) => {
  * @source
  */
 export async function GET(request: NextRequest) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
   try {
     const globalCooldown = checkGlobalCooldown()
     if (globalCooldown) return globalCooldown
@@ -172,7 +177,7 @@ export async function GET(request: NextRequest) {
         includeImage
       })
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         searchUrl: context.searchUrl,
         domain: context.domain,
         expectedTitle: context.expectedTitle,
@@ -189,6 +194,8 @@ export async function GET(request: NextRequest) {
           imageUrl: parsed.imageUrl
         }
       })
+      response.headers.set(CORRELATION_HEADER, correlationId)
+      return response
     })
   } catch (error) {
     if (error instanceof ConcurrencyLimitError) {
@@ -205,7 +212,9 @@ export async function GET(request: NextRequest) {
       return jsonError(error)
     }
 
-    console.error("Amazon price lookup failed", error)
+    log.error("Amazon price lookup failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return apiError(500, "Amazon price lookup failed")
   }
 }

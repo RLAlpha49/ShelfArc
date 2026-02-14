@@ -12,6 +12,8 @@ import {
   ConcurrencyLimitError,
   ConcurrencyLimiter
 } from "@/lib/concurrency/limiter"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { logger, type Logger } from "@/lib/logger"
 
 /** Forces Node.js runtime for sharp image processing. @source */
 export const runtime = "nodejs"
@@ -97,7 +99,8 @@ type ProcessImageResult =
  */
 const enqueueFailedDeletion = async (
   supabase: ReturnType<typeof createAdminClient>,
-  record: FailedDeletionRecord
+  record: FailedDeletionRecord,
+  log: Logger
 ) => {
   try {
     const payload = JSON.stringify(record)
@@ -111,8 +114,8 @@ const enqueueFailedDeletion = async (
       })
 
     if (error) {
-      console.error("Failed to enqueue deletion record", {
-        error,
+      log.error("Failed to enqueue deletion record", {
+        error: error instanceof Error ? error.message : String(error),
         cleanupPath,
         record
       })
@@ -121,8 +124,8 @@ const enqueueFailedDeletion = async (
 
     return true
   } catch (error) {
-    console.error("Failed to enqueue deletion record", {
-      error,
+    log.error("Failed to enqueue deletion record", {
+      error: error instanceof Error ? error.message : String(error),
       record
     })
     return false
@@ -140,7 +143,8 @@ const enqueueFailedDeletion = async (
 const processImage = async (
   inputStream: Readable,
   spec: UploadSpec,
-  context: { userId: string; mimeType: string }
+  context: { userId: string; mimeType: string },
+  log: Logger
 ): Promise<ProcessImageResult> => {
   try {
     const transformer = sharp({ failOnError: true })
@@ -156,8 +160,8 @@ const processImage = async (
 
     return { ok: true, buffer }
   } catch (error) {
-    console.error("Image processing failed", {
-      error,
+    log.error("Image processing failed", {
+      error: error instanceof Error ? error.message : String(error),
       userId: context.userId,
       mimeType: context.mimeType
     })
@@ -182,8 +186,10 @@ const handleReplaceCleanup = async (params: {
   replacePathValue: string
   fileName: string
   userId: string
+  log: Logger
 }) => {
-  const { supabase, shouldReplace, replacePathValue, fileName, userId } = params
+  const { supabase, shouldReplace, replacePathValue, fileName, userId, log } =
+    params
 
   if (!shouldReplace || replacePathValue === fileName) {
     return
@@ -197,8 +203,10 @@ const handleReplaceCleanup = async (params: {
     return
   }
 
-  console.warn("Failed to remove previous image", {
-    error: removeError,
+  log.warn("Failed to remove previous image", {
+    error: removeError instanceof Error
+      ? removeError.message
+      : String(removeError),
     replacePathValue,
     fileName,
     userId
@@ -212,10 +220,10 @@ const handleReplaceCleanup = async (params: {
     timestamp: new Date().toISOString(),
     reason: "replace_remove_failed",
     removeError: removeErrorMessage
-  })
+  }, log)
 
   if (!enqueued) {
-    console.error("Failed to enqueue cleanup after replace removal failure", {
+    log.error("Failed to enqueue cleanup after replace removal failure", {
       replacePathValue,
       fileName,
       userId,
@@ -297,6 +305,9 @@ const getUploadData = (formData: FormData, userId: string) => {
  * @source
  */
 export async function POST(request: Request) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
 
@@ -328,7 +339,7 @@ export async function POST(request: Request) {
         const optimizedResult = await processImage(inputStream, spec, {
           userId: user.id,
           mimeType: file.type
-        })
+        }, log)
 
         if (!optimizedResult.ok) {
           return optimizedResult.response
@@ -350,7 +361,11 @@ export async function POST(request: Request) {
           })
 
         if (uploadError) {
-          console.error("Storage upload failed", uploadError)
+          log.error("Storage upload failed", {
+            error: uploadError instanceof Error
+              ? uploadError.message
+              : String(uploadError)
+          })
           return buildError(isDev ? uploadError.message : "Upload failed", 500)
         }
 
@@ -359,13 +374,18 @@ export async function POST(request: Request) {
           shouldReplace,
           replacePathValue,
           fileName,
-          userId: user.id
+          userId: user.id,
+          log
         })
 
-        return NextResponse.json({ path: fileName })
+        const response = NextResponse.json({ path: fileName })
+        response.headers.set(CORRELATION_HEADER, correlationId)
+        return response
       } catch (error) {
         const message = getErrorMessage(error)
-        console.error("Image upload failed", error)
+        log.error("Image upload failed", {
+          error: error instanceof Error ? error.message : String(error)
+        })
         return buildError(isDev ? message : "Upload failed", 500)
       }
     })
@@ -377,7 +397,9 @@ export async function POST(request: Request) {
     }
 
     const message = getErrorMessage(error)
-    console.error("Image upload failed", error)
+    log.error("Image upload failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
     return buildError(isDev ? message : "Upload failed", 500)
   }
 }

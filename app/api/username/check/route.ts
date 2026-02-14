@@ -5,6 +5,7 @@ import { isValidUsername } from "@/lib/validation"
 import { isRateLimited, recordFailure } from "@/lib/rate-limit"
 import { apiError } from "@/lib/api-response"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
 
 /** Rate-limit config for username availability checks. @source */
 const USERNAME_CHECK_RATE_LIMIT = {
@@ -29,6 +30,8 @@ const getClientIp = (request: NextRequest) => {
  * @source
  */
 export async function GET(request: NextRequest) {
+  const correlationId = getCorrelationId(request)
+
   const username = request.nextUrl.searchParams.get("username")
 
   if (!isValidUsername(username)) {
@@ -83,5 +86,8 @@ export async function GET(request: NextRequest) {
     return apiError(500, "Failed to check username")
   }
 
-  return NextResponse.json({ available: data.length === 0 })
+  return NextResponse.json(
+    { available: data.length === 0 },
+    { headers: { [CORRELATION_HEADER]: correlationId } }
+  )
 }

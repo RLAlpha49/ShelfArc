@@ -9,6 +9,8 @@ import {
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
 import { apiError } from "@/lib/api-response"
+import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { logger, type Logger } from "@/lib/logger"
 
 /** Google Books Volumes API base URL. @source */
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -143,7 +145,8 @@ const fetchGoogleBooks = async (
   query: string,
   apiKeys: string[],
   page: number,
-  limit: number
+  limit: number,
+  log: Logger
 ): Promise<{ items: BookSearchResult[]; warning?: string }> => {
   const safeLimit = Math.min(Math.max(limit, 1), MAX_LIMIT)
   const startIndex = Math.max(page - 1, 0) * safeLimit
@@ -167,7 +170,7 @@ const fetchGoogleBooks = async (
     keyIndex = nextKeyIndex
 
     if (error) {
-      console.warn("Google Books batch failed", {
+      log.warn("Google Books batch failed", {
         retrieved: results.length,
         error
       })
@@ -192,7 +195,7 @@ const fetchGoogleBooks = async (
         errorDetails = undefined
       }
 
-      console.warn("Google Books batch failed", {
+      log.warn("Google Books batch failed", {
         status: response.status,
         statusText: response.statusText,
         retrieved: results.length,
@@ -256,6 +259,119 @@ const fetchOpenLibrary = async (
   return normalizeOpenLibraryDocs(data.docs ?? [])
 }
 
+/** Parsed and validated search query parameters. @source */
+type SearchParams = {
+  query: string
+  source: BookSearchSource
+  page: number
+  limit: number
+}
+
+/**
+ * Parses and validates search query parameters from the request URL.
+ * @param searchParams - URL search parameters.
+ * @returns Validated search parameters or null if query is missing.
+ * @source
+ */
+const parseSearchParams = (
+  searchParams: URLSearchParams
+): SearchParams | null => {
+  const query = searchParams.get("q")?.trim() ?? ""
+  if (!query) return null
+
+  const sourceParam = searchParams.get("source")
+  const pageParam = Number.parseInt(searchParams.get("page") ?? "1", 10)
+  const limitParam = Number.parseInt(
+    searchParams.get("limit") ?? String(DEFAULT_LIMIT),
+    10
+  )
+
+  return {
+    query,
+    source: sourceParam === "open_library" ? "open_library" : "google_books",
+    page: Number.isNaN(pageParam) ? 1 : Math.max(1, pageParam),
+    limit: Number.isNaN(limitParam)
+      ? DEFAULT_LIMIT
+      : Math.min(Math.max(limitParam, 1), MAX_LIMIT)
+  }
+}
+
+/**
+ * Handles Google Books search requests.
+ * @source
+ */
+const handleGoogleBooks = async (
+  params: SearchParams,
+  correlationId: string,
+  log: Logger
+) => {
+  const googleApiKeys = getGoogleBooksApiKeys()
+  if (googleApiKeys.length === 0) {
+    return apiError(400, "Google Books API key is not configured", {
+      extra: { results: [], sourceUsed: "google_books" }
+    })
+  }
+
+  try {
+    const { items, warning } = await fetchGoogleBooks(
+      params.query,
+      googleApiKeys,
+      params.page,
+      params.limit,
+      log
+    )
+    const response = NextResponse.json({
+      results: items,
+      sourceUsed: "google_books",
+      page: params.page,
+      limit: params.limit,
+      ...(warning ? { warning } : {})
+    })
+    response.headers.set(CORRELATION_HEADER, correlationId)
+    return response
+  } catch (error) {
+    log.error("Google Books search failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
+    return apiError(502, "Google Books search failed", {
+      extra: { results: [], sourceUsed: "google_books" }
+    })
+  }
+}
+
+/**
+ * Handles Open Library search requests.
+ * @source
+ */
+const handleOpenLibrary = async (
+  params: SearchParams,
+  correlationId: string,
+  log: Logger
+) => {
+  try {
+    const results: BookSearchResult[] = await fetchOpenLibrary(
+      params.query,
+      params.page,
+      params.limit
+    )
+    const response = NextResponse.json({
+      results,
+      sourceUsed: "open_library",
+      page: params.page,
+      limit: params.limit
+    })
+    response.headers.set(CORRELATION_HEADER, correlationId)
+    return response
+  } catch (error) {
+    log.error("Open Library search failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
+    return apiError(502, "Open Library search failed", {
+      extra: { results: [], sourceUsed: "open_library" }
+    })
+  }
+}
+
 /**
  * Book search endpoint supporting Google Books and Open Library sources.
  * @param request - Incoming request with `q`, optional `source`, `page`, and `limit` query parameters.
@@ -263,76 +379,20 @@ const fetchOpenLibrary = async (
  * @source
  */
 export async function GET(request: NextRequest) {
-  const query = request.nextUrl.searchParams.get("q")?.trim() ?? ""
-  const sourceParam = request.nextUrl.searchParams.get("source")
-  const pageParam = Number.parseInt(
-    request.nextUrl.searchParams.get("page") ?? "1",
-    10
-  )
-  const limitParam = Number.parseInt(
-    request.nextUrl.searchParams.get("limit") ?? String(DEFAULT_LIMIT),
-    10
-  )
-  const source: BookSearchSource =
-    sourceParam === "open_library" ? "open_library" : "google_books"
-  const page = Number.isNaN(pageParam) ? 1 : Math.max(1, pageParam)
-  const limit = Number.isNaN(limitParam)
-    ? DEFAULT_LIMIT
-    : Math.min(Math.max(limitParam, 1), MAX_LIMIT)
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
 
-  if (!query) {
+  const params = parseSearchParams(request.nextUrl.searchParams)
+  if (!params) {
     return NextResponse.json(
       { results: [], sourceUsed: null, error: "Missing query" },
       { status: 400 }
     )
   }
 
-  if (source === "google_books") {
-    const googleApiKeys = getGoogleBooksApiKeys()
-    if (googleApiKeys.length === 0) {
-      return apiError(400, "Google Books API key is not configured", {
-        extra: { results: [], sourceUsed: "google_books" }
-      })
-    }
-
-    try {
-      const { items, warning } = await fetchGoogleBooks(
-        query,
-        googleApiKeys,
-        page,
-        limit
-      )
-      return NextResponse.json({
-        results: items,
-        sourceUsed: "google_books",
-        page,
-        limit,
-        ...(warning ? { warning } : {})
-      })
-    } catch (error) {
-      console.error("Google Books search failed", error)
-      return apiError(502, "Google Books search failed", {
-        extra: { results: [], sourceUsed: "google_books" }
-      })
-    }
+  if (params.source === "google_books") {
+    return handleGoogleBooks(params, correlationId, log)
   }
 
-  try {
-    const results: BookSearchResult[] = await fetchOpenLibrary(
-      query,
-      page,
-      limit
-    )
-    return NextResponse.json({
-      results,
-      sourceUsed: "open_library",
-      page,
-      limit
-    })
-  } catch (error) {
-    console.error("Open Library search failed", error)
-    return apiError(502, "Open Library search failed", {
-      extra: { results: [], sourceUsed: "open_library" }
-    })
-  }
+  return handleOpenLibrary(params, correlationId, log)
 }
