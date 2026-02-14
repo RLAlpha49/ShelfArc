@@ -1,14 +1,31 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { VolumeDialog } from "@/components/library/volume-dialog"
-import { SeriesDialog } from "@/components/library/series-dialog"
-import { BulkScrapeDialog } from "@/components/library/bulk-scrape-dialog"
-import { BookSearchDialog } from "@/components/library/book-search-dialog"
+
+const VolumeDialog = lazy(() =>
+  import("@/components/library/volume-dialog").then((m) => ({
+    default: m.VolumeDialog
+  }))
+)
+const SeriesDialog = lazy(() =>
+  import("@/components/library/series-dialog").then((m) => ({
+    default: m.SeriesDialog
+  }))
+)
+const BulkScrapeDialog = lazy(() =>
+  import("@/components/library/bulk-scrape-dialog").then((m) => ({
+    default: m.BulkScrapeDialog
+  }))
+)
+const BookSearchDialog = lazy(() =>
+  import("@/components/library/book-search-dialog").then((m) => ({
+    default: m.BookSearchDialog
+  }))
+)
 import { VolumeCard } from "@/components/library/volume-card"
 import { VirtualizedWindowGrid } from "@/components/library/virtualized-window"
 import { EmptyState } from "@/components/empty-state"
@@ -1098,6 +1115,101 @@ const SeriesVolumesSection = ({
 }
 
 /**
+ * Applies a rating to a volume with validation and user feedback.
+ * @source
+ */
+async function applyRating(
+  volume: Volume,
+  rating: number | null,
+  editVolume: (
+    seriesId: string | null,
+    volumeId: string,
+    data: Partial<Volume>
+  ) => Promise<void>
+) {
+  if (!volume.series_id) return
+
+  if (rating == null) {
+    try {
+      await editVolume(volume.series_id, volume.id, { rating: null })
+      toast.success("Rating cleared")
+    } catch (err) {
+      toast.error(`Failed to update: ${getErrorMessage(err)}`)
+    }
+    return
+  }
+
+  if (!Number.isFinite(rating) || rating < 0 || rating > 10) {
+    toast.error("Rating must be between 0 and 10")
+    return
+  }
+
+  try {
+    await editVolume(volume.series_id, volume.id, { rating })
+    toast.success(`Rated ${rating}/10`)
+  } catch (err) {
+    toast.error(`Failed to update: ${getErrorMessage(err)}`)
+  }
+}
+
+/**
+ * Toggles a value in a Set, returning a new Set.
+ * @source
+ */
+function toggleInSet(set: Set<string>, value: string): Set<string> {
+  const next = new Set(set)
+  if (next.has(value)) {
+    next.delete(value)
+  } else {
+    next.add(value)
+  }
+  return next
+}
+
+/**
+ * Builds a currency formatter function for the given currency code.
+ * Falls back to USD on invalid currency codes.
+ * @source
+ */
+function buildCurrencyFormatter(currency: string) {
+  try {
+    const withDecimals = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+    const noDecimals = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })
+    return (value: number) =>
+      Number.isInteger(value)
+        ? noDecimals.format(value)
+        : withDecimals.format(value)
+  } catch {
+    const withDecimals = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+    const noDecimals = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })
+    return (value: number) =>
+      Number.isInteger(value)
+        ? noDecimals.format(value)
+        : withDecimals.format(value)
+  }
+}
+
+/**
  * Series detail page showing cover, metadata, volume grid, and editing controls.
  * @source
  */
@@ -1169,43 +1281,10 @@ export default function SeriesDetailPage() {
     return Array.from(new Set(normalized))
   }, [currentSeries])
 
-  const formatPrice = useMemo(() => {
-    try {
-      const withDecimals = new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: priceDisplayCurrency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })
-      const noDecimals = new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: priceDisplayCurrency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      })
-      return (value: number) =>
-        Number.isInteger(value)
-          ? noDecimals.format(value)
-          : withDecimals.format(value)
-    } catch {
-      const withDecimals = new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })
-      const noDecimals = new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      })
-      return (value: number) =>
-        Number.isInteger(value)
-          ? noDecimals.format(value)
-          : withDecimals.format(value)
-    }
-  }, [priceDisplayCurrency])
+  const formatPrice = useMemo(
+    () => buildCurrencyFormatter(priceDisplayCurrency),
+    [priceDisplayCurrency]
+  )
 
   useEffect(() => {
     if (series.length === 0) {
@@ -1226,15 +1305,7 @@ export default function SeriesDetailPage() {
   }, [seriesId, router])
 
   const toggleVolumeSelection = useCallback((volumeId: string) => {
-    setSelectedVolumeIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(volumeId)) {
-        next.delete(volumeId)
-      } else {
-        next.add(volumeId)
-      }
-      return next
-    })
+    setSelectedVolumeIds((prev) => toggleInSet(prev, volumeId))
   }, [])
 
   const clearSelection = useCallback(() => {
@@ -1245,95 +1316,89 @@ export default function SeriesDetailPage() {
     clearSelection()
   }, [seriesId, clearSelection])
 
-  const handleAddVolume = async (
-    data: Omit<VolumeInsert, "user_id" | "series_id">
-  ) => {
-    if (!seriesId) {
-      const error = new Error("Invalid series id")
-      console.error(error)
-      toast.error(`Failed to add volume: ${error.message}`)
-      return
-    }
-    try {
-      await createVolume(seriesId, data)
-      toast.success("Volume added successfully")
-    } catch (err) {
-      console.error(err)
-      toast.error(`Failed to add volume: ${getErrorMessage(err)}`)
-    }
-  }
-
-  const handleEditVolume = async (
-    data: Omit<VolumeInsert, "user_id" | "series_id">
-  ) => {
-    if (!editingVolume) return
-    const currentSeriesId = editingVolume.series_id ?? null
-    const nextSeriesId = selectedSeriesId ?? null
-    try {
-      await editVolume(currentSeriesId, editingVolume.id, {
-        ...data,
-        series_id: nextSeriesId
-      })
-      toast.success("Volume updated successfully")
-      setEditingVolume(null)
-    } catch (err) {
-      console.error(err)
-      toast.error(`Failed to update volume: ${getErrorMessage(err)}`)
-    }
-  }
-
-  const handleEditSeries = async (
-    data: Omit<SeriesInsert, "user_id">,
-    options?: { volumeIds?: string[] }
-  ) => {
-    if (!currentSeries) return
-    void options
-    try {
-      await editSeries(currentSeries.id, data)
-      toast.success("Series updated successfully")
-    } catch (err) {
-      console.error(err)
-      toast.error(`Failed to update series: ${getErrorMessage(err)}`)
-    }
-  }
-
-  const handleCreateNewSeries = async (data: Omit<SeriesInsert, "user_id">) => {
-    try {
-      const newSeries = await createSeries(data)
-      toast.success("Series created successfully")
-      if (editingVolume) {
-        setSelectedSeriesId(newSeries.id)
-        setCreateSeriesDialogOpen(false)
-        setVolumeDialogOpen(true)
+  const handleAddVolume = useCallback(
+    async (data: Omit<VolumeInsert, "user_id" | "series_id">) => {
+      if (!seriesId) {
+        toast.error("Failed to add volume: Invalid series id")
+        return
       }
-    } catch (err) {
-      console.error(err)
-      toast.error(`Failed to create series: ${getErrorMessage(err)}`)
-    }
-  }
+      try {
+        await createVolume(seriesId, data)
+        toast.success("Volume added successfully")
+      } catch (err) {
+        toast.error(`Failed to add volume: ${getErrorMessage(err)}`)
+      }
+    },
+    [seriesId, createVolume]
+  )
 
-  const handleDeleteVolume = async () => {
-    if (isDeletingVolume) return
-    if (!deletingVolume) return
-    if (!deletingVolume.series_id) {
-      const error = new Error("Missing series id for volume")
-      console.error(error)
-      toast.error(`Failed to delete volume: ${error.message}`)
-      return
-    }
+  const handleEditVolume = useCallback(
+    async (data: Omit<VolumeInsert, "user_id" | "series_id">) => {
+      if (!editingVolume) return
+      const currentSeriesId = editingVolume.series_id ?? null
+      const nextSeriesId = selectedSeriesId ?? null
+      try {
+        await editVolume(currentSeriesId, editingVolume.id, {
+          ...data,
+          series_id: nextSeriesId
+        })
+        toast.success("Volume updated successfully")
+        setEditingVolume(null)
+      } catch (err) {
+        toast.error(`Failed to update volume: ${getErrorMessage(err)}`)
+      }
+    },
+    [editingVolume, selectedSeriesId, editVolume]
+  )
+
+  const handleEditSeries = useCallback(
+    async (
+      data: Omit<SeriesInsert, "user_id">,
+      options?: { volumeIds?: string[] }
+    ) => {
+      if (!currentSeries) return
+      void options
+      try {
+        await editSeries(currentSeries.id, data)
+        toast.success("Series updated successfully")
+      } catch (err) {
+        toast.error(`Failed to update series: ${getErrorMessage(err)}`)
+      }
+    },
+    [currentSeries, editSeries]
+  )
+
+  const handleCreateNewSeries = useCallback(
+    async (data: Omit<SeriesInsert, "user_id">) => {
+      try {
+        const newSeries = await createSeries(data)
+        toast.success("Series created successfully")
+        if (editingVolume) {
+          setSelectedSeriesId(newSeries.id)
+          setCreateSeriesDialogOpen(false)
+          setVolumeDialogOpen(true)
+        }
+      } catch (err) {
+        toast.error(`Failed to create series: ${getErrorMessage(err)}`)
+      }
+    },
+    [createSeries, editingVolume]
+  )
+
+  const handleDeleteVolume = useCallback(async () => {
+    if (isDeletingVolume || !deletingVolume?.series_id) return
     setIsDeletingVolume(true)
     try {
       await removeVolume(deletingVolume.series_id, deletingVolume.id)
       toast.success("Volume deleted successfully")
     } catch (err) {
-      console.error(err)
       toast.error(`Failed to delete volume: ${getErrorMessage(err)}`)
     } finally {
       setIsDeletingVolume(false)
       setDeletingVolume(null)
       setDeleteVolumeDialogOpen(false)
     }
-  }
+  }, [isDeletingVolume, deletingVolume, removeVolume])
 
   const handleDeleteSeries = useCallback(async () => {
     if (!currentSeries) return false
@@ -1473,30 +1538,7 @@ export default function SeriesDetailPage() {
   const handleSetRating = useCallback(
     async (volume: Volume, rating: number | null) => {
       if (!volume.series_id) return
-
-      if (rating == null) {
-        try {
-          await editVolume(volume.series_id, volume.id, { rating: null })
-          toast.success("Rating cleared")
-        } catch (err) {
-          console.error(err)
-          toast.error(`Failed to update: ${getErrorMessage(err)}`)
-        }
-        return
-      }
-
-      if (!Number.isFinite(rating) || rating < 0 || rating > 10) {
-        toast.error("Rating must be between 0 and 10")
-        return
-      }
-
-      try {
-        await editVolume(volume.series_id, volume.id, { rating })
-        toast.success(`Rated ${rating}/10`)
-      } catch (err) {
-        console.error(err)
-        toast.error(`Failed to update: ${getErrorMessage(err)}`)
-      }
+      await applyRating(volume, rating, editVolume)
     },
     [editVolume]
   )
@@ -1892,67 +1934,77 @@ export default function SeriesDetailPage() {
       />
 
       {/* Book Search Dialog */}
-      <BookSearchDialog
-        open={searchDialogOpen}
-        onOpenChange={setSearchDialogOpen}
-        onSelectResult={handleSearchSelect}
-        onSelectResults={handleSearchSelectMany}
-        onAddManual={openManualDialog}
-        context="volume"
-        existingIsbns={existingIsbns}
-      />
+      <Suspense fallback={null}>
+        <BookSearchDialog
+          open={searchDialogOpen}
+          onOpenChange={setSearchDialogOpen}
+          onSelectResult={handleSearchSelect}
+          onSelectResults={handleSearchSelectMany}
+          onAddManual={openManualDialog}
+          context="volume"
+          existingIsbns={existingIsbns}
+        />
+      </Suspense>
 
       {/* Add/Edit Volume Dialog */}
-      <VolumeDialog
-        open={volumeDialogOpen}
-        onOpenChange={(open) => {
-          setVolumeDialogOpen(open)
-          if (!open) {
-            setEditingVolume(null)
-            setSelectedSeriesId(null)
+      <Suspense fallback={null}>
+        <VolumeDialog
+          open={volumeDialogOpen}
+          onOpenChange={(open) => {
+            setVolumeDialogOpen(open)
+            if (!open) {
+              setEditingVolume(null)
+              setSelectedSeriesId(null)
+            }
+          }}
+          volume={editingVolume}
+          nextVolumeNumber={insights.nextVolumeNumber}
+          onSubmit={editingVolume ? handleEditVolume : handleAddVolume}
+          seriesOptions={editingVolume ? series : undefined}
+          selectedSeriesId={editingVolume ? selectedSeriesId : undefined}
+          onSeriesChange={editingVolume ? setSelectedSeriesId : undefined}
+          onCreateSeries={
+            editingVolume
+              ? () => {
+                  setVolumeDialogOpen(false)
+                  setCreateSeriesDialogOpen(true)
+                }
+              : undefined
           }
-        }}
-        volume={editingVolume}
-        nextVolumeNumber={insights.nextVolumeNumber}
-        onSubmit={editingVolume ? handleEditVolume : handleAddVolume}
-        seriesOptions={editingVolume ? series : undefined}
-        selectedSeriesId={editingVolume ? selectedSeriesId : undefined}
-        onSeriesChange={editingVolume ? setSelectedSeriesId : undefined}
-        onCreateSeries={
-          editingVolume
-            ? () => {
-                setVolumeDialogOpen(false)
-                setCreateSeriesDialogOpen(true)
-              }
-            : undefined
-        }
-        allowNoSeries={Boolean(editingVolume)}
-      />
+          allowNoSeries={Boolean(editingVolume)}
+        />
+      </Suspense>
 
-      <SeriesDialog
-        open={seriesDialogOpen}
-        onOpenChange={setSeriesDialogOpen}
-        series={currentSeries}
-        onSubmit={handleEditSeries}
-      />
+      <Suspense fallback={null}>
+        <SeriesDialog
+          open={seriesDialogOpen}
+          onOpenChange={setSeriesDialogOpen}
+          series={currentSeries}
+          onSubmit={handleEditSeries}
+        />
+      </Suspense>
 
-      <SeriesDialog
-        open={createSeriesDialogOpen}
-        onOpenChange={setCreateSeriesDialogOpen}
-        onSubmit={handleCreateNewSeries}
-      />
+      <Suspense fallback={null}>
+        <SeriesDialog
+          open={createSeriesDialogOpen}
+          onOpenChange={setCreateSeriesDialogOpen}
+          onSubmit={handleCreateNewSeries}
+        />
+      </Suspense>
 
-      <BulkScrapeDialog
-        open={bulkScrapeDialogOpen}
-        onOpenChange={(open) => {
-          setBulkScrapeDialogOpen(open)
-          if (!open) {
-            setBulkScrapeTarget(null)
-          }
-        }}
-        series={bulkScrapeTarget ?? currentSeries}
-        editVolume={editVolume}
-      />
+      <Suspense fallback={null}>
+        <BulkScrapeDialog
+          open={bulkScrapeDialogOpen}
+          onOpenChange={(open) => {
+            setBulkScrapeDialogOpen(open)
+            if (!open) {
+              setBulkScrapeTarget(null)
+            }
+          }}
+          series={bulkScrapeTarget ?? currentSeries}
+          editVolume={editVolume}
+        />
+      </Suspense>
 
       <AlertDialog
         open={deleteSeriesDialogOpen}

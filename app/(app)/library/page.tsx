@@ -1,14 +1,39 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { SeriesCard } from "@/components/library/series-card"
-import { SeriesDialog } from "@/components/library/series-dialog"
-import { AssignToSeriesDialog } from "@/components/library/assign-to-series-dialog"
-import { DuplicateMergeDialog } from "@/components/library/duplicate-merge-dialog"
-import { BulkScrapeDialog } from "@/components/library/bulk-scrape-dialog"
-import { VolumeDialog } from "@/components/library/volume-dialog"
-import { BookSearchDialog } from "@/components/library/book-search-dialog"
+
+const SeriesDialog = lazy(() =>
+  import("@/components/library/series-dialog").then((m) => ({
+    default: m.SeriesDialog
+  }))
+)
+const AssignToSeriesDialog = lazy(() =>
+  import("@/components/library/assign-to-series-dialog").then((m) => ({
+    default: m.AssignToSeriesDialog
+  }))
+)
+const DuplicateMergeDialog = lazy(() =>
+  import("@/components/library/duplicate-merge-dialog").then((m) => ({
+    default: m.DuplicateMergeDialog
+  }))
+)
+const BulkScrapeDialog = lazy(() =>
+  import("@/components/library/bulk-scrape-dialog").then((m) => ({
+    default: m.BulkScrapeDialog
+  }))
+)
+const VolumeDialog = lazy(() =>
+  import("@/components/library/volume-dialog").then((m) => ({
+    default: m.VolumeDialog
+  }))
+)
+const BookSearchDialog = lazy(() =>
+  import("@/components/library/book-search-dialog").then((m) => ({
+    default: m.BookSearchDialog
+  }))
+)
 import { LibraryToolbar } from "@/components/library/library-toolbar"
 import { VolumeCard } from "@/components/library/volume-card"
 import {
@@ -2318,10 +2343,12 @@ export default function LibraryPage() {
         onFindDuplicates={() => setDuplicateDialogOpen(true)}
       />
 
-      <DuplicateMergeDialog
-        open={duplicateDialogOpen}
-        onOpenChange={setDuplicateDialogOpen}
-      />
+      <Suspense fallback={null}>
+        <DuplicateMergeDialog
+          open={duplicateDialogOpen}
+          onOpenChange={setDuplicateDialogOpen}
+        />
+      </Suspense>
 
       {selectedCount > 0 && (
         <div className="animate-fade-in bg-background/90 sticky top-16 z-40 mx-auto my-3 max-w-4xl rounded-2xl border shadow-lg backdrop-blur-md">
@@ -2518,57 +2545,65 @@ export default function LibraryPage() {
       <div className="my-8 border-t" />
       <div>{renderContent()}</div>
 
-      <BookSearchDialog
-        open={searchDialogOpen}
-        onOpenChange={setSearchDialogOpen}
-        onSelectResult={handleSearchSelect}
-        onSelectResults={handleSearchSelectMany}
-        onAddManual={openManualDialog}
-        context="series"
-        existingIsbns={existingIsbns}
-      />
+      <Suspense fallback={null}>
+        <BookSearchDialog
+          open={searchDialogOpen}
+          onOpenChange={setSearchDialogOpen}
+          onSelectResult={handleSearchSelect}
+          onSelectResults={handleSearchSelectMany}
+          onAddManual={openManualDialog}
+          context="series"
+          existingIsbns={existingIsbns}
+        />
+      </Suspense>
 
-      <VolumeDialog
-        open={volumeDialogOpen}
-        onOpenChange={(open) => {
-          setVolumeDialogOpen(open)
-          if (!open) {
-            setEditingVolume(null)
-            setSelectedSeriesId(null)
-            setPendingSeriesSelection(false)
-          }
-        }}
-        volume={editingVolume}
-        nextVolumeNumber={getNextVolumeNumber(selectedSeriesId)}
-        onSubmit={editingVolume ? handleEditVolume : handleAddVolume}
-        seriesOptions={series}
-        selectedSeriesId={selectedSeriesId}
-        onSeriesChange={setSelectedSeriesId}
-        onCreateSeries={openSeriesDialogFromVolume}
-        allowNoSeries
-      />
+      <Suspense fallback={null}>
+        <VolumeDialog
+          open={volumeDialogOpen}
+          onOpenChange={(open) => {
+            setVolumeDialogOpen(open)
+            if (!open) {
+              setEditingVolume(null)
+              setSelectedSeriesId(null)
+              setPendingSeriesSelection(false)
+            }
+          }}
+          volume={editingVolume}
+          nextVolumeNumber={getNextVolumeNumber(selectedSeriesId)}
+          onSubmit={editingVolume ? handleEditVolume : handleAddVolume}
+          seriesOptions={series}
+          selectedSeriesId={selectedSeriesId}
+          onSeriesChange={setSelectedSeriesId}
+          onCreateSeries={openSeriesDialogFromVolume}
+          allowNoSeries
+        />
+      </Suspense>
 
-      <SeriesDialog
-        open={seriesDialogOpen}
-        onOpenChange={(open) => {
-          setSeriesDialogOpen(open)
-          if (!open) {
-            setEditingSeries(null)
-            setPendingSeriesSelection(false)
-          }
-        }}
-        series={editingSeries}
-        unassignedVolumes={unassignedVolumes}
-        onSubmit={editingSeries ? handleEditSeries : handleAddSeries}
-      />
+      <Suspense fallback={null}>
+        <SeriesDialog
+          open={seriesDialogOpen}
+          onOpenChange={(open) => {
+            setSeriesDialogOpen(open)
+            if (!open) {
+              setEditingSeries(null)
+              setPendingSeriesSelection(false)
+            }
+          }}
+          series={editingSeries}
+          unassignedVolumes={unassignedVolumes}
+          onSubmit={editingSeries ? handleEditSeries : handleAddSeries}
+        />
+      </Suspense>
 
-      <AssignToSeriesDialog
-        open={assignToSeriesDialogOpen}
-        onOpenChange={setAssignToSeriesDialogOpen}
-        series={series}
-        selectedVolumeCount={selectedUnassignedCount}
-        onAssign={assignSelectedUnassignedVolumes}
-      />
+      <Suspense fallback={null}>
+        <AssignToSeriesDialog
+          open={assignToSeriesDialogOpen}
+          onOpenChange={setAssignToSeriesDialogOpen}
+          series={series}
+          selectedVolumeCount={selectedUnassignedCount}
+          onAssign={assignSelectedUnassignedVolumes}
+        />
+      </Suspense>
 
       <AlertDialog
         open={deleteVolumeDialogOpen}
@@ -2620,16 +2655,18 @@ export default function LibraryPage() {
       </AlertDialog>
 
       {scrapeTarget && (
-        <BulkScrapeDialog
-          open
-          onOpenChange={(open) => {
-            if (!open) {
-              setScrapeTarget(null)
-            }
-          }}
-          series={scrapeTarget}
-          editVolume={editVolume}
-        />
+        <Suspense fallback={null}>
+          <BulkScrapeDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setScrapeTarget(null)
+              }
+            }}
+            series={scrapeTarget}
+            editVolume={editVolume}
+          />
+        </Suspense>
       )}
 
       <AlertDialog
