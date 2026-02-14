@@ -220,6 +220,13 @@ export function BulkScrapeDialog({
     (s) => s.setShowAmazonDisclaimer
   )
 
+  const isMultiSeries = useMemo(() => {
+    const seriesIds = new Set(
+      series.volumes.map((v) => v.series_id).filter(Boolean)
+    )
+    return seriesIds.size > 1
+  }, [series.volumes])
+
   const { jobs, isRunning, summary, cooldownMessage, start, cancel, reset } =
     useBulkScrape(series, editVolume)
 
@@ -315,8 +322,12 @@ export function BulkScrapeDialog({
             Bulk Amazon Scrape
           </DialogTitle>
           <DialogDescription>
-            Fetch Amazon data for all volumes in{" "}
-            <span className="text-foreground font-medium">{series.title}</span>
+            {isMultiSeries
+              ? `Fetch Amazon data for ${series.volumes.length} selected volumes across multiple series`
+              : <>
+                  Fetch Amazon data for all volumes in{" "}
+                  <span className="text-foreground font-medium">{series.title}</span>
+                </>}
           </DialogDescription>
         </DialogHeader>
 

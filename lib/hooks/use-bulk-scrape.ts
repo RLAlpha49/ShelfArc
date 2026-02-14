@@ -32,6 +32,7 @@ export interface VolumeJob {
   volumeNumber: number
   title: string
   seriesTitle?: string
+  originalSeriesId: string | null
   status: VolumeJobStatus
   errorMessage?: string
   priceResult?: number | null
@@ -390,6 +391,7 @@ export function useBulkScrape(
         seriesTitle:
           (vol as Volume & { _seriesTitle?: string })._seriesTitle ??
           series.title,
+        originalSeriesId: vol.series_id ?? series.id,
         status: shouldSkipVolume(vol, mode, skipExisting)
           ? "skipped"
           : "pending"
@@ -432,7 +434,7 @@ export function useBulkScrape(
 
         const outcome = await processJob(i, ctx)
 
-        if (outcome === "halt") return
+        if (outcome === "halt") break
         if (outcome === "abort") break
       }
 
@@ -585,7 +587,6 @@ async function handleSuccess(
 ): Promise<"ok" | "abort"> {
   const {
     jobs,
-    series,
     includePrice,
     includeImage,
     controller,
@@ -600,7 +601,7 @@ async function handleSuccess(
 
   if (Object.keys(updates).length > 0) {
     try {
-      await editVolume(series.id, jobs[i].volumeId, updates)
+      await editVolume(jobs[i].originalSeriesId, jobs[i].volumeId, updates)
     } catch {
       updateJob(i, { status: "failed", errorMessage: "Failed to save" }, setter)
       const continued = await interRequestDelay(controller.signal, isLast)
