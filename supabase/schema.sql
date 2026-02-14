@@ -619,6 +619,23 @@ CREATE TABLE IF NOT EXISTS price_alerts (
   UNIQUE(volume_id, user_id)
 );
 
+-- Series: user-scoped filtering by type, sorting by title/updated_at
+CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
+CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
+
+-- Volumes: user-scoped filtering by ownership/reading status and series membership
+CREATE INDEX IF NOT EXISTS idx_volumes_user_ownership ON volumes(user_id, ownership_status);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_reading ON volumes(user_id, reading_status);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_series ON volumes(user_id, series_id);
+CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_updated ON volumes(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_purchase_date ON volumes(user_id, purchase_date DESC);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_publish_date ON volumes(user_id, publish_date DESC);
+
+-- Price alerts: user-scoped active alert lookup
+CREATE INDEX IF NOT EXISTS idx_price_alerts_user_enabled ON price_alerts(user_id, enabled);
+
 -- Indexes for price_history
 CREATE INDEX IF NOT EXISTS idx_price_history_volume_id ON price_history(volume_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_user_id ON price_history(user_id);
