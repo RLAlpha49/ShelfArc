@@ -28,6 +28,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { CoverPreviewImage } from "@/components/library/cover-preview-image"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { uploadImage } from "@/lib/uploads/upload-image"
 import {
   extractStoragePath,
@@ -151,6 +152,7 @@ export function VolumeDialog({
   const uploadAbortRef = useRef<AbortController | null>(null)
   const priceAbortRef = useRef<AbortController | null>(null)
   const [formData, setFormData] = useState(defaultFormData)
+  const [activeTab, setActiveTab] = useState("general")
   const { persistPrice, fetchAlert: fetchPriceAlert } = usePriceHistory(
     volume?.id ?? ""
   )
@@ -266,6 +268,7 @@ export function VolumeDialog({
     }
     setCoverPreviewUrl(null)
     setCoverPreviewError(false)
+    setActiveTab("general")
     if (volume) {
       const ownershipStatus = isValidOwnershipStatus(volume.ownership_status)
         ? volume.ownership_status
@@ -679,349 +682,98 @@ export function VolumeDialog({
             </div>
           )}
 
-          {/* ── Cover + Volume Details ── */}
-          <div className="grid gap-x-6 gap-y-5 px-6 py-6 sm:grid-cols-[200px_minmax(0,1fr)]">
-            {/* Cover Art */}
-            <div className="flex flex-col items-center gap-3 sm:items-start">
-              {coverUrl && !coverPreviewError && (
-                <CoverPreviewImage
-                  key={coverUrl}
-                  src={coverUrl}
-                  alt="Cover preview"
-                  wrapperClassName="w-full max-w-[200px]"
-                  onError={() => {
-                    setCoverPreviewError(true)
-                    setPreviewUrl(null)
-                  }}
-                />
-              )}
-              {coverPreviewError && (
-                <div className="bg-muted text-muted-foreground flex aspect-2/3 w-full max-w-50 items-center justify-center rounded-xl text-xs">
-                  Preview unavailable
-                </div>
-              )}
-              {!coverUrl && !coverPreviewError && (
-                <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-full max-w-50 flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="text-muted-foreground/60 h-8 w-8"
-                  >
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                  </svg>
-                  <span className="text-muted-foreground/60 text-[10px]">
-                    No cover
-                  </span>
-                </div>
-              )}
+          {/* ── Tabbed Fields ── */}
+          <div className="px-6 py-5">
+            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as string)}>
+              <TabsList className="w-full overflow-x-auto">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="status">Status</TabsTrigger>
+                <TabsTrigger value="purchase">Purchase</TabsTrigger>
+                <TabsTrigger value="notes-cover">Notes & Cover</TabsTrigger>
+              </TabsList>
 
-              {/* Cover controls */}
-              <div className="w-full max-w-50 space-y-2.5">
-                <div className="space-y-1.5">
-                  <Label htmlFor="cover_image_url" className="text-[11px]">
-                    Cover URL
-                  </Label>
-                  <Input
-                    id="cover_image_url"
-                    type="url"
-                    placeholder="https://..."
-                    value={formData.cover_image_url}
-                    onChange={(e) => {
-                      setCoverPreviewError(false)
-                      updateField("cover_image_url", e.target.value)
-                    }}
-                    className="h-8 text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="cover_image_upload" className="text-[11px]">
-                    Upload Cover
-                  </Label>
-                  <Input
-                    id="cover_image_upload"
-                    type="file"
-                    accept="image/*"
-                    className="h-8 text-xs"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        if (file.size > MAX_COVER_SIZE_BYTES) {
-                          toast.error("Cover images must be 5MB or smaller.")
-                        } else {
-                          void handleCoverFileChange(file)
+              {/* ── General ── */}
+              <TabsContent value="general" keepMounted>
+                <div className="space-y-5 pt-3">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="volume_number">Volume Number *</Label>
+                      <Input
+                        id="volume_number"
+                        type="number"
+                        min={0}
+                        value={formData.volume_number}
+                        onChange={(e) =>
+                          updateField(
+                            "volume_number",
+                            Number.parseInt(e.target.value) || 1
+                          )
                         }
-                      }
-                      e.currentTarget.value = ""
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {formData.cover_image_url && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[11px]"
-                      onClick={() => {
-                        updateField("cover_image_url", "")
-                        setCoverPreviewError(false)
-                        setPreviewUrl(null)
-                      }}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                  {isUploadingCover && (
-                    <span className="text-muted-foreground text-xs">
-                      Uploading...
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-widest uppercase">
-                    Cover tools
-                  </p>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 rounded-lg"
-                        onClick={handleFetchAmazonImage}
-                        disabled={isBusy}
-                      >
-                        {isFetchingImage && isFetchingPrice ? (
-                          <>
-                            <svg
-                              className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                              />
-                            </svg>
-                            Fetching...
-                          </>
-                        ) : (
-                          "Fetch Amazon Image & Price"
-                        )}
-                      </Button>
+                        required
+                      />
                     </div>
-
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 rounded-lg"
-                        onClick={handleFetchAmazonImageOnly}
-                        disabled={isBusy}
-                      >
-                        {isFetchingImage && !isFetchingPrice ? (
-                          <>
-                            <svg
-                              className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                              />
-                            </svg>
-                            Fetching...
-                          </>
-                        ) : (
-                          "Fetch Amazon Image Only"
-                        )}
-                      </Button>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="title">Volume Title</Label>
+                      <Input
+                        id="title"
+                        placeholder="Optional subtitle"
+                        value={formData.title}
+                        onChange={(e) => updateField("title", e.target.value)}
+                      />
                     </div>
+                  </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full rounded-lg"
-                        onClick={handleOpenCoverSearch}
-                        disabled={!coverSearchUrl}
-                        title={
-                          coverSearchUrl
-                            ? "Search Google Images for cover art"
-                            : "Add a title to enable image search"
-                        }
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="mr-1.5 h-4 w-4"
-                        >
-                          <circle cx="11" cy="11" r="8" />
-                          <path d="m21 21-4.3-4.3" />
-                        </svg>
-                        Google Images
-                      </Button>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="edition">Edition</Label>
+                      <Input
+                        id="edition"
+                        placeholder="e.g. 1st, Deluxe"
+                        value={formData.edition}
+                        onChange={(e) => updateField("edition", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="format">Format</Label>
+                      <Input
+                        id="format"
+                        placeholder="e.g. Paperback, Hardcover"
+                        value={formData.format}
+                        onChange={(e) => updateField("format", e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </TabsContent>
 
-            {/* Volume Details */}
-            <div className="space-y-5">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="volume_number">Volume Number *</Label>
-                  <Input
-                    id="volume_number"
-                    type="number"
-                    min={0}
-                    value={formData.volume_number}
-                    onChange={(e) =>
-                      updateField(
-                        "volume_number",
-                        Number.parseInt(e.target.value) || 1
-                      )
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="title">Volume Title</Label>
-                  <Input
-                    id="title"
-                    placeholder="Optional subtitle"
-                    value={formData.title}
-                    onChange={(e) => updateField("title", e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="isbn">ISBN</Label>
-                  <Input
-                    id="isbn"
-                    placeholder="978-..."
-                    value={formData.isbn}
-                    onChange={(e) => updateField("isbn", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rating">Rating (1-10)</Label>
-                  <Input
-                    id="rating"
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={formData.rating}
-                    onChange={(e) => updateField("rating", e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <p className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-widest uppercase">
-                  Status
-                </p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="ownership_status">Ownership Status</Label>
-                    <Select
-                      value={formData.ownership_status}
-                      onValueChange={(value) => {
-                        if (value) {
-                          const updates: Partial<typeof formData> = {
-                            ownership_status: value as OwnershipStatus
-                          }
-                          if (
-                            autoPurchaseDate &&
-                            value === "owned" &&
-                            formData.ownership_status !== "owned" &&
-                            !formData.purchase_date
-                          ) {
-                            updates.purchase_date = new Date()
-                              .toISOString()
-                              .split("T")[0]
-                          }
-                          setFormData((prev) => ({ ...prev, ...updates }))
+              {/* ── Details ── */}
+              <TabsContent value="details" keepMounted>
+                <div className="space-y-5 pt-3">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="isbn">ISBN</Label>
+                      <Input
+                        id="isbn"
+                        placeholder="978-..."
+                        value={formData.isbn}
+                        onChange={(e) => updateField("isbn", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="page_count">Total Pages</Label>
+                      <Input
+                        id="page_count"
+                        type="number"
+                        min={0}
+                        value={formData.page_count}
+                        onChange={(e) =>
+                          updateField("page_count", e.target.value)
                         }
-                      }}
-                    >
-                      <SelectTrigger id="ownership_status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="owned">Owned</SelectItem>
-                        <SelectItem value="wishlist">Wishlist</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reading_status">Reading Status</Label>
-                    <Select
-                      value={formData.reading_status}
-                      onValueChange={(value) => {
-                        if (value) updateField("reading_status", value)
-                      }}
-                    >
-                      <SelectTrigger id="reading_status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unread">Unread</SelectItem>
-                        <SelectItem value="reading">Reading</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="on_hold">On Hold</SelectItem>
-                        <SelectItem value="dropped">Dropped</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
 
-              <div>
-                <p className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-widest uppercase">
-                  Publication
-                </p>
-                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="publish_date">Publish Date</Label>
                     <Input
@@ -1033,155 +785,447 @@ export function VolumeDialog({
                       }
                     />
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="edition">Edition</Label>
-                    <Input
-                      id="edition"
-                      placeholder="e.g. 1st, Deluxe"
-                      value={formData.edition}
-                      onChange={(e) => updateField("edition", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="format">Format</Label>
-                    <Input
-                      id="format"
-                      placeholder="e.g. Paperback, Hardcover"
-                      value={formData.format}
-                      onChange={(e) => updateField("format", e.target.value)}
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Short summary or synopsis..."
+                      rows={4}
+                      value={formData.description}
+                      onChange={(e) => updateField("description", e.target.value)}
                     />
                   </div>
                 </div>
+              </TabsContent>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              {/* ── Status ── */}
+              <TabsContent value="status" keepMounted>
+                <div className="space-y-5 pt-3">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ownership_status">Ownership Status</Label>
+                      <Select
+                        value={formData.ownership_status}
+                        onValueChange={(value) => {
+                          if (value) {
+                            const updates: Partial<typeof formData> = {
+                              ownership_status: value as OwnershipStatus
+                            }
+                            if (
+                              autoPurchaseDate &&
+                              value === "owned" &&
+                              formData.ownership_status !== "owned" &&
+                              !formData.purchase_date
+                            ) {
+                              updates.purchase_date = new Date()
+                                .toISOString()
+                                .split("T")[0]
+                            }
+                            setFormData((prev) => ({ ...prev, ...updates }))
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="ownership_status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="owned">Owned</SelectItem>
+                          <SelectItem value="wishlist">Wishlist</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reading_status">Reading Status</Label>
+                      <Select
+                        value={formData.reading_status}
+                        onValueChange={(value) => {
+                          if (value) updateField("reading_status", value)
+                        }}
+                      >
+                        <SelectTrigger id="reading_status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unread">Unread</SelectItem>
+                          <SelectItem value="reading">Reading</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="on_hold">On Hold</SelectItem>
+                          <SelectItem value="dropped">Dropped</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="page_count">Total Pages</Label>
+                    <Label htmlFor="rating">Rating (1-10)</Label>
                     <Input
-                      id="page_count"
+                      id="rating"
                       type="number"
-                      min={0}
-                      value={formData.page_count}
-                      onChange={(e) =>
-                        updateField("page_count", e.target.value)
-                      }
+                      min={1}
+                      max={10}
+                      value={formData.rating}
+                      onChange={(e) => updateField("rating", e.target.value)}
                     />
                   </div>
                 </div>
-              </div>
+              </TabsContent>
 
-              <div>
-                <div className="mb-2.5 flex items-end justify-between gap-3">
-                  <p className="text-muted-foreground text-[11px] font-medium tracking-widest uppercase">
-                    Purchase
-                  </p>
-                  <span className="text-muted-foreground text-xs">
-                    {priceDisplayCurrency} · {priceCurrencySymbol}
-                  </span>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="purchase_date">Purchase Date</Label>
-                    <Input
-                      id="purchase_date"
-                      type="date"
-                      value={formData.purchase_date}
-                      onChange={(e) =>
-                        updateField("purchase_date", e.target.value)
-                      }
-                    />
+              {/* ── Purchase ── */}
+              <TabsContent value="purchase" keepMounted>
+                <div className="space-y-5 pt-3">
+                  <div className="flex items-end justify-between gap-3">
+                    <p className="text-muted-foreground text-[11px] font-medium tracking-widest uppercase">
+                      Purchase Info
+                    </p>
+                    <span className="text-muted-foreground text-xs">
+                      {priceDisplayCurrency} · {priceCurrencySymbol}
+                    </span>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="purchase_price">Price</Label>
-                    <InputGroup>
-                      <InputGroupAddon align="inline-start">
-                        <InputGroupText>{priceCurrencySymbol}</InputGroupText>
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        id="purchase_price"
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        placeholder="0.00"
-                        value={formData.purchase_price}
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="purchase_date">Purchase Date</Label>
+                      <Input
+                        id="purchase_date"
+                        type="date"
+                        value={formData.purchase_date}
                         onChange={(e) =>
-                          updateField("purchase_price", e.target.value)
+                          updateField("purchase_date", e.target.value)
                         }
                       />
-                    </InputGroup>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="purchase_price">Price</Label>
+                      <InputGroup>
+                        <InputGroupAddon align="inline-start">
+                          <InputGroupText>{priceCurrencySymbol}</InputGroupText>
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          id="purchase_price"
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          placeholder="0.00"
+                          value={formData.purchase_price}
+                          onChange={(e) =>
+                            updateField("purchase_price", e.target.value)
+                          }
+                        />
+                      </InputGroup>
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={handleFetchAmazonPrice}
+                      disabled={isBusy}
+                    >
+                      {isFetchingPrice && !isFetchingImage ? (
+                        <>
+                          <svg
+                            className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                            />
+                          </svg>
+                          Checking...
+                        </>
+                      ) : (
+                        "Fetch Amazon Price"
+                      )}
+                    </Button>
+                    <span className="text-muted-foreground text-[11px]">
+                      Price only
+                    </span>
+                  </div>
+
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     className="rounded-xl"
-                    onClick={handleFetchAmazonPrice}
-                    disabled={isBusy}
+                    onClick={handleOpenAmazonPage}
+                    disabled={!formData.amazon_url && !getAmazonSearchUrl()}
                   >
-                    {isFetchingPrice && !isFetchingImage ? (
-                      <>
-                        <svg
-                          className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                          />
-                        </svg>
-                        Checking...
-                      </>
-                    ) : (
-                      "Fetch Amazon Price"
-                    )}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-1.5 h-3.5 w-3.5"
+                    >
+                      <path d="M15 3h6v6" />
+                      <path d="M10 14 21 3" />
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    </svg>
+                    {formData.amazon_url ? "Open on Amazon" : "Search on Amazon"}
                   </Button>
-                  <span className="text-muted-foreground text-[11px]">
-                    Price only
-                  </span>
                 </div>
+              </TabsContent>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2 rounded-xl"
-                  onClick={handleOpenAmazonPage}
-                  disabled={!formData.amazon_url && !getAmazonSearchUrl()}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-1.5 h-3.5 w-3.5"
-                  >
-                    <path d="M15 3h6v6" />
-                    <path d="M10 14 21 3" />
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  </svg>
-                  {formData.amazon_url ? "Open on Amazon" : "Search on Amazon"}
-                </Button>
-              </div>
-            </div>
+              {/* ── Notes & Cover ── */}
+              <TabsContent value="notes-cover" keepMounted>
+                <div className="space-y-5 pt-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Any personal notes about this volume..."
+                      rows={3}
+                      value={formData.notes}
+                      onChange={(e) => updateField("notes", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+                    <div className="flex w-40 shrink-0 flex-col items-center gap-3 sm:w-50">
+                      {coverUrl && !coverPreviewError && (
+                        <CoverPreviewImage
+                          key={coverUrl}
+                          src={coverUrl}
+                          alt="Cover preview"
+                          wrapperClassName="w-full max-w-[200px]"
+                          onError={() => {
+                            setCoverPreviewError(true)
+                            setPreviewUrl(null)
+                          }}
+                        />
+                      )}
+                      {coverPreviewError && (
+                          <div className="bg-muted text-muted-foreground flex aspect-2/3 w-full items-center justify-center rounded-xl text-xs">
+                          Preview unavailable
+                        </div>
+                      )}
+                      {!coverUrl && !coverPreviewError && (
+                          <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-muted-foreground/60 h-8 w-8"
+                          >
+                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                            <circle cx="9" cy="9" r="2" />
+                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                          </svg>
+                          <span className="text-muted-foreground/60 text-[10px]">
+                            No cover
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="w-full max-w-64 space-y-2.5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="cover_image_url" className="text-[11px]">
+                          Cover URL
+                        </Label>
+                        <Input
+                          id="cover_image_url"
+                          type="url"
+                          placeholder="https://..."
+                          value={formData.cover_image_url}
+                          onChange={(e) => {
+                            setCoverPreviewError(false)
+                            updateField("cover_image_url", e.target.value)
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="cover_image_upload" className="text-[11px]">
+                          Upload Cover
+                        </Label>
+                        <Input
+                          id="cover_image_upload"
+                          type="file"
+                          accept="image/*"
+                          className="h-8 text-xs"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              if (file.size > MAX_COVER_SIZE_BYTES) {
+                                toast.error("Cover images must be 5MB or smaller.")
+                              } else {
+                                void handleCoverFileChange(file)
+                              }
+                            }
+                            e.currentTarget.value = ""
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {formData.cover_image_url && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-[11px]"
+                            onClick={() => {
+                              updateField("cover_image_url", "")
+                              setCoverPreviewError(false)
+                              setPreviewUrl(null)
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                        {isUploadingCover && (
+                          <span className="text-muted-foreground text-xs">
+                            Uploading...
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-widest uppercase">
+                          Cover tools
+                        </p>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 rounded-lg"
+                              onClick={handleFetchAmazonImage}
+                              disabled={isBusy}
+                            >
+                              {isFetchingImage && isFetchingPrice ? (
+                                <>
+                                  <svg
+                                    className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                  >
+                                    <circle
+                                      className="opacity-25"
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      stroke="currentColor"
+                                      strokeWidth="4"
+                                    />
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                    />
+                                  </svg>
+                                  Fetching...
+                                </>
+                              ) : (
+                                "Fetch Amazon Image & Price"
+                              )}
+                            </Button>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 rounded-lg"
+                              onClick={handleFetchAmazonImageOnly}
+                              disabled={isBusy}
+                            >
+                              {isFetchingImage && !isFetchingPrice ? (
+                                <>
+                                  <svg
+                                    className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                  >
+                                    <circle
+                                      className="opacity-25"
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      stroke="currentColor"
+                                      strokeWidth="4"
+                                    />
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                    />
+                                  </svg>
+                                  Fetching...
+                                </>
+                              ) : (
+                                "Fetch Amazon Image Only"
+                              )}
+                            </Button>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-full rounded-lg"
+                              onClick={handleOpenCoverSearch}
+                              disabled={!coverSearchUrl}
+                              title={
+                                coverSearchUrl
+                                  ? "Search Google Images for cover art"
+                                  : "Add a title to enable image search"
+                              }
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="mr-1.5 h-4 w-4"
+                              >
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.3-4.3" />
+                              </svg>
+                              Google Images
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
-          {/* Amazon warning callout — shown after any Amazon fetch */}
+          {/* Amazon disclaimer — shown after any Amazon fetch */}
           {showAmazonWarning && showAmazonDisclaimer && (
             <div className="px-6 py-5">
               <div className="border-gold/30 bg-gold/5 rounded-xl border px-4 py-3">
@@ -1237,31 +1281,6 @@ export function VolumeDialog({
               </div>
             </div>
           )}
-
-          {/* ── Description & Notes ── */}
-          <div className="space-y-5 px-6 py-5">
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Short summary or synopsis..."
-                rows={4}
-                value={formData.description}
-                onChange={(e) => updateField("description", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                placeholder="Any personal notes about this volume..."
-                rows={3}
-                value={formData.notes}
-                onChange={(e) => updateField("notes", e.target.value)}
-              />
-            </div>
-          </div>
 
           {/* ── Footer ── */}
           <DialogFooter className="bg-muted/30 px-6 py-4">

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select"
 import { CoverImage } from "@/components/library/cover-image"
 import { CoverPreviewImage } from "@/components/library/cover-preview-image"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { uploadImage } from "@/lib/uploads/upload-image"
 import {
   extractStoragePath,
@@ -135,6 +136,7 @@ export function SeriesDialog({
   const formRef = useRef<HTMLFormElement | null>(null)
   const previewUrlRef = useRef<string | null>(null)
   const [formData, setFormData] = useState(() => buildSeriesFormData(series))
+  const [activeTab, setActiveTab] = useState("general")
   const seriesRef = useRef(series)
   const seriesIdRef = useRef<string | null>(series?.id ?? null)
   const seriesSnapshotRef = useRef(buildSeriesFormData(series))
@@ -221,6 +223,7 @@ export function SeriesDialog({
     if (isOpening || seriesChanged) {
       const nextFormData = buildSeriesFormData(nextSeries)
       setFormData(nextFormData)
+      setActiveTab("general")
       seriesSnapshotRef.current = nextFormData
       setBasisVolumeId(null)
       setSeedExpanded(true)
@@ -320,6 +323,11 @@ export function SeriesDialog({
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!formData.title.trim()) {
+      setActiveTab("general")
+      toast.error("Title is required")
+      return
+    }
     setIsSubmitting(true)
 
     try {
@@ -647,336 +655,352 @@ export function SeriesDialog({
             </div>
           )}
 
-          {/* ── Cover + Series Details ── */}
-          <div className="grid gap-x-6 gap-y-5 px-6 py-6 sm:grid-cols-[200px_minmax(0,1fr)]">
-            {/* Cover Art */}
-            <div className="flex flex-col items-center gap-3 sm:items-start">
-              {coverUrl && !coverPreviewError && (
-                <CoverPreviewImage
-                  key={coverUrl}
-                  src={coverUrl}
-                  alt="Cover preview"
-                  wrapperClassName="w-full max-w-[200px]"
-                  onError={() => {
-                    setCoverPreviewError(true)
-                    setPreviewUrl(null)
-                  }}
-                />
-              )}
-              {coverPreviewError && (
-                <div className="bg-muted text-muted-foreground flex aspect-2/3 w-full max-w-50 items-center justify-center rounded-xl text-xs">
-                  Preview unavailable
-                </div>
-              )}
-              {!coverUrl && !coverPreviewError && (
-                <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-full max-w-50 flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="text-muted-foreground/60 h-8 w-8"
-                  >
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                  </svg>
-                  <span className="text-muted-foreground/60 text-[10px]">
-                    No cover
-                  </span>
-                </div>
-              )}
+          {/* ── Tabbed Fields ── */}
+          <div className="px-6 py-5">
+            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as string)}>
+              <TabsList className="w-full">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="credits">Credits</TabsTrigger>
+                <TabsTrigger value="notes-tags">Notes & Tags</TabsTrigger>
+                <TabsTrigger value="cover">Cover</TabsTrigger>
+              </TabsList>
 
-              {/* Cover controls */}
-              <div className="w-full max-w-50 space-y-2.5">
-                <div className="space-y-1.5">
-                  <Label htmlFor="cover_image_url" className="text-[11px]">
-                    Cover URL
-                  </Label>
-                  <Input
-                    id="cover_image_url"
-                    value={formData.cover_image_url}
-                    onChange={(e) => {
-                      setCoverPreviewError(false)
-                      setFormData({
-                        ...formData,
-                        cover_image_url: e.target.value
-                      })
-                    }}
-                    placeholder="https://..."
-                    type="url"
-                    className="h-8 text-xs"
-                  />
-                </div>
+              {/* ── General ── */}
+              <TabsContent value="general" keepMounted>
+                <div className="space-y-5 pt-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title *</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
+                      placeholder="Series title"
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="cover_image_upload" className="text-[11px]">
-                    Upload Cover
-                  </Label>
-                  <Input
-                    id="cover_image_upload"
-                    type="file"
-                    accept="image/*"
-                    className="h-8 text-xs"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        if (file.size > MAX_COVER_SIZE_BYTES) {
-                          toast.error("Cover images must be 5MB or smaller.")
-                        } else {
-                          void handleCoverFileChange(file)
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="type">Type *</Label>
+                      <Select
+                        value={formData.type}
+                        onValueChange={(value) => {
+                          if (value)
+                            setFormData({
+                              ...formData,
+                              type: value as TitleType
+                            })
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manga">Manga</SelectItem>
+                          <SelectItem value="light_novel">Light Novel</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value) => {
+                          setFormData({ ...formData, status: value || "" })
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="ongoing">Ongoing</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="hiatus">Hiatus</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="total_volumes">Total Volumes</Label>
+                      <Input
+                        id="total_volumes"
+                        value={formData.total_volumes}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            total_volumes: e.target.value
+                          })
                         }
-                      }
-                      e.currentTarget.value = ""
-                    }}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-full rounded-lg text-[11px]"
-                    onClick={handleUseFirstVolumeCover}
-                    disabled={!firstVolumeCoverUrl || isBusy}
-                    title={
-                      firstVolumeCoverUrl
-                        ? "Use the earliest cataloged volume cover"
-                        : "Add a volume cover to enable this"
-                    }
-                  >
-                    {firstVolume
-                      ? `Use Vol. ${firstVolume.volume_number} Cover`
-                      : "Use First Volume Cover"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-full rounded-lg text-[11px]"
-                    onClick={handleOpenCoverSearch}
-                    disabled={!coverSearchUrl}
-                    title={
-                      coverSearchUrl
-                        ? "Search Google Images for cover art"
-                        : "Add a title to enable image search"
-                    }
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="mr-1 h-3.5 w-3.5"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                    Google Images
-                  </Button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {formData.cover_image_url && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[11px]"
-                      onClick={() => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          cover_image_url: ""
-                        }))
-                        setCoverPreviewError(false)
-                        setPreviewUrl(null)
-                      }}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                  {isUploadingCover && (
-                    <span className="text-muted-foreground text-xs">
-                      Uploading…
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Series Details */}
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  placeholder="Series title"
-                  required
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="type">Type *</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value) => {
-                      if (value)
-                        setFormData({
-                          ...formData,
-                          type: value as TitleType
-                        })
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manga">Manga</SelectItem>
-                      <SelectItem value="light_novel">Light Novel</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, status: value || "" })
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      <SelectItem value="ongoing">Ongoing</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="hiatus">Hiatus</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="total_volumes">Total Volumes</Label>
-                  <Input
-                    id="total_volumes"
-                    value={formData.total_volumes}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        total_volumes: e.target.value
-                      })
-                    }
-                    placeholder="Ongoing"
-                    type="number"
-                    min="1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <p className="text-muted-foreground mb-2.5 text-[11px] font-medium tracking-widest uppercase">
-                  Credits
-                </p>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="author">Author</Label>
-                    <Input
-                      id="author"
-                      value={formData.author}
-                      onChange={(e) =>
-                        setFormData({ ...formData, author: e.target.value })
-                      }
-                      placeholder="Author name"
-                    />
+                        placeholder="Ongoing"
+                        type="number"
+                        min="1"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="artist">Artist</Label>
-                    <Input
-                      id="artist"
-                      value={formData.artist}
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
                       onChange={(e) =>
-                        setFormData({ ...formData, artist: e.target.value })
+                        setFormData({ ...formData, description: e.target.value })
                       }
-                      placeholder="Artist name"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="publisher">Publisher</Label>
-                    <Input
-                      id="publisher"
-                      value={formData.publisher}
-                      onChange={(e) =>
-                        setFormData({ ...formData, publisher: e.target.value })
-                      }
-                      placeholder="Publisher name"
+                      placeholder="Brief description of the series"
+                      rows={3}
                     />
                   </div>
                 </div>
-              </div>
+              </TabsContent>
 
-              <div className="space-y-2">
-                <Label htmlFor="tags">Tags</Label>
-                <Input
-                  id="tags"
-                  value={formData.tags}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tags: e.target.value })
-                  }
-                  placeholder="Enter tags separated by commas"
-                />
-                <p className="text-muted-foreground text-xs">
-                  Separate multiple tags with commas (e.g., fantasy, isekai,
-                  romance)
-                </p>
-              </div>
-            </div>
-          </div>
+              {/* ── Credits ── */}
+              <TabsContent value="credits" keepMounted>
+                <div className="space-y-5 pt-3">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="author">Author</Label>
+                      <Input
+                        id="author"
+                        value={formData.author}
+                        onChange={(e) =>
+                          setFormData({ ...formData, author: e.target.value })
+                        }
+                        placeholder="Author name"
+                      />
+                    </div>
 
-          {/* ── Description & Notes ── */}
-          <div className="space-y-5 px-6 py-5">
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder="Brief description of the series"
-                rows={3}
-              />
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="artist">Artist</Label>
+                      <Input
+                        id="artist"
+                        value={formData.artist}
+                        onChange={(e) =>
+                          setFormData({ ...formData, artist: e.target.value })
+                        }
+                        placeholder="Artist name"
+                      />
+                    </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) =>
-                  setFormData({ ...formData, notes: e.target.value })
-                }
-                placeholder="Personal notes or reminders"
-                rows={3}
-              />
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="publisher">Publisher</Label>
+                      <Input
+                        id="publisher"
+                        value={formData.publisher}
+                        onChange={(e) =>
+                          setFormData({ ...formData, publisher: e.target.value })
+                        }
+                        placeholder="Publisher name"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* ── Notes & Tags ── */}
+              <TabsContent value="notes-tags" keepMounted>
+                <div className="space-y-5 pt-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="tags">Tags</Label>
+                    <Input
+                      id="tags"
+                      value={formData.tags}
+                      onChange={(e) =>
+                        setFormData({ ...formData, tags: e.target.value })
+                      }
+                      placeholder="Enter tags separated by commas"
+                    />
+                    <p className="text-muted-foreground text-xs">
+                      Separate multiple tags with commas (e.g., fantasy, isekai,
+                      romance)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) =>
+                        setFormData({ ...formData, notes: e.target.value })
+                      }
+                      placeholder="Personal notes or reminders"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* ── Cover ── */}
+              <TabsContent value="cover" keepMounted>
+                <div className="flex flex-col items-center gap-4 pt-3 sm:flex-row sm:items-start">
+                  <div className="flex w-40 shrink-0 flex-col items-center gap-3 sm:w-50">
+                    {coverUrl && !coverPreviewError && (
+                      <CoverPreviewImage
+                        key={coverUrl}
+                        src={coverUrl}
+                        alt="Cover preview"
+                        wrapperClassName="w-full max-w-[200px]"
+                        onError={() => {
+                          setCoverPreviewError(true)
+                          setPreviewUrl(null)
+                        }}
+                      />
+                    )}
+                    {coverPreviewError && (
+                      <div className="bg-muted text-muted-foreground flex aspect-2/3 w-full items-center justify-center rounded-xl text-xs">
+                        Preview unavailable
+                      </div>
+                    )}
+                    {!coverUrl && !coverPreviewError && (
+                      <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-muted-foreground/60 h-8 w-8"
+                        >
+                          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                          <circle cx="9" cy="9" r="2" />
+                          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                        </svg>
+                        <span className="text-muted-foreground/60 text-[10px]">
+                          No cover
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-full max-w-64 space-y-2.5">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cover_image_url" className="text-[11px]">
+                        Cover URL
+                      </Label>
+                      <Input
+                        id="cover_image_url"
+                        value={formData.cover_image_url}
+                        onChange={(e) => {
+                          setCoverPreviewError(false)
+                          setFormData({
+                            ...formData,
+                            cover_image_url: e.target.value
+                          })
+                        }}
+                        placeholder="https://..."
+                        type="url"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cover_image_upload" className="text-[11px]">
+                        Upload Cover
+                      </Label>
+                      <Input
+                        id="cover_image_upload"
+                        type="file"
+                        accept="image/*"
+                        className="h-8 text-xs"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            if (file.size > MAX_COVER_SIZE_BYTES) {
+                              toast.error("Cover images must be 5MB or smaller.")
+                            } else {
+                              void handleCoverFileChange(file)
+                            }
+                          }
+                          e.currentTarget.value = ""
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 w-full rounded-lg text-[11px]"
+                        onClick={handleUseFirstVolumeCover}
+                        disabled={!firstVolumeCoverUrl || isBusy}
+                        title={
+                          firstVolumeCoverUrl
+                            ? "Use the earliest cataloged volume cover"
+                            : "Add a volume cover to enable this"
+                        }
+                      >
+                        {firstVolume
+                          ? `Use Vol. ${firstVolume.volume_number} Cover`
+                          : "Use First Volume Cover"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 w-full rounded-lg text-[11px]"
+                        onClick={handleOpenCoverSearch}
+                        disabled={!coverSearchUrl}
+                        title={
+                          coverSearchUrl
+                            ? "Search Google Images for cover art"
+                            : "Add a title to enable image search"
+                        }
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mr-1 h-3.5 w-3.5"
+                        >
+                          <circle cx="11" cy="11" r="8" />
+                          <path d="m21 21-4.3-4.3" />
+                        </svg>
+                        Google Images
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {formData.cover_image_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[11px]"
+                          onClick={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              cover_image_url: ""
+                            }))
+                            setCoverPreviewError(false)
+                            setPreviewUrl(null)
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      {isUploadingCover && (
+                        <span className="text-muted-foreground text-xs">
+                          Uploading…
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* ── Footer ── */}
