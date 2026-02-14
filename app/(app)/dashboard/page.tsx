@@ -25,6 +25,7 @@ import type {
 import { fetchAnalytics } from "@/lib/api/endpoints"
 import type { FetchAnalyticsResponse } from "@/lib/api/types"
 import { RecommendationsCard } from "@/components/library/recommendations-card"
+import { CollectionHealthCard } from "@/components/dashboard/collection-health-card"
 
 const EMPTY_COLLECTION_STATS: CollectionStats = {
   totalSeries: 0,
@@ -780,8 +781,21 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Reading progress ring */}
+          {/* Collection Health */}
           <div className="animate-fade-in-up stagger-6">
+            <div className="mb-4">
+              <h2 className="font-display text-lg font-semibold tracking-tight">
+                Collection Health
+              </h2>
+              <p className="text-muted-foreground text-xs">
+                Overall collection quality score
+              </p>
+            </div>
+            <CollectionHealthCard series={series} />
+          </div>
+
+          {/* Reading progress ring */}
+          <div className="animate-fade-in-up stagger-7">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Progress
@@ -865,7 +879,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Price Tracking */}
-          <div className="animate-fade-in-up stagger-7">
+          <div className="animate-fade-in-up stagger-8">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Price Tracking
@@ -996,7 +1010,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Wishlist Overview */}
-          <div className="animate-fade-in-up stagger-8">
+          <div className="animate-fade-in-up stagger-9">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Wishlist
@@ -1116,7 +1130,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Upcoming Releases */}
-          <div className="animate-fade-in-up stagger-9">
+          <div className="animate-fade-in-up stagger-10">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="font-display text-lg font-semibold tracking-tight">
@@ -1202,7 +1216,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Price Alerts */}
-          <div className="animate-fade-in-up stagger-10">
+          <div className="animate-fade-in-up stagger-11">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Price Alerts
