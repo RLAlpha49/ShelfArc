@@ -272,6 +272,95 @@ describe("POST /api/books/price/history", () => {
     expect(body.error).toBe("price must be a positive number")
   })
 
+  it("returns 400 for malformed JSON", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/history", {
+        method: "POST",
+        body: "{{not json",
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("Invalid JSON in request body")
+  })
+
+  it("returns 400 when body is not a JSON object", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/history", {
+        method: "POST",
+        body: JSON.stringify("just a string"),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("Request body must be a JSON object")
+  })
+
+  it("returns 400 for invalid currency code", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/history", {
+        method: "POST",
+        body: JSON.stringify({
+          volumeId: "vol-1",
+          price: 9.99,
+          currency: "TOOLONG"
+        }),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("currency must be a 3-letter ISO currency code")
+  })
+
+  it("returns 400 when source exceeds max length", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/history", {
+        method: "POST",
+        body: JSON.stringify({
+          volumeId: "vol-1",
+          price: 9.99,
+          source: "x".repeat(51)
+        }),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe(
+      "source must be a non-empty string (max 50 characters)"
+    )
+  })
+
+  it("returns 400 for invalid productUrl", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/history", {
+        method: "POST",
+        body: JSON.stringify({
+          volumeId: "vol-1",
+          price: 9.99,
+          productUrl: "https://evil.com/product"
+        }),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("productUrl must be a valid Amazon URL")
+  })
+
   it("returns data on successful insert", async () => {
     const { POST } = await loadRoute()
     const response = await POST(

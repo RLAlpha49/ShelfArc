@@ -185,6 +185,17 @@ export const isValidAmazonUrl = (value: unknown): value is string => {
   }
 }
 
+/** Regex matching a valid ISO 4217 currency code (3 uppercase letters). @source */
+export const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/
+
+/**
+ * Type guard for valid ISO 4217 currency codes (3 uppercase letters, e.g. "USD").
+ * @param value - The value to check.
+ * @source
+ */
+export const isValidCurrencyCode = (value: unknown): value is string =>
+  typeof value === "string" && CURRENCY_CODE_PATTERN.test(value)
+
 /** Regex matching a valid username (3-20 alphanumeric or underscore characters). @source */
 export const USERNAME_PATTERN = /^\w{3,20}$/
 

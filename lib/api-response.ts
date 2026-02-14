@@ -60,3 +60,22 @@ export const getErrorMessage = (error: unknown, fallback: string) => {
   }
   return fallback
 }
+
+/**
+ * Safely parses a JSON request body and validates it is a plain object.
+ * @returns The parsed body or a 400 error response.
+ * @source
+ */
+export const parseJsonBody = async (
+  request: Request
+): Promise<Record<string, unknown> | NextResponse> => {
+  try {
+    const parsed: unknown = await request.json()
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return apiError(400, "Request body must be a JSON object")
+    }
+    return parsed as Record<string, unknown>
+  } catch {
+    return apiError(400, "Invalid JSON in request body")
+  }
+}

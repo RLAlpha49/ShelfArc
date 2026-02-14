@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
-import { apiError } from "@/lib/api-response"
+import { apiError, parseJsonBody } from "@/lib/api-response"
 import { enforceSameOrigin } from "@/lib/csrf"
-import { isNonNegativeFinite, isValidAmazonUrl } from "@/lib/validation"
+import {
+  isNonNegativeFinite,
+  isValidAmazonUrl,
+  isValidCurrencyCode
+} from "@/lib/validation"
 import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 
@@ -42,6 +46,74 @@ export async function GET(request: NextRequest) {
   }
 }
 
+type ValidatedHistory = {
+  volumeId: string
+  price: number
+  currency: string
+  source: string
+  productUrl: string | null
+}
+
+const resolveOptionalCurrency = (value: unknown): string | NextResponse => {
+  if (value === undefined || value === null) return "USD"
+  if (
+    typeof value !== "string" ||
+    !isValidCurrencyCode(value.trim().toUpperCase())
+  ) {
+    return apiError(400, "currency must be a 3-letter ISO currency code")
+  }
+  return value.trim().toUpperCase()
+}
+
+const resolveOptionalSource = (value: unknown): string | NextResponse => {
+  if (value === undefined || value === null) return "amazon"
+  if (typeof value !== "string" || !value.trim() || value.trim().length > 50) {
+    return apiError(
+      400,
+      "source must be a non-empty string (max 50 characters)"
+    )
+  }
+  return value.trim()
+}
+
+const resolveOptionalProductUrl = (
+  value: unknown
+): string | null | NextResponse => {
+  if (value === undefined || value === null) return null
+  if (typeof value !== "string") {
+    return apiError(400, "productUrl must be a string")
+  }
+  if (!value.trim()) return null
+  if (!isValidAmazonUrl(value.trim())) {
+    return apiError(400, "productUrl must be a valid Amazon URL")
+  }
+  return value.trim()
+}
+
+const validateHistoryBody = (
+  body: Record<string, unknown>
+): ValidatedHistory | NextResponse => {
+  const { volumeId, price } = body
+
+  if (typeof volumeId !== "string" || !volumeId.trim()) {
+    return apiError(400, "volumeId is required")
+  }
+  if (!isNonNegativeFinite(price) || price <= 0) {
+    return apiError(400, "price must be a positive number")
+  }
+
+  const currency = resolveOptionalCurrency(body.currency)
+  if (currency instanceof NextResponse) return currency
+
+  const source = resolveOptionalSource(body.source)
+  if (source instanceof NextResponse) return source
+
+  const productUrl = resolveOptionalProductUrl(body.productUrl)
+  if (productUrl instanceof NextResponse) return productUrl
+
+  return { volumeId, price, currency, source, productUrl }
+}
+
 export async function POST(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
@@ -56,36 +128,21 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated")
 
-    const body = await request.json()
-    const { volumeId, price, currency, source, productUrl } = body
+    const body = await parseJsonBody(request)
+    if (body instanceof NextResponse) return body
 
-    if (typeof volumeId !== "string" || !volumeId.trim()) {
-      return apiError(400, "volumeId is required")
-    }
-    if (!isNonNegativeFinite(price) || price <= 0) {
-      return apiError(400, "price must be a positive number")
-    }
+    const validated = validateHistoryBody(body)
+    if (validated instanceof NextResponse) return validated
 
     const { data, error } = await supabase
       .from("price_history")
       .insert({
-        volume_id: volumeId,
+        volume_id: validated.volumeId,
         user_id: user.id,
-        price,
-        currency:
-          typeof currency === "string" && currency.trim()
-            ? currency.trim()
-            : "USD",
-        source:
-          typeof source === "string" && source.trim()
-            ? source.trim()
-            : "amazon",
-        product_url:
-          typeof productUrl === "string" &&
-          productUrl.trim() &&
-          isValidAmazonUrl(productUrl.trim())
-            ? productUrl.trim()
-            : null
+        price: validated.price,
+        currency: validated.currency,
+        source: validated.source,
+        product_url: validated.productUrl
       })
       .select()
       .single()

@@ -242,6 +242,91 @@ describe("POST /api/books/price/alerts", () => {
     expect(body.error).toBe("targetPrice must be a positive number")
   })
 
+  it("returns 400 for malformed JSON", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/alerts", {
+        method: "POST",
+        body: "not valid json{",
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("Invalid JSON in request body")
+  })
+
+  it("returns 400 when body is not a JSON object", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/alerts", {
+        method: "POST",
+        body: JSON.stringify([1, 2, 3]),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("Request body must be a JSON object")
+  })
+
+  it("returns 400 for invalid currency code", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/alerts", {
+        method: "POST",
+        body: JSON.stringify({
+          volumeId: "vol-1",
+          targetPrice: 7.99,
+          currency: "INVALID"
+        }),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("currency must be a 3-letter ISO currency code")
+  })
+
+  it("returns 400 when enabled is not a boolean", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/alerts", {
+        method: "POST",
+        body: JSON.stringify({
+          volumeId: "vol-1",
+          targetPrice: 7.99,
+          enabled: "yes"
+        }),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("enabled must be a boolean")
+  })
+
+  it("accepts valid lowercase currency and normalizes to uppercase", async () => {
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/books/price/alerts", {
+        method: "POST",
+        body: JSON.stringify({
+          volumeId: "vol-1",
+          targetPrice: 7.99,
+          currency: "eur"
+        }),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    expect(response.status).toBe(200)
+  })
+
   it("returns data on success", async () => {
     const { POST } = await loadRoute()
     const response = await POST(
@@ -327,6 +412,21 @@ describe("PATCH /api/books/price/alerts", () => {
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
     expect(body.error).toBe("id is required")
+  })
+
+  it("returns 400 for malformed JSON", async () => {
+    const { PATCH } = await loadRoute()
+    const response = await PATCH(
+      makeNextRequest("http://localhost/api/books/price/alerts", {
+        method: "PATCH",
+        body: "{{bad json",
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("Invalid JSON in request body")
   })
 
   it("returns data on success", async () => {

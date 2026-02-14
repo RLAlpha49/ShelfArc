@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
-import { apiError } from "@/lib/api-response"
+import { apiError, parseJsonBody } from "@/lib/api-response"
 import { enforceSameOrigin } from "@/lib/csrf"
-import { isNonNegativeFinite } from "@/lib/validation"
+import { isNonNegativeFinite, isValidCurrencyCode } from "@/lib/validation"
 import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 
@@ -43,6 +43,47 @@ export async function GET(request: NextRequest) {
   }
 }
 
+type ValidatedAlert = {
+  volumeId: string
+  targetPrice: number
+  currency: string
+  enabled: boolean | undefined
+}
+
+const validateAlertBody = (
+  body: Record<string, unknown>
+): ValidatedAlert | NextResponse => {
+  const { volumeId, targetPrice, currency, enabled } = body
+
+  if (typeof volumeId !== "string" || !volumeId.trim()) {
+    return apiError(400, "volumeId is required")
+  }
+  if (!isNonNegativeFinite(targetPrice) || targetPrice <= 0) {
+    return apiError(400, "targetPrice must be a positive number")
+  }
+  if (currency !== undefined && currency !== null) {
+    if (
+      typeof currency !== "string" ||
+      !isValidCurrencyCode(currency.trim().toUpperCase())
+    ) {
+      return apiError(400, "currency must be a 3-letter ISO currency code")
+    }
+  }
+  if (enabled !== undefined && typeof enabled !== "boolean") {
+    return apiError(400, "enabled must be a boolean")
+  }
+
+  return {
+    volumeId,
+    targetPrice,
+    currency:
+      typeof currency === "string" && currency.trim()
+        ? currency.trim().toUpperCase()
+        : "USD",
+    enabled: typeof enabled === "boolean" ? enabled : undefined
+  }
+}
+
 export async function POST(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
@@ -57,27 +98,23 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated")
 
-    const body = await request.json()
-    const { volumeId, targetPrice, currency } = body
+    const body = await parseJsonBody(request)
+    if (body instanceof NextResponse) return body
 
-    if (typeof volumeId !== "string" || !volumeId.trim()) {
-      return apiError(400, "volumeId is required")
-    }
-    if (!isNonNegativeFinite(targetPrice) || targetPrice <= 0) {
-      return apiError(400, "targetPrice must be a positive number")
-    }
+    const validated = validateAlertBody(body)
+    if (validated instanceof NextResponse) return validated
 
     const { data, error } = await supabase
       .from("price_alerts")
       .upsert(
         {
-          volume_id: volumeId,
+          volume_id: validated.volumeId,
           user_id: user.id,
-          target_price: targetPrice,
-          currency:
-            typeof currency === "string" && currency.trim()
-              ? currency.trim()
-              : "USD"
+          target_price: validated.targetPrice,
+          currency: validated.currency,
+          ...(validated.enabled !== undefined && {
+            enabled: validated.enabled
+          })
         },
         { onConflict: "volume_id,user_id" }
       )
@@ -110,9 +147,10 @@ export async function PATCH(request: NextRequest) {
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated")
 
-    const body = await request.json()
-    const { id } = body
+    const body = await parseJsonBody(request)
+    if (body instanceof NextResponse) return body
 
+    const { id } = body
     if (typeof id !== "string" || !id.trim()) {
       return apiError(400, "id is required")
     }

@@ -3,6 +3,7 @@ import {
   isNonNegativeFinite,
   isNonNegativeInteger,
   isPositiveInteger,
+  isValidCurrencyCode,
   isValidUrl,
   isValidUsername
 } from "@/lib/validation"
@@ -34,5 +35,18 @@ describe("lib/validation", () => {
     expect(isNonNegativeFinite(0)).toBe(true)
     expect(isNonNegativeFinite(Number.NaN)).toBe(false)
     expect(isNonNegativeFinite(Number.POSITIVE_INFINITY)).toBe(false)
+  })
+
+  it("validates currency codes", () => {
+    expect(isValidCurrencyCode("USD")).toBe(true)
+    expect(isValidCurrencyCode("EUR")).toBe(true)
+    expect(isValidCurrencyCode("JPY")).toBe(true)
+    expect(isValidCurrencyCode("usd")).toBe(false)
+    expect(isValidCurrencyCode("US")).toBe(false)
+    expect(isValidCurrencyCode("USDD")).toBe(false)
+    expect(isValidCurrencyCode("")).toBe(false)
+    expect(isValidCurrencyCode("U$D")).toBe(false)
+    expect(isValidCurrencyCode(123)).toBe(false)
+    expect(isValidCurrencyCode(null)).toBe(false)
   })
 })
