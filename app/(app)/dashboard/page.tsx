@@ -464,8 +464,8 @@ export default function DashboardPage() {
             )
           },
           {
-            href: "/dashboard/suggestions",
-            label: "Suggestions",
+            href: "/dashboard/recommendations",
+            label: "Recommendations",
             icon: (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -537,7 +537,7 @@ export default function DashboardPage() {
           <Link
             key={item.href}
             href={item.href}
-            className="glass-card hover:bg-accent/70 group flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all hover:shadow-sm"
+            className="glass-card hover:bg-accent/70 border-border/50 group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow-md active:scale-[0.97]"
           >
             <span className="text-primary">{item.icon}</span>
             <span className="text-muted-foreground group-hover:text-foreground transition-colors">
@@ -549,7 +549,7 @@ export default function DashboardPage() {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="text-muted-foreground/40 group-hover:text-primary h-3.5 w-3.5 transition-all group-hover:translate-x-0.5"
+              className="text-muted-foreground/50 group-hover:text-primary h-3.5 w-3.5 transition-all group-hover:translate-x-0.5"
             >
               <polyline points="9,18 15,12 9,6" />
             </svg>
@@ -732,7 +732,7 @@ export default function DashboardPage() {
               </div>
               {suggestedNextBuys.length > 0 && (
                 <Link
-                  href="/dashboard/suggestions"
+                  href="/dashboard/recommendations"
                   className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
                 >
                   View all recommendations
