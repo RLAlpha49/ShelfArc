@@ -141,12 +141,12 @@ export function SeriesVolumesSection({
         isAllSelected={isAllSelected}
         onSelectAll={onSelectAll}
         onClear={onClearSelection}
-        onApplyOwnership={onApplyOwnership}
-        onApplyReading={onApplyReading}
         onEdit={onEditSelected}
         onDelete={onBulkDelete}
-        onBulkScrape={onOpenBulkScrape}
         onCancel={onCancelSelection}
+        onApplyOwnership={onApplyOwnership}
+        onApplyReading={onApplyReading}
+        onBulkScrape={onOpenBulkScrape}
       />
 
       {currentSeries.volumes.length === 0 ? (

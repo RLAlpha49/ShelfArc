@@ -8,11 +8,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import type { OwnershipStatus, ReadingStatus } from "@/lib/types/database"
+import type {
+  OwnershipStatus,
+  ReadingStatus,
+  TitleType
+} from "@/lib/types/database"
 
 /**
- * Selection bar for bulk actions on volumes.
- * Extracted to keep {@link SeriesDetailPage} complexity low.
+ * Sticky bottom bar for bulk-acting on selected items.
+ * Used both on the main library page and the series detail page.
  * @source
  */
 export function VolumeSelectionBar({
@@ -21,32 +25,51 @@ export function VolumeSelectionBar({
   isAllSelected,
   onSelectAll,
   onClear,
-  onApplyOwnership,
-  onApplyReading,
   onEdit,
   onDelete,
+  onCancel,
+  // Volume-mode actions
+  onApplyOwnership,
+  onApplyReading,
   onBulkScrape,
-  onCancel
+  // Series-mode actions (library page, series collection view)
+  onApplySeriesType,
+  onApplyAllVolumesOwnership,
+  onApplyAllVolumesReading,
+  // Assign to series (library page, unassigned volumes)
+  onAssignToSeries,
+  assignToSeriesCount
 }: {
   readonly selectedCount: number
   readonly totalSelectableCount: number
   readonly isAllSelected: boolean
   readonly onSelectAll: () => void
   readonly onClear: () => void
-  readonly onApplyOwnership: (status: OwnershipStatus) => void
-  readonly onApplyReading: (status: ReadingStatus) => void
   readonly onEdit: () => void
   readonly onDelete: () => void
-  readonly onBulkScrape?: () => void
   readonly onCancel: () => void
+  readonly onApplyOwnership?: (status: OwnershipStatus) => void | Promise<void>
+  readonly onApplyReading?: (status: ReadingStatus) => void | Promise<void>
+  readonly onBulkScrape?: () => void
+  readonly onApplySeriesType?: (type: TitleType) => void | Promise<void>
+  readonly onApplyAllVolumesOwnership?: (
+    status: OwnershipStatus
+  ) => void | Promise<void>
+  readonly onApplyAllVolumesReading?: (
+    status: ReadingStatus
+  ) => void | Promise<void>
+  readonly onAssignToSeries?: () => void
+  readonly assignToSeriesCount?: number
 }) {
   if (selectedCount <= 0) return null
 
+  const isSeriesMode = Boolean(onApplySeriesType)
+
   return (
-    <div className="animate-slide-up-fade bg-background/90 fixed inset-x-0 bottom-0 z-50 border-t shadow-[0_-4px_12px_-1px_rgba(0,0,0,0.1)] backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+    <div className="animate-fade-in bg-background/90 sticky top-16 z-40 mx-auto my-3 max-w-4xl rounded-2xl border shadow-lg backdrop-blur-md">
+      <div className="px-4 py-2">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="font-display text-sm font-semibold">
               {selectedCount} selected
             </span>
@@ -71,6 +94,19 @@ export function VolumeSelectionBar({
             Clear
           </Button>
 
+          {onAssignToSeries &&
+            assignToSeriesCount != null &&
+            assignToSeriesCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAssignToSeries}
+                className="rounded-xl"
+              >
+                Assign to series ({assignToSeriesCount})
+              </Button>
+            )}
+
           <div className="flex-1" />
 
           <DropdownMenu>
@@ -85,40 +121,137 @@ export function VolumeSelectionBar({
               Bulk actions
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="rounded-xl">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Ownership</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => onApplyOwnership("owned")}>
-                  Mark owned
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onApplyOwnership("wishlist")}>
-                  Mark wishlist
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Reading status</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => onApplyReading("unread")}>
-                  Mark unread
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onApplyReading("reading")}>
-                  Mark reading
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onApplyReading("completed")}>
-                  Mark completed
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onApplyReading("on_hold")}>
-                  Mark on hold
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onApplyReading("dropped")}>
-                  Mark dropped
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              {onBulkScrape && (
+              {isSeriesMode ? (
                 <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onBulkScrape}>
-                    Bulk scrape prices
-                  </DropdownMenuItem>
+                  {onApplySeriesType && (
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Series type</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => onApplySeriesType("light_novel")}
+                      >
+                        Set to Light Novel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onApplySeriesType("manga")}
+                      >
+                        Set to Manga
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onApplySeriesType("other")}
+                      >
+                        Set to Other
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  )}
+                  {(onApplyAllVolumesOwnership || onApplyAllVolumesReading) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Set all volumes</DropdownMenuLabel>
+                        {onApplyAllVolumesOwnership && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                onApplyAllVolumesOwnership("owned")
+                              }
+                            >
+                              Mark all owned
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                onApplyAllVolumesOwnership("wishlist")
+                              }
+                            >
+                              Mark all wishlisted
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {onApplyAllVolumesReading && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                onApplyAllVolumesReading("completed")
+                              }
+                            >
+                              Mark all completed
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => onApplyAllVolumesReading("unread")}
+                            >
+                              Mark all unread
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                  {onBulkScrape && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={onBulkScrape}>
+                        Bulk scrape prices
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  {onApplyOwnership && (
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Ownership</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => onApplyOwnership("owned")}
+                      >
+                        Mark owned
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onApplyOwnership("wishlist")}
+                      >
+                        Mark wishlist
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  )}
+                  {onApplyReading && (
+                    <>
+                      {onApplyOwnership && <DropdownMenuSeparator />}
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Reading status</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => onApplyReading("unread")}
+                        >
+                          Mark unread
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onApplyReading("reading")}
+                        >
+                          Mark reading
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onApplyReading("completed")}
+                        >
+                          Mark completed
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onApplyReading("on_hold")}
+                        >
+                          Mark on hold
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onApplyReading("dropped")}
+                        >
+                          Mark dropped
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                  {onBulkScrape && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={onBulkScrape}>
+                        Bulk scrape prices
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>

@@ -48,27 +48,19 @@ import { SeriesListItem } from "@/components/library/series-list-item"
 import { VolumeGridItem } from "@/components/library/volume-grid-item"
 import { VolumeListItem } from "@/components/library/volume-list-item"
 import { VolumeCard } from "@/components/library/volume-card"
+import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
 import {
   VirtualizedWindowGrid,
   VirtualizedWindowList
 } from "@/components/library/virtualized-window"
 import { EmptyState } from "@/components/empty-state"
-import { Button, buttonVariants } from "@/components/ui/button"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { toast } from "sonner"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1379,7 +1371,9 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="relative px-6 py-8 lg:px-10">
+    <div
+      className={`relative px-6 py-8 lg:px-10 ${selectedCount > 0 ? "pb-20" : ""}`}
+    >
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
 
@@ -1453,197 +1447,40 @@ export default function LibraryPage() {
         />
       </Suspense>
 
-      {selectedCount > 0 && (
-        <div className="animate-fade-in bg-background/90 sticky top-16 z-40 mx-auto my-3 max-w-4xl rounded-2xl border shadow-lg backdrop-blur-md">
-          <div className="px-4 py-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-3">
-                <span className="font-display text-sm font-semibold">
-                  {selectedCount} selected
-                </span>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSelectAll}
-                disabled={totalSelectableCount === 0 || isAllSelected}
-                className="rounded-xl"
-              >
-                Select all
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearSelection}
-                disabled={selectedCount === 0}
-                className="rounded-xl"
-              >
-                Clear
-              </Button>
-
-              {collectionView === "volumes" && selectedUnassignedCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAssignToSeriesDialogOpen(true)}
-                  className="rounded-xl"
-                >
-                  Assign to series ({selectedUnassignedCount})
-                </Button>
-              )}
-
-              <div className="flex-1" />
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className={buttonVariants({
-                    variant: "outline",
-                    size: "sm",
-                    className: "rounded-xl"
-                  })}
-                  disabled={selectedCount === 0}
-                >
-                  Bulk actions
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl">
-                  {collectionView === "series" ? (
-                    <>
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel>Series type</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => applySeriesType("light_novel")}
-                        >
-                          Set to Light Novel
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => applySeriesType("manga")}
-                        >
-                          Set to Manga
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => applySeriesType("other")}
-                        >
-                          Set to Other
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel>Set all volumes</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => applySeriesVolumesOwnership("owned")}
-                        >
-                          Mark all owned
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            applySeriesVolumesOwnership("wishlist")
-                          }
-                        >
-                          Mark all wishlisted
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            applySeriesVolumesReadingStatus("completed")
-                          }
-                        >
-                          Mark all completed
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            applySeriesVolumesReadingStatus("unread")
-                          }
-                        >
-                          Mark all unread
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleBulkScrapeSelected}>
-                        Bulk scrape prices
-                      </DropdownMenuItem>
-                    </>
-                  ) : (
-                    <>
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel>Ownership</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => applyVolumeOwnershipStatus("owned")}
-                        >
-                          Mark owned
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => applyVolumeOwnershipStatus("wishlist")}
-                        >
-                          Mark wishlist
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel>Reading status</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => applyVolumeReadingStatus("unread")}
-                        >
-                          Mark unread
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => applyVolumeReadingStatus("reading")}
-                        >
-                          Mark reading
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => applyVolumeReadingStatus("completed")}
-                        >
-                          Mark completed
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => applyVolumeReadingStatus("on_hold")}
-                        >
-                          Mark on hold
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => applyVolumeReadingStatus("dropped")}
-                        >
-                          Mark dropped
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleBulkScrapeSelected}>
-                        Bulk scrape prices
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEditSelected}
-                disabled={selectedCount !== 1}
-                className="rounded-xl"
-              >
-                Edit
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleBulkDelete}
-                disabled={selectedCount === 0}
-                className="rounded-xl"
-              >
-                Delete
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => clearSelection()}
-                className="rounded-xl"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <VolumeSelectionBar
+        selectedCount={selectedCount}
+        totalSelectableCount={totalSelectableCount}
+        isAllSelected={isAllSelected}
+        onSelectAll={handleSelectAll}
+        onClear={handleClearSelection}
+        onEdit={handleEditSelected}
+        onDelete={handleBulkDelete}
+        onCancel={clearSelection}
+        onBulkScrape={handleBulkScrapeSelected}
+        onApplySeriesType={
+          collectionView === "series" ? applySeriesType : undefined
+        }
+        onApplyAllVolumesOwnership={
+          collectionView === "series" ? applySeriesVolumesOwnership : undefined
+        }
+        onApplyAllVolumesReading={
+          collectionView === "series"
+            ? applySeriesVolumesReadingStatus
+            : undefined
+        }
+        onApplyOwnership={
+          collectionView === "volumes" ? applyVolumeOwnershipStatus : undefined
+        }
+        onApplyReading={
+          collectionView === "volumes" ? applyVolumeReadingStatus : undefined
+        }
+        onAssignToSeries={
+          collectionView === "volumes" && selectedUnassignedCount > 0
+            ? () => setAssignToSeriesDialogOpen(true)
+            : undefined
+        }
+        assignToSeriesCount={selectedUnassignedCount}
+      />
 
       <div className="my-8 border-t" />
       <div>{renderContent()}</div>
