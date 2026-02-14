@@ -116,7 +116,8 @@ export async function uploadImage(
     throw new Error(message)
   }
 
-  const data = (await response.json()) as UploadResponse
+  const json = (await response.json()) as { data: UploadResponse }
+  const data = json.data
 
   if (!data.path) {
     throw new Error("Upload failed")

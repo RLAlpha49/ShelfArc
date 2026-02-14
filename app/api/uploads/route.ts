@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server"
 import { randomUUID } from "node:crypto"
 import { Readable } from "node:stream"
 import { ReadableStream } from "node:stream/web"
@@ -6,13 +5,13 @@ import sharp from "sharp"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 import { isSafeStoragePath } from "@/lib/storage/safe-path"
-import { apiError } from "@/lib/api-response"
+import { apiError, apiSuccess } from "@/lib/api-response"
 import { enforceSameOrigin } from "@/lib/csrf"
 import {
   ConcurrencyLimitError,
   ConcurrencyLimiter
 } from "@/lib/concurrency/limiter"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { getCorrelationId } from "@/lib/correlation"
 import { logger, type Logger } from "@/lib/logger"
 
 /** Forces Node.js runtime for sharp image processing. @source */
@@ -387,8 +386,7 @@ export async function POST(request: Request) {
           log
         })
 
-        const response = NextResponse.json({ path: fileName })
-        response.headers.set(CORRELATION_HEADER, correlationId)
+        const response = apiSuccess({ path: fileName }, { correlationId })
         return response
       } catch (error) {
         const message = getErrorMessage(error)

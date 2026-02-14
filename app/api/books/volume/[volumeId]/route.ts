@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { normalizeGoogleBooksItems } from "@/lib/books/search"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
-import { apiError } from "@/lib/api-response"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { apiError, apiSuccess } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 
 /** Google Books Volumes API base URL. @source */
@@ -116,9 +116,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       return apiError(404, "Google Books volume not found")
     }
 
-    const jsonResponse = NextResponse.json({ result })
-    jsonResponse.headers.set(CORRELATION_HEADER, correlationId)
-    return jsonResponse
+    return apiSuccess({ result }, { correlationId })
   } catch (error) {
     log.error("Google Books volume fetch failed", {
       error: error instanceof Error ? error.message : String(error)

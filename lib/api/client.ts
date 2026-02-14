@@ -2,6 +2,7 @@ export class ApiClientError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code?: string,
     public details?: unknown
   ) {
     super(message)
@@ -38,10 +39,13 @@ async function tryFetch<T>(url: string, fetchInit: RequestInit): Promise<T> {
     throw new ApiClientError(
       data.error ?? `Request failed with status ${res.status}`,
       res.status,
+      data.code,
       data
     )
   }
-  return (await res.json()) as T
+  const json = (await res.json()) as { data?: T }
+  // Unwrap standardized success envelope when present
+  return ("data" in json ? json.data : json) as T
 }
 
 function isNonRetryable(err: unknown): boolean {

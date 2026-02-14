@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
-import { apiError, parseJsonBody } from "@/lib/api-response"
+import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
 import { enforceSameOrigin } from "@/lib/csrf"
 import {
   isNonNegativeFinite,
   isValidAmazonUrl,
   isValidCurrencyCode
 } from "@/lib/validation"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
@@ -21,10 +21,11 @@ export async function GET(request: NextRequest) {
     const {
       data: { user }
     } = await supabase.auth.getUser()
-    if (!user) return apiError(401, "Not authenticated")
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
 
     const volumeId = request.nextUrl.searchParams.get("volumeId")
-    if (!volumeId) return apiError(400, "volumeId is required")
+    if (!volumeId)
+      return apiError(400, "volumeId is required", { correlationId })
 
     const { data, error } = await supabase
       .from("price_history")
@@ -34,15 +35,14 @@ export async function GET(request: NextRequest) {
       .order("scraped_at", { ascending: false })
       .limit(100)
 
-    if (error) return apiError(500, "Failed to fetch price history")
-    const response = NextResponse.json({ data })
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    if (error)
+      return apiError(500, "Failed to fetch price history", { correlationId })
+    return apiSuccess({ data }, { correlationId })
   } catch (error) {
     log.error("Price history fetch failed", {
       error: error instanceof Error ? error.message : String(error)
     })
-    return apiError(500, "Failed to fetch price history")
+    return apiError(500, "Failed to fetch price history", { correlationId })
   }
 }
 
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     const {
       data: { user }
     } = await supabase.auth.getUser()
-    if (!user) return apiError(401, "Not authenticated")
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
 
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
@@ -147,10 +147,9 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) return apiError(500, "Failed to save price history")
-    const response = NextResponse.json({ data })
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    if (error)
+      return apiError(500, "Failed to save price history", { correlationId })
+    return apiSuccess({ data }, { correlationId })
   } catch (error) {
     log.error("Price history save failed", {
       error: error instanceof Error ? error.message : String(error)

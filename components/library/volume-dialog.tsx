@@ -684,7 +684,10 @@ export function VolumeDialog({
 
           {/* ── Tabbed Fields ── */}
           <div className="px-6 py-5">
-            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as string)}>
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) => setActiveTab(val as string)}
+            >
               <TabsList className="w-full overflow-x-auto">
                 <TabsTrigger value="general">General</TabsTrigger>
                 <TabsTrigger value="details">Details</TabsTrigger>
@@ -793,7 +796,9 @@ export function VolumeDialog({
                       placeholder="Short summary or synopsis..."
                       rows={4}
                       value={formData.description}
-                      onChange={(e) => updateField("description", e.target.value)}
+                      onChange={(e) =>
+                        updateField("description", e.target.value)
+                      }
                     />
                   </div>
                 </div>
@@ -979,7 +984,9 @@ export function VolumeDialog({
                       <path d="M10 14 21 3" />
                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                     </svg>
-                    {formData.amazon_url ? "Open on Amazon" : "Search on Amazon"}
+                    {formData.amazon_url
+                      ? "Open on Amazon"
+                      : "Search on Amazon"}
                   </Button>
                 </div>
               </TabsContent>
@@ -1013,12 +1020,12 @@ export function VolumeDialog({
                         />
                       )}
                       {coverPreviewError && (
-                          <div className="bg-muted text-muted-foreground flex aspect-2/3 w-full items-center justify-center rounded-xl text-xs">
+                        <div className="bg-muted text-muted-foreground flex aspect-2/3 w-full items-center justify-center rounded-xl text-xs">
                           Preview unavailable
                         </div>
                       )}
                       {!coverUrl && !coverPreviewError && (
-                          <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
+                        <div className="bg-muted/60 border-border/40 flex aspect-2/3 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 24 24"
@@ -1029,7 +1036,14 @@ export function VolumeDialog({
                             strokeLinejoin="round"
                             className="text-muted-foreground/60 h-8 w-8"
                           >
-                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                            <rect
+                              width="18"
+                              height="18"
+                              x="3"
+                              y="3"
+                              rx="2"
+                              ry="2"
+                            />
                             <circle cx="9" cy="9" r="2" />
                             <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
                           </svg>
@@ -1042,7 +1056,10 @@ export function VolumeDialog({
 
                     <div className="w-full max-w-64 space-y-2.5">
                       <div className="space-y-1.5">
-                        <Label htmlFor="cover_image_url" className="text-[11px]">
+                        <Label
+                          htmlFor="cover_image_url"
+                          className="text-[11px]"
+                        >
                           Cover URL
                         </Label>
                         <Input
@@ -1059,7 +1076,10 @@ export function VolumeDialog({
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label htmlFor="cover_image_upload" className="text-[11px]">
+                        <Label
+                          htmlFor="cover_image_upload"
+                          className="text-[11px]"
+                        >
                           Upload Cover
                         </Label>
                         <Input
@@ -1071,7 +1091,9 @@ export function VolumeDialog({
                             const file = e.target.files?.[0]
                             if (file) {
                               if (file.size > MAX_COVER_SIZE_BYTES) {
-                                toast.error("Cover images must be 5MB or smaller.")
+                                toast.error(
+                                  "Cover images must be 5MB or smaller."
+                                )
                               } else {
                                 void handleCoverFileChange(file)
                               }

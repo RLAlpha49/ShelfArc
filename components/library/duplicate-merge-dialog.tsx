@@ -715,9 +715,9 @@ export function DuplicateMergeDialog({
                         className="border-t"
                         aria-label="Field comparison"
                       >
-                        <div className="flex items-stretch border-b bg-muted/20">
+                        <div className="bg-muted/20 flex items-stretch border-b">
                           <div className="flex w-24 shrink-0 items-center px-3 py-2 sm:w-28">
-                            <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+                            <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
                               Field
                             </span>
                           </div>
@@ -744,8 +744,7 @@ export function DuplicateMergeDialog({
                         <div className="divide-y">
                           {COMPARE_FIELDS.filter((field) =>
                             group.items.some((ref) => {
-                              const v =
-                                ref.volume[field.key as keyof Volume]
+                              const v = ref.volume[field.key as keyof Volume]
                               return v != null && v !== ""
                             })
                           ).map((field) => {

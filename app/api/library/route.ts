@@ -1,7 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
-import { apiError } from "@/lib/api-response"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { apiError, apiSuccess } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 import type {
   FetchLibrarySeriesResponse,
@@ -578,9 +578,7 @@ export async function GET(request: NextRequest) {
         ? await handleVolumesView(supabase, user.id, params)
         : await handleSeriesView(supabase, user.id, params)
 
-    const response = NextResponse.json(result)
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    return apiSuccess(result, { correlationId })
   } catch (error) {
     log.error("Library fetch failed", {
       error: error instanceof Error ? error.message : String(error)

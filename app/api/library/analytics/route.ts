@@ -1,9 +1,9 @@
 import "server-only"
 
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
-import { apiError } from "@/lib/api-response"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { apiError, apiSuccess } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 import {
   computeCollectionStats,
@@ -88,13 +88,11 @@ export async function GET(request: NextRequest) {
     const priceBreakdown = computePriceBreakdown(seriesWithVolumes)
     const wishlistStats = computeWishlistStats(seriesWithVolumes)
 
-    const response = NextResponse.json({
-      collectionStats,
-      priceBreakdown,
-      wishlistStats
-    })
+    const response = apiSuccess(
+      { collectionStats, priceBreakdown, wishlistStats },
+      { correlationId }
+    )
 
-    response.headers.set(CORRELATION_HEADER, correlationId)
     response.headers.set("Cache-Control", "private, max-age=60")
 
     return response

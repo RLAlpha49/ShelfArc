@@ -657,7 +657,10 @@ export function SeriesDialog({
 
           {/* ── Tabbed Fields ── */}
           <div className="px-6 py-5">
-            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as string)}>
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) => setActiveTab(val as string)}
+            >
               <TabsList className="w-full">
                 <TabsTrigger value="general">General</TabsTrigger>
                 <TabsTrigger value="credits">Credits</TabsTrigger>
@@ -699,7 +702,9 @@ export function SeriesDialog({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="manga">Manga</SelectItem>
-                          <SelectItem value="light_novel">Light Novel</SelectItem>
+                          <SelectItem value="light_novel">
+                            Light Novel
+                          </SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
@@ -750,7 +755,10 @@ export function SeriesDialog({
                       id="description"
                       value={formData.description}
                       onChange={(e) =>
-                        setFormData({ ...formData, description: e.target.value })
+                        setFormData({
+                          ...formData,
+                          description: e.target.value
+                        })
                       }
                       placeholder="Brief description of the series"
                       rows={3}
@@ -793,7 +801,10 @@ export function SeriesDialog({
                         id="publisher"
                         value={formData.publisher}
                         onChange={(e) =>
-                          setFormData({ ...formData, publisher: e.target.value })
+                          setFormData({
+                            ...formData,
+                            publisher: e.target.value
+                          })
                         }
                         placeholder="Publisher name"
                       />
@@ -869,7 +880,14 @@ export function SeriesDialog({
                           strokeLinejoin="round"
                           className="text-muted-foreground/60 h-8 w-8"
                         >
-                          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                          <rect
+                            width="18"
+                            height="18"
+                            x="3"
+                            y="3"
+                            rx="2"
+                            ry="2"
+                          />
                           <circle cx="9" cy="9" r="2" />
                           <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
                         </svg>
@@ -902,7 +920,10 @@ export function SeriesDialog({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label htmlFor="cover_image_upload" className="text-[11px]">
+                      <Label
+                        htmlFor="cover_image_upload"
+                        className="text-[11px]"
+                      >
                         Upload Cover
                       </Label>
                       <Input
@@ -914,7 +935,9 @@ export function SeriesDialog({
                           const file = e.target.files?.[0]
                           if (file) {
                             if (file.size > MAX_COVER_SIZE_BYTES) {
-                              toast.error("Cover images must be 5MB or smaller.")
+                              toast.error(
+                                "Cover images must be 5MB or smaller."
+                              )
                             } else {
                               void handleCoverFileChange(file)
                             }

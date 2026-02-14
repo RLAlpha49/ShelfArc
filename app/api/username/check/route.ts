@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { isValidUsername } from "@/lib/validation"
 import { isRateLimited, recordFailure } from "@/lib/rate-limit"
-import { apiError } from "@/lib/api-response"
+import { apiError, apiSuccess } from "@/lib/api-response"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { getCorrelationId } from "@/lib/correlation"
 
 /** Rate-limit config for username availability checks. @source */
 const USERNAME_CHECK_RATE_LIMIT = {
@@ -86,8 +86,5 @@ export async function GET(request: NextRequest) {
     return apiError(500, "Failed to check username")
   }
 
-  return NextResponse.json(
-    { available: data.length === 0 },
-    { headers: { [CORRELATION_HEADER]: correlationId } }
-  )
+  return apiSuccess({ available: data.length === 0 }, { correlationId })
 }

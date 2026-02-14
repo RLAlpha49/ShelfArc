@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
 import {
   isIsbnQuery,
   normalizeGoogleBooksItems,
@@ -8,8 +8,8 @@ import {
 } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
-import { apiError } from "@/lib/api-response"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { apiError, apiSuccess } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
 import { logger, type Logger } from "@/lib/logger"
 
 /** Google Books Volumes API base URL. @source */
@@ -320,15 +320,16 @@ const handleGoogleBooks = async (
       params.limit,
       log
     )
-    const response = NextResponse.json({
-      results: items,
-      sourceUsed: "google_books",
-      page: params.page,
-      limit: params.limit,
-      ...(warning ? { warning } : {})
-    })
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    return apiSuccess(
+      {
+        results: items,
+        sourceUsed: "google_books" as const,
+        page: params.page,
+        limit: params.limit,
+        ...(warning ? { warning } : {})
+      },
+      { correlationId }
+    )
   } catch (error) {
     log.error("Google Books search failed", {
       error: error instanceof Error ? error.message : String(error)
@@ -354,14 +355,15 @@ const handleOpenLibrary = async (
       params.page,
       params.limit
     )
-    const response = NextResponse.json({
-      results,
-      sourceUsed: "open_library",
-      page: params.page,
-      limit: params.limit
-    })
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    return apiSuccess(
+      {
+        results,
+        sourceUsed: "open_library" as const,
+        page: params.page,
+        limit: params.limit
+      },
+      { correlationId }
+    )
   } catch (error) {
     log.error("Open Library search failed", {
       error: error instanceof Error ? error.message : String(error)
@@ -384,10 +386,7 @@ export async function GET(request: NextRequest) {
 
   const params = parseSearchParams(request.nextUrl.searchParams)
   if (!params) {
-    return NextResponse.json(
-      { results: [], sourceUsed: null, error: "Missing query" },
-      { status: 400 }
-    )
+    return apiError(400, "Missing query")
   }
 
   if (params.source === "google_books") {

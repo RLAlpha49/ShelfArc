@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
-import { apiError, parseJsonBody } from "@/lib/api-response"
+import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { isNonNegativeFinite, isValidCurrencyCode } from "@/lib/validation"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const {
       data: { user }
     } = await supabase.auth.getUser()
-    if (!user) return apiError(401, "Not authenticated")
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
 
     const volumeId = request.nextUrl.searchParams.get("volumeId")
 
@@ -31,15 +31,14 @@ export async function GET(request: NextRequest) {
       ascending: false
     })
 
-    if (error) return apiError(500, "Failed to fetch price alerts")
-    const response = NextResponse.json({ data })
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    if (error)
+      return apiError(500, "Failed to fetch price alerts", { correlationId })
+    return apiSuccess({ data }, { correlationId })
   } catch (error) {
     log.error("Price alerts fetch failed", {
       error: error instanceof Error ? error.message : String(error)
     })
-    return apiError(500, "Failed to fetch price alerts")
+    return apiError(500, "Failed to fetch price alerts", { correlationId })
   }
 }
 
@@ -96,7 +95,7 @@ export async function POST(request: NextRequest) {
     const {
       data: { user }
     } = await supabase.auth.getUser()
-    if (!user) return apiError(401, "Not authenticated")
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
 
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
@@ -121,10 +120,9 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) return apiError(500, "Failed to save price alert")
-    const response = NextResponse.json({ data })
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    if (error)
+      return apiError(500, "Failed to save price alert", { correlationId })
+    return apiSuccess({ data }, { correlationId })
   } catch (error) {
     log.error("Price alert save failed", {
       error: error instanceof Error ? error.message : String(error)
@@ -145,14 +143,14 @@ export async function PATCH(request: NextRequest) {
     const {
       data: { user }
     } = await supabase.auth.getUser()
-    if (!user) return apiError(401, "Not authenticated")
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
 
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
     const { id } = body
     if (typeof id !== "string" || !id.trim()) {
-      return apiError(400, "id is required")
+      return apiError(400, "id is required", { correlationId })
     }
 
     const { data, error } = await supabase
@@ -166,10 +164,9 @@ export async function PATCH(request: NextRequest) {
       .select()
       .single()
 
-    if (error) return apiError(500, "Failed to trigger price alert")
-    const response = NextResponse.json({ data })
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    if (error)
+      return apiError(500, "Failed to trigger price alert", { correlationId })
+    return apiSuccess({ data }, { correlationId })
   } catch (error) {
     log.error("Price alert trigger failed", {
       error: error instanceof Error ? error.message : String(error)
@@ -190,10 +187,10 @@ export async function DELETE(request: NextRequest) {
     const {
       data: { user }
     } = await supabase.auth.getUser()
-    if (!user) return apiError(401, "Not authenticated")
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
 
     const id = request.nextUrl.searchParams.get("id")
-    if (!id) return apiError(400, "id is required")
+    if (!id) return apiError(400, "id is required", { correlationId })
 
     const { error } = await supabase
       .from("price_alerts")
@@ -201,10 +198,9 @@ export async function DELETE(request: NextRequest) {
       .eq("id", id)
       .eq("user_id", user.id)
 
-    if (error) return apiError(500, "Failed to delete price alert")
-    const response = NextResponse.json({ success: true })
-    response.headers.set(CORRELATION_HEADER, correlationId)
-    return response
+    if (error)
+      return apiError(500, "Failed to delete price alert", { correlationId })
+    return apiSuccess({ success: true }, { correlationId })
   } catch (error) {
     log.error("Price alert delete failed", {
       error: error instanceof Error ? error.message : String(error)

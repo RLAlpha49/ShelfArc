@@ -335,8 +335,8 @@ export default function SettingsPage() {
           `/api/username/check?username=${encodeURIComponent(value)}`
         )
         if (res.ok) {
-          const json = (await res.json()) as { available: boolean }
-          setUsernameAvailable(json.available)
+          const json = (await res.json()) as { data: { available: boolean } }
+          setUsernameAvailable(json.data.available)
         }
       } catch {
         // Silently ignore network errors for availability check

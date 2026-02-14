@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { createHash } from "node:crypto"
 import {
   isRateLimited,
   recordFailure,
   getCooldownRemaining
 } from "@/lib/rate-limit"
-import { apiError } from "@/lib/api-response"
+import { apiError, apiSuccess } from "@/lib/api-response"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { ApiError } from "@/lib/books/price/api-error"
 import {
@@ -17,7 +17,7 @@ import {
   ConcurrencyLimitError,
   ConcurrencyLimiter
 } from "@/lib/concurrency/limiter"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 
 /** Forces dynamic (uncached) rendering for this route. @source */
@@ -177,25 +177,26 @@ export async function GET(request: NextRequest) {
         includeImage
       })
 
-      const response = NextResponse.json({
-        searchUrl: context.searchUrl,
-        domain: context.domain,
-        expectedTitle: context.expectedTitle,
-        matchScore: parsed.matchScore,
-        binding: context.bindingLabel,
-        result: {
-          title: parsed.resultTitle,
-          priceText: parsed.priceText,
-          priceValue: parsed.priceValue,
-          currency: parsed.currency,
-          priceBinding: parsed.priceBinding,
-          priceError: parsed.priceError,
-          url: parsed.productUrl,
-          imageUrl: parsed.imageUrl
-        }
-      })
-      response.headers.set(CORRELATION_HEADER, correlationId)
-      return response
+      return apiSuccess(
+        {
+          searchUrl: context.searchUrl,
+          domain: context.domain,
+          expectedTitle: context.expectedTitle,
+          matchScore: parsed.matchScore,
+          binding: context.bindingLabel,
+          result: {
+            title: parsed.resultTitle,
+            priceText: parsed.priceText,
+            priceValue: parsed.priceValue,
+            currency: parsed.currency,
+            priceBinding: parsed.priceBinding,
+            priceError: parsed.priceError,
+            url: parsed.productUrl,
+            imageUrl: parsed.imageUrl
+          }
+        },
+        { correlationId }
+      )
     })
   } catch (error) {
     if (error instanceof ConcurrencyLimitError) {
