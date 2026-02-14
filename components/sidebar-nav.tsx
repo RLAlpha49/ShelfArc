@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { logout } from "@/app/auth/actions"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
+import { NotificationBell } from "@/components/notification-bell"
 
 /** Props for the {@link SidebarNav} component. @source */
 interface SidebarNavProps {
@@ -356,6 +357,9 @@ export function SidebarNav({
             <div>
               <ThemeToggle />
             </div>
+            <div>
+              <NotificationBell />
+            </div>
             <button
               type="button"
               onClick={() => setCollapsed(!collapsed)}
@@ -383,6 +387,45 @@ export function SidebarNav({
               </svg>
             </button>
           </div>
+
+          {user && (
+            <button
+              type="button"
+              onClick={() =>
+                globalThis.dispatchEvent(new Event("open-command-palette"))
+              }
+              className={cn(
+                "focus-visible:ring-ring focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-accent mb-2 flex w-full items-center rounded-xl px-3 py-2 text-sm transition-all hover:shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                collapsed ? "justify-center px-0" : "gap-3"
+              )}
+              aria-label="Open command palette"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5 shrink-0"
+              >
+                <circle cx="7" cy="7" r="4.5" />
+                <path d="m12.5 12.5-2.8-2.8" />
+              </svg>
+              <span
+                className={cn(
+                  "overflow-hidden whitespace-nowrap transition-all duration-300",
+                  collapsed
+                    ? "max-w-0 -translate-x-2 opacity-0"
+                    : "max-w-40 flex-1 translate-x-0 opacity-100"
+                )}
+                aria-hidden={collapsed}
+              >
+                Search…
+              </span>
+            </button>
+          )}
 
           {user && (
             <DropdownMenu>
@@ -440,14 +483,14 @@ export function SidebarNav({
                         .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col leading-none">
+                  <div className="min-w-0 flex-1 flex flex-col leading-none">
                     {user.user_metadata?.username && (
-                      <p className="text-sm font-semibold">
+                      <p className="truncate text-sm font-semibold">
                         {user.user_metadata.username}
                       </p>
                     )}
                     {user.email && (
-                      <p className="text-muted-foreground mt-1 text-xs">
+                      <p className="text-muted-foreground mt-1 truncate text-xs">
                         {user.email}
                       </p>
                     )}

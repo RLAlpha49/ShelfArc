@@ -82,6 +82,23 @@ export function Header({ user }: HeaderProps) {
           <path d="M6 20v-4" />
         </svg>
       )
+    },
+    {
+      href: "/settings",
+      label: "Settings",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+        >
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )
     }
   ]
 
@@ -296,14 +313,14 @@ export function Header({ user }: HeaderProps) {
                         .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col leading-none">
+                  <div className="min-w-0 flex-1 flex flex-col leading-none">
                     {user.user_metadata?.username && (
-                      <p className="text-sm font-medium">
+                      <p className="truncate text-sm font-medium">
                         {user.user_metadata.username}
                       </p>
                     )}
                     {user.email && (
-                      <p className="text-muted-foreground mt-1 text-xs">
+                      <p className="text-muted-foreground mt-1 truncate text-xs">
                         {user.email}
                       </p>
                     )}
