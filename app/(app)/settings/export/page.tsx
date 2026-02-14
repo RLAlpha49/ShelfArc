@@ -276,14 +276,13 @@ export default function ExportPage() {
         }
 
         downloadTextFile(
-          [
-            "--- Volumes ---",
-            ...volumeRows,
-            "",
-            "--- Series ---",
-            ...seriesRows
-          ].join("\n"),
-          `shelfarc-export-${today}.csv`,
+          volumeRows.join("\n"),
+          `shelfarc-volumes-${today}.csv`,
+          "text/csv"
+        )
+        downloadTextFile(
+          seriesRows.join("\n"),
+          `shelfarc-series-${today}.csv`,
           "text/csv"
         )
       }
@@ -330,7 +329,8 @@ export default function ExportPage() {
             <CardTitle>Export Your Library</CardTitle>
             <CardDescription>
               Download your entire collection—or export just a subset for
-              sharing or migration.
+              sharing or migration. Use JSON for backup &amp; re-import;
+              CSV is best for spreadsheets and manual editing.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -362,7 +362,8 @@ export default function ExportPage() {
                       CSV
                     </Label>
                     <p className="text-muted-foreground text-sm">
-                      Spreadsheet-friendly. Great for Excel.
+                      Spreadsheet-friendly. Great for Excel or sharing.
+                      Downloads two files (series &amp; volumes).
                     </p>
                   </div>
                 </div>
