@@ -87,8 +87,8 @@ function cloneFilters(filters: FilterState): FilterState {
     type: filters.type,
     ownershipStatus: filters.ownershipStatus,
     readingStatus: filters.readingStatus,
-    tags: [...filters.tags],
-    excludeTags: [...filters.excludeTags]
+    tags: [...(filters.tags ?? [])],
+    excludeTags: [...(filters.excludeTags ?? [])]
   }
 }
 
