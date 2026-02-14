@@ -15,10 +15,7 @@ function getRingColorClass(score: number) {
 }
 
 export function CollectionHealthCard({ series }: CollectionHealthCardProps) {
-  const health = useMemo(
-    () => computeHealthScore(series),
-    [series]
-  )
+  const health = useMemo(() => computeHealthScore(series), [series])
 
   const circumference = 2 * Math.PI * 42
   const filled = (health.overall / 100) * circumference

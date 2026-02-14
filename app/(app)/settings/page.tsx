@@ -1048,11 +1048,10 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label className="font-medium">
-                        Onboarding tour
-                      </Label>
+                      <Label className="font-medium">Onboarding tour</Label>
                       <p className="text-muted-foreground text-sm">
-                        Replay the guided walkthrough of ShelfArc&apos;s key features.
+                        Replay the guided walkthrough of ShelfArc&apos;s key
+                        features.
                       </p>
                     </div>
                     <Button
@@ -1060,7 +1059,9 @@ export default function SettingsPage() {
                       size="sm"
                       onClick={() => {
                         setHasCompletedOnboarding(false)
-                        toast.success("Onboarding tour will show on your next page load")
+                        toast.success(
+                          "Onboarding tour will show on your next page load"
+                        )
                       }}
                     >
                       Restart onboarding tour

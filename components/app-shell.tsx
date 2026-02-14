@@ -33,7 +33,9 @@ export function AppShell({ children, user }: AppShellProps) {
   const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)
   const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed)
   const _hydrated = useSettingsStore((s) => s._hydrated)
-  const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding)
+  const hasCompletedOnboarding = useSettingsStore(
+    (s) => s.hasCompletedOnboarding
+  )
 
   const routeAnnouncement = useMemo(() => {
     const label = pathname

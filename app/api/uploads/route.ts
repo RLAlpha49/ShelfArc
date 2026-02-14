@@ -204,23 +204,26 @@ const handleReplaceCleanup = async (params: {
   }
 
   log.warn("Failed to remove previous image", {
-    error: removeError instanceof Error
-      ? removeError.message
-      : String(removeError),
+    error:
+      removeError instanceof Error ? removeError.message : String(removeError),
     replacePathValue,
     fileName,
     userId
   })
 
   const removeErrorMessage = getErrorMessage(removeError)
-  const enqueued = await enqueueFailedDeletion(supabase, {
-    replacePath: replacePathValue,
-    newPath: fileName,
-    userId,
-    timestamp: new Date().toISOString(),
-    reason: "replace_remove_failed",
-    removeError: removeErrorMessage
-  }, log)
+  const enqueued = await enqueueFailedDeletion(
+    supabase,
+    {
+      replacePath: replacePathValue,
+      newPath: fileName,
+      userId,
+      timestamp: new Date().toISOString(),
+      reason: "replace_remove_failed",
+      removeError: removeErrorMessage
+    },
+    log
+  )
 
   if (!enqueued) {
     log.error("Failed to enqueue cleanup after replace removal failure", {
@@ -336,10 +339,15 @@ export async function POST(request: Request) {
         const inputStream = Readable.fromWeb(
           file.stream() as unknown as ReadableStream<Uint8Array>
         )
-        const optimizedResult = await processImage(inputStream, spec, {
-          userId: user.id,
-          mimeType: file.type
-        }, log)
+        const optimizedResult = await processImage(
+          inputStream,
+          spec,
+          {
+            userId: user.id,
+            mimeType: file.type
+          },
+          log
+        )
 
         if (!optimizedResult.ok) {
           return optimizedResult.response
@@ -362,9 +370,10 @@ export async function POST(request: Request) {
 
         if (uploadError) {
           log.error("Storage upload failed", {
-            error: uploadError instanceof Error
-              ? uploadError.message
-              : String(uploadError)
+            error:
+              uploadError instanceof Error
+                ? uploadError.message
+                : String(uploadError)
           })
           return buildError(isDev ? uploadError.message : "Upload failed", 500)
         }

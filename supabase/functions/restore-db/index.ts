@@ -155,19 +155,22 @@ const downloadBackup = async (
 ): Promise<
   { data: BackupPayload; error?: never } | { data?: never; error: string }
 > => {
-  const { data, error } = (await (supabase.storage
-    .from(bucket) as unknown as {
-    download: (path: string) => Promise<{ data: Blob | null; error: { message: string } | null }>
-  }).download(backupPath))
+  const { data, error } = await (
+    supabase.storage.from(bucket) as unknown as {
+      download: (
+        path: string
+      ) => Promise<{ data: Blob | null; error: { message: string } | null }>
+    }
+  ).download(backupPath)
 
   if (error || !data) {
     return { error: error?.message ?? "Failed to download backup file." }
   }
 
   try {
-    const decompressedStream = data.stream().pipeThrough(
-      new DecompressionStream("gzip")
-    )
+    const decompressedStream = data
+      .stream()
+      .pipeThrough(new DecompressionStream("gzip"))
     const decompressedResponse = new Response(decompressedStream)
     const text = await decompressedResponse.text()
     const payload = JSON.parse(text) as BackupPayload
@@ -225,10 +228,13 @@ const restoreTable = async (
 ): Promise<{ rowCount: number; error?: string }> => {
   // Delete all existing rows first.
   // The neq guard ensures the query is not empty (Supabase requires a filter on delete).
-  const deleteResult = (await (supabase
+  const deleteResult = await (supabase
     .from(table)
     .delete()
-    .neq("id", "00000000-0000-0000-0000-000000000000") as unknown as Promise<MutationResult>))
+    .neq(
+      "id",
+      "00000000-0000-0000-0000-000000000000"
+    ) as unknown as Promise<MutationResult>)
 
   if (deleteResult.error) {
     return {
@@ -247,9 +253,9 @@ const restoreTable = async (
 
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize)
-    const insertResult = (await (supabase
+    const insertResult = await (supabase
       .from(table)
-      .insert(batch) as unknown as Promise<MutationResult>))
+      .insert(batch) as unknown as Promise<MutationResult>)
 
     if (insertResult.error) {
       return {
@@ -319,7 +325,8 @@ serve(async (request: Request) => {
 
   if (!isSafeBackupPath(backupPath)) {
     return jsonResponse(400, {
-      error: "Invalid backupPath. Must end with .json.gz and contain no traversal sequences."
+      error:
+        "Invalid backupPath. Must end with .json.gz and contain no traversal sequences."
     })
   }
 

@@ -123,7 +123,10 @@ const STEPS = [
   }
 ] as const
 
-export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) {
+export function OnboardingDialog({
+  open,
+  onOpenChange
+}: OnboardingDialogProps) {
   const [step, setStep] = useState(0)
   const setHasCompletedOnboarding = useSettingsStore(
     (s) => s.setHasCompletedOnboarding
@@ -142,7 +145,7 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-md rounded-2xl border-0 bg-linear-to-b from-background to-muted/40 p-0 ring-1 ring-border/60 shadow-xl"
+        className="from-background to-muted/40 ring-border/60 rounded-2xl border-0 bg-linear-to-b p-0 shadow-xl ring-1 sm:max-w-md"
       >
         <div className="flex flex-col items-center px-6 pt-8 pb-2 text-center">
           <div className="bg-primary/8 text-primary mb-5 flex h-20 w-20 items-center justify-center rounded-2xl">
@@ -167,15 +170,13 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
             <span
               key={s.title}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === step
-                  ? "bg-primary w-6"
-                  : "bg-muted-foreground/25 w-1.5"
+                i === step ? "bg-primary w-6" : "bg-muted-foreground/25 w-1.5"
               }`}
             />
           ))}
         </fieldset>
 
-        <DialogFooter className="border-t border-border/40 px-6 py-4">
+        <DialogFooter className="border-border/40 border-t px-6 py-4">
           <div className="flex w-full items-center justify-between">
             <Button
               variant="ghost"

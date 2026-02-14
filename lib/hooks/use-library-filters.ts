@@ -11,13 +11,8 @@ export interface VolumeWithSeries {
 }
 
 export function useLibraryFilters() {
-  const {
-    series,
-    unassignedVolumes,
-    filters,
-    sortField,
-    sortOrder
-  } = useLibraryStore()
+  const { series, unassignedVolumes, filters, sortField, sortOrder } =
+    useLibraryStore()
 
   const matchesTagFilters = useCallback(
     (seriesTags: string[]) => {

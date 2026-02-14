@@ -7,10 +7,7 @@ import type {
   FetchLibraryVolumesResponse
 } from "@/lib/api/types"
 import { useLibraryStore } from "@/lib/store/library-store"
-import type {
-  SeriesWithVolumes,
-  Volume
-} from "@/lib/types/database"
+import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** Keep client requests within route-level max page size. @source */
 const API_PAGE_LIMIT = 100
@@ -121,13 +118,7 @@ export function useLibraryFetch() {
         setIsLoading(false)
       }
     }
-  }, [
-    setSeries,
-    setUnassignedVolumes,
-    setIsLoading,
-    sortField,
-    sortOrder
-  ])
+  }, [setSeries, setUnassignedVolumes, setIsLoading, sortField, sortOrder])
 
   return { fetchSeries, isLoading }
 }

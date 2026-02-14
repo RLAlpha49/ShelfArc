@@ -8,7 +8,11 @@ import { getGridClasses } from "@/lib/library/grid-utils"
  * Skeleton placeholder shown while the library data is loading.
  * @param viewMode - Current layout mode (grid or list).
  */
-export function LoadingSkeleton({ viewMode }: { readonly viewMode: "grid" | "list" }) {
+export function LoadingSkeleton({
+  viewMode
+}: {
+  readonly viewMode: "grid" | "list"
+}) {
   const cardSize = useSettingsStore((s) => s.cardSize)
   const items = Array.from({ length: 12 }, (_, i) => `skeleton-${i}`)
 

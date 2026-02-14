@@ -1,6 +1,14 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from "react"
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  lazy,
+  Suspense
+} from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { SeriesCard } from "@/components/library/series-card"
 

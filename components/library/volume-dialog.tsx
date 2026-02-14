@@ -119,10 +119,6 @@ const isValidReadingStatus = (
 /** Maximum upload size for cover images (5 MB). @source */
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 
-
-
-
-
 /**
  * Dialog for creating or editing a volume with metadata fields, cover art management,
  * Amazon price/image fetching, and optional series picker.

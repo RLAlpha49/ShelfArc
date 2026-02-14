@@ -92,10 +92,7 @@ function cloneFilters(filters: FilterState): FilterState {
   }
 }
 
-function omitKey<T extends Record<string, unknown>>(
-  obj: T,
-  key: string
-): T {
+function omitKey<T extends Record<string, unknown>>(obj: T, key: string): T {
   const result = { ...obj }
   delete result[key]
   return result
@@ -377,10 +374,7 @@ export const useLibraryStore = create<LibraryState>()(
         set((state) => {
           const restSeriesById = omitKey(state.seriesById, id)
           const removedVolumeIds = state.volumeIdsBySeriesId[id]
-          const restVolumeIdsBySeriesId = omitKey(
-            state.volumeIdsBySeriesId,
-            id
-          )
+          const restVolumeIdsBySeriesId = omitKey(state.volumeIdsBySeriesId, id)
           const nextVolumesById = { ...state.volumesById }
           for (const vid of removedVolumeIds ?? []) {
             delete nextVolumesById[vid]
@@ -407,9 +401,7 @@ export const useLibraryStore = create<LibraryState>()(
             ]
           },
           series: state.series.map((s) =>
-            s.id === seriesId
-              ? { ...s, volumes: [...s.volumes, volume] }
-              : s
+            s.id === seriesId ? { ...s, volumes: [...s.volumes, volume] } : s
           ),
           selectedSeries:
             state.selectedSeries?.id === seriesId
@@ -456,9 +448,9 @@ export const useLibraryStore = create<LibraryState>()(
             volumesById: restVolumesById,
             volumeIdsBySeriesId: {
               ...state.volumeIdsBySeriesId,
-              [seriesId]: (
-                state.volumeIdsBySeriesId[seriesId] ?? []
-              ).filter((vid) => vid !== volumeId)
+              [seriesId]: (state.volumeIdsBySeriesId[seriesId] ?? []).filter(
+                (vid) => vid !== volumeId
+              )
             },
             series: state.series.map((s) =>
               s.id === seriesId

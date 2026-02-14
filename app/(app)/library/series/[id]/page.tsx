@@ -1,6 +1,14 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from "react"
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  lazy,
+  Suspense
+} from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -43,8 +51,15 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { buildSeriesInsights, getErrorMessage } from "@/lib/library/series-insights"
-import { applyRating, toggleInSet, buildCurrencyFormatter } from "@/lib/library/volume-helpers"
+import {
+  buildSeriesInsights,
+  getErrorMessage
+} from "@/lib/library/series-insights"
+import {
+  applyRating,
+  toggleInSet,
+  buildCurrencyFormatter
+} from "@/lib/library/volume-helpers"
 import type {
   SeriesWithVolumes,
   SeriesInsert,

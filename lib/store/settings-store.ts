@@ -136,7 +136,8 @@ export const useSettingsStore = create<SettingsState>()(
       setDisplayFont: (value) => set({ displayFont: value }),
       setBodyFont: (value) => set({ bodyFont: value }),
       setDateFormat: (value) => set({ dateFormat: value }),
-      setHasCompletedOnboarding: (value) => set({ hasCompletedOnboarding: value })
+      setHasCompletedOnboarding: (value) =>
+        set({ hasCompletedOnboarding: value })
     }),
     {
       name: "shelfarc-settings",

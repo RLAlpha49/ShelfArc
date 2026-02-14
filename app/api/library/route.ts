@@ -78,7 +78,7 @@ function parseCommaSeparated(raw: string | null): string[] {
 function parseIntParam(raw: string | null, fallback: number): number {
   if (!raw) return fallback
   const parsed = Number.parseInt(raw, 10)
-  return Number.isNaN(parsed) ? fallback: parsed
+  return Number.isNaN(parsed) ? fallback : parsed
 }
 
 /**
@@ -378,9 +378,10 @@ async function resolveSeriesIdFilter(
 }
 
 /** Maps a sort field name to the actual column to order by (volumes view). @source */
-function resolveVolumeSortColumn(
-  sortField: string
-): { column: string; nullsFirst?: boolean } {
+function resolveVolumeSortColumn(sortField: string): {
+  column: string
+  nullsFirst?: boolean
+} {
   switch (sortField) {
     case "volume_count":
       return { column: "volume_number" }
@@ -403,12 +404,24 @@ async function fetchSeriesMap(
 ): Promise<
   Record<
     string,
-    { id: string; title: string; author: string | null; type: string; tags: string[] }
+    {
+      id: string
+      title: string
+      author: string | null
+      type: string
+      tags: string[]
+    }
   >
 > {
   const map: Record<
     string,
-    { id: string; title: string; author: string | null; type: string; tags: string[] }
+    {
+      id: string
+      title: string
+      author: string | null
+      type: string
+      tags: string[]
+    }
   > = {}
   if (seriesIds.length === 0) return map
 
