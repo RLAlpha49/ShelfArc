@@ -1,24 +1,22 @@
 "use client"
 
-import { useCallback } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { useCallback, useRef } from "react"
+import { fetchLibrary } from "@/lib/api/endpoints"
+import type {
+  FetchLibrarySeriesResponse,
+  FetchLibraryVolumesResponse
+} from "@/lib/api/types"
 import { useLibraryStore } from "@/lib/store/library-store"
 import type {
-  Series,
   SeriesWithVolumes,
   Volume
 } from "@/lib/types/database"
 
-/** Explicit column list for hot `series` reads (avoid select("*") growth). @source */
-export const SERIES_SELECT_FIELDS =
-  "id,user_id,title,original_title,description,notes,author,artist,publisher,cover_image_url,type,total_volumes,status,tags,created_at,updated_at"
-
-/** Explicit column list for hot `volumes` reads (avoid select("*") growth). @source */
-export const VOLUME_SELECT_FIELDS =
-  "id,series_id,user_id,volume_number,title,description,isbn,cover_image_url,edition,format,page_count,publish_date,purchase_date,purchase_price,ownership_status,reading_status,current_page,amazon_url,rating,notes,started_at,finished_at,created_at,updated_at"
+/** Keep client requests within route-level max page size. @source */
+const API_PAGE_LIMIT = 100
 
 export function useLibraryFetch() {
-  const supabase = createClient()
+  const fetchRunIdRef = useRef(0)
   const {
     setSeries,
     setUnassignedVolumes,
@@ -30,51 +28,100 @@ export function useLibraryFetch() {
 
   // Fetch all series with volumes
   const fetchSeries = useCallback(async () => {
+    const fetchRunId = ++fetchRunIdRef.current
+    const isLatestRun = () => fetchRunIdRef.current === fetchRunId
+
     setIsLoading(true)
     try {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not authenticated")
+      const seriesData: FetchLibrarySeriesResponse["data"] = []
+      const unassignedVolumes: Volume[] = []
 
-      const { data: seriesData, error: seriesError } = await supabase
-        .from("series")
-        .select(SERIES_SELECT_FIELDS)
-        .eq("user_id", user.id)
-        .order(sortField, { ascending: sortOrder === "asc" })
+      const commitProgress = () => {
+        if (!isLatestRun()) return
 
-      if (seriesError) throw seriesError
+        const seriesWithVolumes: SeriesWithVolumes[] = seriesData.map(
+          (series) => ({
+            ...series,
+            volumes: series.volumes as Volume[]
+          })
+        ) as SeriesWithVolumes[]
 
-      // Fetch volumes for all series
-      const { data: volumesData, error: volumesError } = await supabase
-        .from("volumes")
-        .select(VOLUME_SELECT_FIELDS)
-        .eq("user_id", user.id)
-        .order("volume_number", { ascending: true })
+        setSeries(seriesWithVolumes)
+        setUnassignedVolumes([...unassignedVolumes])
+      }
 
-      if (volumesError) throw volumesError
+      const firstSeriesResponse = (await fetchLibrary({
+        view: "series",
+        page: 1,
+        limit: API_PAGE_LIMIT,
+        sortField,
+        sortOrder
+      })) as FetchLibrarySeriesResponse
 
-      const allVolumes = (volumesData || []) as Volume[]
-      const assignedVolumes = allVolumes.filter((v) => v.series_id)
-      const unassigned = allVolumes.filter((v) => !v.series_id)
+      if (!isLatestRun()) return
 
-      // Combine series with their volumes
-      const seriesWithVolumes: SeriesWithVolumes[] = (
-        (seriesData || []) as Series[]
-      ).map((s) => ({
-        ...s,
-        volumes: assignedVolumes.filter((v) => v.series_id === s.id)
-      }))
+      seriesData.push(...firstSeriesResponse.data)
+      commitProgress()
 
-      setSeries(seriesWithVolumes)
-      setUnassignedVolumes(unassigned)
+      // Stop blocking render after first page; keep loading the rest in background.
+      setIsLoading(false)
+
+      const loadRemainingSeriesPages = async () => {
+        for (
+          let page = 2;
+          page <= firstSeriesResponse.pagination.totalPages;
+          page += 1
+        ) {
+          const response = (await fetchLibrary({
+            view: "series",
+            page,
+            limit: API_PAGE_LIMIT,
+            sortField,
+            sortOrder
+          })) as FetchLibrarySeriesResponse
+
+          if (!isLatestRun()) return
+
+          seriesData.push(...response.data)
+          commitProgress()
+        }
+      }
+
+      const loadVolumePages = async () => {
+        let page = 1
+        let totalPages = 1
+
+        do {
+          const response = (await fetchLibrary({
+            view: "volumes",
+            page,
+            limit: API_PAGE_LIMIT,
+            sortField: "volume_count",
+            sortOrder: "asc"
+          })) as FetchLibraryVolumesResponse
+
+          if (!isLatestRun()) return
+
+          const pageUnassigned = response.data
+            .map((entry) => entry.volume as Volume)
+            .filter((volume) => !volume.series_id)
+
+          unassignedVolumes.push(...pageUnassigned)
+          totalPages = response.pagination.totalPages
+          page += 1
+          commitProgress()
+        } while (page <= totalPages)
+      }
+
+      await Promise.all([loadRemainingSeriesPages(), loadVolumePages()])
     } catch (error) {
       console.error("Error fetching series:", error)
     } finally {
-      setIsLoading(false)
+      if (isLatestRun()) {
+        setIsLoading(false)
+      }
     }
   }, [
-    supabase,
     setSeries,
     setUnassignedVolumes,
     setIsLoading,

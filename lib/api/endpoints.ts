@@ -1,6 +1,9 @@
 import { apiFetch } from "./client"
 import type {
   FetchAlertsResponse,
+  FetchLibraryParams,
+  FetchLibrarySeriesResponse,
+  FetchLibraryVolumesResponse,
   FetchPriceParams,
   FetchPriceResponse,
   FetchVolumeResponse,
@@ -53,4 +56,31 @@ export function fetchPriceAlerts(
   signal?: AbortSignal
 ): Promise<FetchAlertsResponse> {
   return apiFetch<FetchAlertsResponse>("/api/books/price/alerts", { signal })
+}
+
+export function fetchLibrary(
+  params: FetchLibraryParams,
+  options?: { signal?: AbortSignal }
+): Promise<FetchLibrarySeriesResponse | FetchLibraryVolumesResponse> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set("page", String(params.page))
+  if (params.limit) searchParams.set("limit", String(params.limit))
+  if (params.sortField) searchParams.set("sortField", params.sortField)
+  if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)
+  if (params.search) searchParams.set("search", params.search)
+  if (params.type) searchParams.set("type", params.type)
+  if (params.ownershipStatus)
+    searchParams.set("ownershipStatus", params.ownershipStatus)
+  if (params.readingStatus)
+    searchParams.set("readingStatus", params.readingStatus)
+  if (params.tags?.length) searchParams.set("tags", params.tags.join(","))
+  if (params.excludeTags?.length)
+    searchParams.set("excludeTags", params.excludeTags.join(","))
+  if (params.view) searchParams.set("view", params.view)
+
+  const url = `/api/library?${searchParams.toString()}`
+  return apiFetch<FetchLibrarySeriesResponse | FetchLibraryVolumesResponse>(
+    url,
+    { signal: options?.signal }
+  )
 }

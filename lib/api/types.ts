@@ -63,3 +63,67 @@ export interface FetchPriceResponse {
 export interface FetchAlertsResponse {
   data: PriceAlert[]
 }
+
+// ── Library ─────────────────────────────────────────────────────────
+
+/** Query parameters for paginated library data. @source */
+export interface FetchLibraryParams {
+  page?: number
+  limit?: number
+  sortField?: string
+  sortOrder?: "asc" | "desc"
+  search?: string
+  type?: string
+  ownershipStatus?: string
+  readingStatus?: string
+  tags?: string[]
+  excludeTags?: string[]
+  view?: "series" | "volumes"
+}
+
+/** Pagination metadata. @source */
+export interface PaginationMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+/** Paginated library series response. @source */
+export interface FetchLibrarySeriesResponse {
+  data: Array<{
+    id: string
+    title: string
+    original_title: string | null
+    description: string | null
+    notes: string | null
+    author: string | null
+    artist: string | null
+    publisher: string | null
+    cover_image_url: string | null
+    type: string
+    total_volumes: number | null
+    status: string | null
+    tags: string[]
+    created_at: string
+    updated_at: string
+    user_id: string
+    volumes: Array<Record<string, unknown>>
+  }>
+  pagination: PaginationMeta
+}
+
+/** Paginated library volumes response. @source */
+export interface FetchLibraryVolumesResponse {
+  data: Array<{
+    volume: Record<string, unknown>
+    series: {
+      id: string
+      title: string
+      author: string | null
+      type: string
+      tags: string[]
+    }
+  }>
+  pagination: PaginationMeta
+}
