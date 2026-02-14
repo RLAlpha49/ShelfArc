@@ -12,7 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import type { SeriesWithVolumes, TitleType } from "@/lib/types/database"
+import { TypeBadge } from "@/components/ui/status-badge"
+import type { SeriesWithVolumes } from "@/lib/types/database"
 
 /** Props for the {@link SeriesCard} component. @source */
 interface SeriesCardProps {
@@ -23,13 +24,6 @@ interface SeriesCardProps {
   readonly onBulkScrape?: () => void
   readonly selected?: boolean
   readonly onSelect?: () => void
-}
-
-/** Badge color mapping per series title type. @source */
-const TYPE_COLORS: Record<TitleType, string> = {
-  light_novel: "bg-gold/10 text-gold",
-  manga: "bg-copper/10 text-copper",
-  other: "bg-muted text-muted-foreground"
 }
 
 /**
@@ -144,14 +138,7 @@ export function SeriesCard({
           )}
 
           <div className="mt-2 flex flex-wrap gap-1">
-            <Badge
-              variant="secondary"
-              className={`rounded-lg text-xs ${TYPE_COLORS[series.type] ?? TYPE_COLORS.other}`}
-            >
-              {series.type === "light_novel" && "LN"}
-              {series.type === "manga" && "Manga"}
-              {series.type === "other" && "Other"}
-            </Badge>
+            <TypeBadge type={series.type} short />
 
             {series.tags.slice(0, 2).map((tag) => (
               <Badge

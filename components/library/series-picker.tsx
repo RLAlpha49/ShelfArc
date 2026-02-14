@@ -13,15 +13,8 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { CoverImage } from "@/components/library/cover-image"
 import { cn } from "@/lib/utils"
-import { SERIES_TYPE_COLORS } from "@/lib/library/status-colors"
-import type { SeriesWithVolumes, TitleType } from "@/lib/types/database"
-
-/** Human-readable label per series title type. @source */
-const SERIES_TYPE_LABELS: Record<TitleType, string> = {
-  light_novel: "Light Novel",
-  manga: "Manga",
-  other: "Other"
-}
+import { TypeBadge } from "@/components/ui/status-badge"
+import type { SeriesWithVolumes } from "@/lib/types/database"
 
 /** Props for the {@link SeriesPicker} sub-dialog. @source */
 export interface SeriesPickerProps {
@@ -75,12 +68,7 @@ export function SeriesPicker({
         title: selectedSeriesOption.title,
         subtitle: selectedSeriesOption.author ?? "",
         badge: (
-          <Badge
-            variant="secondary"
-            className={`rounded-lg text-[10px] ${SERIES_TYPE_COLORS[selectedSeriesOption.type] ?? SERIES_TYPE_COLORS.other}`}
-          >
-            {SERIES_TYPE_LABELS[selectedSeriesOption.type] ?? "Other"}
-          </Badge>
+          <TypeBadge type={selectedSeriesOption.type} className="text-[10px]" />
         ),
         meta: `${(
           selectedSeriesOption.total_volumes ||
@@ -339,12 +327,10 @@ export function SeriesPicker({
                           </p>
                         )}
                         <div className="mt-1 flex flex-wrap items-center gap-1">
-                          <Badge
-                            variant="secondary"
-                            className={`rounded-lg text-[10px] ${SERIES_TYPE_COLORS[series.type] ?? SERIES_TYPE_COLORS.other}`}
-                          >
-                            {SERIES_TYPE_LABELS[series.type] ?? "Other"}
-                          </Badge>
+                          <TypeBadge
+                            type={series.type}
+                            className="text-[10px]"
+                          />
                           <span className="text-muted-foreground text-[10px]">
                             {totalVolumes} vols
                           </span>

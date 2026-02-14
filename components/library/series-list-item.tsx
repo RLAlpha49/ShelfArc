@@ -5,7 +5,7 @@ import { CoverImage } from "@/components/library/cover-image"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import { SERIES_TYPE_COLORS } from "@/lib/library/status-colors"
+import { TypeBadge } from "@/components/ui/status-badge"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 export interface SeriesListItemProps {
@@ -101,14 +101,7 @@ export function SeriesListItem({
             <h3 className="font-display min-w-0 truncate font-medium">
               {series.title}
             </h3>
-            <Badge
-              variant="secondary"
-              className={`shrink-0 rounded-lg text-xs ${SERIES_TYPE_COLORS[series.type] ?? SERIES_TYPE_COLORS.other}`}
-            >
-              {series.type === "light_novel" && "LN"}
-              {series.type === "manga" && "Manga"}
-              {series.type === "other" && "Other"}
-            </Badge>
+            <TypeBadge type={series.type} short className="shrink-0" />
           </div>
           <p className="text-muted-foreground truncate text-sm">
             {series.author || "Unknown Author"}

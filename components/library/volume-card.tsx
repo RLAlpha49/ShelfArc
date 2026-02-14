@@ -1,7 +1,10 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  OwnershipBadge,
+  ReadingStatusBadge
+} from "@/components/ui/status-badge"
 import { CoverImage } from "@/components/library/cover-image"
 import {
   DropdownMenu,
@@ -33,21 +36,6 @@ interface VolumeCardProps {
   readonly onScrapePrice?: () => void
   readonly selected?: boolean
   readonly onSelect?: () => void
-}
-
-/** Badge color mapping per ownership status. @source */
-const OWNERSHIP_COLORS: Record<string, string> = {
-  owned: "bg-copper/10 text-copper",
-  wishlist: "bg-gold/10 text-gold"
-}
-
-/** Badge color mapping per reading status. @source */
-const READING_COLORS: Record<string, string> = {
-  unread: "bg-muted text-muted-foreground",
-  reading: "bg-primary/10 text-primary",
-  completed: "bg-copper/10 text-copper",
-  on_hold: "bg-gold/10 text-gold",
-  dropped: "bg-destructive/10 text-destructive"
 }
 
 /**
@@ -156,18 +144,8 @@ export function VolumeCard({
           )}
 
           <div className="flex flex-wrap gap-1">
-            <Badge
-              variant="secondary"
-              className={`rounded-lg text-xs ${OWNERSHIP_COLORS[volume.ownership_status] ?? "bg-muted text-muted-foreground"}`}
-            >
-              {volume.ownership_status}
-            </Badge>
-            <Badge
-              variant="secondary"
-              className={`rounded-lg text-xs ${READING_COLORS[volume.reading_status]}`}
-            >
-              {volume.reading_status.replace("_", " ")}
-            </Badge>
+            <OwnershipBadge status={volume.ownership_status} />
+            <ReadingStatusBadge status={volume.reading_status} />
           </div>
 
           {/* Reading Progress — shows a completed indicator */}

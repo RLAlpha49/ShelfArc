@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { buildAmazonSearchUrl } from "@/lib/books/amazon-query"
 import {
-  OWNERSHIP_STATUS_COLORS,
-  READING_STATUS_COLORS
-} from "@/lib/library/status-colors"
+  OwnershipBadge,
+  ReadingStatusBadge
+} from "@/components/ui/status-badge"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import type { VolumeWithSeries } from "@/lib/hooks/use-library-filters"
 
@@ -123,18 +123,8 @@ export function VolumeListItem({
             </p>
           )}
           <div className="flex flex-wrap gap-1">
-            <Badge
-              variant="secondary"
-              className={`rounded-lg text-xs ${OWNERSHIP_STATUS_COLORS[item.volume.ownership_status] ?? "bg-muted text-muted-foreground"}`}
-            >
-              {item.volume.ownership_status}
-            </Badge>
-            <Badge
-              variant="secondary"
-              className={`rounded-lg text-xs ${READING_STATUS_COLORS[item.volume.reading_status]}`}
-            >
-              {item.volume.reading_status.replace("_", " ")}
-            </Badge>
+            <OwnershipBadge status={item.volume.ownership_status} />
+            <ReadingStatusBadge status={item.volume.reading_status} />
             {item.volume.format && (
               <Badge
                 variant="outline"

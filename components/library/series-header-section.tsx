@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { SERIES_TYPE_COLORS } from "@/lib/library/status-colors"
+import { TypeBadge, SeriesStatusBadge } from "@/components/ui/status-badge"
 import type { SeriesInsightData } from "@/lib/library/series-insights"
 import type {
   SeriesWithVolumes,
@@ -85,16 +85,9 @@ export function SeriesHeaderSection({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="secondary"
-                  className={SERIES_TYPE_COLORS[currentSeries.type]}
-                >
-                  {currentSeries.type === "light_novel" && "Light Novel"}
-                  {currentSeries.type === "manga" && "Manga"}
-                  {currentSeries.type === "other" && "Other"}
-                </Badge>
+                <TypeBadge type={currentSeries.type} />
                 {currentSeries.status && (
-                  <Badge variant="outline">{currentSeries.status}</Badge>
+                  <SeriesStatusBadge status={currentSeries.status} />
                 )}
               </div>
               <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
