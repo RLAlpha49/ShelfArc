@@ -53,8 +53,7 @@ function summarizePresetFilters(preset: {
     labels.push(`Reading: ${filters.readingStatus}`)
   if (tags.length > 0)
     labels.push(`${tags.length} tag${tags.length > 1 ? "s" : ""}`)
-  if (excludeTags.length > 0)
-    labels.push(`${excludeTags.length} excluded`)
+  if (excludeTags.length > 0) labels.push(`${excludeTags.length} excluded`)
   return labels
 }
 
@@ -447,7 +446,8 @@ export function FilterPresetsControl() {
                                 This will permanently remove{" "}
                                 <span className="font-medium">
                                   {preset.name}
-                                </span>.
+                                </span>
+                                .
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

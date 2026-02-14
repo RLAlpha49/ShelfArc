@@ -322,12 +322,16 @@ export function BulkScrapeDialog({
             Bulk Amazon Scrape
           </DialogTitle>
           <DialogDescription>
-            {isMultiSeries
-              ? `Fetch Amazon data for ${series.volumes.length} selected volumes across multiple series`
-              : <>
-                  Fetch Amazon data for all volumes in{" "}
-                  <span className="text-foreground font-medium">{series.title}</span>
-                </>}
+            {isMultiSeries ? (
+              `Fetch Amazon data for ${series.volumes.length} selected volumes across multiple series`
+            ) : (
+              <>
+                Fetch Amazon data for all volumes in{" "}
+                <span className="text-foreground font-medium">
+                  {series.title}
+                </span>
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 

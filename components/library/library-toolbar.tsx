@@ -79,7 +79,11 @@ function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
   const isVertical = layout === "vertical"
 
   return (
-    <div className={isVertical ? "flex flex-col gap-3" : "flex flex-wrap items-end gap-2"}>
+    <div
+      className={
+        isVertical ? "flex flex-col gap-3" : "flex flex-wrap items-end gap-2"
+      }
+    >
       <FilterPresetsControl />
 
       {/* Type Filter */}

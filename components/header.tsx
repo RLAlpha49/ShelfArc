@@ -313,7 +313,7 @@ export function Header({ user }: HeaderProps) {
                         .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="min-w-0 flex-1 flex flex-col leading-none">
+                  <div className="flex min-w-0 flex-1 flex-col leading-none">
                     {user.user_metadata?.username && (
                       <p className="truncate text-sm font-medium">
                         {user.user_metadata.username}

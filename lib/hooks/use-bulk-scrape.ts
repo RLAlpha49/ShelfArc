@@ -585,14 +585,8 @@ async function handleSuccess(
   isLast: boolean,
   ctx: JobContext
 ): Promise<"ok" | "abort"> {
-  const {
-    jobs,
-    includePrice,
-    includeImage,
-    controller,
-    editVolume,
-    setter
-  } = ctx
+  const { jobs, includePrice, includeImage, controller, editVolume, setter } =
+    ctx
   const { updates, priceResult, imageResult, priceError } = extractUpdates(
     data,
     includePrice,

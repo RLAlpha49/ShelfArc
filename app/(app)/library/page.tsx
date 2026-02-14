@@ -2324,7 +2324,7 @@ export default function LibraryPage() {
       />
 
       {selectedCount > 0 && (
-        <div className="animate-fade-in sticky top-16 z-40 mx-auto my-3 max-w-4xl rounded-2xl border bg-background/90 shadow-lg backdrop-blur-md">
+        <div className="animate-fade-in bg-background/90 sticky top-16 z-40 mx-auto my-3 max-w-4xl rounded-2xl border shadow-lg backdrop-blur-md">
           <div className="px-4 py-2">
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-3">

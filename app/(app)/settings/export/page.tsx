@@ -329,8 +329,8 @@ export default function ExportPage() {
             <CardTitle>Export Your Library</CardTitle>
             <CardDescription>
               Download your entire collection—or export just a subset for
-              sharing or migration. Use JSON for backup &amp; re-import;
-              CSV is best for spreadsheets and manual editing.
+              sharing or migration. Use JSON for backup &amp; re-import; CSV is
+              best for spreadsheets and manual editing.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
