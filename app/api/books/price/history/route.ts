@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createUserClient } from "@/lib/supabase/server"
 import { apiError } from "@/lib/api-response"
 import { enforceSameOrigin } from "@/lib/csrf"
-import { isNonNegativeFinite } from "@/lib/validation"
+import { isNonNegativeFinite, isValidAmazonUrl } from "@/lib/validation"
 import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 
@@ -81,7 +81,9 @@ export async function POST(request: NextRequest) {
             ? source.trim()
             : "amazon",
         product_url:
-          typeof productUrl === "string" && productUrl.trim()
+          typeof productUrl === "string" &&
+          productUrl.trim() &&
+          isValidAmazonUrl(productUrl.trim())
             ? productUrl.trim()
             : null
       })

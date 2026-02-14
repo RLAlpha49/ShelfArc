@@ -109,6 +109,82 @@ export const isValidUrl = (value: unknown): value is string =>
   typeof value === "string" &&
   (value.startsWith("https://") || value.startsWith("http://"))
 
+/** Allow-listed Amazon hostnames for URL validation. @source */
+const AMAZON_DOMAINS: ReadonlySet<string> = new Set([
+  "amazon.com",
+  "amazon.co.jp",
+  "amazon.co.uk",
+  "amazon.de",
+  "amazon.fr",
+  "amazon.it",
+  "amazon.es",
+  "amazon.ca",
+  "amazon.com.au",
+  "amazon.com.br",
+  "amazon.com.mx",
+  "amazon.in",
+  "amazon.nl",
+  "amazon.sg",
+  "amazon.se",
+  "amazon.pl",
+  "amazon.com.be",
+  "amazon.com.tr",
+  "amazon.sa",
+  "amazon.ae",
+  "amazon.eg",
+  "www.amazon.com",
+  "www.amazon.co.jp",
+  "www.amazon.co.uk",
+  "www.amazon.de",
+  "www.amazon.fr",
+  "www.amazon.it",
+  "www.amazon.es",
+  "www.amazon.ca",
+  "www.amazon.com.au",
+  "www.amazon.com.br",
+  "www.amazon.com.mx",
+  "www.amazon.in",
+  "www.amazon.nl",
+  "www.amazon.sg",
+  "www.amazon.se",
+  "www.amazon.pl",
+  "www.amazon.com.be",
+  "www.amazon.com.tr",
+  "www.amazon.sa",
+  "www.amazon.ae",
+  "www.amazon.eg"
+])
+
+/**
+ * Validates that a string is a well-formed HTTPS URL.
+ * Uses `new URL()` parsing to reject malformed URLs and restricts protocol to `https:`.
+ * @source
+ */
+export const isValidHttpsUrl = (value: unknown): value is string => {
+  if (typeof value !== "string") return false
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Validates that a string is a well-formed HTTPS URL pointing to an Amazon domain.
+ * Checks against a curated allow-list of Amazon hostnames.
+ * @source
+ */
+export const isValidAmazonUrl = (value: unknown): value is string => {
+  if (typeof value !== "string") return false
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" && AMAZON_DOMAINS.has(url.hostname)
+  } catch {
+    return false
+  }
+}
+
 /** Regex matching a valid username (3-20 alphanumeric or underscore characters). @source */
 export const USERNAME_PATTERN = /^\w{3,20}$/
 

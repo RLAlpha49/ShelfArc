@@ -7,6 +7,8 @@ import {
   isNonNegativeFinite,
   isNonNegativeInteger,
   isPositiveInteger,
+  isValidAmazonUrl,
+  isValidHttpsUrl,
   isValidOwnershipStatus,
   isValidReadingStatus,
   isValidTitleType
@@ -182,13 +184,16 @@ const sanitizeVolumeTextFields = (
     sanitized.format = sanitizeOptionalPlainText(data.format, 200)
   }
   if (Object.hasOwn(data, "cover_image_url")) {
-    sanitized.cover_image_url = sanitizeOptionalPlainText(
-      data.cover_image_url,
-      2000
-    )
+    const sanitizedCover = sanitizeOptionalPlainText(data.cover_image_url, 2000)
+    sanitized.cover_image_url =
+      sanitizedCover && isValidHttpsUrl(sanitizedCover) ? sanitizedCover : null
   }
   if (Object.hasOwn(data, "amazon_url")) {
-    sanitized.amazon_url = sanitizeOptionalPlainText(data.amazon_url, 2000)
+    const sanitizedAmazon = sanitizeOptionalPlainText(data.amazon_url, 2000)
+    sanitized.amazon_url =
+      sanitizedAmazon && isValidAmazonUrl(sanitizedAmazon)
+        ? sanitizedAmazon
+        : null
   }
 }
 
@@ -302,7 +307,13 @@ export const buildSanitizedVolumeInsert = (
       data.purchase_price != null && isNonNegativeFinite(data.purchase_price)
         ? data.purchase_price
         : null,
-    cover_image_url: sanitizeOptionalPlainText(data.cover_image_url, 2000),
-    amazon_url: sanitizeOptionalPlainText(data.amazon_url, 2000)
+    cover_image_url: (() => {
+      const v = sanitizeOptionalPlainText(data.cover_image_url, 2000)
+      return v && isValidHttpsUrl(v) ? v : null
+    })(),
+    amazon_url: (() => {
+      const v = sanitizeOptionalPlainText(data.amazon_url, 2000)
+      return v && isValidAmazonUrl(v) ? v : null
+    })()
   }
 }
