@@ -85,6 +85,11 @@ import type {
   ReadingStatus,
   TitleType
 } from "@/lib/types/database"
+import {
+  SERIES_TYPE_COLORS,
+  READING_STATUS_COLORS,
+  OWNERSHIP_STATUS_COLORS
+} from "@/lib/library/status-colors"
 import { type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 
@@ -105,27 +110,7 @@ function getGridClasses(cardSize: CardSize): string {
   }
 }
 
-/** Badge color mapping per series title type. @source */
-const SERIES_TYPE_COLORS: Record<TitleType, string> = {
-  light_novel: "bg-gold/10 text-gold",
-  manga: "bg-copper/10 text-copper",
-  other: "bg-muted text-muted-foreground"
-}
 
-/** Badge color mapping per reading status. @source */
-const READING_STATUS_COLORS: Record<ReadingStatus, string> = {
-  unread: "bg-muted text-muted-foreground",
-  reading: "bg-primary/10 text-primary",
-  completed: "bg-copper/10 text-copper",
-  on_hold: "bg-gold/10 text-gold",
-  dropped: "bg-destructive/10 text-destructive"
-}
-
-/** Badge color mapping per ownership status. @source */
-const OWNERSHIP_STATUS_COLORS: Record<OwnershipStatus, string> = {
-  owned: "bg-copper/10 text-copper",
-  wishlist: "bg-gold/10 text-gold"
-}
 
 /** Item count above which /library switches to window virtualization. @source */
 const VIRTUALIZE_THRESHOLD = 200

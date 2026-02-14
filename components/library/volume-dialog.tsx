@@ -49,6 +49,7 @@ import {
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { usePriceHistory } from "@/lib/hooks/use-price-history"
 import { cn } from "@/lib/utils"
+import { SERIES_TYPE_COLORS } from "@/lib/library/status-colors"
 import type {
   SeriesWithVolumes,
   TitleType,
@@ -122,12 +123,7 @@ const isValidReadingStatus = (
 /** Maximum upload size for cover images (5 MB). @source */
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 
-/** Badge color mapping per series title type. @source */
-const SERIES_TYPE_COLORS: Record<TitleType, string> = {
-  light_novel: "bg-gold/10 text-gold",
-  manga: "bg-copper/10 text-copper",
-  other: "bg-muted text-muted-foreground"
-}
+
 
 /** Human-readable label per series title type. @source */
 const SERIES_TYPE_LABELS: Record<TitleType, string> = {

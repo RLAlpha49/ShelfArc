@@ -57,6 +57,7 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { SERIES_TYPE_COLORS } from "@/lib/library/status-colors"
 import type {
   SeriesWithVolumes,
   SeriesInsert,
@@ -68,13 +69,6 @@ import type {
 import type { DateFormat } from "@/lib/store/settings-store"
 import { type BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
-
-/** Tailwind badge color classes keyed by series type. @source */
-const typeColors = {
-  light_novel: "bg-gold/10 text-gold",
-  manga: "bg-copper/10 text-copper",
-  other: "bg-muted text-muted-foreground"
-}
 
 /** Item count above which series detail volumes switch to virtualization. @source */
 const VIRTUALIZE_THRESHOLD = 200
@@ -695,7 +689,7 @@ const SeriesHeaderSection = ({
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <Badge
                 variant="secondary"
-                className={typeColors[currentSeries.type]}
+                className={SERIES_TYPE_COLORS[currentSeries.type]}
               >
                 {currentSeries.type === "light_novel" && "Light Novel"}
                 {currentSeries.type === "manga" && "Manga"}
