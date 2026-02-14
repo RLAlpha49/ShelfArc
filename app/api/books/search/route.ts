@@ -386,7 +386,9 @@ export async function GET(request: NextRequest) {
 
   const params = parseSearchParams(request.nextUrl.searchParams)
   if (!params) {
-    return apiError(400, "Missing query")
+    return apiError(400, "Missing query", {
+      extra: { results: [] }
+    })
   }
 
   if (params.source === "google_books") {

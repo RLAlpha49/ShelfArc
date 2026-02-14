@@ -1,5 +1,3 @@
-import "server-only"
-
 /** HTTP header name used to propagate correlation IDs. @source */
 export const CORRELATION_HEADER = "x-correlation-id"
 
@@ -11,7 +9,11 @@ export const CORRELATION_HEADER = "x-correlation-id"
  * @source
  */
 export const getCorrelationId = (request: Request): string => {
-  const existing = request.headers.get(CORRELATION_HEADER)?.trim()
+  const headers = request?.headers
+  const existing =
+    headers && typeof headers.get === "function"
+      ? headers.get(CORRELATION_HEADER)?.trim()
+      : undefined
   if (existing) return existing
   return crypto.randomUUID()
 }

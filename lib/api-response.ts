@@ -89,10 +89,7 @@ export const apiError = (
 }
 
 /** Standardized API success envelope. @source */
-export type ApiSuccessEnvelope<T> = {
-  data: T
-  meta?: Record<string, unknown>
-}
+export type ApiSuccessEnvelope<T> = T
 
 /** Options for building an API success response. @source */
 export type ApiSuccessOptions = {
@@ -116,10 +113,10 @@ export const apiSuccess = <T>(data: T, options?: ApiSuccessOptions) => {
   const correlationId = options?.correlationId
   const status = options?.status ?? 200
 
-  const body: ApiSuccessEnvelope<T> = {
-    data,
-    ...(meta ? { meta } : {})
-  }
+  const body: ApiSuccessEnvelope<T> =
+    meta && data && typeof data === "object" && !Array.isArray(data)
+      ? ({ ...data, meta } as ApiSuccessEnvelope<T>)
+      : data
 
   const headers: HeadersInit = correlationId
     ? { "x-correlation-id": correlationId }
