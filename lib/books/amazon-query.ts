@@ -1,5 +1,8 @@
 import type { FetchPriceParams } from "@/lib/api/types"
 
+/** Supported Amazon binding labels for search queries. */
+export const AMAZON_BINDING_LABELS = ["Paperback", "Kindle"] as const
+
 /** Options for building an Amazon search URL. */
 export interface AmazonSearchOptions {
   domain: string
