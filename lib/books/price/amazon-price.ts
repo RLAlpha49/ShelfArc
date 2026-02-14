@@ -827,6 +827,7 @@ const isLikelyBotGate = (html: string) => {
 }
 
 export const fetchAmazonHtml = async (searchUrl: string) => {
+  const fetchStart = performance.now()
   let response: Response
   try {
     debugLog("Fetching Amazon search HTML", { searchUrl })
@@ -843,24 +844,32 @@ export const fetchAmazonHtml = async (searchUrl: string) => {
       FETCH_TIMEOUT_MS
     )
   } catch (error) {
+    const fetchMs = Math.round(performance.now() - fetchStart)
     const message = error instanceof Error ? error.message : "Unknown error"
-    console.error("Error fetching Amazon search page", { searchUrl, message })
+    console.error("Error fetching Amazon search page", {
+      searchUrl,
+      message,
+      fetchMs
+    })
     throw new ApiError(502, `Amazon request failed: ${message}`)
   }
 
   if (!response.ok) {
+    const fetchMs = Math.round(performance.now() - fetchStart)
     console.error("Amazon response not ok", {
       searchUrl,
       status: response.status,
-      statusText: response.statusText
+      statusText: response.statusText,
+      fetchMs
     })
     throw new ApiError(502, `Amazon request failed (${response.status})`)
   }
 
   const html = await response.text()
-  debugLog("Fetched Amazon HTML", { length: html.length })
+  const fetchMs = Math.round(performance.now() - fetchStart)
+  debugLog("Fetched Amazon HTML", { length: html.length, fetchMs })
   if (isLikelyBotGate(html)) {
-    console.error("Amazon bot detection triggered", { searchUrl })
+    console.error("Amazon bot detection triggered", { searchUrl, fetchMs })
     throw new ApiError(429, "Amazon blocked the request (captcha/robot check)")
   }
 
@@ -1357,6 +1366,8 @@ export const parseAmazonResult = (
   context: SearchContext,
   options: { includePrice: boolean; includeImage: boolean }
 ): AmazonPriceParseResult => {
+  const parseStart = performance.now()
+
   const subtitleWeight = context.volumeSubtitle ? 0.35 : 0
   const bindingLabels = context.bindingLabels.length
     ? context.bindingLabels
@@ -1366,6 +1377,8 @@ export const parseAmazonResult = (
     : "Price not found"
 
   const $ = cheerio.load(html)
+  const cheerioMs = Math.round(performance.now() - parseStart)
+
   const resultElements = getSearchResults($)
 
   debugLog(
@@ -1378,63 +1391,86 @@ export const parseAmazonResult = (
     }
   )
 
-  const scoredResults = resultElements.map((el, index) => {
-    const result = $(el)
-    const resultTitle = extractResultTitle(result)
-    const strictScore = similarityScore(
-      context.expectedTitle || context.title,
-      resultTitle
-    )
-    const requiredScore = tokenCoverageScore(
-      context.requiredTitle || context.title,
-      resultTitle
-    )
-    const matchScore = Math.max(strictScore, requiredScore)
-    const baseTitleScore = tokenCoverageScore(context.title, resultTitle)
-    const volumeTitleScore = context.volumeTitle
-      ? similarityScore(context.volumeTitle, resultTitle)
-      : 0
-    const subtitleScore = context.volumeSubtitle
-      ? tokenCoverageScore(context.volumeSubtitle, resultTitle)
-      : 0
-    const modifierPenalty = getPrefixModifierPenalty(context, resultTitle)
-    const formatConflictPenalty = getFormatConflictPenalty(
-      context.format,
-      resultTitle
-    )
-    const extraTokenPenalty = getExtraTokenPenalty(context, resultTitle)
-    const volumeMismatchPenalty = getVolumeMismatchPenalty(context, resultTitle)
-    const combinedScore =
-      matchScore +
-      subtitleScore * subtitleWeight -
-      modifierPenalty +
-      baseTitleScore * BASE_TITLE_WEIGHT +
-      volumeTitleScore * VOLUME_TITLE_WEIGHT -
-      formatConflictPenalty -
-      extraTokenPenalty -
-      volumeMismatchPenalty
-    const hasVolumeMatch = context.volumeNumber
-      ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
-      : true
+  const scoreStart = performance.now()
+  let skippedResults = 0
 
-    return {
-      result,
-      resultTitle,
-      strictScore,
-      requiredScore,
-      matchScore,
-      baseTitleScore,
-      volumeTitleScore,
-      subtitleScore,
-      modifierPenalty,
-      formatConflictPenalty,
-      extraTokenPenalty,
-      volumeMismatchPenalty,
-      combinedScore,
-      hasVolumeMatch,
-      index
-    } satisfies ScoredResult
-  })
+  const scoredResults = resultElements
+    .map((el, index) => {
+      try {
+        const result = $(el)
+        const resultTitle = extractResultTitle(result)
+        const strictScore = similarityScore(
+          context.expectedTitle || context.title,
+          resultTitle
+        )
+        const requiredScore = tokenCoverageScore(
+          context.requiredTitle || context.title,
+          resultTitle
+        )
+        const matchScore = Math.max(strictScore, requiredScore)
+        const baseTitleScore = tokenCoverageScore(context.title, resultTitle)
+        const volumeTitleScore = context.volumeTitle
+          ? similarityScore(context.volumeTitle, resultTitle)
+          : 0
+        const subtitleScore = context.volumeSubtitle
+          ? tokenCoverageScore(context.volumeSubtitle, resultTitle)
+          : 0
+        const modifierPenalty = getPrefixModifierPenalty(context, resultTitle)
+        const formatConflictPenalty = getFormatConflictPenalty(
+          context.format,
+          resultTitle
+        )
+        const extraTokenPenalty = getExtraTokenPenalty(context, resultTitle)
+        const volumeMismatchPenalty = getVolumeMismatchPenalty(
+          context,
+          resultTitle
+        )
+        const combinedScore =
+          matchScore +
+          subtitleScore * subtitleWeight -
+          modifierPenalty +
+          baseTitleScore * BASE_TITLE_WEIGHT +
+          volumeTitleScore * VOLUME_TITLE_WEIGHT -
+          formatConflictPenalty -
+          extraTokenPenalty -
+          volumeMismatchPenalty
+        const hasVolumeMatch = context.volumeNumber
+          ? hasExactVolumeMatch(resultTitle, context.volumeNumber)
+          : true
+
+        return {
+          result,
+          resultTitle,
+          strictScore,
+          requiredScore,
+          matchScore,
+          baseTitleScore,
+          volumeTitleScore,
+          subtitleScore,
+          modifierPenalty,
+          formatConflictPenalty,
+          extraTokenPenalty,
+          volumeMismatchPenalty,
+          combinedScore,
+          hasVolumeMatch,
+          index
+        } satisfies ScoredResult
+      } catch (error) {
+        skippedResults += 1
+        debugLog("Skipped unparseable Amazon result", {
+          index,
+          error: error instanceof Error ? error.message : String(error)
+        })
+        return null
+      }
+    })
+    .filter((item): item is ScoredResult => item !== null)
+
+  const scoreMs = Math.round(performance.now() - scoreStart)
+
+  if (!scoredResults.length) {
+    throw new ApiError(404, "No search results found")
+  }
 
   let candidates = scoredResults
   if (
@@ -1488,6 +1524,8 @@ export const parseAmazonResult = (
       item.baseTitleScore >= BASE_TITLE_MATCH_THRESHOLD
   )
 
+  const priceStart = performance.now()
+
   const priceSelection = resolvePriceSelection({
     $,
     includePrice: options.includePrice,
@@ -1499,11 +1537,25 @@ export const parseAmazonResult = (
     priceErrorMessage
   })
 
+  const priceMs = Math.round(performance.now() - priceStart)
+
   const selected = priceSelection.selected
   const productUrl = extractProductUrl(selected.result, context.host)
   const imageUrl = options.includeImage
     ? extractImageUrl(selected.result)
     : null
+
+  const totalParseMs = Math.round(performance.now() - parseStart)
+  console.info("[amazon-price] parse pipeline", {
+    cheerioMs,
+    scoreMs,
+    priceMs,
+    totalParseMs,
+    results: resultElements.length,
+    scored: scoredResults.length,
+    skipped: skippedResults,
+    eligible: eligibleCandidates.length
+  })
 
   return {
     resultTitle: selected.resultTitle,

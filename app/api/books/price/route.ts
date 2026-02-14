@@ -28,6 +28,9 @@ export const dynamic = "force-dynamic"
 /** Rate-limit key identifying the Amazon scrape circuit breaker. @source */
 const RATE_LIMIT_KEY = "amazon-scrape"
 
+/** Maximum total time for the fetch + parse pipeline before aborting. @source */
+const PIPELINE_TIMEOUT_MS = 18_000
+
 /** Rate-limit configuration for Amazon anti-bot cooldowns. @source */
 const RATE_LIMIT_CONFIG = {
   maxFailures: 3,
@@ -152,6 +155,7 @@ const enforceRequestRateLimit = async (requestLimitKey: string) => {
 export async function GET(request: NextRequest) {
   const correlationId = getCorrelationId(request)
   const log = logger.withCorrelationId(correlationId)
+  const pipelineStart = performance.now()
 
   try {
     const globalCooldown = checkGlobalCooldown()
@@ -171,38 +175,80 @@ export async function GET(request: NextRequest) {
     if (requestLimited) return requestLimited
 
     return await amazonLimiter.run(async () => {
-      const html = await fetchAmazonHtml(context.searchUrl)
-      const parsed = parseAmazonResult(html, context, {
-        includePrice,
-        includeImage
+      let pipelineTimeout: ReturnType<typeof setTimeout> | undefined
+      const pipelineAbort = new AbortController()
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        pipelineTimeout = setTimeout(() => {
+          pipelineAbort.abort()
+          reject(new Error("Price pipeline timed out"))
+        }, PIPELINE_TIMEOUT_MS)
       })
 
-      return apiSuccess(
-        {
-          searchUrl: context.searchUrl,
+      try {
+        const result = await Promise.race([
+          (async () => {
+            const html = await fetchAmazonHtml(context.searchUrl)
+
+            if (pipelineAbort.signal.aborted) {
+              throw new Error("Price pipeline timed out")
+            }
+
+            const parsed = parseAmazonResult(html, context, {
+              includePrice,
+              includeImage
+            })
+            return parsed
+          })(),
+          timeoutPromise
+        ])
+
+        const pipelineMs = Math.round(performance.now() - pipelineStart)
+        log.info("Price pipeline completed", {
+          pipelineMs,
           domain: context.domain,
-          expectedTitle: context.expectedTitle,
-          matchScore: parsed.matchScore,
-          binding: context.bindingLabel,
-          result: {
-            title: parsed.resultTitle,
-            priceText: parsed.priceText,
-            priceValue: parsed.priceValue,
-            currency: parsed.currency,
-            priceBinding: parsed.priceBinding,
-            priceError: parsed.priceError,
-            url: parsed.productUrl,
-            imageUrl: parsed.imageUrl
-          }
-        },
-        { correlationId }
-      )
+          matchScore: result.matchScore
+        })
+
+        return apiSuccess(
+          {
+            searchUrl: context.searchUrl,
+            domain: context.domain,
+            expectedTitle: context.expectedTitle,
+            matchScore: result.matchScore,
+            binding: context.bindingLabel,
+            result: {
+              title: result.resultTitle,
+              priceText: result.priceText,
+              priceValue: result.priceValue,
+              currency: result.currency,
+              priceBinding: result.priceBinding,
+              priceError: result.priceError,
+              url: result.productUrl,
+              imageUrl: result.imageUrl
+            }
+          },
+          { correlationId }
+        )
+      } finally {
+        clearTimeout(pipelineTimeout)
+      }
     })
   } catch (error) {
+    const pipelineMs = Math.round(performance.now() - pipelineStart)
+
     if (error instanceof ConcurrencyLimitError) {
       return apiError(503, error.message, {
         extra: { retryAfterMs: error.retryAfterMs }
       })
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "Price pipeline timed out"
+    ) {
+      log.warn("Price pipeline timed out", { pipelineMs })
+      return apiError(504, "Price lookup timed out, please try again")
     }
 
     if (error instanceof ApiError) {
@@ -210,10 +256,16 @@ export async function GET(request: NextRequest) {
       if (error.status === 429) {
         recordFailure(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)
       }
+      log.info("Price pipeline error", {
+        pipelineMs,
+        status: error.status,
+        error: error.message
+      })
       return jsonError(error)
     }
 
     log.error("Amazon price lookup failed", {
+      pipelineMs,
       error: error instanceof Error ? error.message : String(error)
     })
     return apiError(500, "Amazon price lookup failed")
