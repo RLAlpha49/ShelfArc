@@ -325,6 +325,26 @@ export default async function HomePage() {
                   title: "Price Tracking",
                   description:
                     "Log purchase prices, fetch current retail prices, and keep track of how much you have invested in your growing collection."
+                },
+                {
+                  id: "tags-filters",
+                  icon: (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="h-5 w-5"
+                    >
+                      <path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19" />
+                      <path d="M9.586 5.586A2 2 0 0 0 8.172 5H3a1 1 0 0 0-1 1v5.172a2 2 0 0 0 .586 1.414L8.29 18.29a2.426 2.426 0 0 0 3.42 0l3.58-3.58a2.426 2.426 0 0 0 0-3.42z" />
+                      <circle cx="6.5" cy="9.5" r=".5" fill="currentColor" />
+                    </svg>
+                  ),
+                  title: "Tags & Filters",
+                  description:
+                    "Organize with custom tags, filter by type or status, and save filter presets so you can slice your library any way you like."
                 }
               ].map((feature, featureIndex) => (
                 <div

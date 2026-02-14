@@ -31,6 +31,33 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useLibraryStore } from "@/lib/store/library-store"
 
+function summarizePresetFilters(preset: {
+  state: {
+    filters: {
+      type: string
+      ownershipStatus: string
+      readingStatus: string
+      tags: string[]
+      excludeTags: string[]
+    }
+  }
+}): string[] {
+  const labels: string[] = []
+  const { filters } = preset.state
+  if (filters.type !== "all") labels.push(`Type: ${filters.type}`)
+  if (filters.ownershipStatus !== "all")
+    labels.push(`Ownership: ${filters.ownershipStatus}`)
+  if (filters.readingStatus !== "all")
+    labels.push(`Reading: ${filters.readingStatus}`)
+  if (filters.tags.length > 0)
+    labels.push(
+      `${filters.tags.length} tag${filters.tags.length > 1 ? "s" : ""}`
+    )
+  if (filters.excludeTags.length > 0)
+    labels.push(`${filters.excludeTags.length} excluded`)
+  return labels
+}
+
 /** Horizontal preset pill strip + dialogs for saved filter presets. Intended for LibraryToolbar. @source */
 export function FilterPresetsControl() {
   const filterPresets = useLibraryStore((s) => s.filterPresets)
@@ -39,6 +66,7 @@ export function FilterPresetsControl() {
   const saveFilterPreset = useLibraryStore((s) => s.saveFilterPreset)
   const renameFilterPreset = useLibraryStore((s) => s.renameFilterPreset)
   const deleteFilterPreset = useLibraryStore((s) => s.deleteFilterPreset)
+  const updateFilterPreset = useLibraryStore((s) => s.updateFilterPreset)
 
   const presets = useMemo(() => {
     return [...filterPresets].sort((a, b) => a.name.localeCompare(b.name))
@@ -251,14 +279,42 @@ export function FilterPresetsControl() {
           <DialogHeader>
             <DialogTitle>Manage presets</DialogTitle>
             <DialogDescription>
-              Rename or delete saved presets.
+              Create, edit, or remove your saved filter presets.
             </DialogDescription>
           </DialogHeader>
 
           <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
             {presets.length === 0 ? (
-              <div className="text-muted-foreground rounded-xl border p-3 text-xs">
-                You don&apos;t have any presets yet.
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-muted-foreground h-8 w-8"
+                >
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium">No presets yet</p>
+                  <p className="text-muted-foreground text-xs">
+                    Save your current filters as a preset for quick access.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setManageOpen(false)
+                    setSaveOpen(true)
+                  }}
+                  className="rounded-xl"
+                >
+                  Create preset
+                </Button>
               </div>
             ) : (
               presets.map((preset) => {
@@ -266,78 +322,148 @@ export function FilterPresetsControl() {
                 const trimmedDraft = draft.trim()
                 const canRename =
                   trimmedDraft.length > 0 && trimmedDraft !== preset.name
+                const hasSortView = !!(
+                  preset.state.sortField ||
+                  preset.state.viewMode ||
+                  preset.state.collectionView
+                )
+                const filterSummary = summarizePresetFilters(preset)
 
                 return (
                   <div
                     key={preset.id}
-                    className="bg-muted/20 flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center"
+                    className="bg-muted/20 rounded-xl border p-4"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-muted-foreground mb-1 text-[11px] font-medium">
-                        Preset name
-                      </div>
-                      <Input
-                        value={draft}
-                        onChange={(e) =>
-                          setDraftNames((prev) => ({
-                            ...prev,
-                            [preset.id]: e.target.value
-                          }))
-                        }
-                        className="rounded-xl"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (!canRename) return
-                          renameFilterPreset(preset.id, trimmedDraft)
-                          setDraftNames((prev) => ({
-                            ...prev,
-                            [preset.id]: trimmedDraft
-                          }))
-                        }}
-                        disabled={!canRename}
-                        className="rounded-xl"
-                      >
-                        Rename
-                      </Button>
-
-                      <AlertDialog>
-                        <AlertDialogTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              className="text-destructive hover:bg-destructive/10 rounded-xl"
-                            >
-                              Delete
-                            </Button>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Input
+                          value={draft}
+                          onChange={(e) =>
+                            setDraftNames((prev) => ({
+                              ...prev,
+                              [preset.id]: e.target.value
+                            }))
                           }
+                          className="rounded-xl text-sm font-medium"
+                          aria-label={`Preset name for ${preset.name}`}
                         />
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete preset?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently remove{" "}
-                              <span className="font-medium">{preset.name}</span>
-                              .
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-xl">
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              className="rounded-xl"
-                              onClick={() => deleteFilterPreset(preset.id)}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {filterSummary.length > 0 ? (
+                            filterSummary.map((label) => (
+                              <span
+                                key={label}
+                                className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                              >
+                                {label}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-[10px]">
+                              No active filters
+                            </span>
+                          )}
+                          {hasSortView && (
+                            <span className="bg-primary/10 text-primary inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium">
+                              Sort &amp; View
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {canRename && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              renameFilterPreset(preset.id, trimmedDraft)
+                              setDraftNames((prev) => ({
+                                ...prev,
+                                [preset.id]: trimmedDraft
+                              }))
+                            }}
+                            className="rounded-xl text-xs"
+                          >
+                            Rename
+                          </Button>
+                        )}
+
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  updateFilterPreset(
+                                    preset.id,
+                                    draft.trim() || preset.name
+                                  )
+                                }}
+                                className="rounded-xl text-xs"
+                              />
+                            }
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="h-3.5 w-3.5"
                             >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                              <path d="M3 3v5h5" />
+                              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                              <path d="M16 16h5v5" />
+                            </svg>
+                            Update
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <p>Overwrite with current filters</p>
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:bg-destructive/10 rounded-xl text-xs"
+                              >
+                                Delete
+                              </Button>
+                            }
+                          />
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Delete preset?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently remove{" "}
+                                <span className="font-medium">
+                                  {preset.name}
+                                </span>.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="rounded-xl">
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                className="rounded-xl"
+                                onClick={() => deleteFilterPreset(preset.id)}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </div>
                 )
@@ -345,7 +471,31 @@ export function FilterPresetsControl() {
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-row justify-between sm:justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setManageOpen(false)
+                setSaveOpen(true)
+              }}
+              className="rounded-xl"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-1.5 h-3.5 w-3.5"
+              >
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+              New preset
+            </Button>
             <Button
               variant="outline"
               onClick={() => setManageOpen(false)}

@@ -152,6 +152,11 @@ interface LibraryState {
     }
   ) => void
   renameFilterPreset: (presetId: string, name: string) => void
+  updateFilterPreset: (
+    presetId: string,
+    name: string,
+    options?: { includeSortAndView?: boolean }
+  ) => void
   deleteFilterPreset: (presetId: string) => void
   ensureDefaultFilterPresets: () => void
   setDeleteSeriesVolumes: (value: boolean) => void
@@ -414,6 +419,38 @@ export const useLibraryStore = create<LibraryState>()(
         set((state) => ({
           filterPresets: state.filterPresets.map((p) =>
             p.id === presetId ? { ...p, name, updatedAt: now } : p
+          )
+        }))
+      },
+
+      updateFilterPreset: (presetId, rawName, options) => {
+        const name = rawName.trim()
+        if (!name) return
+
+        const includeSortAndView = options?.includeSortAndView ?? false
+        const state = get()
+        const now = getNowIso()
+
+        set((prev) => ({
+          filterPresets: prev.filterPresets.map((p) =>
+            p.id === presetId
+              ? {
+                  ...p,
+                  name,
+                  updatedAt: now,
+                  state: {
+                    filters: cloneFilters(state.filters),
+                    ...(includeSortAndView
+                      ? {
+                          sortField: state.sortField,
+                          sortOrder: state.sortOrder,
+                          viewMode: state.viewMode,
+                          collectionView: state.collectionView
+                        }
+                      : {})
+                  }
+                }
+              : p
           )
         }))
       },
