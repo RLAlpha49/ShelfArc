@@ -2315,31 +2315,8 @@ export default function LibraryPage() {
       <LibraryToolbar
         onAddBook={openAddDialog}
         onAddSeries={openAddSeriesDialog}
+        onFindDuplicates={() => setDuplicateDialogOpen(true)}
       />
-
-      <div className="mt-3 flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setDuplicateDialogOpen(true)}
-          className="text-muted-foreground hover:text-foreground rounded-xl text-xs"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mr-1.5 h-3.5 w-3.5"
-          >
-            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-          </svg>
-          Find Duplicates
-        </Button>
-      </div>
 
       <DuplicateMergeDialog
         open={duplicateDialogOpen}
@@ -2347,9 +2324,9 @@ export default function LibraryPage() {
       />
 
       {selectedCount > 0 && (
-        <div className="animate-slide-up-fade bg-background/90 fixed inset-x-0 bottom-0 z-50 border-t shadow-[0_-4px_12px_-1px_rgba(0,0,0,0.1)] backdrop-blur-md">
-          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="animate-fade-in sticky top-16 z-40 mx-auto my-3 max-w-4xl rounded-2xl border bg-background/90 shadow-lg backdrop-blur-md">
+          <div className="px-4 py-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-3">
                 <span className="font-display text-sm font-semibold">
                   {selectedCount} selected

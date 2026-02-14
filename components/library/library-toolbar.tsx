@@ -79,7 +79,7 @@ function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
   const isVertical = layout === "vertical"
 
   return (
-    <div className={isVertical ? "flex flex-col gap-3" : "contents"}>
+    <div className={isVertical ? "flex flex-col gap-3" : "flex flex-wrap items-end gap-2"}>
       <FilterPresetsControl />
 
       {/* Type Filter */}
@@ -187,8 +187,8 @@ function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
         />
       )}
 
-      {/* Clear filters */}
-      {hasActiveFilters && (
+      {/* Clear filters (vertical/mobile only) */}
+      {isVertical && hasActiveFilters && (
         <Button
           variant="ghost"
           size="sm"
@@ -206,6 +206,7 @@ function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
 interface LibraryToolbarProps {
   readonly onAddBook: () => void
   readonly onAddSeries: () => void
+  readonly onFindDuplicates?: () => void
 }
 
 /**
@@ -215,7 +216,8 @@ interface LibraryToolbarProps {
  */
 export function LibraryToolbar({
   onAddBook,
-  onAddSeries
+  onAddSeries,
+  onFindDuplicates
 }: LibraryToolbarProps) {
   const {
     collectionView,
@@ -227,7 +229,8 @@ export function LibraryToolbar({
     setSortField,
     setSortOrder,
     filters,
-    setFilters
+    setFilters,
+    resetFilters
   } = useLibraryStore()
   const { cardSize, setCardSize } = useSettingsStore()
 
@@ -332,6 +335,30 @@ export function LibraryToolbar({
               </svg>
               <span className="hidden sm:inline">Add Series</span>
             </Button>
+
+            {onFindDuplicates && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onFindDuplicates}
+                className="text-muted-foreground hover:text-foreground shrink-0 rounded-xl text-xs"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1.5 h-3.5 w-3.5"
+                >
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                </svg>
+                <span className="hidden sm:inline">Find Duplicates</span>
+              </Button>
+            )}
           </div>
 
           {/* Row 2: Filters + View controls */}
@@ -424,6 +451,18 @@ export function LibraryToolbar({
                 </button>
               </div>
             </div>
+
+            {/* Clear filters */}
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetFilters}
+                className="text-muted-foreground hover:text-foreground self-end rounded-xl text-xs"
+              >
+                Clear
+              </Button>
+            )}
 
             {/* Spacer */}
             <div className="flex-1" />
