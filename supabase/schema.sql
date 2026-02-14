@@ -174,6 +174,13 @@ CREATE INDEX IF NOT EXISTS idx_rate_limit_buckets_updated_at
 CREATE INDEX IF NOT EXISTS idx_volumes_volume_number
   ON public.volumes USING btree (volume_number);
 
+-- Partial unique index: prevent duplicate (series_id, volume_number) when edition IS NULL.
+-- The table-level UNIQUE(series_id, volume_number, edition) only covers non-NULL editions
+-- because PostgreSQL treats NULLs as distinct in unique constraints.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_volumes_unique_null_edition
+  ON volumes(series_id, volume_number)
+  WHERE edition IS NULL;
+
 -- Row Level Security (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE series ENABLE ROW LEVEL SECURITY;
