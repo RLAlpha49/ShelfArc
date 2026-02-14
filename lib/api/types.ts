@@ -4,6 +4,7 @@ import type {
   PriceBreakdown,
   WishlistStats
 } from "@/lib/library/analytics"
+import type { HealthScore } from "@/lib/library/health-score"
 import type { PriceAlert } from "@/lib/types/database"
 
 // ── Search ──────────────────────────────────────────────────────────
@@ -76,6 +77,7 @@ export interface FetchAnalyticsResponse {
   collectionStats: CollectionStats
   priceBreakdown: PriceBreakdown
   wishlistStats: WishlistStats
+  healthScore: HealthScore
 }
 
 // ── Library ─────────────────────────────────────────────────────────

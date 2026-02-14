@@ -191,7 +191,13 @@ interface PriceAccumulator {
   mangaSpent: number
   seriesSpending: Map<
     string,
-    { id: string; title: string; type: string; total: number; volumeCount: number }
+    {
+      id: string
+      title: string
+      type: string
+      total: number
+      volumeCount: number
+    }
   >
 }
 

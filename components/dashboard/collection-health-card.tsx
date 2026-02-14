@@ -2,10 +2,12 @@
 
 import { useMemo } from "react"
 import { computeHealthScore } from "@/lib/library/health-score"
+import type { HealthScore } from "@/lib/library/health-score"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 interface CollectionHealthCardProps {
-  readonly series: readonly SeriesWithVolumes[]
+  readonly healthScore?: HealthScore | null
+  readonly series?: readonly SeriesWithVolumes[]
 }
 
 function getRingColorClass(score: number) {
@@ -14,8 +16,17 @@ function getRingColorClass(score: number) {
   return "stroke-red-500"
 }
 
-export function CollectionHealthCard({ series }: CollectionHealthCardProps) {
-  const health = useMemo(() => computeHealthScore(series), [series])
+export function CollectionHealthCard({
+  healthScore: precomputed,
+  series
+}: CollectionHealthCardProps) {
+  const fallback = useMemo(
+    () => (!precomputed && series ? computeHealthScore(series) : null),
+    [precomputed, series]
+  )
+  const health = precomputed ?? fallback
+
+  if (!health) return null
 
   const circumference = 2 * Math.PI * 42
   const filled = (health.overall / 100) * circumference

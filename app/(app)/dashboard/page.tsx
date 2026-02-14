@@ -10,6 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PriceAlertsDashboardCard } from "@/components/library/price-alerts-dashboard-card"
 import { RecentlyAddedContent } from "@/components/dashboard/recently-added"
 import {
+  computeCollectionStats,
+  computePriceBreakdown,
+  computeWishlistStats,
   computeSuggestedBuys,
   computeSuggestionCounts,
   computeReleases,
@@ -24,6 +27,7 @@ import type {
 } from "@/lib/library/analytics"
 import { fetchAnalytics } from "@/lib/api/endpoints"
 import type { FetchAnalyticsResponse } from "@/lib/api/types"
+import { computeHealthScore } from "@/lib/library/health-score"
 import { RecommendationsCard } from "@/components/library/recommendations-card"
 import { CollectionHealthCard } from "@/components/dashboard/collection-health-card"
 
@@ -102,9 +106,33 @@ export default function DashboardPage() {
     }
   }, [series.length, fetchSeries])
 
-  const stats = analytics?.collectionStats ?? EMPTY_COLLECTION_STATS
-  const priceBreakdown = analytics?.priceBreakdown ?? EMPTY_PRICE_BREAKDOWN
-  const wishlistStats = analytics?.wishlistStats ?? EMPTY_WISHLIST_STATS
+  const stats = useMemo(() => {
+    if (analytics?.collectionStats) return analytics.collectionStats
+    if (!isAnalyticsLoading && series.length > 0)
+      return computeCollectionStats(series)
+    return EMPTY_COLLECTION_STATS
+  }, [analytics, isAnalyticsLoading, series])
+
+  const priceBreakdown = useMemo(() => {
+    if (analytics?.priceBreakdown) return analytics.priceBreakdown
+    if (!isAnalyticsLoading && series.length > 0)
+      return computePriceBreakdown(series)
+    return EMPTY_PRICE_BREAKDOWN
+  }, [analytics, isAnalyticsLoading, series])
+
+  const wishlistStats = useMemo(() => {
+    if (analytics?.wishlistStats) return analytics.wishlistStats
+    if (!isAnalyticsLoading && series.length > 0)
+      return computeWishlistStats(series)
+    return EMPTY_WISHLIST_STATS
+  }, [analytics, isAnalyticsLoading, series])
+
+  const healthScore = useMemo(() => {
+    if (analytics?.healthScore) return analytics.healthScore
+    if (!isAnalyticsLoading && series.length > 0)
+      return computeHealthScore(series)
+    return null
+  }, [analytics, isAnalyticsLoading, series])
 
   const priceFormatter = useMemo(() => {
     try {
@@ -791,7 +819,7 @@ export default function DashboardPage() {
                 Overall collection quality score
               </p>
             </div>
-            <CollectionHealthCard series={series} />
+            <CollectionHealthCard healthScore={healthScore} series={series} />
           </div>
 
           {/* Reading progress ring */}

@@ -121,15 +121,13 @@ interface InsightAccumulator {
 }
 
 /** Tallies ownership and reading status counters. */
-function tallyStatuses(
-  volumes: Volume[],
-  acc: InsightAccumulator
-): void {
+function tallyStatuses(volumes: Volume[], acc: InsightAccumulator): void {
   for (const v of volumes) {
     if (v.ownership_status === "owned") {
       acc.ownedVolumes++
       acc.ownedSpent += v.purchase_price ?? 0
-      if (Number.isFinite(v.volume_number)) acc.ownedVolumeNumbers.push(v.volume_number)
+      if (Number.isFinite(v.volume_number))
+        acc.ownedVolumeNumbers.push(v.volume_number)
     }
     if (v.ownership_status === "wishlist") acc.wishlistVolumes++
     if (v.reading_status === "reading") acc.readingVolumes++
@@ -138,10 +136,7 @@ function tallyStatuses(
 }
 
 /** Tallies pricing, rating, and metadata metrics. */
-function tallyMetrics(
-  volumes: Volume[],
-  acc: InsightAccumulator
-): void {
+function tallyMetrics(volumes: Volume[], acc: InsightAccumulator): void {
   for (const v of volumes) {
     acc.totalPages += v.page_count ?? 0
     const price = v.purchase_price ?? 0

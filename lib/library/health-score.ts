@@ -42,9 +42,10 @@ interface SeriesCounts {
 }
 
 /** Single-pass tally of all volume-level and series-level counters. O(S + V) */
-function tallyAll(
-  series: readonly SeriesWithVolumes[]
-): { vol: VolumeCounts; ser: SeriesCounts } {
+function tallyAll(series: readonly SeriesWithVolumes[]): {
+  vol: VolumeCounts
+  ser: SeriesCounts
+} {
   const vol: VolumeCounts = {
     total: 0,
     read: 0,
@@ -57,12 +58,19 @@ function tallyAll(
     withDesc: 0,
     missingMeta: 0
   }
-  const ser: SeriesCounts = { withTotal: 0, completenessRatioSum: 0, untracked: 0 }
+  const ser: SeriesCounts = {
+    withTotal: 0,
+    completenessRatioSum: 0,
+    untracked: 0
+  }
 
   for (const s of series) {
     if (s.total_volumes != null && s.total_volumes > 0) {
       ser.withTotal++
-      ser.completenessRatioSum += Math.min(s.volumes.length / s.total_volumes, 1)
+      ser.completenessRatioSum += Math.min(
+        s.volumes.length / s.total_volumes,
+        1
+      )
     } else {
       ser.untracked++
     }
@@ -86,15 +94,16 @@ function tallyAll(
   return { vol, ser }
 }
 
-function computeFactors(vol: VolumeCounts, ser: SeriesCounts): HealthScoreFactor[] {
+function computeFactors(
+  vol: VolumeCounts,
+  ser: SeriesCounts
+): HealthScoreFactor[] {
   const { total, read, owned, pricedOwned, withCover, withIsbn, withDesc } = vol
 
   const completionScore = total > 0 ? (read / total) * 20 : 0
   const ownershipScore = total > 0 ? (owned / total) * 20 : 0
   const completenessScore =
-    ser.withTotal > 0
-      ? (ser.completenessRatioSum / ser.withTotal) * 20
-      : 10
+    ser.withTotal > 0 ? (ser.completenessRatioSum / ser.withTotal) * 20 : 10
   const pricingScore = owned > 0 ? (pricedOwned / owned) * 20 : 10
   const metadataScore =
     total > 0
@@ -142,7 +151,8 @@ function computeFactors(vol: VolumeCounts, ser: SeriesCounts): HealthScoreFactor
       label: "Metadata Quality",
       score: round1(metadataScore),
       maxScore: 20,
-      description: total > 0 ? "Covers, ISBNs, and descriptions" : "No volumes to evaluate"
+      description:
+        total > 0 ? "Covers, ISBNs, and descriptions" : "No volumes to evaluate"
     }
   ]
 }

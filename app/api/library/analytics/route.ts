@@ -10,6 +10,7 @@ import {
   computePriceBreakdown,
   computeWishlistStats
 } from "@/lib/library/analytics"
+import { computeHealthScore } from "@/lib/library/health-score"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 export const dynamic = "force-dynamic"
@@ -87,13 +88,14 @@ export async function GET(request: NextRequest) {
     const collectionStats = computeCollectionStats(seriesWithVolumes)
     const priceBreakdown = computePriceBreakdown(seriesWithVolumes)
     const wishlistStats = computeWishlistStats(seriesWithVolumes)
+    const healthScore = computeHealthScore(seriesWithVolumes)
 
     const response = apiSuccess(
-      { collectionStats, priceBreakdown, wishlistStats },
+      { collectionStats, priceBreakdown, wishlistStats, healthScore },
       { correlationId }
     )
 
-    response.headers.set("Cache-Control", "private, max-age=60")
+    response.headers.set("Cache-Control", "private, max-age=300")
 
     return response
   } catch (error) {

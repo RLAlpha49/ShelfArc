@@ -25,7 +25,10 @@ function buildVolumeCache(
     let count = 0
     for (const v of s.volumes) {
       const val = extract(v)
-      if (val != null) { sum += val; count++ }
+      if (val != null) {
+        sum += val
+        count++
+      }
     }
     cache.set(s.id, aggregate === "avg" && count > 0 ? sum / count : sum)
   }
