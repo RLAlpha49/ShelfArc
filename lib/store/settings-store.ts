@@ -40,6 +40,9 @@ interface SettingsState {
   bodyFont: BodyFont
   dateFormat: DateFormat
 
+  // Onboarding
+  hasCompletedOnboarding: boolean
+
   // Actions
   setShowReadingProgress: (value: boolean) => void
   setShowSeriesProgressBar: (value: boolean) => void
@@ -54,6 +57,7 @@ interface SettingsState {
   setDisplayFont: (value: DisplayFont) => void
   setBodyFont: (value: BodyFont) => void
   setDateFormat: (value: DateFormat) => void
+  setHasCompletedOnboarding: (value: boolean) => void
 }
 
 /** Maps display font keys to their CSS variable references loaded by next/font. @source */
@@ -113,6 +117,9 @@ export const useSettingsStore = create<SettingsState>()(
       bodyFont: "plus-jakarta",
       dateFormat: "relative",
 
+      // Onboarding
+      hasCompletedOnboarding: false,
+
       // Actions
       setShowReadingProgress: (value) => set({ showReadingProgress: value }),
       setShowSeriesProgressBar: (value) =>
@@ -128,7 +135,8 @@ export const useSettingsStore = create<SettingsState>()(
       setEnableAnimations: (value) => set({ enableAnimations: value }),
       setDisplayFont: (value) => set({ displayFont: value }),
       setBodyFont: (value) => set({ bodyFont: value }),
-      setDateFormat: (value) => set({ dateFormat: value })
+      setDateFormat: (value) => set({ dateFormat: value }),
+      setHasCompletedOnboarding: (value) => set({ hasCompletedOnboarding: value })
     }),
     {
       name: "shelfarc-settings",
@@ -148,7 +156,8 @@ export const useSettingsStore = create<SettingsState>()(
         enableAnimations: state.enableAnimations,
         displayFont: state.displayFont,
         bodyFont: state.bodyFont,
-        dateFormat: state.dateFormat
+        dateFormat: state.dateFormat,
+        hasCompletedOnboarding: state.hasCompletedOnboarding
       })
     }
   )

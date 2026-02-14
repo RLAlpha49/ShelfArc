@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { Header } from "@/components/header"
 import { CommandPalette } from "@/components/command-palette"
+import { OnboardingDialog } from "@/components/onboarding-dialog"
 import { cn } from "@/lib/utils"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -31,6 +32,8 @@ export function AppShell({ children, user }: AppShellProps) {
   const navigationMode = useLibraryStore((state) => state.navigationMode)
   const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)
   const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed)
+  const _hydrated = useSettingsStore((s) => s._hydrated)
+  const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding)
 
   const routeAnnouncement = useMemo(() => {
     const label = pathname
@@ -84,6 +87,10 @@ export function AppShell({ children, user }: AppShellProps) {
           Skip to main content
         </a>
         <CommandPalette />
+        <OnboardingDialog
+          open={_hydrated && !hasCompletedOnboarding}
+          onOpenChange={() => {}}
+        />
         <Header user={user} />
         <main id="main" tabIndex={-1} className={mainClassName}>
           <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -103,6 +110,10 @@ export function AppShell({ children, user }: AppShellProps) {
         Skip to main content
       </a>
       <CommandPalette />
+      <OnboardingDialog
+        open={_hydrated && !hasCompletedOnboarding}
+        onOpenChange={() => {}}
+      />
       <SidebarNav
         user={user}
         collapsed={sidebarCollapsed}

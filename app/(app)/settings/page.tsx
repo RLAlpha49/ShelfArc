@@ -263,6 +263,9 @@ export default function SettingsPage() {
     autoPurchaseDate,
     setAutoPurchaseDate
   } = useSettingsStore()
+  const setHasCompletedOnboarding = useSettingsStore(
+    (s) => s.setHasCompletedOnboarding
+  )
   const [activeSection, setActiveSection] = useState("profile")
 
   const usernameFormatValid = USERNAME_PATTERN.test(username)
@@ -1041,6 +1044,27 @@ export default function SettingsPage() {
                       checked={autoPurchaseDate}
                       onCheckedChange={setAutoPurchaseDate}
                     />
+                  </div>
+                  <div className="border-border/40 border-t" />
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <Label className="font-medium">
+                        Onboarding tour
+                      </Label>
+                      <p className="text-muted-foreground text-sm">
+                        Replay the guided walkthrough of ShelfArc&apos;s key features.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setHasCompletedOnboarding(false)
+                        toast.success("Onboarding tour will show on your next page load")
+                      }}
+                    >
+                      Restart onboarding tour
+                    </Button>
                   </div>
                 </div>
               </div>
