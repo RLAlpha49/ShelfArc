@@ -43,9 +43,7 @@ async function tryFetch<T>(url: string, fetchInit: RequestInit): Promise<T> {
       data
     )
   }
-  const json = (await res.json()) as { data?: T }
-  // Unwrap standardized success envelope when present
-  return ("data" in json ? json.data : json) as T
+  return (await res.json()) as T
 }
 
 function isNonRetryable(err: unknown): boolean {
