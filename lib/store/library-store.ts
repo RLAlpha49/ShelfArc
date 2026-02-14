@@ -92,6 +92,15 @@ function cloneFilters(filters: FilterState): FilterState {
   }
 }
 
+function omitKey<T extends Record<string, unknown>>(
+  obj: T,
+  key: string
+): T {
+  const result = { ...obj }
+  delete result[key]
+  return result
+}
+
 function normalizeFilterPreset(preset: FilterPreset): FilterPreset {
   const filters = preset.state?.filters
   return {
@@ -117,6 +126,13 @@ interface LibraryState {
   series: SeriesWithVolumes[]
   unassignedVolumes: Volume[]
   selectedSeries: SeriesWithVolumes | null
+
+  // Normalized entities (source of truth for lookups)
+  seriesById: Record<string, Series>
+  volumesById: Record<string, Volume>
+  seriesIds: string[]
+  volumeIdsBySeriesId: Record<string, string[]>
+  unassignedVolumeIds: string[]
 
   // UI State
   collectionView: CollectionView
@@ -234,6 +250,11 @@ export const useLibraryStore = create<LibraryState>()(
       series: [],
       unassignedVolumes: [],
       selectedSeries: null,
+      seriesById: {},
+      volumesById: {},
+      seriesIds: [],
+      volumeIdsBySeriesId: {},
+      unassignedVolumeIds: [],
       collectionView: "series",
       viewMode: "grid",
       sortField: "title",
@@ -253,34 +274,142 @@ export const useLibraryStore = create<LibraryState>()(
       isLoading: false,
 
       // Actions
-      setSeries: (series) => set({ series }),
-      setUnassignedVolumes: (volumes) => set({ unassignedVolumes: volumes }),
+      setSeries: (seriesArr) => {
+        const nextSeriesById: Record<string, Series> = {}
+        const nextVolumesById: Record<string, Volume> = {}
+        const nextSeriesIds: string[] = []
+        const nextVolumeIdsBySeriesId: Record<string, string[]> = {}
+
+        for (const s of seriesArr) {
+          const { volumes, ...seriesData } = s
+          nextSeriesById[s.id] = seriesData as Series
+          nextSeriesIds.push(s.id)
+          const vIds: string[] = []
+          for (const v of volumes) {
+            nextVolumesById[v.id] = v
+            vIds.push(v.id)
+          }
+          nextVolumeIdsBySeriesId[s.id] = vIds
+        }
+
+        set((state) => {
+          // Re-add unassigned volumes to the volume map
+          const mergedVolumesById = { ...nextVolumesById }
+          for (const uid of state.unassignedVolumeIds) {
+            const uv = state.volumesById[uid]
+            if (uv) mergedVolumesById[uid] = uv
+          }
+
+          return {
+            seriesById: nextSeriesById,
+            volumesById: mergedVolumesById,
+            seriesIds: nextSeriesIds,
+            volumeIdsBySeriesId: nextVolumeIdsBySeriesId,
+            series: seriesArr
+          }
+        })
+      },
+
+      setUnassignedVolumes: (volumes) =>
+        set((state) => {
+          const nextVolumesById = { ...state.volumesById }
+          // Remove old unassigned entries
+          for (const oldId of state.unassignedVolumeIds) {
+            if (!state.volumeIdsBySeriesId[oldId]) {
+              delete nextVolumesById[oldId]
+            }
+          }
+          // Add new unassigned entries
+          const nextUnassignedIds: string[] = []
+          for (const v of volumes) {
+            nextVolumesById[v.id] = v
+            nextUnassignedIds.push(v.id)
+          }
+          return {
+            volumesById: nextVolumesById,
+            unassignedVolumeIds: nextUnassignedIds,
+            unassignedVolumes: volumes
+          }
+        }),
 
       addSeries: (newSeries) =>
-        set((state) => ({ series: [...state.series, newSeries] })),
+        set((state) => {
+          const { volumes, ...seriesData } = newSeries
+          const nextVolumesById = { ...state.volumesById }
+          const vIds: string[] = []
+          for (const v of volumes) {
+            nextVolumesById[v.id] = v
+            vIds.push(v.id)
+          }
+          return {
+            seriesById: {
+              ...state.seriesById,
+              [newSeries.id]: seriesData as Series
+            },
+            volumesById: nextVolumesById,
+            seriesIds: [...state.seriesIds, newSeries.id],
+            volumeIdsBySeriesId: {
+              ...state.volumeIdsBySeriesId,
+              [newSeries.id]: vIds
+            },
+            series: [...state.series, newSeries]
+          }
+        }),
 
       updateSeries: (id, updates) =>
-        set((state) => ({
-          series: state.series.map((s) =>
-            s.id === id ? { ...s, ...updates } : s
-          ),
-          selectedSeries:
-            state.selectedSeries?.id === id
-              ? { ...state.selectedSeries, ...updates }
-              : state.selectedSeries
-        })),
+        set((state) => {
+          const existing = state.seriesById[id]
+          if (!existing) return state
+          const updated = { ...existing, ...updates }
+          return {
+            seriesById: { ...state.seriesById, [id]: updated },
+            series: state.series.map((s) =>
+              s.id === id ? { ...s, ...updates } : s
+            ),
+            selectedSeries:
+              state.selectedSeries?.id === id
+                ? { ...state.selectedSeries, ...updates }
+                : state.selectedSeries
+          }
+        }),
 
       deleteSeries: (id) =>
-        set((state) => ({
-          series: state.series.filter((s) => s.id !== id),
-          selectedSeries:
-            state.selectedSeries?.id === id ? null : state.selectedSeries
-        })),
+        set((state) => {
+          const restSeriesById = omitKey(state.seriesById, id)
+          const removedVolumeIds = state.volumeIdsBySeriesId[id]
+          const restVolumeIdsBySeriesId = omitKey(
+            state.volumeIdsBySeriesId,
+            id
+          )
+          const nextVolumesById = { ...state.volumesById }
+          for (const vid of removedVolumeIds ?? []) {
+            delete nextVolumesById[vid]
+          }
+          return {
+            seriesById: restSeriesById,
+            volumesById: nextVolumesById,
+            seriesIds: state.seriesIds.filter((sid) => sid !== id),
+            volumeIdsBySeriesId: restVolumeIdsBySeriesId,
+            series: state.series.filter((s) => s.id !== id),
+            selectedSeries:
+              state.selectedSeries?.id === id ? null : state.selectedSeries
+          }
+        }),
 
       addVolume: (seriesId, volume) =>
         set((state) => ({
+          volumesById: { ...state.volumesById, [volume.id]: volume },
+          volumeIdsBySeriesId: {
+            ...state.volumeIdsBySeriesId,
+            [seriesId]: [
+              ...(state.volumeIdsBySeriesId[seriesId] ?? []),
+              volume.id
+            ]
+          },
           series: state.series.map((s) =>
-            s.id === seriesId ? { ...s, volumes: [...s.volumes, volume] } : s
+            s.id === seriesId
+              ? { ...s, volumes: [...s.volumes, volume] }
+              : s
           ),
           selectedSeries:
             state.selectedSeries?.id === seriesId
@@ -292,64 +421,98 @@ export const useLibraryStore = create<LibraryState>()(
         })),
 
       updateVolume: (seriesId, volumeId, updates) =>
-        set((state) => ({
-          series: state.series.map((s) =>
-            s.id === seriesId
-              ? {
-                  ...s,
-                  volumes: s.volumes.map((v) =>
-                    v.id === volumeId ? { ...v, ...updates } : v
-                  )
-                }
-              : s
-          ),
-          selectedSeries:
-            state.selectedSeries?.id === seriesId
-              ? {
-                  ...state.selectedSeries,
-                  volumes: state.selectedSeries.volumes.map((v) =>
-                    v.id === volumeId ? { ...v, ...updates } : v
-                  )
-                }
-              : state.selectedSeries
-        })),
+        set((state) => {
+          const existing = state.volumesById[volumeId]
+          if (!existing) return state
+          const updated = { ...existing, ...updates }
+          return {
+            volumesById: { ...state.volumesById, [volumeId]: updated },
+            series: state.series.map((s) =>
+              s.id === seriesId
+                ? {
+                    ...s,
+                    volumes: s.volumes.map((v) =>
+                      v.id === volumeId ? updated : v
+                    )
+                  }
+                : s
+            ),
+            selectedSeries:
+              state.selectedSeries?.id === seriesId
+                ? {
+                    ...state.selectedSeries,
+                    volumes: state.selectedSeries.volumes.map((v) =>
+                      v.id === volumeId ? updated : v
+                    )
+                  }
+                : state.selectedSeries
+          }
+        }),
 
       deleteVolume: (seriesId, volumeId) =>
-        set((state) => ({
-          series: state.series.map((s) =>
-            s.id === seriesId
-              ? { ...s, volumes: s.volumes.filter((v) => v.id !== volumeId) }
-              : s
-          ),
-          selectedSeries:
-            state.selectedSeries?.id === seriesId
-              ? {
-                  ...state.selectedSeries,
-                  volumes: state.selectedSeries.volumes.filter(
-                    (v) => v.id !== volumeId
-                  )
-                }
-              : state.selectedSeries
-        })),
+        set((state) => {
+          const restVolumesById = omitKey(state.volumesById, volumeId)
+          return {
+            volumesById: restVolumesById,
+            volumeIdsBySeriesId: {
+              ...state.volumeIdsBySeriesId,
+              [seriesId]: (
+                state.volumeIdsBySeriesId[seriesId] ?? []
+              ).filter((vid) => vid !== volumeId)
+            },
+            series: state.series.map((s) =>
+              s.id === seriesId
+                ? {
+                    ...s,
+                    volumes: s.volumes.filter((v) => v.id !== volumeId)
+                  }
+                : s
+            ),
+            selectedSeries:
+              state.selectedSeries?.id === seriesId
+                ? {
+                    ...state.selectedSeries,
+                    volumes: state.selectedSeries.volumes.filter(
+                      (v) => v.id !== volumeId
+                    )
+                  }
+                : state.selectedSeries
+          }
+        }),
 
       addUnassignedVolume: (volume) =>
         set((state) => ({
+          volumesById: { ...state.volumesById, [volume.id]: volume },
+          unassignedVolumeIds: [...state.unassignedVolumeIds, volume.id],
           unassignedVolumes: [...state.unassignedVolumes, volume]
         })),
 
       updateUnassignedVolume: (volumeId, updates) =>
-        set((state) => ({
-          unassignedVolumes: state.unassignedVolumes.map((volume) =>
-            volume.id === volumeId ? { ...volume, ...updates } : volume
-          )
-        })),
+        set((state) => {
+          const existing = state.volumesById[volumeId]
+          if (!existing) return state
+          const updated = { ...existing, ...updates }
+          return {
+            volumesById: { ...state.volumesById, [volumeId]: updated },
+            unassignedVolumes: state.unassignedVolumes.map((v) =>
+              v.id === volumeId ? updated : v
+            )
+          }
+        }),
 
       deleteUnassignedVolume: (volumeId) =>
-        set((state) => ({
-          unassignedVolumes: state.unassignedVolumes.filter(
-            (volume) => volume.id !== volumeId
-          )
-        })),
+        set((state) => {
+          const restVolumesById = omitKey(state.volumesById, volumeId)
+          return {
+            volumesById: restVolumesById,
+            unassignedVolumeIds: state.unassignedVolumeIds.filter(
+              (id) => id !== volumeId
+            ),
+            unassignedVolumes: state.unassignedVolumes.filter(
+              (v) => v.id !== volumeId
+            )
+          }
+        }),
 
       setSelectedSeries: (series) => set({ selectedSeries: series }),
       setCollectionView: (view) =>
@@ -521,3 +684,43 @@ export const useLibraryStore = create<LibraryState>()(
     }
   )
 )
+
+/** Select a single series with its volumes by ID. O(1) lookup. @source */
+export function selectSeriesById(
+  state: LibraryState,
+  id: string
+): SeriesWithVolumes | undefined {
+  const s = state.seriesById[id]
+  if (!s) return undefined
+  const volumeIds = state.volumeIdsBySeriesId[id] ?? []
+  return {
+    ...s,
+    volumes: volumeIds
+      .map((vid) => state.volumesById[vid])
+      .filter((v): v is Volume => v != null)
+  }
+}
+
+/** Select a single volume by ID. O(1) lookup. @source */
+export function selectVolumeById(
+  state: LibraryState,
+  id: string
+): Volume | undefined {
+  return state.volumesById[id]
+}
+
+/** Select all volumes belonging to a series. O(1) lookup. @source */
+export function selectSeriesVolumes(
+  state: LibraryState,
+  seriesId: string
+): Volume[] {
+  const volumeIds = state.volumeIdsBySeriesId[seriesId] ?? []
+  return volumeIds
+    .map((vid) => state.volumesById[vid])
+    .filter((v): v is Volume => v != null)
+}
+
+/** Select all volumes (assigned + unassigned). @source */
+export function selectAllVolumes(state: LibraryState): Volume[] {
+  return Object.values(state.volumesById)
+}
