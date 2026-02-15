@@ -349,12 +349,32 @@
   --sidebar-ring: oklch(0.74 0.115 65);
 }
 
+/* ── Accessibility: High contrast mode ──────────────── */
+[data-contrast="high"] {
+  --border: oklch(0.6 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --ring: oklch(0.4 0.15 260);
+}
+
+[data-contrast="high"].dark {
+  --border: oklch(0.55 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --ring: oklch(0.7 0.15 260);
+}
+
+/* ── Accessibility: Enhanced focus indicators ──────── */
+[data-focus="enhanced"] *:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+    font-size: calc(1rem * var(--font-size-scale, 1));
   }
   h1,
   h2,

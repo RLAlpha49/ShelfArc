@@ -14,6 +14,10 @@ export type DateFormat = "relative" | "short" | "long" | "iso"
 export type DefaultOwnershipStatus = "owned" | "wishlist"
 /** Supported book search providers. @source */
 export type SearchSource = "google_books" | "open_library"
+/** Font size scaling mode for accessibility. @source */
+export type FontSizeScale = "default" | "large" | "x-large"
+/** Focus indicator visibility mode. @source */
+export type FocusIndicators = "default" | "enhanced"
 
 /** Combined settings state and actions for the settings Zustand store. @source */
 interface SettingsState {
@@ -40,6 +44,11 @@ interface SettingsState {
   bodyFont: BodyFont
   dateFormat: DateFormat
 
+  // Accessibility
+  highContrastMode: boolean
+  fontSizeScale: FontSizeScale
+  focusIndicators: FocusIndicators
+
   // Onboarding
   hasCompletedOnboarding: boolean
 
@@ -57,6 +66,9 @@ interface SettingsState {
   setDisplayFont: (value: DisplayFont) => void
   setBodyFont: (value: BodyFont) => void
   setDateFormat: (value: DateFormat) => void
+  setHighContrastMode: (value: boolean) => void
+  setFontSizeScale: (value: FontSizeScale) => void
+  setFocusIndicators: (value: FocusIndicators) => void
   setHasCompletedOnboarding: (value: boolean) => void
 }
 
@@ -117,6 +129,11 @@ export const useSettingsStore = create<SettingsState>()(
       bodyFont: "plus-jakarta",
       dateFormat: "relative",
 
+      // Accessibility
+      highContrastMode: false,
+      fontSizeScale: "default",
+      focusIndicators: "default",
+
       // Onboarding
       hasCompletedOnboarding: false,
 
@@ -136,6 +153,9 @@ export const useSettingsStore = create<SettingsState>()(
       setDisplayFont: (value) => set({ displayFont: value }),
       setBodyFont: (value) => set({ bodyFont: value }),
       setDateFormat: (value) => set({ dateFormat: value }),
+      setHighContrastMode: (value) => set({ highContrastMode: value }),
+      setFontSizeScale: (value) => set({ fontSizeScale: value }),
+      setFocusIndicators: (value) => set({ focusIndicators: value }),
       setHasCompletedOnboarding: (value) =>
         set({ hasCompletedOnboarding: value })
     }),
@@ -158,6 +178,9 @@ export const useSettingsStore = create<SettingsState>()(
         displayFont: state.displayFont,
         bodyFont: state.bodyFont,
         dateFormat: state.dateFormat,
+        highContrastMode: state.highContrastMode,
+        fontSizeScale: state.fontSizeScale,
+        focusIndicators: state.focusIndicators,
         hasCompletedOnboarding: state.hasCompletedOnboarding
       })
     }

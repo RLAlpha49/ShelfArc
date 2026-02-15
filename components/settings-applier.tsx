@@ -6,6 +6,7 @@ import {
   DISPLAY_FONT_MAP,
   BODY_FONT_MAP
 } from "@/lib/store/settings-store"
+import type { FontSizeScale } from "@/lib/store/settings-store"
 
 /**
  * Client component that applies global settings (fonts, animations) to the
@@ -49,6 +50,44 @@ export function SettingsApplier() {
       document.documentElement.classList.remove("no-animations")
     }
   }, [enableAnimations])
+
+  const highContrastMode = useSettingsStore((s) => s.highContrastMode)
+  const fontSizeScale = useSettingsStore((s) => s.fontSizeScale)
+  const focusIndicators = useSettingsStore((s) => s.focusIndicators)
+
+  // Apply high contrast mode
+  useEffect(() => {
+    document.documentElement.dataset.contrast = highContrastMode
+      ? "high"
+      : "default"
+    return () => {
+      delete document.documentElement.dataset.contrast
+    }
+  }, [highContrastMode])
+
+  // Apply font size scale
+  useEffect(() => {
+    const scaleMap: Record<FontSizeScale, string> = {
+      default: "1",
+      large: "1.125",
+      "x-large": "1.25"
+    }
+    document.documentElement.style.setProperty(
+      "--font-size-scale",
+      scaleMap[fontSizeScale]
+    )
+    return () => {
+      document.documentElement.style.removeProperty("--font-size-scale")
+    }
+  }, [fontSizeScale])
+
+  // Apply focus indicators
+  useEffect(() => {
+    document.documentElement.dataset.focus = focusIndicators
+    return () => {
+      delete document.documentElement.dataset.focus
+    }
+  }, [focusIndicators])
 
   return null
 }
