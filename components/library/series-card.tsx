@@ -164,7 +164,7 @@ export function SeriesCard({
       <div className="touch-device:opacity-100 absolute top-2 right-2 z-10 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex h-8 w-8 items-center justify-center rounded-xl shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none"
+            className="bg-background/80 hover:bg-background text-foreground focus-visible:ring-ring inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl shadow-sm backdrop-blur-sm transition-colors hover:shadow-md focus-visible:ring-1 focus-visible:outline-none touch-device:border touch-device:border-border/50"
             onClick={(event) => event.stopPropagation()}
             aria-label={`Actions for ${series.title}`}
           >

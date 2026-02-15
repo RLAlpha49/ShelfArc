@@ -420,6 +420,15 @@
   .touch-device\:opacity-100 {
     opacity: 1;
   }
+
+  .touch-device\:border {
+    border-width: 1px;
+    border-style: solid;
+  }
+
+  .touch-device\:border-border\/50 {
+    border-color: oklch(from var(--border) l c h / 50%);
+  }
 }
 
 /* Disable all animations and transitions when the user opts out */
