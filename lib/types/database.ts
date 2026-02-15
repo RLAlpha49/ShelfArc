@@ -23,6 +23,21 @@ export type ReadingStatus =
 /** Physical book orientation for display layout. @source */
 export type BookOrientation = "vertical" | "horizontal"
 
+/** Activity event type enum values. @source */
+export type ActivityEventType =
+  | "volume_added"
+  | "volume_updated"
+  | "volume_deleted"
+  | "series_created"
+  | "series_updated"
+  | "series_deleted"
+  | "price_alert_triggered"
+  | "import_completed"
+  | "scrape_completed"
+  | "automation_executed"
+  | "api_token_created"
+  | "api_token_revoked"
+
 /** Supabase database schema definition for the public schema. @source */
 export interface Database {
   public: {
@@ -340,6 +355,43 @@ export interface Database {
           }
         ]
       }
+      activity_events: {
+        Row: {
+          id: string
+          user_id: string
+          event_type: ActivityEventType
+          entity_type: string | null
+          entity_id: string | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          event_type: ActivityEventType
+          entity_type?: string | null
+          entity_id?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          event_type?: ActivityEventType
+          entity_type?: string | null
+          entity_id?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_events_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -352,6 +404,7 @@ export interface Database {
       ownership_status: OwnershipStatus
       reading_status: ReadingStatus
       book_orientation: BookOrientation
+      activity_event_type: ActivityEventType
     }
   }
 }
@@ -385,3 +438,10 @@ export type PriceAlert = Database["public"]["Tables"]["price_alerts"]["Row"]
 /** Price alert insert payload type. @source */
 export type PriceAlertInsert =
   Database["public"]["Tables"]["price_alerts"]["Insert"]
+
+/** Activity event row type. @source */
+export type ActivityEvent =
+  Database["public"]["Tables"]["activity_events"]["Row"]
+/** Activity event insert payload type. @source */
+export type ActivityEventInsert =
+  Database["public"]["Tables"]["activity_events"]["Insert"]

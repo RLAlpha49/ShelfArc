@@ -725,3 +725,94 @@ BEGIN
     EXECUTE 'CREATE POLICY "Users can delete their own price alerts" ON public.price_alerts FOR DELETE USING ((select auth.uid()) = user_id)';
   END IF;
 END $$;
+
+-- Activity event type enum
+DO $$
+BEGIN
+  IF to_regtype('public.activity_event_type') IS NULL THEN
+    CREATE TYPE public.activity_event_type AS ENUM (
+      'volume_added',
+      'volume_updated',
+      'volume_deleted',
+      'series_created',
+      'series_updated',
+      'series_deleted',
+      'price_alert_triggered',
+      'import_completed',
+      'scrape_completed',
+      'automation_executed',
+      'api_token_created',
+      'api_token_revoked'
+    );
+  END IF;
+END $$;
+
+-- Activity events table (append-only timeline)
+CREATE TABLE IF NOT EXISTS activity_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  event_type activity_event_type NOT NULL,
+  entity_type TEXT,
+  entity_id UUID,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Indexes for activity_events
+CREATE INDEX IF NOT EXISTS idx_activity_events_user_created
+  ON activity_events(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_events_user_event_type
+  ON activity_events(user_id, event_type);
+
+-- RLS
+ALTER TABLE activity_events ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for activity_events
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'activity_events'
+      AND policyname = 'Users can view their own activity events'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own activity events" ON public.activity_events FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'activity_events'
+      AND policyname = 'Users can insert their own activity events'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own activity events" ON public.activity_events FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+-- Cleanup helper to prevent unbounded growth of activity_events
+-- Schedule this (daily/hourly) using pg_cron or a scheduled Supabase task.
+CREATE OR REPLACE FUNCTION public.activity_events_cleanup(p_max_age_days integer DEFAULT 90)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v_now timestamptz := clock_timestamp();
+  v_cutoff timestamptz := v_now - make_interval(days => GREATEST(p_max_age_days, 1));
+  v_deleted integer;
+BEGIN
+  DELETE FROM public.activity_events
+  WHERE created_at < v_cutoff;
+
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.activity_events_cleanup(integer)
+  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.activity_events_cleanup(integer)
+  TO service_role;

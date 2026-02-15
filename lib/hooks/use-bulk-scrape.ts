@@ -13,6 +13,8 @@ import { buildFetchPriceParams } from "@/lib/books/amazon-query"
 import type { FetchPriceParams } from "@/lib/api/types"
 import { ApiClientError } from "@/lib/api/client"
 import { useNotificationStore } from "@/lib/store/notification-store"
+import { createClient } from "@/lib/supabase/client"
+import { recordActivityEvent } from "@/lib/activity/record-event"
 
 /** Scraping mode: price only, image only, or both. @source */
 export type BulkScrapeMode = "price" | "image" | "both"
@@ -439,6 +441,26 @@ export function useBulkScrape(
       }
 
       const summary = finalize(setState)
+
+      const bulkSupabase = createClient()
+      const {
+        data: { user }
+      } = await bulkSupabase.auth.getUser()
+      if (user) {
+        void recordActivityEvent(bulkSupabase, {
+          userId: user.id,
+          eventType: "scrape_completed",
+          entityType: "series",
+          entityId: series.id,
+          metadata: {
+            seriesTitle: series.title,
+            total: summary.total,
+            done: summary.done,
+            failed: summary.failed,
+            skipped: summary.skipped
+          }
+        })
+      }
 
       useNotificationStore.getState().addNotification({
         type: "scrape_complete",

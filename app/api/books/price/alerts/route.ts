@@ -5,6 +5,7 @@ import { enforceSameOrigin } from "@/lib/csrf"
 import { isNonNegativeFinite, isValidCurrencyCode } from "@/lib/validation"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { recordActivityEvent } from "@/lib/activity/record-event"
 
 export const dynamic = "force-dynamic"
 
@@ -166,6 +167,19 @@ export async function PATCH(request: NextRequest) {
 
     if (error)
       return apiError(500, "Failed to trigger price alert", { correlationId })
+
+    void recordActivityEvent(supabase, {
+      userId: user.id,
+      eventType: "price_alert_triggered",
+      entityType: "volume",
+      entityId: data.volume_id,
+      metadata: {
+        alertId: id,
+        targetPrice: data.target_price,
+        currency: data.currency
+      }
+    })
+
     return apiSuccess({ data }, { correlationId })
   } catch (error) {
     log.error("Price alert trigger failed", {

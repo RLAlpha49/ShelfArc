@@ -9,6 +9,7 @@ import { PriceAlertsDashboardCard } from "@/components/library/price-alerts-dash
 import { RecentlyAddedContent } from "@/components/dashboard/recently-added"
 import { RecommendationsCard } from "@/components/library/recommendations-card"
 import { CollectionHealthCard } from "@/components/dashboard/collection-health-card"
+import { RecentActivityCard } from "@/components/dashboard/recent-activity-card"
 import type {
   CollectionStats,
   PriceBreakdown,
@@ -574,8 +575,13 @@ export function DashboardContent({
             <CollectionHealthCard healthScore={healthScore} series={series} />
           </div>
 
-          {/* Reading progress ring */}
+          {/* Recent Activity */}
           <div className="animate-fade-in-up stagger-7">
+            <RecentActivityCard />
+          </div>
+
+          {/* Reading progress ring */}
+          <div className="animate-fade-in-up stagger-8">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Progress
@@ -659,7 +665,7 @@ export function DashboardContent({
           </div>
 
           {/* Price Tracking */}
-          <div className="animate-fade-in-up stagger-8">
+          <div className="animate-fade-in-up stagger-9">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Price Tracking
@@ -790,7 +796,7 @@ export function DashboardContent({
           </div>
 
           {/* Wishlist Overview */}
-          <div className="animate-fade-in-up stagger-9">
+          <div className="animate-fade-in-up stagger-10">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Wishlist
@@ -910,7 +916,7 @@ export function DashboardContent({
           </div>
 
           {/* Upcoming Releases */}
-          <div className="animate-fade-in-up stagger-10">
+          <div className="animate-fade-in-up stagger-11">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="font-display text-lg font-semibold tracking-tight">
@@ -996,7 +1002,7 @@ export function DashboardContent({
           </div>
 
           {/* Price Alerts */}
-          <div className="animate-fade-in-up stagger-11">
+          <div className="animate-fade-in-up stagger-12">
             <div className="mb-4">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Price Alerts

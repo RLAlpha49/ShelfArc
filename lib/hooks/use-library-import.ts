@@ -17,6 +17,8 @@ import {
   normalizeSeriesTitle as normalizeSeriesTitleValue,
   stripVolumeFromTitle as stripVolumeFromTitleValue
 } from "@/lib/library/volume-normalization"
+import { createClient } from "@/lib/supabase/client"
+import { recordActivityEvent } from "@/lib/activity/record-event"
 
 export function useLibraryImport() {
   const {
@@ -372,6 +374,24 @@ export function useLibraryImport() {
       if (failureCount > 0 || !lastSeries) {
         throw new Error("Failed to add book")
       }
+
+      const importSupabase = createClient()
+      const {
+        data: { user }
+      } = await importSupabase.auth.getUser()
+      if (user) {
+        void recordActivityEvent(importSupabase, {
+          userId: user.id,
+          eventType: "import_completed",
+          entityType: "series",
+          entityId: lastSeries.id,
+          metadata: {
+            seriesTitle: lastSeries.title,
+            volumesAdded: 1
+          }
+        })
+      }
+
       return lastSeries
     },
     [addBooksFromSearchResults]
@@ -464,6 +484,22 @@ export function useLibraryImport() {
       )
       if (failureCount > 0) {
         throw new Error("Failed to add volume")
+      }
+
+      const importSupabase = createClient()
+      const {
+        data: { user }
+      } = await importSupabase.auth.getUser()
+      if (user) {
+        void recordActivityEvent(importSupabase, {
+          userId: user.id,
+          eventType: "import_completed",
+          entityType: "series",
+          entityId: seriesId,
+          metadata: {
+            volumesAdded: 1
+          }
+        })
       }
     },
     [addVolumesFromSearchResults]

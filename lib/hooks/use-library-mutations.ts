@@ -31,6 +31,7 @@ import {
   sanitizeSeriesUpdate,
   sanitizeVolumeUpdate
 } from "@/lib/library/sanitize-library"
+import { recordActivityEvent } from "@/lib/activity/record-event"
 
 export function useLibraryMutations() {
   const supabase = createClient()
@@ -183,6 +184,15 @@ export function useLibraryMutations() {
           volumes: []
         }
         addSeries(seriesWithVolumes)
+
+        void recordActivityEvent(supabase, {
+          userId: user.id,
+          eventType: "series_created",
+          entityType: "series",
+          entityId: seriesWithVolumes.id,
+          metadata: { title: sanitizedTitle }
+        })
+
         return seriesWithVolumes
       } catch (error) {
         console.error("Error creating series:", error)
@@ -213,6 +223,14 @@ export function useLibraryMutations() {
         if (error) throw error
 
         updateSeries(id, sanitizedData)
+
+        void recordActivityEvent(supabase, {
+          userId: user.id,
+          eventType: "series_updated",
+          entityType: "series",
+          entityId: id,
+          metadata: { title: sanitizedData.title || "Series" }
+        })
       } catch (error) {
         console.error("Error updating series:", error)
         throw error
@@ -362,6 +380,17 @@ export function useLibraryMutations() {
         }
 
         deleteSeries(id)
+
+        void recordActivityEvent(supabase, {
+          userId: user.id,
+          eventType: "series_deleted",
+          entityType: "series",
+          entityId: id,
+          metadata: {
+            title: targetSeries?.title ?? "Unknown",
+            volumeCount: volumesToUpdate.length
+          }
+        })
       } catch (error) {
         console.error("Error deleting series:", error)
         throw error
@@ -433,6 +462,18 @@ export function useLibraryMutations() {
         } else {
           addUnassignedVolume(newVolume as Volume)
         }
+
+        void recordActivityEvent(supabase, {
+          userId: user.id,
+          eventType: "volume_added",
+          entityType: "volume",
+          entityId: (newVolume as Volume).id,
+          metadata: {
+            title: (newVolume as Volume).title,
+            volumeNumber: (newVolume as Volume).volume_number
+          }
+        })
+
         return newVolume as Volume
       } catch (error) {
         console.error("Error creating volume:", error)
@@ -515,6 +556,17 @@ export function useLibraryMutations() {
           } else {
             updateUnassignedVolume(volumeId, updatePayload)
           }
+
+          void recordActivityEvent(supabase, {
+            userId: user.id,
+            eventType: "volume_updated",
+            entityType: "volume",
+            entityId: volumeId,
+            metadata: {
+              title: updatedVolume.title,
+              volumeNumber: updatedVolume.volume_number
+            }
+          })
           return
         }
 
@@ -530,6 +582,17 @@ export function useLibraryMutations() {
         } else {
           addUnassignedVolume(updatedVolume)
         }
+
+        void recordActivityEvent(supabase, {
+          userId: user.id,
+          eventType: "volume_updated",
+          entityType: "volume",
+          entityId: volumeId,
+          metadata: {
+            title: updatedVolume.title,
+            volumeNumber: updatedVolume.volume_number
+          }
+        })
       } catch (error) {
         console.error("Error updating volume:", error)
         throw error
@@ -572,6 +635,13 @@ export function useLibraryMutations() {
         } else {
           deleteUnassignedVolume(volumeId)
         }
+
+        void recordActivityEvent(supabase, {
+          userId: user.id,
+          eventType: "volume_deleted",
+          entityType: "volume",
+          entityId: volumeId
+        })
       } catch (error) {
         console.error("Error deleting volume:", error)
         throw error
