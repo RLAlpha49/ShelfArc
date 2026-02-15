@@ -6,6 +6,7 @@ import { Header } from "@/components/header"
 import { CommandPalette } from "@/components/command-palette"
 import { OnboardingDialog } from "@/components/onboarding-dialog"
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
+import { LiveAnnouncer } from "@/components/live-announcer"
 import { cn } from "@/lib/utils"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -199,6 +200,7 @@ export function AppShell({ children, user }: AppShellProps) {
           Skip to main content
         </a>
         <CommandPalette />
+        <LiveAnnouncer />
         <KeyboardShortcutsDialog
           open={shortcutsOpen}
           onOpenChange={setShortcutsOpen}
@@ -226,6 +228,7 @@ export function AppShell({ children, user }: AppShellProps) {
         Skip to main content
       </a>
       <CommandPalette />
+      <LiveAnnouncer />
       <KeyboardShortcutsDialog
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}
