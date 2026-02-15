@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CoverImage } from "@/components/library/cover-image"
 import { useCsvImport } from "@/lib/csv/use-csv-import"
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
+import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { BookSearchSource } from "@/lib/books/search"
@@ -906,10 +907,41 @@ export function CsvImport() {
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
+  const lastAnnouncedImport = useRef(0)
+
+  const { announce } = useLiveAnnouncer()
 
   const activeIndex = items.findIndex((item) =>
     ACTIVE_STATUSES.has(item.status)
   )
+
+  useEffect(() => {
+    if (phase === "parsed" && parseMeta) {
+      const validCount = stats.total
+      announce(`CSV parsed. ${validCount} valid ISBNs found.`)
+    }
+  }, [phase, parseMeta, stats.total, announce])
+
+  useEffect(() => {
+    if (phase !== "importing" && phase !== "complete") return
+
+    if (phase === "complete") {
+      announce(
+        `Import complete. ${stats.added} books added, ${stats.notFound} not found, ${stats.errors} errors.`
+      )
+      lastAnnouncedImport.current = 0
+      return
+    }
+
+    // Announce every 5 items during import
+    if (
+      stats.processed > 0 &&
+      stats.processed - lastAnnouncedImport.current >= 5
+    ) {
+      announce(`${stats.processed} of ${stats.total} ISBNs processed.`)
+      lastAnnouncedImport.current = stats.processed
+    }
+  }, [phase, stats, announce])
 
   useEffect(() => {
     if (isLoading) return

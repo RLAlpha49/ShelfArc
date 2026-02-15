@@ -49,6 +49,7 @@ import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import {
   findDuplicateCandidates,
   DUPLICATE_REASON_LABELS,
@@ -177,6 +178,8 @@ export function BookSearchDialog({
     candidates: DuplicateCandidate[]
     onConfirm: () => void
   } | null>(null)
+
+  const { announce } = useLiveAnnouncer()
 
   const manualLabel =
     context === "volume" ? "Add volume manually" : "Add book manually"
@@ -437,6 +440,24 @@ export function BookSearchDialog({
   const isDebouncing =
     query.trim().length >= 2 && query.trim() !== debouncedQuery
   const shouldVirtualize = decoratedResults.length > VIRTUALIZE_THRESHOLD
+
+  useEffect(() => {
+    if (isLoading) return
+
+    if (error) {
+      announce(`Search error: ${error}`, "assertive")
+      return
+    }
+
+    if (showEmptyState) {
+      announce("No results found.")
+      return
+    }
+
+    if (results.length > 0) {
+      announce(`${results.length} results found.`)
+    }
+  }, [isLoading, error, showEmptyState, results.length, announce])
 
   const renderResultCard = useCallback(
     (item: {

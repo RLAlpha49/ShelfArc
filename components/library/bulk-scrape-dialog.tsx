@@ -27,6 +27,7 @@ import {
 } from "@/lib/hooks/use-bulk-scrape"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** Props for the {@link BulkScrapeDialog} component. @source */
@@ -230,6 +231,8 @@ export function BulkScrapeDialog({
   const { jobs, isRunning, summary, cooldownMessage, start, cancel, reset } =
     useBulkScrape(series, editVolume)
 
+  const { announce } = useLiveAnnouncer()
+
   const hasStarted = jobs.length > 0
   const isFinished = hasStarted && !isRunning
 
@@ -260,6 +263,7 @@ export function BulkScrapeDialog({
     [jobs]
   )
 
+  const lastAnnouncedCount = useRef(0)
   const activeRowRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -277,6 +281,36 @@ export function BulkScrapeDialog({
     },
     [activeJobId]
   )
+
+  useEffect(() => {
+    if (!hasStarted) return
+
+    const processed = summary.done + summary.failed + summary.skipped
+
+    if (isFinished) {
+      announce(
+        `Bulk scrape complete. ${summary.done} succeeded, ${summary.failed} failed, ${summary.skipped} skipped.`
+      )
+      lastAnnouncedCount.current = 0
+      return
+    }
+
+    if (isRunning && processed === 0 && summary.total > 0) {
+      announce(`Bulk scrape started for ${summary.total} volumes.`)
+      lastAnnouncedCount.current = 0
+      return
+    }
+
+    // Announce every 3 volumes processed
+    if (
+      isRunning &&
+      processed > 0 &&
+      processed - lastAnnouncedCount.current >= 3
+    ) {
+      announce(`${processed} of ${summary.total} volumes processed.`)
+      lastAnnouncedCount.current = processed
+    }
+  }, [summary, isRunning, isFinished, hasStarted, announce])
 
   // Reset state when dialog opens
   useEffect(() => {
