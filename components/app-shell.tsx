@@ -1,14 +1,16 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { Header } from "@/components/header"
 import { CommandPalette } from "@/components/command-palette"
 import { OnboardingDialog } from "@/components/onboarding-dialog"
+import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
 import { cn } from "@/lib/utils"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 
 /** Props for the {@link AppShell} layout wrapper. @source */
 interface AppShellProps {
@@ -22,6 +24,42 @@ interface AppShellProps {
   } | null
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true
+  if (target.isContentEditable) return true
+  return Boolean(target.closest("[contenteditable='true']"))
+}
+
+function executePrefixShortcut(
+  prefix: string,
+  key: string,
+  router: ReturnType<typeof useRouter>
+): void {
+  if (prefix === "g") {
+    const routes: Record<string, string> = {
+      d: "/dashboard",
+      l: "/library",
+      s: "/settings",
+      a: "/activity"
+    }
+    if (routes[key]) router.push(routes[key])
+  } else if (prefix === "a") {
+    const actions: Record<string, string> = {
+      b: "/library?add=book",
+      s: "/library?add=series"
+    }
+    if (actions[key]) router.push(actions[key])
+  } else if (prefix === "v") {
+    const store = useLibraryStore.getState()
+    if (key === "g") store.setViewMode("grid")
+    else if (key === "l") store.setViewMode("list")
+    else if (key === "s") store.setCollectionView("series")
+    else if (key === "v") store.setCollectionView("volumes")
+  }
+}
+
 /**
  * Top-level layout shell that switches between sidebar and header navigation.
  * @param props - {@link AppShellProps}
@@ -29,6 +67,8 @@ interface AppShellProps {
  */
 export function AppShell({ children, user }: AppShellProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { setTheme, resolvedTheme } = useTheme()
   const navigationMode = useLibraryStore((state) => state.navigationMode)
   const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)
   const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed)
@@ -36,6 +76,76 @@ export function AppShell({ children, user }: AppShellProps) {
   const hasCompletedOnboarding = useSettingsStore(
     (s) => s.hasCompletedOnboarding
   )
+
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const pendingPrefix = useRef<string | null>(null)
+  const prefixTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleGlobalShortcut = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (isEditableTarget(event.target)) return
+
+      const key = event.key.toLowerCase()
+
+      // Handle pending two-key sequences
+      if (pendingPrefix.current) {
+        const prefix = pendingPrefix.current
+        pendingPrefix.current = null
+        if (prefixTimer.current) {
+          clearTimeout(prefixTimer.current)
+          prefixTimer.current = null
+        }
+
+        event.preventDefault()
+        executePrefixShortcut(prefix, key, router)
+        return
+      }
+
+      // Start two-key sequence
+      if (key === "g" || key === "a" || key === "v") {
+        pendingPrefix.current = key
+        prefixTimer.current = setTimeout(() => {
+          pendingPrefix.current = null
+          prefixTimer.current = null
+        }, 1000)
+        return
+      }
+
+      // Single-key shortcuts
+      if (key === "?") {
+        event.preventDefault()
+        setShortcutsOpen(true)
+      } else if (key === "t") {
+        event.preventDefault()
+        setTheme(resolvedTheme === "dark" ? "light" : "dark")
+      }
+    },
+    [router, setTheme, resolvedTheme]
+  )
+
+  useEffect(() => {
+    const target = globalThis as unknown as Window
+    target.addEventListener("keydown", handleGlobalShortcut)
+    return () => target.removeEventListener("keydown", handleGlobalShortcut)
+  }, [handleGlobalShortcut])
+
+  // Listen for custom events from command palette
+  useEffect(() => {
+    const handleOpenShortcuts = () => setShortcutsOpen(true)
+    const handleToggleTheme = () =>
+      setTheme(resolvedTheme === "dark" ? "light" : "dark")
+
+    globalThis.addEventListener("open-shortcuts-dialog", handleOpenShortcuts)
+    globalThis.addEventListener("toggle-theme", handleToggleTheme)
+    return () => {
+      globalThis.removeEventListener(
+        "open-shortcuts-dialog",
+        handleOpenShortcuts
+      )
+      globalThis.removeEventListener("toggle-theme", handleToggleTheme)
+    }
+  }, [setTheme, resolvedTheme])
 
   const routeAnnouncement = useMemo(() => {
     const label = pathname
@@ -89,6 +199,10 @@ export function AppShell({ children, user }: AppShellProps) {
           Skip to main content
         </a>
         <CommandPalette />
+        <KeyboardShortcutsDialog
+          open={shortcutsOpen}
+          onOpenChange={setShortcutsOpen}
+        />
         <OnboardingDialog
           open={_hydrated && !hasCompletedOnboarding}
           onOpenChange={() => {}}
@@ -112,6 +226,10 @@ export function AppShell({ children, user }: AppShellProps) {
         Skip to main content
       </a>
       <CommandPalette />
+      <KeyboardShortcutsDialog
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
+      />
       <OnboardingDialog
         open={_hydrated && !hasCompletedOnboarding}
         onOpenChange={() => {}}

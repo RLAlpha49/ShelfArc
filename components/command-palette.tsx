@@ -458,6 +458,12 @@ export function CommandPalette() {
             >
               {highlightMatch("Settings", query)}
             </CommandItem>
+            <CommandItem
+              value="go to activity navigate"
+              onSelect={() => runCommand(() => router.push("/activity"))}
+            >
+              {highlightMatch("Activity", query)}
+            </CommandItem>
           </CommandGroup>
 
           <CommandSeparator />
@@ -548,6 +554,26 @@ export function CommandPalette() {
             >
               {highlightMatch("Navigation: Header", query)}
             </CommandItem>
+            <CommandItem
+              value="toggle theme dark light"
+              onSelect={() =>
+                runCommand(() =>
+                  globalThis.dispatchEvent(new Event("toggle-theme"))
+                )
+              }
+            >
+              {highlightMatch("Toggle theme", query)}
+            </CommandItem>
+            <CommandItem
+              value="keyboard shortcuts help"
+              onSelect={() =>
+                runCommand(() =>
+                  globalThis.dispatchEvent(new Event("open-shortcuts-dialog"))
+                )
+              }
+            >
+              {highlightMatch("Keyboard shortcuts", query)}
+            </CommandItem>
           </CommandGroup>
 
           {didRenderJumpGroup && (
@@ -637,6 +663,12 @@ export function CommandPalette() {
               Esc
             </kbd>
             <span>Close</span>
+          </span>
+          <span className="text-muted-foreground flex items-center gap-1 text-[10px]">
+            <kbd className="bg-muted/80 rounded px-1 py-0.5 font-mono text-[9px]">
+              ?
+            </kbd>
+            <span>Shortcuts</span>
           </span>
           <span className="text-muted-foreground ml-auto flex items-center gap-1 text-[10px]">
             <kbd className="bg-muted/80 rounded px-1 py-0.5 font-mono text-[9px]">
