@@ -73,7 +73,10 @@ export function KeyboardShortcutsDialog({
                       <span className="text-sm">{shortcut.label}</span>
                       <div className="flex items-center gap-1">
                         {parseKeys(shortcut.keys).map((key, i) => (
-                          <span key={`${shortcut.keys}-${key}`} className="flex items-center gap-1">
+                          <span
+                            key={`${shortcut.keys}-${key}`}
+                            className="flex items-center gap-1"
+                          >
                             {i > 0 && (
                               <span className="text-muted-foreground text-[10px]">
                                 then

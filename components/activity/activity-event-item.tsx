@@ -27,7 +27,10 @@ type EventConfig = {
   icon: React.ReactNode
   label: string
   getDetail: (metadata: Record<string, unknown>) => string
-  entityHref?: (entityType: string | null, entityId: string | null) => string | null
+  entityHref?: (
+    entityType: string | null,
+    entityId: string | null
+  ) => string | null
 }
 
 const eventConfigs: Record<ActivityEventType, EventConfig> = {

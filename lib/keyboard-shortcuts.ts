@@ -24,7 +24,11 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   { keys: "g then a", label: "Go to Activity", category: "navigation" },
 
   // Library
-  { keys: `${PLATFORM_MOD}K`, label: "Open command palette", category: "library" },
+  {
+    keys: `${PLATFORM_MOD}K`,
+    label: "Open command palette",
+    category: "library"
+  },
   { keys: "a then b", label: "Add book", category: "library" },
   { keys: "a then s", label: "Add series", category: "library" },
 

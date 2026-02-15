@@ -145,10 +145,11 @@ const fontSizeScaleOptions: Array<{ value: FontSizeScale; label: string }> = [
 ]
 
 /** Selectable focus indicator modes. @source */
-const focusIndicatorOptions: Array<{ value: FocusIndicators; label: string }> = [
-  { value: "default", label: "Default" },
-  { value: "enhanced", label: "Enhanced" }
-]
+const focusIndicatorOptions: Array<{ value: FocusIndicators; label: string }> =
+  [
+    { value: "default", label: "Default" },
+    { value: "enhanced", label: "Enhanced" }
+  ]
 
 /** Navigation anchors for the settings page sections. @source */
 const settingsNav = [
@@ -1561,10 +1562,7 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label
-                        htmlFor="high-contrast"
-                        className="font-medium"
-                      >
+                      <Label htmlFor="high-contrast" className="font-medium">
                         High contrast
                       </Label>
                       <p className="text-muted-foreground text-sm">
@@ -1619,10 +1617,7 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-0.5">
-                      <Label
-                        htmlFor="focus-indicators"
-                        className="font-medium"
-                      >
+                      <Label htmlFor="focus-indicators" className="font-medium">
                         Focus indicators
                       </Label>
                       <p className="text-muted-foreground text-sm">
@@ -1653,10 +1648,7 @@ export default function SettingsPage() {
                   <div className="border-border/40 border-t" />
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label
-                        htmlFor="reduce-motion"
-                        className="font-medium"
-                      >
+                      <Label htmlFor="reduce-motion" className="font-medium">
                         Reduce motion
                       </Label>
                       <p className="text-muted-foreground text-sm">

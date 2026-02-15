@@ -34,7 +34,11 @@ export function ActivityFeed() {
   }, [fetchEvents, selectedType])
 
   const handleLoadMore = () => {
-    fetchEvents(pagination.page + 1, 20, selectedType ? { eventType: selectedType } : undefined)
+    fetchEvents(
+      pagination.page + 1,
+      20,
+      selectedType ? { eventType: selectedType } : undefined
+    )
   }
 
   return (
@@ -44,9 +48,7 @@ export function ActivityFeed() {
         <select
           value={selectedType ?? ""}
           onChange={(e) =>
-            setSelectedType(
-              (e.target.value as ActivityEventType) || undefined
-            )
+            setSelectedType((e.target.value as ActivityEventType) || undefined)
           }
           className="bg-card border-border text-foreground rounded-lg border px-3 py-1.5 text-sm"
         >
