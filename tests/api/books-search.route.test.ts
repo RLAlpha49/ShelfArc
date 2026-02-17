@@ -1,6 +1,22 @@
 import { afterEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
+
+const createUserClient = mock(async () => ({
+  auth: { getUser: getUserMock }
+}))
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const consumeDistributedRateLimit = mock(async (): Promise<any> => null)
+
+mock.module("@/lib/supabase/server", () => ({ createUserClient }))
+mock.module("@/lib/rate-limit-distributed", () => ({ consumeDistributedRateLimit }))
+
 const loadRoute = async () => await import("../../app/api/books/search/route")
 
 const originalFetch = globalThis.fetch
@@ -21,10 +37,9 @@ describe("GET /api/books/search", () => {
       makeNextRequest("http://localhost/api/books/search")
     )
 
-    const body = await readJson<{ error: string; results: unknown[] }>(response)
+    const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
     expect(body.error).toBe("Missing query")
-    expect(body.results).toEqual([])
   })
 
   it("returns 400 when Google Books keys are missing", async () => {
@@ -79,20 +94,18 @@ describe("GET /api/books/search", () => {
     )
 
     const body = await readJson<{
-      results: Array<{ id: string; title: string; coverUrl: string | null }>
-      sourceUsed: string
-      page: number
-      limit: number
+      data: Array<{ id: string; title: string; coverUrl: string | null }>
+      meta: { sourceUsed: string; page: number; limit: number }
     }>(response)
 
     expect(response.status).toBe(200)
-    expect(body.sourceUsed).toBe("google_books")
-    expect(body.page).toBe(1)
-    expect(body.limit).toBe(1)
-    expect(body.results).toHaveLength(1)
-    expect(body.results[0].id).toBe("vol-1")
-    expect(body.results[0].title).toBe("Test Book")
-    expect(body.results[0].coverUrl).toBe("https://example.com/cover.jpg")
+    expect(body.meta.sourceUsed).toBe("google_books")
+    expect(body.meta.page).toBe(1)
+    expect(body.meta.limit).toBe(1)
+    expect(body.data).toHaveLength(1)
+    expect(body.data[0].id).toBe("vol-1")
+    expect(body.data[0].title).toBe("Test Book")
+    expect(body.data[0].coverUrl).toBe("https://example.com/cover.jpg")
   })
 
   it("returns Open Library results", async () => {
@@ -128,14 +141,14 @@ describe("GET /api/books/search", () => {
     )
 
     const body = await readJson<{
-      results: Array<{ id: string; title: string }>
-      sourceUsed: string
+      data: Array<{ id: string; title: string }>
+      meta: { sourceUsed: string }
     }>(response)
 
     expect(response.status).toBe(200)
-    expect(body.sourceUsed).toBe("open_library")
-    expect(body.results).toHaveLength(1)
-    expect(body.results[0].title).toBe("Open Book")
+    expect(body.meta.sourceUsed).toBe("open_library")
+    expect(body.data).toHaveLength(1)
+    expect(body.data[0].title).toBe("Open Book")
 
     const calls = fetchMock.mock.calls as unknown as Array<unknown[]>
     const calledUrl = String(calls[0]?.[0] ?? "")

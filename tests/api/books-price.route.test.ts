@@ -100,27 +100,29 @@ describe("GET /api/books/price", () => {
     )
 
     const body = await readJson<{
-      result: {
-        title: string
-        priceText: string | null
-        priceValue: number | null
-        currency: string | null
-        priceBinding: string | null
-        priceError: string | null
-        url: string | null
-        imageUrl: string | null
+      data: {
+        result: {
+          title: string
+          priceText: string | null
+          priceValue: number | null
+          currency: string | null
+          priceBinding: string | null
+          priceError: string | null
+          url: string | null
+          imageUrl: string | null
+        }
       }
     }>(response)
 
     expect(response.status).toBe(200)
-    expect(body.result.title).toBe("My Book")
-    expect(body.result.priceText).toBe("$12.34")
-    expect(body.result.priceValue).toBe(12.34)
-    expect(body.result.currency).toBe("USD")
-    expect(body.result.priceBinding).toBe("Paperback")
-    expect(body.result.priceError).toBeNull()
-    expect(body.result.url).toBe("https://www.amazon.com/dp/B123")
-    expect(body.result.imageUrl).toBe(
+    expect(body.data.result.title).toBe("My Book")
+    expect(body.data.result.priceText).toBe("$12.34")
+    expect(body.data.result.priceValue).toBe(12.34)
+    expect(body.data.result.currency).toBe("USD")
+    expect(body.data.result.priceBinding).toBe("Paperback")
+    expect(body.data.result.priceError).toBeNull()
+    expect(body.data.result.url).toBe("https://www.amazon.com/dp/B123")
+    expect(body.data.result.imageUrl).toBe(
       "https://m.media-amazon.com/images/I/abc.jpg"
     )
   })

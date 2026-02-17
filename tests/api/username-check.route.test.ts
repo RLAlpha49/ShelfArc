@@ -151,9 +151,9 @@ describe("GET /api/username/check", () => {
       makeNextRequest("http://localhost/api/username/check?username=valid_name")
     )
 
-    const body = await readJson<{ available: boolean }>(response)
+    const body = await readJson<{ data: { available: boolean } }>(response)
     expect(response.status).toBe(200)
-    expect(body.available).toBe(true)
+    expect(body.data.available).toBe(true)
     expect(rateLimitMocks.recordFailure).toHaveBeenCalledTimes(1)
   })
 
@@ -166,8 +166,8 @@ describe("GET /api/username/check", () => {
       makeNextRequest("http://localhost/api/username/check?username=valid_name")
     )
 
-    const body = await readJson<{ available: boolean }>(response)
+    const body = await readJson<{ data: { available: boolean } }>(response)
     expect(response.status).toBe(200)
-    expect(body.available).toBe(false)
+    expect(body.data.available).toBe(false)
   })
 })

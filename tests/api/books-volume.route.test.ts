@@ -117,12 +117,12 @@ describe("GET /api/books/volume/[volumeId]", () => {
       { params: Promise.resolve({ volumeId: "vol-1" }) }
     )
 
-    const body = await readJson<{ result: { id: string; title: string } }>(
+    const body = await readJson<{ data: { id: string; title: string } }>(
       response
     )
 
     expect(response.status).toBe(200)
-    expect(body.result.id).toBe("vol-1")
-    expect(body.result.title).toBe("Volume One")
+    expect(body.data.id).toBe("vol-1")
+    expect(body.data.title).toBe("Volume One")
   })
 })
