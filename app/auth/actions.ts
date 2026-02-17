@@ -1,11 +1,13 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { createUserClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { sanitizePlainText } from "@/lib/sanitize-html"
 import { isValidUsername } from "@/lib/validation"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 
 const ALLOWED_REDIRECT_PREFIXES = ["/dashboard", "/library", "/settings"]
 
@@ -39,6 +41,22 @@ export async function login(formData: FormData) {
   }
   if (!password) {
     return { error: "Password is required" }
+  }
+
+  const headerStore = await headers()
+  const forwarded = headerStore.get("x-forwarded-for")
+  const clientIp = forwarded?.split(",")[0]?.trim() || "unknown"
+
+  const rateLimitResult = await consumeDistributedRateLimit({
+    key: `login:${clientIp}`,
+    maxHits: 5,
+    windowMs: 60_000,
+    cooldownMs: 5 * 60_000,
+    reason: "Login rate limit"
+  })
+
+  if (rateLimitResult && !rateLimitResult.allowed) {
+    return { error: "Too many login attempts. Please try again later." }
   }
 
   const { error } = await supabase.auth.signInWithPassword({

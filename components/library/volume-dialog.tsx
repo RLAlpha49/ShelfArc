@@ -564,25 +564,26 @@ export function VolumeDialog({
       try {
         const data = await fetchPriceEndpoint(params, controller.signal)
 
-        if (options.includePrice) applyPriceResult(data.result)
-        if (options.includeImage) applyImageResult(data.result?.imageUrl)
-        if (data.result?.url) updateField("amazon_url", data.result.url)
+        if (options.includePrice) applyPriceResult(data.data?.result)
+        if (options.includeImage) applyImageResult(data.data?.result?.imageUrl)
+        if (data.data?.result?.url)
+          updateField("amazon_url", data.data.result.url)
 
         if (
           options.includePrice &&
           volume?.id &&
-          data.result?.priceValue != null
+          data.data?.result?.priceValue != null
         ) {
           try {
             const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
             const { alertTriggered } = await persistPrice(
-              data.result.priceValue,
+              data.data.result.priceValue,
               currency,
               "amazon"
             )
             if (alertTriggered) {
               toast.info(
-                `Price alert triggered! Price dropped to $${data.result.priceValue.toFixed(2)}`
+                `Price alert triggered! Price dropped to $${data.data.result.priceValue.toFixed(2)}`
               )
             }
           } catch {
@@ -744,8 +745,12 @@ export function VolumeDialog({
                         <SelectContent>
                           <SelectItem value="">None</SelectItem>
                           <SelectItem value="standard">Standard</SelectItem>
-                          <SelectItem value="first_edition">First Edition</SelectItem>
-                          <SelectItem value="collectors">Collector&apos;s</SelectItem>
+                          <SelectItem value="first_edition">
+                            First Edition
+                          </SelectItem>
+                          <SelectItem value="collectors">
+                            Collector&apos;s
+                          </SelectItem>
                           <SelectItem value="omnibus">Omnibus</SelectItem>
                           <SelectItem value="box_set">Box Set</SelectItem>
                           <SelectItem value="limited">Limited</SelectItem>

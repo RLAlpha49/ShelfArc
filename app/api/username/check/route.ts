@@ -86,5 +86,8 @@ export async function GET(request: NextRequest) {
     return apiError(500, "Failed to check username")
   }
 
-  return apiSuccess({ available: data.length === 0 }, { correlationId })
+  return apiSuccess(
+    { data: { available: data.length === 0 } },
+    { correlationId }
+  )
 }

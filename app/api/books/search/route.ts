@@ -10,7 +10,11 @@ import { normalizeIsbn } from "@/lib/books/isbn"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
 import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
+import { createUserClient } from "@/lib/supabase/server"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { logger, type Logger } from "@/lib/logger"
+
+export const dynamic = "force-dynamic"
 
 /** Google Books Volumes API base URL. @source */
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -322,11 +326,13 @@ const handleGoogleBooks = async (
     )
     return apiSuccess(
       {
-        results: items,
-        sourceUsed: "google_books" as const,
-        page: params.page,
-        limit: params.limit,
-        ...(warning ? { warning } : {})
+        data: items,
+        meta: {
+          sourceUsed: "google_books" as const,
+          page: params.page,
+          limit: params.limit,
+          ...(warning ? { warning } : {})
+        }
       },
       { correlationId }
     )
@@ -357,10 +363,12 @@ const handleOpenLibrary = async (
     )
     return apiSuccess(
       {
-        results,
-        sourceUsed: "open_library" as const,
-        page: params.page,
-        limit: params.limit
+        data: results,
+        meta: {
+          sourceUsed: "open_library" as const,
+          page: params.page,
+          limit: params.limit
+        }
       },
       { correlationId }
     )
@@ -383,6 +391,27 @@ const handleOpenLibrary = async (
 export async function GET(request: NextRequest) {
   const correlationId = getCorrelationId(request)
   const log = logger.withCorrelationId(correlationId)
+
+  const supabase = await createUserClient()
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return apiError(401, "Not authenticated", { correlationId })
+  }
+  const rl = await consumeDistributedRateLimit({
+    key: `book-search:${user.id}`,
+    maxHits: 30,
+    windowMs: 60000,
+    cooldownMs: 30000,
+    reason: "Rate limit book search"
+  })
+  if (rl && !rl.allowed) {
+    return apiError(429, "Too many requests", {
+      correlationId,
+      extra: { retryAfterMs: rl.retryAfterMs }
+    })
+  }
 
   const params = parseSearchParams(request.nextUrl.searchParams)
   if (!params) {

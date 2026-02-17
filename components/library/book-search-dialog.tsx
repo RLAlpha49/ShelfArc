@@ -249,7 +249,7 @@ export function BookSearchDialog({
       controller.signal
     )
       .then((data) => {
-        const incomingResults = data.results ?? []
+        const incomingResults = data.data ?? []
         const dedupedIncoming = dedupeResults(incomingResults)
         setResults((prev) => {
           const merged = isFirstPage
@@ -257,7 +257,7 @@ export function BookSearchDialog({
             : [...prev, ...dedupedIncoming]
           return dedupeResults(merged)
         })
-        setSourceUsed(data.sourceUsed ?? source)
+        setSourceUsed(data.meta?.sourceUsed ?? source)
         setHasMore(incomingResults.length === RESULTS_PAGE_SIZE)
       })
       .catch((err: Error) => {

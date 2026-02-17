@@ -1,5 +1,10 @@
 import { apiFetch } from "./client"
 import type {
+  BatchScrapeParams,
+  BatchScrapeResponse,
+  BatchUpdateVolumesParams,
+  BatchUpdateVolumesResponse,
+  ExportLibraryParams,
   FetchAlertsResponse,
   FetchAnalyticsResponse,
   FetchLibraryParams,
@@ -7,6 +12,8 @@ import type {
   FetchLibraryVolumesResponse,
   FetchPriceParams,
   FetchPriceResponse,
+  FetchSuggestionsParams,
+  FetchSuggestionsResponse,
   FetchVolumeResponse,
   SearchBooksParams,
   SearchBooksResponse
@@ -90,4 +97,55 @@ export function fetchLibrary(
     url,
     { signal: options?.signal }
   )
+}
+
+export function batchUpdateVolumes(
+  params: BatchUpdateVolumesParams,
+  signal?: AbortSignal
+): Promise<BatchUpdateVolumesResponse> {
+  return apiFetch<BatchUpdateVolumesResponse>("/api/library/volumes/batch", {
+    method: "PATCH",
+    body: params,
+    signal
+  })
+}
+
+export function fetchSuggestions(
+  params: FetchSuggestionsParams,
+  signal?: AbortSignal
+): Promise<FetchSuggestionsResponse> {
+  const sp = new URLSearchParams()
+  sp.set("q", params.q)
+  if (params.field) sp.set("field", params.field)
+  return apiFetch<FetchSuggestionsResponse>(`/api/library/suggest?${sp}`, {
+    signal
+  })
+}
+
+export async function exportLibrary(
+  params: ExportLibraryParams,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const res = await fetch("/api/library/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+    signal
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error ?? `Export failed with status ${res.status}`)
+  }
+  return res.blob()
+}
+
+export function batchScrapeVolumes(
+  params: BatchScrapeParams,
+  signal?: AbortSignal
+): Promise<BatchScrapeResponse> {
+  return apiFetch<BatchScrapeResponse>("/api/library/volumes/batch-scrape", {
+    method: "POST",
+    body: params,
+    signal
+  })
 }

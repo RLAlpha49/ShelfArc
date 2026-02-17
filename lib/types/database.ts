@@ -24,10 +24,22 @@ export type ReadingStatus =
 export type BookOrientation = "vertical" | "horizontal"
 
 /** Series publication status. @source */
-export type SeriesStatus = "ongoing" | "completed" | "hiatus" | "cancelled" | "announced"
+export type SeriesStatus =
+  | "ongoing"
+  | "completed"
+  | "hiatus"
+  | "cancelled"
+  | "announced"
 
 /** Volume edition variant. @source */
-export type VolumeEdition = "standard" | "first_edition" | "collectors" | "omnibus" | "box_set" | "limited" | "deluxe"
+export type VolumeEdition =
+  | "standard"
+  | "first_edition"
+  | "collectors"
+  | "omnibus"
+  | "box_set"
+  | "limited"
+  | "deluxe"
 
 /** Volume physical format. @source */
 export type VolumeFormat = "paperback" | "hardcover" | "digital" | "audiobook"

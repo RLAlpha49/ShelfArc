@@ -17,17 +17,19 @@ export interface SearchBooksParams {
 }
 
 export interface SearchBooksResponse {
-  results: BookSearchResult[]
-  sourceUsed: BookSearchSource | null
-  page?: number
-  limit?: number
-  warning?: string
+  data: BookSearchResult[]
+  meta: {
+    sourceUsed: BookSearchSource | null
+    page?: number
+    limit?: number
+    warning?: string
+  }
 }
 
 // ── Volume ──────────────────────────────────────────────────────────
 
 export interface FetchVolumeResponse {
-  result: BookSearchResult
+  data: BookSearchResult
 }
 
 // ── Price ───────────────────────────────────────────────────────────
@@ -56,12 +58,14 @@ export interface FetchPriceResult {
 }
 
 export interface FetchPriceResponse {
-  searchUrl: string
-  domain: string
-  expectedTitle: string
-  matchScore: number
-  binding: string
-  result: FetchPriceResult
+  data: {
+    searchUrl: string
+    domain: string
+    expectedTitle: string
+    matchScore: number
+    binding: string
+    result: FetchPriceResult
+  }
 }
 
 // ── Price Alerts ────────────────────────────────────────────────────
@@ -127,6 +131,80 @@ export interface FetchLibrarySeriesResponse {
     volumes: Array<Record<string, unknown>>
   }>
   pagination: PaginationMeta
+}
+
+// ── Batch Update ────────────────────────────────────────────────────
+
+/** Parameters for batch volume updates. @source */
+export interface BatchUpdateVolumesParams {
+  volumeIds: string[]
+  updates: {
+    ownership_status?: string
+    reading_status?: string
+    rating?: number | null
+    purchase_price?: number | null
+  }
+}
+
+/** Response from batch volume update. @source */
+export interface BatchUpdateVolumesResponse {
+  updated: number
+  requested: number
+}
+
+// ── Suggestions ─────────────────────────────────────────────────────
+
+/** Parameters for library search suggestions. @source */
+export interface FetchSuggestionsParams {
+  q: string
+  field?: "title" | "author" | "publisher"
+}
+
+/** Response from search suggestions endpoint. @source */
+export interface FetchSuggestionsResponse {
+  data: string[]
+}
+
+// ── Export ───────────────────────────────────────────────────────────
+
+/** Parameters for library data export. @source */
+export interface ExportLibraryParams {
+  format: "json" | "csv"
+  scope: "all" | "selected"
+  ids?: string[]
+}
+
+// ── Batch Scrape ────────────────────────────────────────────────────
+
+/** Parameters for batch price/image scraping. @source */
+export interface BatchScrapeParams {
+  volumeIds: string[]
+  mode: "price" | "image" | "both"
+  skipExisting?: boolean
+  domain?: string
+  binding?: string
+}
+
+/** Single result from batch scrape job. @source */
+export interface BatchScrapeJobResult {
+  volumeId: string
+  status: "done" | "failed" | "skipped"
+  priceValue?: number | null
+  imageUrl?: string | null
+  errorMessage?: string
+}
+
+/** Response from batch scrape endpoint. @source */
+export interface BatchScrapeResponse {
+  data: {
+    results: BatchScrapeJobResult[]
+    summary: {
+      total: number
+      done: number
+      failed: number
+      skipped: number
+    }
+  }
 }
 
 /** Paginated library volumes response. @source */

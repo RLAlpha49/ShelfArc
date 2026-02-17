@@ -51,7 +51,7 @@ async function searchIsbn(
     { q: isbn, source, limit: SEARCH_LIMIT },
     signal
   )
-  return data.results ?? []
+  return data.data ?? []
 }
 
 /**

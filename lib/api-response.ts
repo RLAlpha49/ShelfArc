@@ -10,6 +10,9 @@ export type ApiErrorCode =
   | "RATE_LIMITED"
   | "INTERNAL_ERROR"
   | "EXTERNAL_SERVICE_ERROR"
+  | "QUOTA_EXCEEDED"
+  | "SCRAPE_BLOCKED"
+  | "SERVICE_UNAVAILABLE"
 
 /** Maps an HTTP status to a sensible default error code. @source */
 const defaultCodeFromStatus = (status: number): ApiErrorCode => {
@@ -27,9 +30,10 @@ const defaultCodeFromStatus = (status: number): ApiErrorCode => {
     case 429:
       return "RATE_LIMITED"
     case 502:
-    case 503:
     case 504:
       return "EXTERNAL_SERVICE_ERROR"
+    case 503:
+      return "SERVICE_UNAVAILABLE"
     default:
       return "INTERNAL_ERROR"
   }

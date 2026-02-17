@@ -3,7 +3,11 @@ import { normalizeGoogleBooksItems } from "@/lib/books/search"
 import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
 import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
+import { createUserClient } from "@/lib/supabase/server"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { logger } from "@/lib/logger"
+
+export const dynamic = "force-dynamic"
 
 /** Google Books Volumes API base URL. @source */
 const GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -79,6 +83,26 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   const correlationId = getCorrelationId(request)
   const log = logger.withCorrelationId(correlationId)
 
+  const supabase = await createUserClient()
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return apiError(401, "Not authenticated", { correlationId })
+  }
+  const rl = await consumeDistributedRateLimit({
+    key: `book-volume:${user.id}`,
+    maxHits: 30,
+    windowMs: 60000,
+    cooldownMs: 30000,
+    reason: "Rate limit book volume lookup"
+  })
+  if (rl && !rl.allowed) {
+    return apiError(429, "Too many requests", {
+      correlationId,
+      extra: { retryAfterMs: rl.retryAfterMs }
+    })
+  }
   const { volumeId: paramVolumeId } = await params
   const volumeIdFromParams = paramVolumeId.trim()
   const fallbackSegment = request.nextUrl.pathname
@@ -116,7 +140,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       return apiError(404, "Google Books volume not found")
     }
 
-    return apiSuccess({ result }, { correlationId })
+    return apiSuccess({ data: result }, { correlationId })
   } catch (error) {
     log.error("Google Books volume fetch failed", {
       error: error instanceof Error ? error.message : String(error)

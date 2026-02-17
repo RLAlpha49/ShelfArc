@@ -212,20 +212,22 @@ export async function GET(request: NextRequest) {
 
         return apiSuccess(
           {
-            searchUrl: context.searchUrl,
-            domain: context.domain,
-            expectedTitle: context.expectedTitle,
-            matchScore: result.matchScore,
-            binding: context.bindingLabel,
-            result: {
-              title: result.resultTitle,
-              priceText: result.priceText,
-              priceValue: result.priceValue,
-              currency: result.currency,
-              priceBinding: result.priceBinding,
-              priceError: result.priceError,
-              url: result.productUrl,
-              imageUrl: result.imageUrl
+            data: {
+              searchUrl: context.searchUrl,
+              domain: context.domain,
+              expectedTitle: context.expectedTitle,
+              matchScore: result.matchScore,
+              binding: context.bindingLabel,
+              result: {
+                title: result.resultTitle,
+                priceText: result.priceText,
+                priceValue: result.priceValue,
+                currency: result.currency,
+                priceBinding: result.priceBinding,
+                priceError: result.priceError,
+                url: result.productUrl,
+                imageUrl: result.imageUrl
+              }
             }
           },
           { correlationId }

@@ -1450,7 +1450,6 @@ export const parseAmazonResult = (
           index
         } satisfies ScoredResult
       } catch (error) {
-        skippedResults += 1
         debugLog("Skipped unparseable Amazon result", {
           index,
           error: error instanceof Error ? error.message : String(error)

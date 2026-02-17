@@ -1,14 +1,17 @@
 import { type NextRequest } from "next/server"
-import { createUserClient } from "@/lib/supabase/server"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { protectedRoute } from "@/lib/api/protected-route"
+import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import type {
   FetchLibrarySeriesResponse,
   FetchLibraryVolumesResponse,
   PaginationMeta
 } from "@/lib/api/types"
 import type {
+  Database,
   TitleType,
   OwnershipStatus,
   ReadingStatus
@@ -47,8 +50,6 @@ const ALLOWED = {
   ]),
   views: new Set(["series", "volumes"])
 } as const
-
-type SupabaseClient = Awaited<ReturnType<typeof createUserClient>>
 
 /** Parsed and validated library query parameters. @source */
 interface LibraryQueryParams {
@@ -160,108 +161,102 @@ function resolveSeriesSortColumn(sortField: string): string {
   return sortField
 }
 
-/**
- * Fetches volumes grouped by series ID for the given series IDs.
- * @source
- */
-async function fetchVolumesBySeries(
-  supabase: SupabaseClient,
-  seriesIds: string[],
-  userId: string
-): Promise<Record<string, Array<Record<string, unknown>>>> {
-  const result: Record<string, Array<Record<string, unknown>>> = {}
-  if (seriesIds.length === 0) return result
-
-  const { data, error } = await supabase
-    .from("volumes")
-    .select("*")
-    .in("series_id", seriesIds)
-    .eq("user_id", userId)
-    .order("volume_number", { ascending: true })
-
-  if (error) throw new Error(`Volume query failed: ${error.message}`)
-
-  for (const vol of data ?? []) {
-    const sid = vol.series_id
-    if (!sid) continue
-    if (!result[sid]) result[sid] = []
-    result[sid].push(vol as Record<string, unknown>)
-  }
-  return result
-}
-
 type SeriesWithVolumes = FetchLibrarySeriesResponse["data"][number]
 
 /**
- * Applies post-query volume filters (ownership/reading status) and excluded tags.
+ * Fetches series IDs that have at least one volume matching the given status filters.
+ * Used to move ownership/reading filtering to the database level for accurate pagination.
  * @source
  */
-function applySeriesPostFilters(
-  series: SeriesWithVolumes[],
-  params: LibraryQueryParams
-): SeriesWithVolumes[] {
-  let result = series
+async function resolveVolumeStatusFilter(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  ownershipStatus: string | null,
+  readingStatus: string | null
+): Promise<string[] | null> {
+  if (!ownershipStatus && !readingStatus) return null
 
-  if (params.ownershipStatus) {
-    const status = params.ownershipStatus
-    result = result
-      .filter((s) =>
-        s.volumes.some(
-          (v) =>
-            (v as { ownership_status?: string }).ownership_status === status
-        )
-      )
-      .map((s) => ({
-        ...s,
-        volumes: s.volumes.filter(
-          (v) =>
-            (v as { ownership_status?: string }).ownership_status === status
-        )
-      }))
+  let query = supabase
+    .from("volumes")
+    .select("series_id")
+    .eq("user_id", userId)
+    .not("series_id", "is", null)
+
+  if (ownershipStatus) {
+    query = query.eq("ownership_status", ownershipStatus as OwnershipStatus)
+  }
+  if (readingStatus) {
+    query = query.eq("reading_status", readingStatus as ReadingStatus)
   }
 
-  if (params.readingStatus) {
-    const status = params.readingStatus
-    result = result
-      .filter((s) =>
-        s.volumes.some(
-          (v) => (v as { reading_status?: string }).reading_status === status
-        )
-      )
-      .map((s) => ({
-        ...s,
-        volumes: s.volumes.filter(
-          (v) => (v as { reading_status?: string }).reading_status === status
-        )
-      }))
-  }
+  const { data, error } = await query
+  if (error) throw new Error(`Volume status filter failed: ${error.message}`)
 
-  if (params.excludeTags.length > 0) {
-    result = result.filter(
-      (s) => !params.excludeTags.some((tag) => s.tags.includes(tag))
-    )
+  const ids = new Set<string>()
+  for (const row of data ?? []) {
+    if (row.series_id) ids.add(row.series_id)
   }
-
-  return result
+  return [...ids]
 }
 
 /**
- * Handles the series view: fetches paginated series with their volumes.
+ * Applies excluded tags post-filter to series results.
+ * Tag array exclusion stays as post-filter since PostgREST doesn't support NOT OVERLAPS.
+ * @source
+ */
+function applyExcludeTagsFilter(
+  series: SeriesWithVolumes[],
+  excludeTags: string[]
+): SeriesWithVolumes[] {
+  if (excludeTags.length === 0) return series
+  return series.filter((s) => !excludeTags.some((tag) => s.tags.includes(tag)))
+}
+
+/**
+ * Handles the series view: fetches paginated series with embedded volumes.
+ * Uses PostgREST embedded join for single round-trip and DB-level volume status filtering.
  * @source
  */
 async function handleSeriesView(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   userId: string,
   params: LibraryQueryParams
 ): Promise<FetchLibrarySeriesResponse> {
   const { page, limit, sortField, sortOrder, search, type, tags } = params
+
+  // Pre-filter series IDs by volume ownership/reading status at DB level
+  const statusSeriesIds = await resolveVolumeStatusFilter(
+    supabase,
+    userId,
+    params.ownershipStatus,
+    params.readingStatus
+  )
+
+  // If status filter is active but no series match, return empty
+  if (statusSeriesIds?.length === 0) {
+    return { data: [], pagination: { page, limit, total: 0, totalPages: 1 } }
+  }
 
   let countQuery = supabase
     .from("series")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
 
-  let dataQuery = supabase.from("series").select("*").eq("user_id", userId)
+  // Use embedded join to fetch volumes in a single round-trip
+  let dataQuery = supabase
+    .from("series")
+    .select("*, volumes(*)")
+    .eq("user_id", userId)
+    .order("volume_number", {
+      ascending: true,
+      referencedTable: "volumes"
+    })
+
+  // Apply status-based series ID filter to both queries
+  if (statusSeriesIds) {
+    countQuery = countQuery.in("id", statusSeriesIds)
+    dataQuery = dataQuery.in("id", statusSeriesIds)
+  }
 
   if (search) {
     const orFilter = buildSearchFilter(search)
@@ -295,40 +290,33 @@ async function handleSeriesView(
   )
   if (dataError) throw new Error(`Data query failed: ${dataError.message}`)
 
-  const seriesList = seriesData ?? []
-  const volumesBySeries = await fetchVolumesBySeries(
-    supabase,
-    seriesList.map((s) => s.id),
-    userId
-  )
+  const seriesList = (seriesData ?? []) as Array<
+    Record<string, unknown> & { volumes: Array<Record<string, unknown>> }
+  >
 
   const merged: SeriesWithVolumes[] = seriesList.map((s) => ({
-    id: s.id,
-    title: s.title,
-    original_title: s.original_title,
-    description: s.description,
-    notes: s.notes,
-    author: s.author,
-    artist: s.artist,
-    publisher: s.publisher,
-    cover_image_url: s.cover_image_url,
-    type: s.type,
-    total_volumes: s.total_volumes,
-    status: s.status,
-    tags: s.tags,
-    created_at: s.created_at,
-    updated_at: s.updated_at,
-    user_id: s.user_id,
-    volumes: volumesBySeries[s.id] ?? []
+    id: s.id as string,
+    title: s.title as string,
+    original_title: s.original_title as string | null,
+    description: s.description as string | null,
+    notes: s.notes as string | null,
+    author: s.author as string | null,
+    artist: s.artist as string | null,
+    publisher: s.publisher as string | null,
+    cover_image_url: s.cover_image_url as string | null,
+    type: s.type as string,
+    total_volumes: s.total_volumes as number | null,
+    status: s.status as string | null,
+    tags: s.tags as string[],
+    created_at: s.created_at as string,
+    updated_at: s.updated_at as string,
+    user_id: s.user_id as string,
+    volumes: s.volumes ?? []
   }))
 
-  const filtered = applySeriesPostFilters(merged, params)
-  const adjustedTotal =
-    params.ownershipStatus ||
-    params.readingStatus ||
-    params.excludeTags.length > 0
-      ? filtered.length
-      : total
+  // ExcludeTags stays as post-filter (tag array exclusion not supported in PostgREST)
+  const filtered = applyExcludeTagsFilter(merged, params.excludeTags)
+  const adjustedTotal = params.excludeTags.length > 0 ? filtered.length : total
 
   const totalPages = Math.max(1, Math.ceil(adjustedTotal / limit))
   const pagination: PaginationMeta = {
@@ -347,7 +335,7 @@ async function handleSeriesView(
  * @source
  */
 async function resolveSeriesIdFilter(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   userId: string,
   params: LibraryQueryParams
 ): Promise<string[] | null> {
@@ -399,7 +387,7 @@ function resolveVolumeSortColumn(sortField: string): {
  * @source
  */
 async function fetchSeriesMap(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   seriesIds: string[]
 ): Promise<
   Record<
@@ -449,7 +437,7 @@ async function fetchSeriesMap(
  * @source
  */
 async function handleVolumesView(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   userId: string,
   params: LibraryQueryParams
 ): Promise<FetchLibraryVolumesResponse> {
@@ -551,14 +539,11 @@ export async function GET(request: NextRequest) {
   const log = logger.withCorrelationId(correlationId)
 
   try {
-    const supabase = await createUserClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return apiError(401, "Not authenticated", { correlationId })
-    }
+    const auth = await protectedRoute(request, {
+      rateLimit: RATE_LIMITS.libraryRead
+    })
+    if (!auth.ok) return auth.error
+    const { user, supabase } = auth
 
     const params = parseLibraryParams(request.nextUrl.searchParams)
     if (typeof params === "string") {

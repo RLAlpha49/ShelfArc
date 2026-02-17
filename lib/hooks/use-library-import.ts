@@ -32,8 +32,8 @@ export function useLibraryImport() {
   const series = useLibraryStore((s) => s.series)
 
   const fetchGoogleVolumeDetails = useCallback(async (volumeId: string) => {
-    const { result } = await fetchBookVolume(volumeId)
-    return result
+    const { data } = await fetchBookVolume(volumeId)
+    return data
   }, [])
 
   const resolveSearchResultDetails = useCallback(

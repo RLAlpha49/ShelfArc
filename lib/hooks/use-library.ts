@@ -2,7 +2,7 @@
 
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useLibraryFetch } from "./use-library-fetch"
-import { useLibraryMutations } from "./use-library-mutations"
+import { useLibraryApiMutations } from "./use-library-api-mutations"
 import { useLibraryFilters } from "./use-library-filters"
 import { useLibraryImport } from "./use-library-import"
 
@@ -16,7 +16,7 @@ export type { VolumeWithSeries } from "./use-library-filters"
 export function useLibrary() {
   const { series, unassignedVolumes } = useLibraryStore()
   const { fetchSeries, isLoading } = useLibraryFetch()
-  const mutations = useLibraryMutations()
+  const mutations = useLibraryApiMutations()
   const filters = useLibraryFilters()
   const imports = useLibraryImport()
 

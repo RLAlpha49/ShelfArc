@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server"
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
 import { apiError } from "@/lib/api-response"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 
@@ -21,6 +22,24 @@ const FETCH_TIMEOUT_MS = 5000
  */
 export async function GET(request: NextRequest) {
   const correlationId = getCorrelationId(request)
+
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "unknown"
+  const rl = await consumeDistributedRateLimit({
+    key: `cover-proxy:ip:${clientIp}`,
+    maxHits: 120,
+    windowMs: 60_000,
+    cooldownMs: 30_000,
+    reason: "Rate limit cover proxy"
+  })
+  if (rl && !rl.allowed) {
+    return apiError(429, "Too many requests", {
+      correlationId,
+      extra: { retryAfterMs: rl.retryAfterMs }
+    })
+  }
   const log = logger.withCorrelationId(correlationId)
 
   const isbnRaw = request.nextUrl.searchParams.get("isbn")?.trim() ?? ""

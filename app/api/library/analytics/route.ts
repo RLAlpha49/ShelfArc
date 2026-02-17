@@ -1,10 +1,9 @@
-import "server-only"
-
 import { type NextRequest } from "next/server"
-import { createUserClient } from "@/lib/supabase/server"
 import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { protectedRoute } from "@/lib/api/protected-route"
+import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import {
   computeCollectionStats,
   computePriceBreakdown,
@@ -15,10 +14,29 @@ import type { SeriesWithVolumes } from "@/lib/types/database"
 
 export const dynamic = "force-dynamic"
 
+/** Volume columns required by analytics functions. @source */
+const VOLUME_COLUMNS = [
+  "id",
+  "series_id",
+  "volume_number",
+  "ownership_status",
+  "reading_status",
+  "purchase_price",
+  "publish_date",
+  "title",
+  "created_at",
+  "cover_image_url",
+  "isbn",
+  "description"
+].join(", ")
+
+/** Series columns required by analytics functions. @source */
+const SERIES_COLUMNS = "id, type, total_volumes, title, status"
+
 /**
  * Pre-computed dashboard analytics endpoint.
- * Fetches all series + volumes for the authenticated user,
- * reconstructs SeriesWithVolumes[], and returns aggregated stats.
+ * Uses embedded join to fetch series with volumes in a single round-trip,
+ * then runs O(S+V) single-pass analytics functions.
  * @source
  */
 export async function GET(request: NextRequest) {
@@ -26,64 +44,27 @@ export async function GET(request: NextRequest) {
   const log = logger.withCorrelationId(correlationId)
 
   try {
-    const supabase = await createUserClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return apiError(401, "Not authenticated", { correlationId })
-    }
+    const result = await protectedRoute(request, {
+      rateLimit: RATE_LIMITS.analyticsRead
+    })
+    if (!result.ok) return result.error
+    const { user, supabase } = result
 
     log.info("Analytics fetch", { userId: user.id })
 
-    const [seriesResult, volumesResult] = await Promise.all([
-      supabase
-        .from("series")
-        .select("id, type, total_volumes, title, status")
-        .eq("user_id", user.id),
-      supabase
-        .from("volumes")
-        .select(
-          "id, series_id, volume_number, ownership_status, reading_status, purchase_price, publish_date, title, created_at"
-        )
-        .eq("user_id", user.id)
-    ])
+    // Single query with embedded join — avoids separate volumes fetch + JS grouping
+    const { data: seriesData, error } = await supabase
+      .from("series")
+      .select(`${SERIES_COLUMNS}, volumes(${VOLUME_COLUMNS})`)
+      .eq("user_id", user.id)
 
-    if (seriesResult.error) {
-      log.error("Series query failed", {
-        error: seriesResult.error.message
-      })
-      return apiError(500, "Failed to fetch series data", { correlationId })
+    if (error) {
+      log.error("Analytics query failed", { error: error.message })
+      return apiError(500, "Failed to fetch analytics data", { correlationId })
     }
 
-    if (volumesResult.error) {
-      log.error("Volumes query failed", {
-        error: volumesResult.error.message
-      })
-      return apiError(500, "Failed to fetch volume data", { correlationId })
-    }
-
-    const seriesRows = seriesResult.data ?? []
-    const volumeRows = volumesResult.data ?? []
-
-    // Group volumes by series_id
-    const volumesBySeries = new Map<string, typeof volumeRows>()
-    for (const v of volumeRows) {
-      if (!v.series_id) continue
-      const existing = volumesBySeries.get(v.series_id)
-      if (existing) {
-        existing.push(v)
-      } else {
-        volumesBySeries.set(v.series_id, [v])
-      }
-    }
-
-    // Reconstruct SeriesWithVolumes[] shape for analytics functions
-    const seriesWithVolumes = seriesRows.map((s) => ({
-      ...s,
-      volumes: volumesBySeries.get(s.id) ?? []
-    })) as unknown as SeriesWithVolumes[]
+    const seriesWithVolumes = (seriesData ??
+      []) as unknown as SeriesWithVolumes[]
 
     const collectionStats = computeCollectionStats(seriesWithVolumes)
     const priceBreakdown = computePriceBreakdown(seriesWithVolumes)

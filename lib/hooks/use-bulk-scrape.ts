@@ -132,20 +132,6 @@ const shouldSkipVolume = (
   return hasPrice && hasImage
 }
 
-/** Shape of the price API JSON response. @source */
-interface AmazonResponseData {
-  result?: {
-    priceText?: string | null
-    priceValue?: number | null
-    priceError?: string | null
-    priceBinding?: string | null
-    imageUrl?: string | null
-    url?: string | null
-  }
-  error?: string
-  cooldownMs?: number
-}
-
 /** React state setter alias. @source */
 type StateSetter = React.Dispatch<React.SetStateAction<BulkScrapeState>>
 
@@ -231,12 +217,9 @@ function finalize(setter: StateSetter): BulkScrapeSummary {
  * @returns A human-readable cooldown message.
  * @source
  */
-function buildCooldownMessage(data: AmazonResponseData): string {
-  if (data.cooldownMs) {
-    const minutes = Math.ceil(data.cooldownMs / 60_000)
-    return `Amazon anti-bot detection triggered. Try again in ~${minutes} minute${minutes === 1 ? "" : "s"}.`
-  }
-  return data.error ?? "Amazon blocked the request. Try again later."
+function buildCooldownMessage(): string {
+  // cooldownMs and error are not part of FetchPriceResponse, so always return generic message
+  return "Amazon blocked the request. Try again later."
 }
 
 /**
@@ -248,7 +231,7 @@ function buildCooldownMessage(data: AmazonResponseData): string {
  */
 function handleRateLimit(
   i: number,
-  data: AmazonResponseData,
+  data: any, // Accepts error details object
   setter: StateSetter
 ) {
   updateJob(
@@ -259,7 +242,7 @@ function handleRateLimit(
   cancelRemaining(i + 1, setter)
   setter((prev) => ({
     ...prev,
-    cooldownMessage: buildCooldownMessage(data)
+    cooldownMessage: buildCooldownMessage()
   }))
 }
 
@@ -272,7 +255,7 @@ function handleRateLimit(
  * @source
  */
 function extractUpdates(
-  data: AmazonResponseData,
+  data: import("@/lib/api/types").FetchPriceResponse,
   includePrice: boolean,
   includeImage: boolean
 ): {
@@ -286,18 +269,19 @@ function extractUpdates(
   let imageResult: string | null = null
   let priceError: string | null = null
 
-  if (includePrice && data.result?.priceValue != null) {
-    updates.purchase_price = data.result.priceValue
-    priceResult = data.result.priceValue
-  } else if (includePrice && data.result?.priceError) {
-    priceError = data.result.priceError
+  const result = data.data?.result
+  if (includePrice && result?.priceValue != null) {
+    updates.purchase_price = result.priceValue
+    priceResult = result.priceValue
+  } else if (includePrice && result?.priceError) {
+    priceError = result.priceError
   }
-  if (includeImage && data.result?.imageUrl) {
-    updates.cover_image_url = data.result.imageUrl
-    imageResult = data.result.imageUrl
+  if (includeImage && result?.imageUrl) {
+    updates.cover_image_url = result.imageUrl
+    imageResult = result.imageUrl
   }
-  if (data.result?.url) {
-    updates.amazon_url = data.result.url
+  if (result?.url) {
+    updates.amazon_url = result.url
   }
   return { updates, priceResult, imageResult, priceError }
 }
@@ -549,11 +533,10 @@ async function processJob(
 
   try {
     const data = await fetchPrice(params, controller.signal)
-
     return await handleSuccess(i, data, isLast, ctx)
   } catch (error) {
     if (error instanceof ApiClientError) {
-      const details = (error.details ?? {}) as AmazonResponseData
+      const details = (error.details ?? {}) as Record<string, unknown>
 
       // 429 → halt
       if (error.status === 429) {
@@ -566,7 +549,10 @@ async function processJob(
         i,
         {
           status: "failed",
-          errorMessage: details.error ?? `HTTP ${error.status}`
+          errorMessage:
+            typeof details.error === "string"
+              ? details.error
+              : `HTTP ${error.status}`
         },
         setter
       )
@@ -603,7 +589,7 @@ async function processJob(
  */
 async function handleSuccess(
   i: number,
-  data: AmazonResponseData,
+  data: import("@/lib/api/types").FetchPriceResponse,
   isLast: boolean,
   ctx: JobContext
 ): Promise<"ok" | "abort"> {
