@@ -1,15 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
-const getUserMock = mock(async (): Promise<{ data: { user: { id: string } | null } }> => ({
-  data: { user: { id: "user-1" } }
-}))
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const eqMock = mock(async (): Promise<any> => ({
-  data: [{ id: "s-1", title: "Series", volumes: [{ id: "v-1" }] }],
-  error: null
-}))
+const eqMock = mock(
+  async (): Promise<any> => ({
+    data: [{ id: "s-1", title: "Series", volumes: [{ id: "v-1" }] }],
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const qb: Record<string, any> = {
@@ -77,7 +81,9 @@ describe("POST /api/library/export", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce({ allowed: false })
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false }
+    )
 
     const { POST } = await loadRoute()
     const response = await POST(

@@ -15,7 +15,9 @@ const createUserClient = mock(async () => ({
 const consumeDistributedRateLimit = mock(async (): Promise<any> => null)
 
 mock.module("@/lib/supabase/server", () => ({ createUserClient }))
-mock.module("@/lib/rate-limit-distributed", () => ({ consumeDistributedRateLimit }))
+mock.module("@/lib/rate-limit-distributed", () => ({
+  consumeDistributedRateLimit
+}))
 
 const loadRoute = async () => await import("../../app/api/books/search/route")
 

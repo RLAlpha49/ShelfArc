@@ -1,15 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
-const getUserMock = mock(async (): Promise<{ data: { user: { id: string } | null } }> => ({
-  data: { user: { id: "user-1" } }
-}))
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const eqMock = mock(async (): Promise<any> => ({
-  data: [],
-  error: null
-}))
+const eqMock = mock(
+  async (): Promise<any> => ({
+    data: [],
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const qb: Record<string, any> = {
@@ -35,7 +39,8 @@ mock.module("@/lib/supabase/server", () => ({ createUserClient }))
 mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 mock.module("@/lib/csrf", () => ({ enforceSameOrigin: enforceSameOriginMock }))
 
-const loadRoute = async () => await import("../../app/api/library/analytics/route")
+const loadRoute = async () =>
+  await import("../../app/api/library/analytics/route")
 
 beforeEach(() => {
   getUserMock.mockClear()
@@ -60,7 +65,9 @@ describe("GET /api/library/analytics", () => {
     getUserMock.mockResolvedValueOnce({ data: { user: null } })
 
     const { GET } = await loadRoute()
-    const response = await GET(makeNextRequest("http://localhost/api/library/analytics"))
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/analytics")
+    )
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(401)
@@ -68,10 +75,14 @@ describe("GET /api/library/analytics", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce({ allowed: false })
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false }
+    )
 
     const { GET } = await loadRoute()
-    const response = await GET(makeNextRequest("http://localhost/api/library/analytics"))
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/analytics")
+    )
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(429)
@@ -80,7 +91,9 @@ describe("GET /api/library/analytics", () => {
 
   it("returns analytics data on success", async () => {
     const { GET } = await loadRoute()
-    const response = await GET(makeNextRequest("http://localhost/api/library/analytics"))
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/analytics")
+    )
 
     const body = await readJson<{
       collectionStats: object
@@ -97,7 +110,9 @@ describe("GET /api/library/analytics", () => {
 
   it("includes Cache-Control header in response", async () => {
     const { GET } = await loadRoute()
-    const response = await GET(makeNextRequest("http://localhost/api/library/analytics"))
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/analytics")
+    )
 
     expect(response.status).toBe(200)
     const cacheControl = response.headers.get("Cache-Control")
@@ -109,7 +124,9 @@ describe("GET /api/library/analytics", () => {
     eqMock.mockResolvedValueOnce({ data: null, error: { message: "db error" } })
 
     const { GET } = await loadRoute()
-    const response = await GET(makeNextRequest("http://localhost/api/library/analytics"))
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/analytics")
+    )
 
     expect(response.status).toBe(500)
   })

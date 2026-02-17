@@ -1,15 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
-const getUserMock = mock(async (): Promise<{ data: { user: { id: string } | null } }> => ({
-  data: { user: { id: "user-1" } }
-}))
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const singleMock = mock(async (): Promise<any> => ({
-  data: { id: "series-1", title: "Test Series", type: "manga", user_id: "user-1", tags: [] },
-  error: null
-}))
+const singleMock = mock(
+  async (): Promise<any> => ({
+    data: {
+      id: "series-1",
+      title: "Test Series",
+      type: "manga",
+      user_id: "user-1",
+      tags: []
+    },
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const qb: Record<string, any> = {}
@@ -53,7 +63,13 @@ beforeEach(() => {
   enforceSameOriginMock.mockReturnValue(undefined)
   singleMock.mockClear()
   singleMock.mockResolvedValue({
-    data: { id: "series-1", title: "Test Series", type: "manga", user_id: "user-1", tags: [] },
+    data: {
+      id: "series-1",
+      title: "Test Series",
+      type: "manga",
+      user_id: "user-1",
+      tags: []
+    },
     error: null
   })
   qb.insert.mockReturnValue({ select: mock(() => ({ single: singleMock })) })
@@ -82,7 +98,9 @@ describe("POST /api/library/series", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce({ allowed: false })
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false }
+    )
 
     const { POST } = await loadRoute()
     const response = await POST(
@@ -156,7 +174,10 @@ describe("POST /api/library/series", () => {
   })
 
   it("returns 400 on DB insert error", async () => {
-    singleMock.mockResolvedValueOnce({ data: null, error: { message: "db error" } })
+    singleMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "db error" }
+    })
 
     const { POST } = await loadRoute()
     const response = await POST(

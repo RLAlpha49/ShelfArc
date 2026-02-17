@@ -1,28 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
-const getUserMock = mock(async (): Promise<{ data: { user: { id: string } | null } }> => ({
-  data: { user: { id: "user-1" } }
-}))
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const singleMock = mock(async (): Promise<any> => ({
-  data: {
-    id: "series-1",
-    title: "Test Series",
-    type: "manga",
-    tags: [],
-    user_id: "user-1",
-    volumes: [{ id: "vol-1", volume_number: 1, title: "Vol 1" }]
-  },
-  error: null
-}))
+const singleMock = mock(
+  async (): Promise<any> => ({
+    data: {
+      id: "series-1",
+      title: "Test Series",
+      type: "manga",
+      tags: [],
+      user_id: "user-1",
+      volumes: [{ id: "vol-1", volume_number: 1, title: "Vol 1" }]
+    },
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const volumesOrderMock = mock(async (): Promise<any> => ({
-  data: [{ id: "vol-1", volume_number: 1, title: "Vol 1" }],
-  error: null
-}))
+const volumesOrderMock = mock(
+  async (): Promise<any> => ({
+    data: [{ id: "vol-1", volume_number: 1, title: "Vol 1" }],
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const deleteMock = mock(async (): Promise<any> => ({ error: null }))
@@ -54,7 +60,8 @@ mock.module("@/lib/supabase/server", () => ({ createUserClient }))
 mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 mock.module("@/lib/csrf", () => ({ enforceSameOrigin: enforceSameOriginMock }))
 
-const loadRoute = async () => await import("../../app/api/library/series/[id]/route")
+const loadRoute = async () =>
+  await import("../../app/api/library/series/[id]/route")
 
 beforeEach(() => {
   getUserMock.mockClear()
@@ -114,7 +121,9 @@ describe("GET /api/library/series/[id]", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce({ allowed: false })
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false }
+    )
 
     const { GET } = await loadRoute()
     const response = await GET(
@@ -128,7 +137,10 @@ describe("GET /api/library/series/[id]", () => {
   })
 
   it("returns 404 when series not found", async () => {
-    singleMock.mockResolvedValueOnce({ data: null, error: { message: "not found" } })
+    singleMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "not found" }
+    })
 
     const { GET } = await loadRoute()
     const response = await GET(
@@ -146,7 +158,11 @@ describe("GET /api/library/series/[id]", () => {
       { params: Promise.resolve({ id: "series-1" }) }
     )
 
-    const body = await readJson<{ id: string; title: string; volumes: unknown[] }>(response)
+    const body = await readJson<{
+      id: string
+      title: string
+      volumes: unknown[]
+    }>(response)
     expect(response.status).toBe(200)
     expect(body.id).toBe("series-1")
     expect(body.title).toBe("Test Series")
@@ -192,7 +208,10 @@ describe("PATCH /api/library/series/[id]", () => {
   })
 
   it("returns 404 when series not found or update failed", async () => {
-    singleMock.mockResolvedValueOnce({ data: null, error: { message: "not found" } })
+    singleMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "not found" }
+    })
 
     const { PATCH } = await loadRoute()
     const response = await PATCH(
@@ -209,7 +228,13 @@ describe("PATCH /api/library/series/[id]", () => {
 
   it("returns updated series on success", async () => {
     singleMock.mockResolvedValueOnce({
-      data: { id: "series-1", title: "Updated", type: "manga", tags: [], user_id: "user-1" },
+      data: {
+        id: "series-1",
+        title: "Updated",
+        type: "manga",
+        tags: [],
+        user_id: "user-1"
+      },
       error: null
     })
 
@@ -252,7 +277,9 @@ describe("DELETE /api/library/series/[id]", () => {
 
     const { DELETE } = await loadRoute()
     const response = await DELETE(
-      makeNextRequest("http://localhost/api/library/series/series-1", { method: "DELETE" }),
+      makeNextRequest("http://localhost/api/library/series/series-1", {
+        method: "DELETE"
+      }),
       { params: Promise.resolve({ id: "series-1" }) }
     )
 
@@ -264,7 +291,9 @@ describe("DELETE /api/library/series/[id]", () => {
   it("returns { deleted: true } on success", async () => {
     const { DELETE } = await loadRoute()
     const response = await DELETE(
-      makeNextRequest("http://localhost/api/library/series/series-1", { method: "DELETE" }),
+      makeNextRequest("http://localhost/api/library/series/series-1", {
+        method: "DELETE"
+      }),
       { params: Promise.resolve({ id: "series-1" }) }
     )
 
@@ -289,7 +318,9 @@ describe("DELETE /api/library/series/[id]", () => {
   it("enforces CSRF protection", async () => {
     const { DELETE } = await loadRoute()
     await DELETE(
-      makeNextRequest("http://localhost/api/library/series/series-1", { method: "DELETE" }),
+      makeNextRequest("http://localhost/api/library/series/series-1", {
+        method: "DELETE"
+      }),
       { params: Promise.resolve({ id: "series-1" }) }
     )
 

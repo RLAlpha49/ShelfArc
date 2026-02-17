@@ -11,35 +11,39 @@ const getUserMock = mock(
 
 // Terminal mock for GET (range call)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const rangeMock = mock(async (): Promise<any> => ({
-  data: [
-    {
-      id: "evt-1",
+const rangeMock = mock(
+  async (): Promise<any> => ({
+    data: [
+      {
+        id: "evt-1",
+        user_id: "user-1",
+        event_type: "volume_added",
+        entity_type: "volume",
+        entity_id: "vol-1",
+        metadata: {},
+        created_at: "2025-01-01T00:00:00Z"
+      }
+    ],
+    error: null,
+    count: 1
+  })
+)
+
+// Terminal mock for POST (single call)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const insertSingleMock = mock(
+  async (): Promise<any> => ({
+    data: {
+      id: "evt-new",
       user_id: "user-1",
       event_type: "volume_added",
       entity_type: "volume",
       entity_id: "vol-1",
-      metadata: {},
-      created_at: "2025-01-01T00:00:00Z"
-    }
-  ],
-  error: null,
-  count: 1
-}))
-
-// Terminal mock for POST (single call)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const insertSingleMock = mock(async (): Promise<any> => ({
-  data: {
-    id: "evt-new",
-    user_id: "user-1",
-    event_type: "volume_added",
-    entity_type: "volume",
-    entity_id: "vol-1",
-    metadata: {}
-  },
-  error: null
-}))
+      metadata: {}
+    },
+    error: null
+  })
+)
 
 // Terminal mock for DELETE (eq at end of delete chain)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -139,9 +143,7 @@ describe("GET /api/activity", () => {
     getUserMock.mockResolvedValueOnce({ data: { user: null } })
 
     const { GET } = await loadRoute()
-    const response = await GET(
-      makeNextRequest("http://localhost/api/activity")
-    )
+    const response = await GET(makeNextRequest("http://localhost/api/activity"))
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(401)
@@ -154,9 +156,7 @@ describe("GET /api/activity", () => {
     )
 
     const { GET } = await loadRoute()
-    const response = await GET(
-      makeNextRequest("http://localhost/api/activity")
-    )
+    const response = await GET(makeNextRequest("http://localhost/api/activity"))
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(429)
@@ -195,9 +195,7 @@ describe("GET /api/activity", () => {
   it("accepts valid eventType filter", async () => {
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest(
-        "http://localhost/api/activity?eventType=series_created"
-      )
+      makeNextRequest("http://localhost/api/activity?eventType=series_created")
     )
 
     expect(response.status).toBe(200)
@@ -238,9 +236,7 @@ describe("GET /api/activity", () => {
     })
 
     const { GET } = await loadRoute()
-    const response = await GET(
-      makeNextRequest("http://localhost/api/activity")
-    )
+    const response = await GET(makeNextRequest("http://localhost/api/activity"))
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(500)

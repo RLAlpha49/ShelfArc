@@ -1,25 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
-const getUserMock = mock(async (): Promise<{ data: { user: { id: string } | null } }> => ({
-  data: { user: { id: "user-1" } }
-}))
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const volumesFetchMock = mock(async (): Promise<any> => ({
-  data: [
-    {
-      id: "vol-1",
-      title: "Test Vol",
-      volume_number: 1,
-      series_id: "s-1",
-      purchase_price: null,
-      cover_image_url: null,
-      series: { id: "s-1", title: "Test Series", type: "manga" }
-    }
-  ],
-  error: null
-}))
+const volumesFetchMock = mock(
+  async (): Promise<any> => ({
+    data: [
+      {
+        id: "vol-1",
+        title: "Test Vol",
+        volume_number: 1,
+        series_id: "s-1",
+        purchase_price: null,
+        cover_image_url: null,
+        series: { id: "s-1", title: "Test Series", type: "manga" }
+      }
+    ],
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const fetchQb: Record<string, any> = {
@@ -62,9 +66,15 @@ mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 mock.module("@/lib/csrf", () => ({ enforceSameOrigin: enforceSameOriginMock }))
 
 mock.module("@/lib/books/price/amazon-price", () => ({
-  createAmazonSearchContext: mock(() => ({ searchUrl: "https://amazon.com/s?k=test" })),
+  createAmazonSearchContext: mock(() => ({
+    searchUrl: "https://amazon.com/s?k=test"
+  })),
   fetchAmazonHtml: mock(async () => "<html></html>"),
-  parseAmazonResult: mock(() => ({ priceValue: 12.99, imageUrl: null, productUrl: null }))
+  parseAmazonResult: mock(() => ({
+    priceValue: 12.99,
+    imageUrl: null,
+    productUrl: null
+  }))
 }))
 
 mock.module("@/lib/books/amazon-query", () => ({
@@ -81,7 +91,8 @@ mock.module("@/lib/books/amazon-query", () => ({
   }))
 }))
 
-const loadRoute = async () => await import("../../app/api/library/volumes/batch-scrape/route")
+const loadRoute = async () =>
+  await import("../../app/api/library/volumes/batch-scrape/route")
 
 beforeEach(() => {
   volumesCallIndex = 0
@@ -137,7 +148,9 @@ describe("POST /api/library/volumes/batch-scrape", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce({ allowed: false })
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false }
+    )
 
     const { POST } = await loadRoute()
     const response = await POST(
@@ -233,7 +246,10 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     )
 
     const body = await readJson<{
-      data: { results: unknown[]; summary: { total: number; succeeded: number } }
+      data: {
+        results: unknown[]
+        summary: { total: number; succeeded: number }
+      }
     }>(response)
     expect(response.status).toBe(200)
     expect(body.data.results).toBeArray()

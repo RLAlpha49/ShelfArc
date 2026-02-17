@@ -21,10 +21,12 @@ qb.or = mock(() => qb)
 qb.contains = mock(() => qb)
 qb.in = mock(() => qb)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-qb.range = mock(async (): Promise<any> => ({
-  data: [],
-  error: null
-}))
+qb.range = mock(
+  async (): Promise<any> => ({
+    data: [],
+    error: null
+  })
+)
 
 const fromMock = mock(() => qb)
 
@@ -65,9 +67,7 @@ describe("GET /api/library — auth and rate limit", () => {
     getUserMock.mockResolvedValueOnce({ data: { user: null } })
 
     const { GET } = await loadRoute()
-    const response = await GET(
-      makeNextRequest("http://localhost/api/library")
-    )
+    const response = await GET(makeNextRequest("http://localhost/api/library"))
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(401)
@@ -80,9 +80,7 @@ describe("GET /api/library — auth and rate limit", () => {
     )
 
     const { GET } = await loadRoute()
-    const response = await GET(
-      makeNextRequest("http://localhost/api/library")
-    )
+    const response = await GET(makeNextRequest("http://localhost/api/library"))
 
     expect(response.status).toBe(429)
   })
@@ -172,9 +170,7 @@ describe("GET /api/library — parameter validation", () => {
   it("returns 400 when search query exceeds 200 characters", async () => {
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest(
-        "http://localhost/api/library?search=" + "a".repeat(201)
-      )
+      makeNextRequest("http://localhost/api/library?search=" + "a".repeat(201))
     )
 
     const body = await readJson<{ error: string }>(response)

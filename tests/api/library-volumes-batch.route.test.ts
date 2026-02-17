@@ -1,15 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
-const getUserMock = mock(async (): Promise<{ data: { user: { id: string } | null } }> => ({
-  data: { user: { id: "user-1" } }
-}))
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const selectIdMock = mock(async (): Promise<any> => ({
-  data: [{ id: "vol-1" }, { id: "vol-2" }],
-  error: null
-}))
+const selectIdMock = mock(
+  async (): Promise<any> => ({
+    data: [{ id: "vol-1" }, { id: "vol-2" }],
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const qb: Record<string, any> = {
@@ -38,7 +42,8 @@ mock.module("@/lib/supabase/server", () => ({ createUserClient }))
 mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 mock.module("@/lib/csrf", () => ({ enforceSameOrigin: enforceSameOriginMock }))
 
-const loadRoute = async () => await import("../../app/api/library/volumes/batch/route")
+const loadRoute = async () =>
+  await import("../../app/api/library/volumes/batch/route")
 
 beforeEach(() => {
   getUserMock.mockClear()
@@ -73,7 +78,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1"], updates: { ownership_status: "owned" } }),
+        body: JSON.stringify({
+          volumeIds: ["vol-1"],
+          updates: { ownership_status: "owned" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -84,13 +92,18 @@ describe("PATCH /api/library/volumes/batch", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce({ allowed: false })
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false }
+    )
 
     const { PATCH } = await loadRoute()
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1"], updates: { ownership_status: "owned" } }),
+        body: JSON.stringify({
+          volumeIds: ["vol-1"],
+          updates: { ownership_status: "owned" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -105,7 +118,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1", "vol-2"], updates: { ownership_status: "owned" } }),
+        body: JSON.stringify({
+          volumeIds: ["vol-1", "vol-2"],
+          updates: { ownership_status: "owned" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -118,7 +134,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: [], updates: { ownership_status: "owned" } }),
+        body: JSON.stringify({
+          volumeIds: [],
+          updates: { ownership_status: "owned" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -133,7 +152,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ids, updates: { ownership_status: "owned" } }),
+        body: JSON.stringify({
+          volumeIds: ids,
+          updates: { ownership_status: "owned" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -159,7 +181,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1"], updates: { ownership_status: "invalid" } }),
+        body: JSON.stringify({
+          volumeIds: ["vol-1"],
+          updates: { ownership_status: "invalid" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -172,7 +197,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1"], updates: { reading_status: "invalid" } }),
+        body: JSON.stringify({
+          volumeIds: ["vol-1"],
+          updates: { reading_status: "invalid" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -198,7 +226,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1"], updates: { rating: "five" } }),
+        body: JSON.stringify({
+          volumeIds: ["vol-1"],
+          updates: { rating: "five" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -211,7 +242,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1"], updates: { unknown_field: "value" } }),
+        body: JSON.stringify({
+          volumeIds: ["vol-1"],
+          updates: { unknown_field: "value" }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -232,14 +266,19 @@ describe("PATCH /api/library/volumes/batch", () => {
       })
     )
 
-    const body = await readJson<{ updated: number; requested: number }>(response)
+    const body = await readJson<{ updated: number; requested: number }>(
+      response
+    )
     expect(response.status).toBe(200)
     expect(body.updated).toBe(2)
     expect(body.requested).toBe(2)
   })
 
   it("returns 400 on DB update error", async () => {
-    selectIdMock.mockResolvedValueOnce({ data: null, error: { message: "db error" } })
+    selectIdMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "db error" }
+    })
 
     const { PATCH } = await loadRoute()
     const response = await PATCH(

@@ -1,28 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
-const getUserMock = mock(async (): Promise<{ data: { user: { id: string } | null } }> => ({
-  data: { user: { id: "user-1" } }
-}))
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const seriesSingleMock = mock(async (): Promise<any> => ({
-  data: { id: "series-1" },
-  error: null
-}))
+const seriesSingleMock = mock(
+  async (): Promise<any> => ({
+    data: { id: "series-1" },
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const volumeSingleMock = mock(async (): Promise<any> => ({
-  data: {
-    id: "vol-new",
-    title: "Test Vol",
-    volume_number: 1,
-    user_id: "user-1",
-    series_id: null,
-    purchase_price: null
-  },
-  error: null
-}))
+const volumeSingleMock = mock(
+  async (): Promise<any> => ({
+    data: {
+      id: "vol-new",
+      title: "Test Vol",
+      volume_number: 1,
+      user_id: "user-1",
+      series_id: null,
+      purchase_price: null
+    },
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const seriesQb: Record<string, any> = {}
@@ -32,7 +38,9 @@ seriesQb.single = seriesSingleMock
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const volumeQb: Record<string, any> = {}
-volumeQb.insert = mock(() => ({ select: mock(() => ({ single: volumeSingleMock })) }))
+volumeQb.insert = mock(() => ({
+  select: mock(() => ({ single: volumeSingleMock }))
+}))
 
 const fromMock = mock((table: string) => {
   if (table === "series") return seriesQb
@@ -55,7 +63,8 @@ mock.module("@/lib/supabase/server", () => ({ createUserClient }))
 mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 mock.module("@/lib/csrf", () => ({ enforceSameOrigin: enforceSameOriginMock }))
 
-const loadRoute = async () => await import("../../app/api/library/volumes/route")
+const loadRoute = async () =>
+  await import("../../app/api/library/volumes/route")
 
 beforeEach(() => {
   getUserMock.mockClear()
@@ -79,7 +88,9 @@ beforeEach(() => {
     },
     error: null
   })
-  volumeQb.insert.mockReturnValue({ select: mock(() => ({ single: volumeSingleMock })) })
+  volumeQb.insert.mockReturnValue({
+    select: mock(() => ({ single: volumeSingleMock }))
+  })
   distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
   distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
   enforceSameOriginMock.mockClear()
@@ -109,7 +120,9 @@ describe("POST /api/library/volumes", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce({ allowed: false })
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false }
+    )
 
     const { POST } = await loadRoute()
     const response = await POST(
@@ -154,13 +167,20 @@ describe("POST /api/library/volumes", () => {
   })
 
   it("returns 404 when series_id provided but series not found", async () => {
-    seriesSingleMock.mockResolvedValueOnce({ data: null, error: { message: "not found" } })
+    seriesSingleMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "not found" }
+    })
 
     const { POST } = await loadRoute()
     const response = await POST(
       makeNextRequest("http://localhost/api/library/volumes", {
         method: "POST",
-        body: JSON.stringify({ title: "Test Vol", volume_number: 1, series_id: "series-1" }),
+        body: JSON.stringify({
+          title: "Test Vol",
+          volume_number: 1,
+          series_id: "series-1"
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -169,7 +189,10 @@ describe("POST /api/library/volumes", () => {
   })
 
   it("returns 400 on DB insert error", async () => {
-    volumeSingleMock.mockResolvedValueOnce({ data: null, error: { message: "insert error" } })
+    volumeSingleMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "insert error" }
+    })
 
     const { POST } = await loadRoute()
     const response = await POST(
@@ -200,7 +223,11 @@ describe("POST /api/library/volumes", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/library/volumes", {
         method: "POST",
-        body: JSON.stringify({ title: "Test Vol", volume_number: 1, series_id: "series-1" }),
+        body: JSON.stringify({
+          title: "Test Vol",
+          volume_number: 1,
+          series_id: "series-1"
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )

@@ -1,15 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 import { makeNextRequest, readJson } from "./test-utils"
 
-const getUserMock = mock(async (): Promise<{ data: { user: { id: string } | null } }> => ({
-  data: { user: { id: "user-1" } }
-}))
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const limitMock = mock(async (): Promise<any> => ({
-  data: [{ title: "Alpha" }, { title: "Beta" }, { title: "alpha" }],
-  error: null
-}))
+const limitMock = mock(
+  async (): Promise<any> => ({
+    data: [{ title: "Alpha" }, { title: "Beta" }, { title: "alpha" }],
+    error: null
+  })
+)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const qb: Record<string, any> = {
@@ -37,7 +41,8 @@ mock.module("@/lib/supabase/server", () => ({ createUserClient }))
 mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 mock.module("@/lib/csrf", () => ({ enforceSameOrigin: enforceSameOriginMock }))
 
-const loadRoute = async () => await import("../../app/api/library/suggest/route")
+const loadRoute = async () =>
+  await import("../../app/api/library/suggest/route")
 
 beforeEach(() => {
   getUserMock.mockClear()
@@ -99,7 +104,9 @@ describe("GET /api/library/suggest", () => {
   it("returns 400 when field is invalid", async () => {
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest("http://localhost/api/library/suggest?q=test&field=invalid")
+      makeNextRequest(
+        "http://localhost/api/library/suggest?q=test&field=invalid"
+      )
     )
 
     expect(response.status).toBe(400)
@@ -128,7 +135,9 @@ describe("GET /api/library/suggest", () => {
 
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest("http://localhost/api/library/suggest?q=Author&field=author")
+      makeNextRequest(
+        "http://localhost/api/library/suggest?q=Author&field=author"
+      )
     )
 
     expect(response.status).toBe(200)
@@ -142,14 +151,19 @@ describe("GET /api/library/suggest", () => {
 
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest("http://localhost/api/library/suggest?q=Pub&field=publisher")
+      makeNextRequest(
+        "http://localhost/api/library/suggest?q=Pub&field=publisher"
+      )
     )
 
     expect(response.status).toBe(200)
   })
 
   it("returns 500 on DB error", async () => {
-    limitMock.mockResolvedValueOnce({ data: null, error: { message: "db error" } })
+    limitMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "db error" }
+    })
 
     const { GET } = await loadRoute()
     const response = await GET(
