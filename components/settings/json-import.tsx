@@ -14,6 +14,9 @@ import {
   isValidTitleType,
   isValidOwnershipStatus,
   isValidReadingStatus,
+  isValidSeriesStatus,
+  isValidVolumeEdition,
+  isValidVolumeFormat,
   isPositiveInteger,
   isNonNegativeInteger,
   isNonNegativeFinite
@@ -119,7 +122,7 @@ function sanitizeSeriesImport(
       s.total_volumes != null && isPositiveInteger(s.total_volumes)
         ? s.total_volumes
         : null,
-    status: sanitizeOptionalPlainText(s.status, 200),
+    status: isValidSeriesStatus(s.status) ? s.status : null,
     tags: Array.isArray(s.tags)
       ? s.tags
           .map((tag: unknown) => sanitizePlainText(String(tag ?? ""), 100))
@@ -184,8 +187,8 @@ function sanitizeVolumeImport(
       v.purchase_price != null && isNonNegativeFinite(v.purchase_price)
         ? v.purchase_price
         : null,
-    edition: sanitizeOptionalPlainText(v.edition, 200),
-    format: sanitizeOptionalPlainText(v.format, 200),
+    edition: isValidVolumeEdition(v.edition) ? v.edition : null,
+    format: isValidVolumeFormat(v.format) ? v.format : null,
     amazon_url: sanitizeOptionalPlainText(v.amazon_url, 2000)
   }
 }

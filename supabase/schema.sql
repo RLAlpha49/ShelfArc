@@ -1,24 +1,101 @@
 -- ShelfArc Database Schema
 
 -- This script is intended to be re-runnable (idempotent) on an already-correct database.
--- If you uncomment the DROP statements below, it will become destructive and data will be lost.
-
+--
+-- DESTRUCTIVE: the block below is intentionally commented out.  Uncomment ONLY when
+-- you want to drop and fully recreate the schema (order respects dependencies).
+--
 -- DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
--- DROP TABLE IF EXISTS volumes CASCADE;
--- DROP TABLE IF EXISTS series CASCADE;
--- DROP TABLE IF EXISTS tags CASCADE;
--- DROP TABLE IF EXISTS profiles CASCADE;
+-- DROP TRIGGER IF EXISTS on_auth_user_email_change ON auth.users;
+-- DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+-- DROP TRIGGER IF EXISTS update_series_updated_at ON public.series;
+-- DROP TRIGGER IF EXISTS update_volumes_updated_at ON public.volumes;
+-- DROP TRIGGER IF EXISTS update_price_alerts_updated_at ON public.price_alerts;
+--
+-- DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+-- DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+-- DROP POLICY IF EXISTS "Users can view their own series" ON public.series;
+-- DROP POLICY IF EXISTS "Users can insert their own series" ON public.series;
+-- DROP POLICY IF EXISTS "Users can update their own series" ON public.series;
+-- DROP POLICY IF EXISTS "Users can delete their own series" ON public.series;
+-- DROP POLICY IF EXISTS "Users can view their own volumes" ON public.volumes;
+-- DROP POLICY IF EXISTS "Users can insert their own volumes" ON public.volumes;
+-- DROP POLICY IF EXISTS "Users can update their own volumes" ON public.volumes;
+-- DROP POLICY IF EXISTS "Users can delete their own volumes" ON public.volumes;
+-- DROP POLICY IF EXISTS "Users can view their own tags" ON public.tags;
+-- DROP POLICY IF EXISTS "Users can insert their own tags" ON public.tags;
+-- DROP POLICY IF EXISTS "Users can update their own tags" ON public.tags;
+-- DROP POLICY IF EXISTS "Users can delete their own tags" ON public.tags;
+-- DROP POLICY IF EXISTS "Users can view their own price history" ON public.price_history;
+-- DROP POLICY IF EXISTS "Users can insert their own price history" ON public.price_history;
+-- DROP POLICY IF EXISTS "Users can view their own price alerts" ON public.price_alerts;
+-- DROP POLICY IF EXISTS "Users can insert their own price alerts" ON public.price_alerts;
+-- DROP POLICY IF EXISTS "Users can update their own price alerts" ON public.price_alerts;
+-- DROP POLICY IF EXISTS "Users can delete their own price alerts" ON public.price_alerts;
+-- DROP POLICY IF EXISTS "Users can view their own activity events" ON public.activity_events;
+-- DROP POLICY IF EXISTS "Users can insert their own activity events" ON public.activity_events;
+--
 -- DROP FUNCTION IF EXISTS public.handle_new_user();
+-- DROP FUNCTION IF EXISTS public.sync_profile_email();
 -- DROP FUNCTION IF EXISTS update_updated_at_column();
 -- DROP FUNCTION IF EXISTS public.backup_list_tables();
--- DROP TYPE IF EXISTS title_type CASCADE;
--- DROP TYPE IF EXISTS ownership_status CASCADE;
--- DROP TYPE IF EXISTS reading_status CASCADE;
+-- DROP FUNCTION IF EXISTS public.rate_limit_consume(text, integer, integer, integer);
+-- DROP FUNCTION IF EXISTS public.rate_limit_cleanup(integer);
+-- DROP FUNCTION IF EXISTS public.activity_events_cleanup(integer);
+--
+-- DROP TABLE IF EXISTS public.activity_events CASCADE;
+-- DROP TABLE IF EXISTS public.price_alerts CASCADE;
+-- DROP TABLE IF EXISTS public.price_history CASCADE;
+-- DROP TABLE IF EXISTS public.rate_limit_buckets CASCADE;
+-- DROP TABLE IF EXISTS public.tags CASCADE;
+-- DROP TABLE IF EXISTS public.volumes CASCADE;
+-- DROP TABLE IF EXISTS public.series CASCADE;
+-- DROP TABLE IF EXISTS public.profiles CASCADE;
+--
+-- DROP TYPE IF EXISTS public.activity_event_type CASCADE;
+-- DROP TYPE IF EXISTS public.volume_format CASCADE;
+-- DROP TYPE IF EXISTS public.volume_edition CASCADE;
+-- DROP TYPE IF EXISTS public.series_status CASCADE;
+-- DROP TYPE IF EXISTS public.reading_status CASCADE;
+-- DROP TYPE IF EXISTS public.ownership_status CASCADE;
+-- DROP TYPE IF EXISTS public.title_type CASCADE;
+--
+-- DROP EXTENSION IF EXISTS pg_trgm;
+-- DROP EXTENSION IF EXISTS "uuid-ossp";
 
+-- -----------------------------------------------------------------------------
+-- Extensions
+-- -----------------------------------------------------------------------------
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create custom types
+-- Enable trigram extension for fuzzy search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- -----------------------------------------------------------------------------
+-- Custom types
+-- (kept idempotent using to_regtype checks)
+-- -----------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF to_regtype('public.activity_event_type') IS NULL THEN
+    CREATE TYPE public.activity_event_type AS ENUM (
+      'volume_added',
+      'volume_updated',
+      'volume_deleted',
+      'series_created',
+      'series_updated',
+      'series_deleted',
+      'price_alert_triggered',
+      'import_completed',
+      'scrape_completed',
+      'automation_executed',
+      'api_token_created',
+      'api_token_revoked'
+    );
+  END IF;
+END $$;
+
 DO $$
 BEGIN
   IF to_regtype('public.title_type') IS NULL THEN
@@ -39,6 +116,31 @@ BEGIN
     CREATE TYPE public.reading_status AS ENUM ('unread', 'reading', 'completed', 'on_hold', 'dropped');
   END IF;
 END $$;
+
+DO $$
+BEGIN
+  IF to_regtype('public.series_status') IS NULL THEN
+    CREATE TYPE public.series_status AS ENUM ('ongoing', 'completed', 'hiatus', 'cancelled', 'announced');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regtype('public.volume_edition') IS NULL THEN
+    CREATE TYPE public.volume_edition AS ENUM ('standard', 'first_edition', 'collectors', 'omnibus', 'box_set', 'limited', 'deluxe');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regtype('public.volume_format') IS NULL THEN
+    CREATE TYPE public.volume_format AS ENUM ('paperback', 'hardcover', 'digital', 'audiobook');
+  END IF;
+END $$;
+
+-- -----------------------------------------------------------------------------
+-- Tables (grouped and ordered by dependency)
+-- -----------------------------------------------------------------------------
 
 -- Profiles table (extends Supabase auth.users)
 CREATE TABLE IF NOT EXISTS profiles (
@@ -83,7 +185,7 @@ WHERE NOT EXISTS (
 
 -- Series table (groups volumes together)
 CREATE TABLE IF NOT EXISTS series (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   original_title TEXT,
@@ -95,15 +197,22 @@ CREATE TABLE IF NOT EXISTS series (
   cover_image_url TEXT,
   type title_type DEFAULT 'manga' NOT NULL,
   total_volumes INTEGER,
-  status TEXT, -- 'ongoing', 'completed', 'hiatus', etc.
+  status series_status,
   tags TEXT[] DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- Series indexes
+CREATE INDEX IF NOT EXISTS idx_series_tags ON series USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
+CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_series_title_trgm ON series USING gin (title gin_trgm_ops);
+
 -- Volumes table (individual books/volumes)
 CREATE TABLE IF NOT EXISTS volumes (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   series_id UUID REFERENCES series(id) ON DELETE SET NULL,
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   volume_number INTEGER NOT NULL,
@@ -111,12 +220,13 @@ CREATE TABLE IF NOT EXISTS volumes (
   description TEXT,
   isbn TEXT,
   cover_image_url TEXT,
-  edition TEXT, -- 'first_edition', 'collectors', 'omnibus', etc.
-  format TEXT, -- 'paperback', 'hardcover', 'digital', etc.
+  edition volume_edition,
+  format volume_format,
   page_count INTEGER,
   publish_date DATE,
   purchase_date DATE,
   purchase_price DECIMAL(10, 2),
+  purchase_currency TEXT NOT NULL DEFAULT 'USD',
   ownership_status ownership_status DEFAULT 'owned' NOT NULL,
   reading_status reading_status DEFAULT 'unread' NOT NULL,
   current_page INTEGER,
@@ -131,9 +241,26 @@ CREATE TABLE IF NOT EXISTS volumes (
   UNIQUE(series_id, volume_number, edition)
 );
 
+-- Volumes indexes
+CREATE INDEX IF NOT EXISTS idx_volumes_series_id ON volumes(series_id);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_id ON volumes(user_id);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_isbn ON volumes(user_id, isbn);
+CREATE INDEX IF NOT EXISTS idx_volumes_volume_number ON public.volumes USING btree (volume_number);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_volumes_unique_null_edition
+  ON volumes(series_id, volume_number)
+  WHERE edition IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_volumes_user_ownership ON volumes(user_id, ownership_status);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_reading ON volumes(user_id, reading_status);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_series ON volumes(user_id, series_id);
+CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_updated ON volumes(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_purchase_date ON volumes(user_id, purchase_date DESC);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_publish_date ON volumes(user_id, publish_date DESC);
+
 -- Tags table (user-defined tags)
 CREATE TABLE IF NOT EXISTS tags (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT,
@@ -141,6 +268,8 @@ CREATE TABLE IF NOT EXISTS tags (
   
   UNIQUE(user_id, name)
 );
+
+CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id);
 
 -- Distributed rate-limit buckets (shared across instances)
 CREATE TABLE IF NOT EXISTS rate_limit_buckets (
@@ -151,44 +280,12 @@ CREATE TABLE IF NOT EXISTS rate_limit_buckets (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_series_user_id ON series(user_id);
-CREATE INDEX IF NOT EXISTS idx_series_title ON series(title);
-CREATE INDEX IF NOT EXISTS idx_series_type ON series(type);
-CREATE INDEX IF NOT EXISTS idx_series_tags ON series USING GIN(tags);
-
-CREATE INDEX IF NOT EXISTS idx_volumes_series_id ON volumes(series_id);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_id ON volumes(user_id);
-CREATE INDEX IF NOT EXISTS idx_volumes_ownership_status ON volumes(ownership_status);
-CREATE INDEX IF NOT EXISTS idx_volumes_reading_status ON volumes(reading_status);
-CREATE INDEX IF NOT EXISTS idx_volumes_isbn ON volumes(isbn);
-
-CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id);
 CREATE INDEX IF NOT EXISTS idx_rate_limit_buckets_blocked_until
   ON rate_limit_buckets(blocked_until);
-
 CREATE INDEX IF NOT EXISTS idx_rate_limit_buckets_updated_at
   ON rate_limit_buckets(updated_at);
 
--- Supabase recommended indexes
-CREATE INDEX IF NOT EXISTS idx_volumes_volume_number
-  ON public.volumes USING btree (volume_number);
-
--- Partial unique index: prevent duplicate (series_id, volume_number) when edition IS NULL.
--- The table-level UNIQUE(series_id, volume_number, edition) only covers non-NULL editions
--- because PostgreSQL treats NULLs as distinct in unique constraints.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_volumes_unique_null_edition
-  ON volumes(series_id, volume_number)
-  WHERE edition IS NULL;
-
--- Row Level Security (RLS)
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE series ENABLE ROW LEVEL SECURITY;
-ALTER TABLE volumes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rate_limit_buckets ENABLE ROW LEVEL SECURITY;
-
--- Lock down internal tables (defense-in-depth)
+-- Lock down internal table: rate_limit_buckets
 REVOKE ALL ON TABLE public.rate_limit_buckets FROM PUBLIC;
 DO $$
 BEGIN
@@ -201,7 +298,66 @@ BEGIN
   END IF;
 END $$;
 
--- RLS Policies for profiles
+-- Price history table (append-only, no updates)
+CREATE TABLE IF NOT EXISTS price_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  volume_id UUID NOT NULL REFERENCES volumes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  price DECIMAL(10, 2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  source TEXT NOT NULL DEFAULT 'amazon',
+  product_url TEXT,
+  scraped_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_history_volume_id ON price_history(volume_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_user_id ON price_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_volume_scraped
+  ON price_history(volume_id, scraped_at DESC);
+CREATE INDEX IF NOT EXISTS idx_price_history_user_scraped
+  ON price_history(user_id, scraped_at DESC);
+
+-- Price alerts table
+CREATE TABLE IF NOT EXISTS price_alerts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  volume_id UUID NOT NULL REFERENCES volumes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  target_price DECIMAL(10, 2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  enabled BOOLEAN DEFAULT true NOT NULL,
+  triggered_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  UNIQUE(volume_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_alerts_user_enabled ON price_alerts(user_id, enabled);
+CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id);
+CREATE INDEX IF NOT EXISTS idx_price_alerts_user_id ON price_alerts(user_id);
+
+-- Activity events table (append-only timeline)
+CREATE TABLE IF NOT EXISTS activity_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  event_type activity_event_type NOT NULL,
+  entity_type TEXT,
+  entity_id UUID,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_events_user_created
+  ON activity_events(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_events_user_event_type
+  ON activity_events(user_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_activity_events_entity
+  ON activity_events(entity_type, entity_id);
+
+-- -----------------------------------------------------------------------------
+-- Row Level Security (enable + policies grouped per-table)
+-- -----------------------------------------------------------------------------
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -221,11 +377,11 @@ BEGIN
       AND tablename = 'profiles'
       AND policyname = 'Users can update their own profile'
   ) THEN
-    EXECUTE 'CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING ((select auth.uid()) = id)';
+    EXECUTE 'CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING ((select auth.uid()) = id) WITH CHECK ((select auth.uid()) = id)';
   END IF;
 END $$;
 
--- RLS Policies for series
+ALTER TABLE series ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -255,7 +411,7 @@ BEGIN
       AND tablename = 'series'
       AND policyname = 'Users can update their own series'
   ) THEN
-    EXECUTE 'CREATE POLICY "Users can update their own series" ON public.series FOR UPDATE USING ((select auth.uid()) = user_id)';
+    EXECUTE 'CREATE POLICY "Users can update their own series" ON public.series FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
   IF NOT EXISTS (
@@ -269,7 +425,7 @@ BEGIN
   END IF;
 END $$;
 
--- RLS Policies for volumes
+ALTER TABLE volumes ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -299,7 +455,7 @@ BEGIN
       AND tablename = 'volumes'
       AND policyname = 'Users can update their own volumes'
   ) THEN
-    EXECUTE 'CREATE POLICY "Users can update their own volumes" ON public.volumes FOR UPDATE USING ((select auth.uid()) = user_id)';
+    EXECUTE 'CREATE POLICY "Users can update their own volumes" ON public.volumes FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
   IF NOT EXISTS (
@@ -313,7 +469,7 @@ BEGIN
   END IF;
 END $$;
 
--- RLS Policies for tags
+ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -343,7 +499,7 @@ BEGIN
       AND tablename = 'tags'
       AND policyname = 'Users can update their own tags'
   ) THEN
-    EXECUTE 'CREATE POLICY "Users can update their own tags" ON public.tags FOR UPDATE USING ((select auth.uid()) = user_id)';
+    EXECUTE 'CREATE POLICY "Users can update their own tags" ON public.tags FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
   IF NOT EXISTS (
@@ -357,40 +513,151 @@ BEGIN
   END IF;
 END $$;
 
+ALTER TABLE rate_limit_buckets ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE price_history ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_history'
+      AND policyname = 'Users can view their own price history'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own price history" ON public.price_history FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_history'
+      AND policyname = 'Users can insert their own price history'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own price history" ON public.price_history FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_alerts'
+      AND policyname = 'Users can view their own price alerts'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own price alerts" ON public.price_alerts FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_alerts'
+      AND policyname = 'Users can insert their own price alerts'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own price alerts" ON public.price_alerts FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_alerts'
+      AND policyname = 'Users can update their own price alerts'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can update their own price alerts" ON public.price_alerts FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'price_alerts'
+      AND policyname = 'Users can delete their own price alerts'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can delete their own price alerts" ON public.price_alerts FOR DELETE USING ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+ALTER TABLE activity_events ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'activity_events'
+      AND policyname = 'Users can view their own activity events'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own activity events" ON public.activity_events FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'activity_events'
+      AND policyname = 'Users can insert their own activity events'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own activity events" ON public.activity_events FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+-- -----------------------------------------------------------------------------
+-- Functions
+-- -----------------------------------------------------------------------------
+
 -- Function to automatically create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = ''
 AS $$
+DECLARE
+  raw_username TEXT;
+  final_username TEXT;
 BEGIN
-  INSERT INTO public.profiles (id, email, username)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1))
+  raw_username := COALESCE(
+    NEW.raw_user_meta_data->>'username',
+    split_part(NEW.email, '@', 1)
   );
+
+  -- Strip non-word characters
+  final_username := regexp_replace(raw_username, '[^\w]', '_', 'g');
+
+  -- Pad short usernames
+  IF length(final_username) < 3 THEN
+    final_username := final_username || repeat('_', 3 - length(final_username));
+  END IF;
+
+  -- Truncate long usernames
+  final_username := left(final_username, 20);
+
+  INSERT INTO public.profiles (id, email, username)
+  VALUES (NEW.id, NEW.email, final_username);
   RETURN NEW;
 END;
 $$;
 
--- Trigger to call function on new user signup
-DO $$
+-- Function to sync profile email when auth.users email changes
+CREATE OR REPLACE FUNCTION public.sync_profile_email()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-  IF to_regclass('auth.users') IS NOT NULL
-     AND NOT EXISTS (
-       SELECT 1
-       FROM pg_trigger
-       WHERE tgname = 'on_auth_user_created'
-         AND tgrelid = to_regclass('auth.users')
-         AND NOT tgisinternal
-     ) THEN
-    CREATE TRIGGER on_auth_user_created
-      AFTER INSERT ON auth.users
-      FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+  IF OLD.email IS DISTINCT FROM NEW.email THEN
+    UPDATE public.profiles SET email = NEW.email WHERE id = NEW.id;
   END IF;
-END $$;
+  RETURN NEW;
+END;
+$$;
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -418,6 +685,9 @@ AS $$
     AND tablename NOT LIKE 'sql_%'
   ORDER BY tablename;
 $$;
+
+REVOKE ALL ON FUNCTION public.backup_list_tables() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.backup_list_tables() TO service_role;
 
 -- Atomic distributed rate-limit consume helper
 CREATE OR REPLACE FUNCTION public.rate_limit_consume(
@@ -557,7 +827,71 @@ REVOKE ALL ON FUNCTION public.rate_limit_cleanup(integer)
 GRANT EXECUTE ON FUNCTION public.rate_limit_cleanup(integer)
   TO service_role;
 
--- Triggers for updated_at
+-- Cleanup helper to prevent unbounded growth of activity_events
+-- Schedule this (daily/hourly) using pg_cron or a scheduled Supabase task.
+CREATE OR REPLACE FUNCTION public.activity_events_cleanup(p_max_age_days integer DEFAULT 90)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v_now timestamptz := clock_timestamp();
+  v_cutoff timestamptz := v_now - make_interval(days => GREATEST(p_max_age_days, 1));
+  v_deleted integer;
+BEGIN
+  DELETE FROM public.activity_events
+  WHERE created_at < v_cutoff;
+
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.activity_events_cleanup(integer)
+  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.activity_events_cleanup(integer)
+  TO service_role;
+
+-- -----------------------------------------------------------------------------
+-- Triggers (created after functions exist)
+-- -----------------------------------------------------------------------------
+
+-- Trigger to call function on new user signup
+DO $$
+BEGIN
+  IF to_regclass('auth.users') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM pg_trigger
+       WHERE tgname = 'on_auth_user_created'
+         AND tgrelid = to_regclass('auth.users')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER on_auth_user_created
+      AFTER INSERT ON auth.users
+      FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+  END IF;
+END $$;
+
+-- Trigger to sync email on auth.users update
+DO $$
+BEGIN
+  IF to_regclass('auth.users') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM pg_trigger
+       WHERE tgname = 'on_auth_user_email_change'
+         AND tgrelid = to_regclass('auth.users')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER on_auth_user_email_change
+      AFTER UPDATE OF email ON auth.users
+      FOR EACH ROW EXECUTE FUNCTION public.sync_profile_email();
+  END IF;
+END $$;
+
+-- Triggers for updated_at on row updates
 DO $$
 BEGIN
   IF to_regclass('public.profiles') IS NOT NULL
@@ -600,219 +934,19 @@ BEGIN
   END IF;
 END $$;
 
--- Price history table (append-only, no updates)
-CREATE TABLE IF NOT EXISTS price_history (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  volume_id UUID NOT NULL REFERENCES volumes(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  price DECIMAL(10, 2) NOT NULL,
-  currency TEXT NOT NULL DEFAULT 'USD',
-  source TEXT NOT NULL DEFAULT 'amazon',
-  product_url TEXT,
-  scraped_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
--- Price alerts table
-CREATE TABLE IF NOT EXISTS price_alerts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  volume_id UUID NOT NULL REFERENCES volumes(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  target_price DECIMAL(10, 2) NOT NULL,
-  currency TEXT NOT NULL DEFAULT 'USD',
-  enabled BOOLEAN DEFAULT true NOT NULL,
-  triggered_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  UNIQUE(volume_id, user_id)
-);
-
--- Series: user-scoped filtering by type, sorting by title/updated_at
-CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
-CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
-CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
-
--- Volumes: user-scoped filtering by ownership/reading status and series membership
-CREATE INDEX IF NOT EXISTS idx_volumes_user_ownership ON volumes(user_id, ownership_status);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_reading ON volumes(user_id, reading_status);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_series ON volumes(user_id, series_id);
-CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_updated ON volumes(user_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_purchase_date ON volumes(user_id, purchase_date DESC);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_publish_date ON volumes(user_id, publish_date DESC);
-
--- Price alerts: user-scoped active alert lookup
-CREATE INDEX IF NOT EXISTS idx_price_alerts_user_enabled ON price_alerts(user_id, enabled);
-
--- Indexes for price_history
-CREATE INDEX IF NOT EXISTS idx_price_history_volume_id ON price_history(volume_id);
-CREATE INDEX IF NOT EXISTS idx_price_history_user_id ON price_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_price_history_volume_scraped
-  ON price_history(volume_id, scraped_at DESC);
-
--- Indexes for price_alerts
-CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id);
-CREATE INDEX IF NOT EXISTS idx_price_alerts_user_id ON price_alerts(user_id);
-
--- RLS
-ALTER TABLE price_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for price_history
+-- Trigger for price_alerts updated_at
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_history'
-      AND policyname = 'Users can view their own price history'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can view their own price history" ON public.price_history FOR SELECT USING ((select auth.uid()) = user_id)';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_history'
-      AND policyname = 'Users can insert their own price history'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can insert their own price history" ON public.price_history FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
-  END IF;
-
-END $$;
-
--- RLS Policies for price_alerts
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_alerts'
-      AND policyname = 'Users can view their own price alerts'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can view their own price alerts" ON public.price_alerts FOR SELECT USING ((select auth.uid()) = user_id)';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_alerts'
-      AND policyname = 'Users can insert their own price alerts'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can insert their own price alerts" ON public.price_alerts FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_alerts'
-      AND policyname = 'Users can update their own price alerts'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can update their own price alerts" ON public.price_alerts FOR UPDATE USING ((select auth.uid()) = user_id)';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_alerts'
-      AND policyname = 'Users can delete their own price alerts'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can delete their own price alerts" ON public.price_alerts FOR DELETE USING ((select auth.uid()) = user_id)';
+  IF to_regclass('public.price_alerts') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM pg_trigger
+       WHERE tgname = 'update_price_alerts_updated_at'
+         AND tgrelid = to_regclass('public.price_alerts')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER update_price_alerts_updated_at
+      BEFORE UPDATE ON public.price_alerts
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   END IF;
 END $$;
-
--- Activity event type enum
-DO $$
-BEGIN
-  IF to_regtype('public.activity_event_type') IS NULL THEN
-    CREATE TYPE public.activity_event_type AS ENUM (
-      'volume_added',
-      'volume_updated',
-      'volume_deleted',
-      'series_created',
-      'series_updated',
-      'series_deleted',
-      'price_alert_triggered',
-      'import_completed',
-      'scrape_completed',
-      'automation_executed',
-      'api_token_created',
-      'api_token_revoked'
-    );
-  END IF;
-END $$;
-
--- Activity events table (append-only timeline)
-CREATE TABLE IF NOT EXISTS activity_events (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  event_type activity_event_type NOT NULL,
-  entity_type TEXT,
-  entity_id UUID,
-  metadata JSONB DEFAULT '{}',
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
--- Indexes for activity_events
-CREATE INDEX IF NOT EXISTS idx_activity_events_user_created
-  ON activity_events(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_activity_events_user_event_type
-  ON activity_events(user_id, event_type);
-
--- RLS
-ALTER TABLE activity_events ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for activity_events
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'activity_events'
-      AND policyname = 'Users can view their own activity events'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can view their own activity events" ON public.activity_events FOR SELECT USING ((select auth.uid()) = user_id)';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'activity_events'
-      AND policyname = 'Users can insert their own activity events'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can insert their own activity events" ON public.activity_events FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
-  END IF;
-END $$;
-
--- Cleanup helper to prevent unbounded growth of activity_events
--- Schedule this (daily/hourly) using pg_cron or a scheduled Supabase task.
-CREATE OR REPLACE FUNCTION public.activity_events_cleanup(p_max_age_days integer DEFAULT 90)
-RETURNS integer
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_catalog
-AS $$
-DECLARE
-  v_now timestamptz := clock_timestamp();
-  v_cutoff timestamptz := v_now - make_interval(days => GREATEST(p_max_age_days, 1));
-  v_deleted integer;
-BEGIN
-  DELETE FROM public.activity_events
-  WHERE created_at < v_cutoff;
-
-  GET DIAGNOSTICS v_deleted = ROW_COUNT;
-  RETURN v_deleted;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.activity_events_cleanup(integer)
-  FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.activity_events_cleanup(integer)
-  TO service_role;

@@ -14,6 +14,7 @@ import {
 import {
   isNonNegativeFinite,
   isPositiveInteger,
+  isValidSeriesStatus,
   isValidTitleType
 } from "@/lib/validation"
 import type {
@@ -22,6 +23,7 @@ import type {
   SeriesInsert,
   TitleType,
   Volume,
+  VolumeFormat,
   VolumeInsert
 } from "@/lib/types/database"
 import type { BookSearchResult } from "@/lib/books/search"
@@ -167,7 +169,7 @@ export function useLibraryMutations() {
             data.cover_image_url,
             2000
           ),
-          status: sanitizeOptionalPlainText(data.status, 100)
+          status: isValidSeriesStatus(data.status) ? data.status : null
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -425,9 +427,9 @@ export function useLibraryMutations() {
             .getState()
             .series.find((s) => s.id === seriesId)
           if (parentSeries) {
-            const formatFromType: Record<string, string> = {
-              light_novel: "Light Novel",
-              manga: "Manga"
+            const formatFromType: Partial<Record<string, VolumeFormat>> = {
+              light_novel: "paperback",
+              manga: "paperback"
             }
             sanitizedData.format = formatFromType[parentSeries.type] ?? null
           }

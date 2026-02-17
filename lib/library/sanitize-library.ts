@@ -11,7 +11,10 @@ import {
   isValidHttpsUrl,
   isValidOwnershipStatus,
   isValidReadingStatus,
-  isValidTitleType
+  isValidSeriesStatus,
+  isValidTitleType,
+  isValidVolumeEdition,
+  isValidVolumeFormat
 } from "@/lib/validation"
 import type { Series, Volume, VolumeInsert } from "@/lib/types/database"
 
@@ -123,7 +126,7 @@ const sanitizeSeriesTextFields = (
     )
   }
   if (Object.hasOwn(data, "status")) {
-    sanitized.status = sanitizeOptionalPlainText(data.status, 100)
+    sanitized.status = isValidSeriesStatus(data.status) ? data.status : null
   }
 }
 
@@ -178,10 +181,10 @@ const sanitizeVolumeTextFields = (
     sanitized.notes = sanitizeOptionalPlainText(data.notes, 5000)
   }
   if (Object.hasOwn(data, "edition")) {
-    sanitized.edition = sanitizeOptionalPlainText(data.edition, 200)
+    sanitized.edition = isValidVolumeEdition(data.edition) ? data.edition : null
   }
   if (Object.hasOwn(data, "format")) {
-    sanitized.format = sanitizeOptionalPlainText(data.format, 200)
+    sanitized.format = isValidVolumeFormat(data.format) ? data.format : null
   }
   if (Object.hasOwn(data, "cover_image_url")) {
     const sanitizedCover = sanitizeOptionalPlainText(data.cover_image_url, 2000)
@@ -285,8 +288,8 @@ export const buildSanitizedVolumeInsert = (
     title: sanitizeOptionalPlainText(data.title, 500),
     isbn: sanitizeOptionalPlainText(data.isbn, 20),
     notes: sanitizeOptionalPlainText(data.notes, 5000),
-    edition: sanitizeOptionalPlainText(data.edition, 200),
-    format: sanitizeOptionalPlainText(data.format, 200),
+    edition: isValidVolumeEdition(data.edition) ? data.edition : null,
+    format: isValidVolumeFormat(data.format) ? data.format : null,
     ownership_status: isValidOwnershipStatus(data.ownership_status)
       ? data.ownership_status
       : "owned",

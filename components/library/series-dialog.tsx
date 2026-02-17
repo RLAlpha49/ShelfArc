@@ -33,6 +33,7 @@ import {
 } from "@/lib/uploads/resolve-image-url"
 import type {
   SeriesInsert,
+  SeriesStatus,
   SeriesWithVolumes,
   TitleType,
   Volume
@@ -353,7 +354,7 @@ export function SeriesDialog({
           total_volumes: formData.total_volumes
             ? Number.parseInt(formData.total_volumes, 10)
             : null,
-          status: formData.status || null,
+          status: (formData.status || null) as SeriesStatus | null,
           tags: tagsArray
         },
         selectedVolumeIds.length > 0
@@ -727,6 +728,7 @@ export function SeriesDialog({
                           <SelectItem value="completed">Completed</SelectItem>
                           <SelectItem value="hiatus">Hiatus</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="announced">Announced</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

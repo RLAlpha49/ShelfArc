@@ -51,6 +51,8 @@ import { SeriesPicker } from "@/components/library/series-picker"
 import type {
   SeriesWithVolumes,
   Volume,
+  VolumeEdition,
+  VolumeFormat,
   VolumeInsert,
   OwnershipStatus,
   ReadingStatus
@@ -363,8 +365,8 @@ export function VolumeDialog({
         purchase_price: formData.purchase_price
           ? Number.parseFloat(formData.purchase_price)
           : null,
-        edition: formData.edition || null,
-        format: formData.format || null,
+        edition: (formData.edition || null) as VolumeEdition | null,
+        format: (formData.format || null) as VolumeFormat | null,
         amazon_url: formData.amazon_url || null
       })
       onOpenChange(false)
@@ -730,21 +732,46 @@ export function VolumeDialog({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="edition">Edition</Label>
-                      <Input
-                        id="edition"
-                        placeholder="e.g. 1st, Deluxe"
+                      <Select
                         value={formData.edition}
-                        onChange={(e) => updateField("edition", e.target.value)}
-                      />
+                        onValueChange={(value) =>
+                          updateField("edition", value ?? "")
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select edition" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="standard">Standard</SelectItem>
+                          <SelectItem value="first_edition">First Edition</SelectItem>
+                          <SelectItem value="collectors">Collector&apos;s</SelectItem>
+                          <SelectItem value="omnibus">Omnibus</SelectItem>
+                          <SelectItem value="box_set">Box Set</SelectItem>
+                          <SelectItem value="limited">Limited</SelectItem>
+                          <SelectItem value="deluxe">Deluxe</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="format">Format</Label>
-                      <Input
-                        id="format"
-                        placeholder="e.g. Paperback, Hardcover"
+                      <Select
                         value={formData.format}
-                        onChange={(e) => updateField("format", e.target.value)}
-                      />
+                        onValueChange={(value) =>
+                          updateField("format", value ?? "")
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select format" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="paperback">Paperback</SelectItem>
+                          <SelectItem value="hardcover">Hardcover</SelectItem>
+                          <SelectItem value="digital">Digital</SelectItem>
+                          <SelectItem value="audiobook">Audiobook</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>

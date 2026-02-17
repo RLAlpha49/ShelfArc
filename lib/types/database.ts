@@ -23,6 +23,15 @@ export type ReadingStatus =
 /** Physical book orientation for display layout. @source */
 export type BookOrientation = "vertical" | "horizontal"
 
+/** Series publication status. @source */
+export type SeriesStatus = "ongoing" | "completed" | "hiatus" | "cancelled" | "announced"
+
+/** Volume edition variant. @source */
+export type VolumeEdition = "standard" | "first_edition" | "collectors" | "omnibus" | "box_set" | "limited" | "deluxe"
+
+/** Volume physical format. @source */
+export type VolumeFormat = "paperback" | "hardcover" | "digital" | "audiobook"
+
 /** Activity event type enum values. @source */
 export type ActivityEventType =
   | "volume_added"
@@ -85,7 +94,7 @@ export interface Database {
           cover_image_url: string | null
           type: TitleType
           total_volumes: number | null
-          status: string | null
+          status: SeriesStatus | null
           tags: string[]
           created_at: string
           updated_at: string
@@ -103,7 +112,7 @@ export interface Database {
           cover_image_url?: string | null
           type?: TitleType
           total_volumes?: number | null
-          status?: string | null
+          status?: SeriesStatus | null
           tags?: string[]
           created_at?: string
           updated_at?: string
@@ -121,7 +130,7 @@ export interface Database {
           cover_image_url?: string | null
           type?: TitleType
           total_volumes?: number | null
-          status?: string | null
+          status?: SeriesStatus | null
           tags?: string[]
           created_at?: string
           updated_at?: string
@@ -145,12 +154,13 @@ export interface Database {
           description: string | null
           isbn: string | null
           cover_image_url: string | null
-          edition: string | null
-          format: string | null
+          edition: VolumeEdition | null
+          format: VolumeFormat | null
           page_count: number | null
           publish_date: string | null
           purchase_date: string | null
           purchase_price: number | null
+          purchase_currency: string
           ownership_status: OwnershipStatus
           reading_status: ReadingStatus
           current_page: number | null
@@ -171,12 +181,13 @@ export interface Database {
           description?: string | null
           isbn?: string | null
           cover_image_url?: string | null
-          edition?: string | null
-          format?: string | null
+          edition?: VolumeEdition | null
+          format?: VolumeFormat | null
           page_count?: number | null
           publish_date?: string | null
           purchase_date?: string | null
           purchase_price?: number | null
+          purchase_currency?: string
           ownership_status?: OwnershipStatus
           reading_status?: ReadingStatus
           current_page?: number | null
@@ -197,12 +208,13 @@ export interface Database {
           description?: string | null
           isbn?: string | null
           cover_image_url?: string | null
-          edition?: string | null
-          format?: string | null
+          edition?: VolumeEdition | null
+          format?: VolumeFormat | null
           page_count?: number | null
           publish_date?: string | null
           purchase_date?: string | null
           purchase_price?: number | null
+          purchase_currency?: string
           ownership_status?: OwnershipStatus
           reading_status?: ReadingStatus
           current_page?: number | null
@@ -405,6 +417,9 @@ export interface Database {
       reading_status: ReadingStatus
       book_orientation: BookOrientation
       activity_event_type: ActivityEventType
+      series_status: SeriesStatus
+      volume_edition: VolumeEdition
+      volume_format: VolumeFormat
     }
   }
 }

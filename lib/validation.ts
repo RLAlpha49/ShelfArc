@@ -2,7 +2,10 @@ import type {
   TitleType,
   OwnershipStatus,
   ReadingStatus,
-  BookOrientation
+  BookOrientation,
+  SeriesStatus,
+  VolumeEdition,
+  VolumeFormat
 } from "@/lib/types/database"
 
 /** All valid title type values. @source */
@@ -31,6 +34,34 @@ export const READING_STATUSES: readonly ReadingStatus[] = [
 export const BOOK_ORIENTATIONS: readonly BookOrientation[] = [
   "vertical",
   "horizontal"
+] as const
+
+/** All valid series status values. @source */
+export const SERIES_STATUSES: readonly SeriesStatus[] = [
+  "ongoing",
+  "completed",
+  "hiatus",
+  "cancelled",
+  "announced"
+] as const
+
+/** All valid volume edition values. @source */
+export const VOLUME_EDITIONS: readonly VolumeEdition[] = [
+  "standard",
+  "first_edition",
+  "collectors",
+  "omnibus",
+  "box_set",
+  "limited",
+  "deluxe"
+] as const
+
+/** All valid volume format values. @source */
+export const VOLUME_FORMATS: readonly VolumeFormat[] = [
+  "paperback",
+  "hardcover",
+  "digital",
+  "audiobook"
 ] as const
 
 /** Regex matching a valid hex color string (3–8 hex digits with leading `#`). @source */
@@ -75,6 +106,33 @@ export const isValidBookOrientation = (
 ): value is BookOrientation =>
   typeof value === "string" &&
   (BOOK_ORIENTATIONS as readonly string[]).includes(value)
+
+/**
+ * Type guard for valid `SeriesStatus` values.
+ * @param value - The value to check.
+ * @source
+ */
+export const isValidSeriesStatus = (value: unknown): value is SeriesStatus =>
+  typeof value === "string" &&
+  (SERIES_STATUSES as readonly string[]).includes(value)
+
+/**
+ * Type guard for valid `VolumeEdition` values.
+ * @param value - The value to check.
+ * @source
+ */
+export const isValidVolumeEdition = (value: unknown): value is VolumeEdition =>
+  typeof value === "string" &&
+  (VOLUME_EDITIONS as readonly string[]).includes(value)
+
+/**
+ * Type guard for valid `VolumeFormat` values.
+ * @param value - The value to check.
+ * @source
+ */
+export const isValidVolumeFormat = (value: unknown): value is VolumeFormat =>
+  typeof value === "string" &&
+  (VOLUME_FORMATS as readonly string[]).includes(value)
 
 /**
  * Type guard for positive integers.

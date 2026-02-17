@@ -29,7 +29,8 @@ const TABLE_RESTORE_ORDER = [
   "volumes",
   "tags",
   "price_history",
-  "price_alerts"
+  "price_alerts",
+  "activity_events"
 ]
 
 /**

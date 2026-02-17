@@ -39,7 +39,8 @@ const SERIES_STATUS_COLORS: Record<string, string> = {
   ongoing: "border-primary/30 text-primary",
   completed: "border-copper/30 text-copper",
   hiatus: "border-gold/30 text-gold",
-  cancelled: "border-destructive/30 text-destructive"
+  cancelled: "border-destructive/30 text-destructive",
+  announced: "border-info/30 text-info"
 }
 
 interface OwnershipBadgeProps {

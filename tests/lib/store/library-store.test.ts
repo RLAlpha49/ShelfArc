@@ -50,6 +50,7 @@ function makeVolume(overrides: Partial<Volume> = {}): Volume {
     publish_date: null,
     purchase_date: null,
     purchase_price: null,
+    purchase_currency: "USD",
     ownership_status: "owned",
     reading_status: "unread",
     current_page: null,
