@@ -1,18 +1,22 @@
 import { randomUUID } from "node:crypto"
 import { Readable } from "node:stream"
 import { ReadableStream } from "node:stream/web"
+
 import sharp from "sharp"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { createUserClient } from "@/lib/supabase/server"
-import { isSafeStoragePath } from "@/lib/storage/safe-path"
+
+import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import { apiError, apiSuccess } from "@/lib/api-response"
-import { enforceSameOrigin } from "@/lib/csrf"
 import {
-  ConcurrencyLimitError,
-  ConcurrencyLimiter
+  ConcurrencyLimiter,
+  ConcurrencyLimitError
 } from "@/lib/concurrency/limiter"
 import { getCorrelationId } from "@/lib/correlation"
-import { logger, type Logger } from "@/lib/logger"
+import { enforceSameOrigin } from "@/lib/csrf"
+import { type Logger, logger } from "@/lib/logger"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { isSafeStoragePath } from "@/lib/storage/safe-path"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createUserClient } from "@/lib/supabase/server"
 
 /** Forces Node.js runtime for sharp image processing. @source */
 export const runtime = "nodejs"
@@ -320,6 +324,17 @@ export async function POST(request: Request) {
 
   if (!user) {
     return buildError("Unauthorized", 401)
+  }
+
+  const rl = await consumeDistributedRateLimit({
+    key: `${RATE_LIMITS.uploadWrite.prefix}:${user.id}`,
+    maxHits: RATE_LIMITS.uploadWrite.maxHits,
+    windowMs: RATE_LIMITS.uploadWrite.windowMs,
+    cooldownMs: RATE_LIMITS.uploadWrite.cooldownMs,
+    reason: "Rate limit file uploads"
+  })
+  if (rl && !rl.allowed) {
+    return buildError("Too many upload requests", 429)
   }
 
   const formData = await getFormData(request)
