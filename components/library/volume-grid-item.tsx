@@ -1,6 +1,7 @@
 "use client"
 
 import { CoverImage } from "@/components/library/cover-image"
+import { SwipeableCard } from "@/components/library/swipeable-card"
 import { VolumeActionsMenu } from "@/components/library/volume-actions-menu"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -66,7 +67,11 @@ export function VolumeGridItem({
     : `Search Amazon for ${coverAlt}`
 
   return (
-    <div className="group relative">
+    <SwipeableCard
+      onSwipeRight={onToggleWishlist}
+      onSwipeLeft={onToggleRead}
+    >
+      <div className="group relative">
       {showSelection && (
         <div
           className={`bg-background/80 absolute top-2 left-2 z-10 rounded-lg p-0.5 shadow-sm backdrop-blur-sm transition-all ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
@@ -152,5 +157,6 @@ export function VolumeGridItem({
         />
       </div>
     </div>
+    </SwipeableCard>
   )
 }

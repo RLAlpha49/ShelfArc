@@ -3,13 +3,12 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { toast } from "sonner"
 import {
-  Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
+import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -650,8 +649,7 @@ export function VolumeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl p-0 sm:max-w-3xl">
+    <ResponsiveDialogRaw open={open} onOpenChange={onOpenChange} contentClassName="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl p-0 sm:max-w-3xl">
         <DialogHeader className="relative overflow-hidden rounded-t-2xl border-b px-6 pt-7 pb-5">
           <div className="bg-warm/40 pointer-events-none absolute inset-0" />
           <div className="from-warm-glow/60 via-warm-glow/20 pointer-events-none absolute inset-0 bg-linear-to-br to-transparent" />
@@ -1356,7 +1354,6 @@ export function VolumeDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialogRaw>
   )
 }

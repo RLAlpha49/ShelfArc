@@ -58,6 +58,7 @@ import {
 import { EmptyState } from "@/components/empty-state"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
+import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -187,6 +188,14 @@ export default function LibraryPage() {
   useEffect(() => {
     fetchSeries()
   }, [fetchSeries])
+
+  const handlePullRefresh = useCallback(async () => {
+    await fetchSeries()
+  }, [fetchSeries])
+
+  const { pullDistance, isRefreshing, isPulling } = usePullToRefresh({
+    onRefresh: handlePullRefresh
+  })
 
   const clearSelection = useCallback(() => {
     setSelectedSeriesIds(new Set())
@@ -1448,6 +1457,34 @@ export default function LibraryPage() {
     <div
       className={`relative px-6 py-8 lg:px-10 ${selectedCount > 0 ? "pb-20" : ""}`}
     >
+      {/* Pull-to-refresh indicator */}
+      {(isPulling || isRefreshing) && (
+        <div
+          className="pointer-events-none fixed top-0 right-0 left-0 z-50 flex justify-center"
+          style={{
+            transform: isRefreshing
+              ? "translateY(0)"
+              : `translateY(${Math.min(pullDistance - 40, 20)}px)`,
+            opacity: isRefreshing ? 1 : Math.min(pullDistance / 80, 1),
+            transition: isRefreshing ? "transform 0.2s ease" : "none"
+          }}
+        >
+          <div className="bg-background/90 mt-2 rounded-full border p-2 shadow-lg backdrop-blur-sm">
+            <svg
+              className={`text-copper h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          </div>
+        </div>
+      )}
+
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
 

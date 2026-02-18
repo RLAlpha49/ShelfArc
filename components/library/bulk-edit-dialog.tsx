@@ -5,13 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog"
+import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
 import {
   Select,
   SelectContent,
@@ -153,14 +152,14 @@ export function BulkEditDialog({
       : getVolumeChanges(volumeFields) !== null
 
   return (
-    <Dialog
+    <ResponsiveDialogRaw
       open={open}
       onOpenChange={(next) => {
         if (!next) resetFields()
         onOpenChange(next)
       }}
+      contentClassName="rounded-2xl sm:max-w-lg"
     >
-      <DialogContent className="rounded-2xl sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             Bulk Edit {selectedCount} {mode === "series" ? "Series" : "Volume"}
@@ -401,7 +400,6 @@ export function BulkEditDialog({
             {isSubmitting ? "Applying..." : `Apply to ${selectedCount} items`}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialogRaw>
   )
 }

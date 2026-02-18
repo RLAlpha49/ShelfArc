@@ -10,13 +10,12 @@ import {
 } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import {
-  Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
+import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -692,11 +691,8 @@ export function BookSearchDialog({
   }, [open, queryKey])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="noise-overlay flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl border-none p-0 shadow-[0_24px_64px_-16px_oklch(0_0_0/0.25),0_0_0_1px_var(--copper)/0.1] sm:max-w-3xl"
-        aria-busy={isAdding}
-      >
+    <>
+    <ResponsiveDialogRaw open={open} onOpenChange={onOpenChange} contentClassName="noise-overlay flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl border-none p-0 shadow-[0_24px_64px_-16px_oklch(0_0_0/0.25),0_0_0_1px_var(--copper)/0.1] sm:max-w-3xl">
         {/* Adding overlay — glass effect */}
         {isAdding && (
           <div className="animate-fade-in absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-md">
@@ -1258,7 +1254,7 @@ export function BookSearchDialog({
             </div>
           </div>
         </DialogFooter>
-      </DialogContent>
+    </ResponsiveDialogRaw>
 
       {/* Duplicate confirmation dialog */}
       <AlertDialog
@@ -1316,6 +1312,6 @@ export function BookSearchDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Dialog>
+    </>
   )
 }
