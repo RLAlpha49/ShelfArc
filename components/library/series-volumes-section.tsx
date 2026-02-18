@@ -165,10 +165,12 @@ export function SeriesVolumesSection({
           }
           title="No volumes yet"
           description="Start tracking your collection by adding volumes"
-          action={{
-            label: "Add Volume",
-            onClick: onOpenAdd
-          }}
+          actions={[
+            {
+              label: "Add Volume",
+              onClick: onOpenAdd
+            }
+          ]}
           tip="Search by title or ISBN to find and add volumes"
         />
       ) : (
