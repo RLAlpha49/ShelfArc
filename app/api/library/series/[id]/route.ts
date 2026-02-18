@@ -1,4 +1,6 @@
 import { type NextRequest } from "next/server"
+
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import {
@@ -8,10 +10,10 @@ import {
   parseJsonBody
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
-import { logger } from "@/lib/logger"
 import { sanitizeSeriesUpdate } from "@/lib/library/sanitize-library"
-import { recordActivityEvent } from "@/lib/activity/record-event"
+import { logger } from "@/lib/logger"
 import type { Series } from "@/lib/types/database"
+import { isValidUUID } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     const { user, supabase } = result
     const { id } = await params
 
-    if (!id || typeof id !== "string") {
+    if (!isValidUUID(id)) {
       return apiError(400, "Invalid series id", { correlationId })
     }
 
@@ -75,7 +77,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const { user, supabase } = result
     const { id } = await params
 
-    if (!id || typeof id !== "string") {
+    if (!isValidUUID(id)) {
       return apiError(400, "Invalid series id", { correlationId })
     }
 
@@ -128,7 +130,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     const { user, supabase } = result
     const { id } = await params
 
-    if (!id || typeof id !== "string") {
+    if (!isValidUUID(id)) {
       return apiError(400, "Invalid series id", { correlationId })
     }
 

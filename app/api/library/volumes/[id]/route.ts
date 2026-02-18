@@ -1,4 +1,6 @@
 import { type NextRequest } from "next/server"
+
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import {
@@ -8,13 +10,13 @@ import {
   parseJsonBody
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
-import { logger } from "@/lib/logger"
 import {
-  sanitizeVolumeUpdate,
-  normalizeVolumeDates
+  normalizeVolumeDates,
+  sanitizeVolumeUpdate
 } from "@/lib/library/sanitize-library"
-import { recordActivityEvent } from "@/lib/activity/record-event"
+import { logger } from "@/lib/logger"
 import type { Volume } from "@/lib/types/database"
+import { isValidUUID } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     const { user, supabase } = result
     const { id } = await params
 
-    if (!id || typeof id !== "string") {
+    if (!isValidUUID(id)) {
       return apiError(400, "Invalid volume id", { correlationId })
     }
 
@@ -83,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const { user, supabase } = result
     const { id } = await params
 
-    if (!id || typeof id !== "string") {
+    if (!isValidUUID(id)) {
       return apiError(400, "Invalid volume id", { correlationId })
     }
 
@@ -109,17 +111,17 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     }
 
     const sanitized = sanitizeVolumeUpdate(body as Partial<Volume>)
+    let resolvedSeriesId: string | null | undefined
+    if (Object.hasOwn(body, "series_id")) {
+      if (body.series_id === null) resolvedSeriesId = null
+      else if (typeof body.series_id === "string")
+        resolvedSeriesId = body.series_id
+      else resolvedSeriesId = undefined
+    }
     const updatePayload = normalizeVolumeDates({
       ...sanitized,
       ...(Object.hasOwn(body, "series_id")
-        ? {
-            series_id:
-              body.series_id === null
-                ? null
-                : typeof body.series_id === "string"
-                  ? body.series_id
-                  : undefined
-          }
+        ? { series_id: resolvedSeriesId }
         : {})
     })
 
@@ -170,7 +172,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     const { user, supabase } = result
     const { id } = await params
 
-    if (!id || typeof id !== "string") {
+    if (!isValidUUID(id)) {
       return apiError(400, "Invalid volume id", { correlationId })
     }
 
