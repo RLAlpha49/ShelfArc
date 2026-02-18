@@ -1,31 +1,33 @@
 "use client"
 
-import { lazy, Suspense, useMemo, useState } from "react"
 import Link from "next/link"
+import { lazy, Suspense, useState } from "react"
+
+import { CollectionHealthCard } from "@/components/dashboard/collection-health-card"
+import { DashboardLayoutCustomizer } from "@/components/dashboard/dashboard-layout-customizer"
+import { WidgetSkeleton } from "@/components/dashboard/dashboard-skeleton"
+import { RecentActivityCard } from "@/components/dashboard/recent-activity-card"
+import { RecentlyAddedContent } from "@/components/dashboard/recently-added"
+import { ErrorBoundary } from "@/components/error-boundary"
+import { RecommendationsCard } from "@/components/library/recommendations-card"
+import { formatDate } from "@/lib/format-date"
+import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
+import type {
+  AugmentedVolume,
+  CollectionStats,
+  PriceBreakdown,
+  ReleaseItem,
+  SuggestedBuy,
+  SuggestionCounts,
+  WishlistStats
+} from "@/lib/library/analytics"
+import type { HealthScore } from "@/lib/library/health-score"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import {
   DASHBOARD_WIDGETS,
   type DashboardWidgetId
 } from "@/lib/store/settings-store"
-import { formatDate } from "@/lib/format-date"
-import { RecentlyAddedContent } from "@/components/dashboard/recently-added"
-import { RecommendationsCard } from "@/components/library/recommendations-card"
-import { CollectionHealthCard } from "@/components/dashboard/collection-health-card"
-import { RecentActivityCard } from "@/components/dashboard/recent-activity-card"
-import { DashboardLayoutCustomizer } from "@/components/dashboard/dashboard-layout-customizer"
-import { ErrorBoundary } from "@/components/error-boundary"
-import { WidgetSkeleton } from "@/components/dashboard/dashboard-skeleton"
-import type {
-  CollectionStats,
-  PriceBreakdown,
-  WishlistStats,
-  AugmentedVolume,
-  SuggestedBuy,
-  SuggestionCounts,
-  ReleaseItem
-} from "@/lib/library/analytics"
-import type { HealthScore } from "@/lib/library/health-score"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 const LazyPriceTracking = lazy(
@@ -54,25 +56,6 @@ export interface DashboardContentProps {
   readonly series: readonly SeriesWithVolumes[]
 }
 
-function usePriceFormatter() {
-  const priceDisplayCurrency = useLibraryStore(
-    (state) => state.priceDisplayCurrency
-  )
-  return useMemo(() => {
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: priceDisplayCurrency
-      })
-    } catch {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD"
-      })
-    }
-  }, [priceDisplayCurrency])
-}
-
 /**
  * Client island for the dashboard page.
  * Renders widgets dynamically based on layout preferences from the settings store.
@@ -92,7 +75,10 @@ export function DashboardContent({
   upcomingReleases,
   series
 }: DashboardContentProps) {
-  const priceFormatter = usePriceFormatter()
+  const priceDisplayCurrency = useLibraryStore(
+    (state) => state.priceDisplayCurrency
+  )
+  const priceFormatter = usePriceFormatter(priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
   const layout = useSettingsStore((s) => s.dashboardLayout)
   const [recentTab, setRecentTab] = useState<"series" | "volumes">("series")

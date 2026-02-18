@@ -1,10 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useLibrary } from "@/lib/hooks/use-library"
-import { useLibraryStore } from "@/lib/store/library-store"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect, useMemo, useState } from "react"
+
+import { RecommendationsCard } from "@/components/library/recommendations-card"
 import {
   Select,
   SelectContent,
@@ -12,13 +11,16 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useLibrary } from "@/lib/hooks/use-library"
+import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
+import type { SuggestionCategory } from "@/lib/library/analytics"
 import {
   computeSuggestedBuys,
   computeSuggestionCounts
 } from "@/lib/library/analytics"
-import type { SuggestionCategory } from "@/lib/library/analytics"
-import { RecommendationsCard } from "@/components/library/recommendations-card"
+import { useLibraryStore } from "@/lib/store/library-store"
 
 type FormatFilter = "all" | "light_novel" | "manga" | "other"
 type WishlistFilter = "all" | "wishlisted" | "not_wishlisted"
@@ -43,19 +45,7 @@ export default function SuggestionsPage() {
     if (series.length === 0) fetchSeries()
   }, [series.length, fetchSeries])
 
-  const priceFormatter = useMemo(() => {
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: priceDisplayCurrency
-      })
-    } catch {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD"
-      })
-    }
-  }, [priceDisplayCurrency])
+  const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 
   const allSuggestions = useMemo(() => computeSuggestedBuys(series), [series])
 

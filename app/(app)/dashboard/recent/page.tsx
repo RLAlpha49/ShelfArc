@@ -1,15 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useLibrary } from "@/lib/hooks/use-library"
-import { useLibraryStore } from "@/lib/store/library-store"
-import { useSettingsStore } from "@/lib/store/settings-store"
-import type { DateFormat } from "@/lib/store/settings-store"
-import { formatDate } from "@/lib/format-date"
-import { normalizeVolumeTitle } from "@/lib/normalize-title"
+import { useEffect, useMemo, useState } from "react"
+
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -17,6 +11,14 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import { formatDate } from "@/lib/format-date"
+import { useLibrary } from "@/lib/hooks/use-library"
+import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
+import { normalizeVolumeTitle } from "@/lib/normalize-title"
+import { useLibraryStore } from "@/lib/store/library-store"
+import type { DateFormat } from "@/lib/store/settings-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 interface RecentVolumeItem extends Volume {
@@ -196,19 +198,7 @@ export default function RecentPage() {
     if (series.length === 0) fetchSeries()
   }, [series.length, fetchSeries])
 
-  const priceFormatter = useMemo(() => {
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: priceDisplayCurrency
-      })
-    } catch {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD"
-      })
-    }
-  }, [priceDisplayCurrency])
+  const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 
   const recentSeries = useMemo(() => {
     return [...series]
