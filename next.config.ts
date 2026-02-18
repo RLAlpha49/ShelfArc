@@ -1,4 +1,5 @@
 import bundleAnalyzer from "@next/bundle-analyzer"
+import { withSentryConfig } from "@sentry/nextjs"
 import type { NextConfig } from "next"
 
 const withBundleAnalyzer = bundleAnalyzer({
@@ -60,4 +61,9 @@ const nextConfig: NextConfig = {
   }
 }
 
-export default withBundleAnalyzer(nextConfig)
+export default withSentryConfig(withBundleAnalyzer(nextConfig), {
+  // Suppress Sentry CLI output during builds
+  silent: !process.env.CI,
+  // Automatically tree-shake Sentry logger statements to reduce bundle size
+  disableLogger: true
+})
