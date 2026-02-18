@@ -787,16 +787,16 @@ export default function SeriesDetailPage() {
       <div ref={seriesHeadingRef} tabIndex={-1} className="outline-none">
         <ErrorBoundary>
           <SeriesHeaderSection
-        currentSeries={currentSeries}
-        insights={insights}
-        primaryIsbn={primaryIsbn}
-        descriptionHtml={descriptionHtml}
-        formatPrice={formatPrice}
-        onEditSeries={() => setSeriesDialogOpen(true)}
-        onDeleteSeries={() => setDeleteSeriesDialogOpen(true)}
-        onApplyAllOwnership={applyAllVolumesOwnership}
-        onApplyAllReading={applyAllVolumesReadingStatus}
-      />
+            currentSeries={currentSeries}
+            insights={insights}
+            primaryIsbn={primaryIsbn}
+            descriptionHtml={descriptionHtml}
+            formatPrice={formatPrice}
+            onEditSeries={() => setSeriesDialogOpen(true)}
+            onDeleteSeries={() => setDeleteSeriesDialogOpen(true)}
+            onApplyAllOwnership={applyAllVolumesOwnership}
+            onApplyAllReading={applyAllVolumesReadingStatus}
+          />
         </ErrorBoundary>
       </div>
 
@@ -804,29 +804,29 @@ export default function SeriesDetailPage() {
 
       <ErrorBoundary>
         <SeriesVolumesSection
-        currentSeries={currentSeries}
-        selectedVolumeIds={selectedVolumeIds}
-        selectedCount={selectedCount}
-        totalSelectableCount={totalSelectableCount}
-        isAllSelected={isAllSelected}
-        onOpenBulkScrape={openBulkScrapeForSeries}
-        onOpenAdd={openAddDialog}
-        onSelectAll={handleSelectAll}
-        onClearSelection={handleClearSelection}
-        onApplyOwnership={applyVolumeOwnershipStatus}
-        onApplyReading={applyVolumeReadingStatus}
-        onEditSelected={handleEditSelected}
-        onBulkDelete={handleBulkDelete}
-        onCancelSelection={clearSelection}
-        onVolumeClick={handleVolumeItemClick}
-        onScrapeVolume={openBulkScrapeForVolume}
-        onEditVolume={openEditDialog}
-        onDeleteVolume={openDeleteDialog}
-        onToggleRead={handleToggleRead}
-        onToggleWishlist={handleToggleWishlist}
-        onSetRating={handleSetRating}
-        onSelectVolume={toggleVolumeSelection}
-      />
+          currentSeries={currentSeries}
+          selectedVolumeIds={selectedVolumeIds}
+          selectedCount={selectedCount}
+          totalSelectableCount={totalSelectableCount}
+          isAllSelected={isAllSelected}
+          onOpenBulkScrape={openBulkScrapeForSeries}
+          onOpenAdd={openAddDialog}
+          onSelectAll={handleSelectAll}
+          onClearSelection={handleClearSelection}
+          onApplyOwnership={applyVolumeOwnershipStatus}
+          onApplyReading={applyVolumeReadingStatus}
+          onEditSelected={handleEditSelected}
+          onBulkDelete={handleBulkDelete}
+          onCancelSelection={clearSelection}
+          onVolumeClick={handleVolumeItemClick}
+          onScrapeVolume={openBulkScrapeForVolume}
+          onEditVolume={openEditDialog}
+          onDeleteVolume={openDeleteDialog}
+          onToggleRead={handleToggleRead}
+          onToggleWishlist={handleToggleWishlist}
+          onSetRating={handleSetRating}
+          onSelectVolume={toggleVolumeSelection}
+        />
       </ErrorBoundary>
 
       {/* Book Search Dialog */}

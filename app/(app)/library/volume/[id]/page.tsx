@@ -255,7 +255,8 @@ export default function VolumeDetailPage() {
     if (currentVolume) {
       recordVisit({
         id: currentVolume.id,
-        title: currentVolume.title?.trim() || `Vol. ${currentVolume.volume_number}`,
+        title:
+          currentVolume.title?.trim() || `Vol. ${currentVolume.volume_number}`,
         type: "volume"
       })
     }

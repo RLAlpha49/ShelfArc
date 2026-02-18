@@ -265,7 +265,9 @@ export function useLibraryApiMutations() {
       )
 
       if (!deleteSeriesVolumes && volumesToUpdate.length > 0) {
-        const currentUnassigned = selectAllUnassignedVolumes(useLibraryStore.getState())
+        const currentUnassigned = selectAllUnassignedVolumes(
+          useLibraryStore.getState()
+        )
         const detachedVolumes = volumesToUpdate.map((volume) => ({
           ...volume,
           series_id: null
@@ -282,11 +284,7 @@ export function useLibraryApiMutations() {
 
       deleteSeries(id)
     },
-    [
-      deleteSeriesVolumes,
-      setUnassignedVolumes,
-      deleteSeries
-    ]
+    [deleteSeriesVolumes, setUnassignedVolumes, deleteSeries]
   )
 
   const createVolume = useCallback(

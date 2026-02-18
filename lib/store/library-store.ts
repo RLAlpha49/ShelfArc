@@ -728,7 +728,7 @@ export const selectAllSeries = memoizeSelector(
     state.seriesIds,
     state.seriesById,
     state.volumeIdsBySeriesId,
-    state.volumesById,
+    state.volumesById
   ]
 )
 

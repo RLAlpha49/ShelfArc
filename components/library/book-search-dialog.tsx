@@ -47,7 +47,11 @@ import { searchBooks } from "@/lib/api/endpoints"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
+import {
+  useLibraryStore,
+  selectAllSeries,
+  selectAllUnassignedVolumes
+} from "@/lib/store/library-store"
 import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import {
   findDuplicateCandidates,
@@ -692,7 +696,11 @@ export function BookSearchDialog({
 
   return (
     <>
-    <ResponsiveDialogRaw open={open} onOpenChange={onOpenChange} contentClassName="noise-overlay flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl border-none p-0 shadow-[0_24px_64px_-16px_oklch(0_0_0/0.25),0_0_0_1px_var(--copper)/0.1] sm:max-w-3xl">
+      <ResponsiveDialogRaw
+        open={open}
+        onOpenChange={onOpenChange}
+        contentClassName="noise-overlay flex max-h-[90vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl border-none p-0 shadow-[0_24px_64px_-16px_oklch(0_0_0/0.25),0_0_0_1px_var(--copper)/0.1] sm:max-w-3xl"
+      >
         {/* Adding overlay — glass effect */}
         {isAdding && (
           <div className="animate-fade-in absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-md">
@@ -1254,7 +1262,7 @@ export function BookSearchDialog({
             </div>
           </div>
         </DialogFooter>
-    </ResponsiveDialogRaw>
+      </ResponsiveDialogRaw>
 
       {/* Duplicate confirmation dialog */}
       <AlertDialog

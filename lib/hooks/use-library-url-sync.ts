@@ -151,8 +151,7 @@ function buildUrlFromState(
     params.set("order", state.sortOrder)
   if (state.collectionView !== DEFAULT_COLLECTION_VIEW)
     params.set("view", state.collectionView)
-  if (state.viewMode !== DEFAULT_VIEW_MODE)
-    params.set("mode", state.viewMode)
+  if (state.viewMode !== DEFAULT_VIEW_MODE) params.set("mode", state.viewMode)
 
   const search = params.toString()
   return search ? `${pathname}?${search}` : pathname

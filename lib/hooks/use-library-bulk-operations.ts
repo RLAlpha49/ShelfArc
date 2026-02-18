@@ -18,14 +18,20 @@ interface BulkOperationsDeps {
   readonly selectedVolumeIds: Set<string>
   readonly series: readonly SeriesWithVolumes[]
   readonly volumeLookup: Map<string, Volume>
-  readonly editSeries: (id: string, data: Record<string, unknown>) => Promise<unknown>
+  readonly editSeries: (
+    id: string,
+    data: Record<string, unknown>
+  ) => Promise<unknown>
   readonly editVolume: (
     seriesId: string | null,
     volumeId: string,
     data: Record<string, unknown>
   ) => Promise<unknown>
   readonly removeSeries: (id: string) => Promise<unknown>
-  readonly removeVolume: (seriesId: string | null, volumeId: string) => Promise<unknown>
+  readonly removeVolume: (
+    seriesId: string | null,
+    volumeId: string
+  ) => Promise<unknown>
   readonly clearSelection: () => void
   readonly libraryHeadingRef: React.RefObject<HTMLHeadingElement | null>
   readonly setBulkDeleteDialogOpen: (open: boolean) => void
@@ -247,13 +253,12 @@ export function useLibraryBulkOperations({
   }, [selectedVolumeIds, volumeLookup, removeVolume])
 
   const performBulkDelete = useCallback(async () => {
-    const count = collectionView === "series"
-      ? selectedSeriesIds.size
-      : selectedVolumeIds.size
+    const count =
+      collectionView === "series"
+        ? selectedSeriesIds.size
+        : selectedVolumeIds.size
     const suffix = count === 1 ? "" : "s"
-    const label = collectionView === "series"
-      ? "series"
-      : `book${suffix}`
+    const label = collectionView === "series" ? "series" : `book${suffix}`
 
     if (collectionView === "series") {
       await deleteSelectedSeries()
@@ -277,9 +282,10 @@ export function useLibraryBulkOperations({
   ])
 
   const handleBulkDelete = useCallback(() => {
-    const selectedCount = collectionView === "series"
-      ? selectedSeriesIds.size
-      : selectedVolumeIds.size
+    const selectedCount =
+      collectionView === "series"
+        ? selectedSeriesIds.size
+        : selectedVolumeIds.size
     if (selectedCount === 0) return
     if (!confirmBeforeDelete) {
       void performBulkDelete()

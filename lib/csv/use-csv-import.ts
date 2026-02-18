@@ -296,9 +296,7 @@ export function useCsvImport({
         updateItem(index, {
           status: "error",
           error:
-            err instanceof Error
-              ? err.message
-              : "An unexpected error occurred"
+            err instanceof Error ? err.message : "An unexpected error occurred"
         })
       }
       return "ok"
@@ -366,15 +364,17 @@ export function useCsvImport({
   }, [])
 
   const restoreState = useCallback(
-    (saved: {
-      items: IsbnImportItem[]
-      fileName: string | null
-    }) => {
+    (saved: { items: IsbnImportItem[]; fileName: string | null }) => {
       // Reset any in-flight items to pending so they can be re-processed
       const restored = saved.items.map((item) =>
         COMPLETED_STATUSES.has(item.status)
           ? item
-          : { ...item, status: "pending" as const, result: undefined, error: undefined }
+          : {
+              ...item,
+              status: "pending" as const,
+              result: undefined,
+              error: undefined
+            }
       )
       setItems(restored)
       setFileName(saved.fileName)

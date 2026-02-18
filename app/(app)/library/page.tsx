@@ -1,12 +1,6 @@
 "use client"
 
-import {
-  useEffect,
-  useState,
-  useCallback,
-  useMemo,
-  useRef
-} from "react"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { LibraryToolbar } from "@/components/library/library-toolbar"
 import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
@@ -32,10 +26,7 @@ import type {
 import type { BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { AMAZON_BINDING_LABELS } from "@/lib/books/amazon-query"
-import {
-  getGridColumnCount,
-  getGridGapPx
-} from "@/lib/library/grid-utils"
+import { getGridColumnCount, getGridGapPx } from "@/lib/library/grid-utils"
 
 /**
  * Main library page for browsing, filtering, and managing the user's series and volume collection.
@@ -317,8 +308,6 @@ export default function LibraryPage() {
     selectedVolumeIds
   ])
 
-
-
   const assignSelectedUnassignedVolumes = useCallback(
     async (targetSeriesId: string) => {
       if (selectedUnassignedVolumeIds.length === 0) return false
@@ -353,8 +342,6 @@ export default function LibraryPage() {
     },
     [selectedUnassignedVolumeIds, editVolume, clearSelection]
   )
-
-
 
   const handleAddSeries = async (
     data: Parameters<typeof createSeries>[0],
@@ -537,7 +524,9 @@ export default function LibraryPage() {
         const results = await Promise.allSettled(
           targets.map((id) => editSeries(id, changes))
         )
-        const successCount = results.filter((r) => r.status === "fulfilled").length
+        const successCount = results.filter(
+          (r) => r.status === "fulfilled"
+        ).length
         const failureCount = results.length - successCount
         if (successCount > 0) toast.success(`Updated ${successCount} series`)
         if (failureCount > 0) toast.error(`${failureCount} updates failed`)
@@ -548,14 +537,27 @@ export default function LibraryPage() {
         const results = await Promise.allSettled(
           targets.map((v) => editVolume(v.series_id ?? null, v.id, changes))
         )
-        const successCount = results.filter((r) => r.status === "fulfilled").length
+        const successCount = results.filter(
+          (r) => r.status === "fulfilled"
+        ).length
         const failureCount = results.length - successCount
-        if (successCount > 0) toast.success(`Updated ${successCount} volume${successCount === 1 ? "" : "s"}`)
+        if (successCount > 0)
+          toast.success(
+            `Updated ${successCount} volume${successCount === 1 ? "" : "s"}`
+          )
         if (failureCount > 0) toast.error(`${failureCount} updates failed`)
       }
       clearSelection()
     },
-    [collectionView, selectedSeriesIds, selectedVolumeIds, volumeLookup, editSeries, editVolume, clearSelection]
+    [
+      collectionView,
+      selectedSeriesIds,
+      selectedVolumeIds,
+      volumeLookup,
+      editSeries,
+      editVolume,
+      clearSelection
+    ]
   )
 
   const selectedVolumeIdsArray = useMemo(
@@ -810,35 +812,26 @@ export default function LibraryPage() {
     [addBooksFromSearchResults]
   )
 
-  const handleVolumeDialogChange = useCallback(
-    (open: boolean) => {
-      setVolumeDialogOpen(open)
-      if (!open) {
-        setEditingVolume(null)
-        setSelectedSeriesId(null)
-        setPendingSeriesSelection(false)
-      }
-    },
-    []
-  )
+  const handleVolumeDialogChange = useCallback((open: boolean) => {
+    setVolumeDialogOpen(open)
+    if (!open) {
+      setEditingVolume(null)
+      setSelectedSeriesId(null)
+      setPendingSeriesSelection(false)
+    }
+  }, [])
 
-  const handleSeriesDialogChange = useCallback(
-    (open: boolean) => {
-      setSeriesDialogOpen(open)
-      if (!open) {
-        setEditingSeries(null)
-        setPendingSeriesSelection(false)
-      }
-    },
-    []
-  )
+  const handleSeriesDialogChange = useCallback((open: boolean) => {
+    setSeriesDialogOpen(open)
+    if (!open) {
+      setEditingSeries(null)
+      setPendingSeriesSelection(false)
+    }
+  }, [])
 
-  const handleScrapeTargetChange = useCallback(
-    (open: boolean) => {
-      if (!open) setScrapeTarget(null)
-    },
-    []
-  )
+  const handleScrapeTargetChange = useCallback((open: boolean) => {
+    if (!open) setScrapeTarget(null)
+  }, [])
 
   return (
     <div

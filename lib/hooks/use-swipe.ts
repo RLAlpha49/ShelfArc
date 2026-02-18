@@ -41,17 +41,14 @@ export function useSwipe({
   const tracking = useRef(false)
   const swiping = useRef(false)
 
-  const onTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      // Ignore multi-touch
-      if (e.touches.length !== 1) return
-      startX.current = e.touches[0].clientX
-      startY.current = e.touches[0].clientY
-      tracking.current = true
-      swiping.current = false
-    },
-    []
-  )
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    // Ignore multi-touch
+    if (e.touches.length !== 1) return
+    startX.current = e.touches[0].clientX
+    startY.current = e.touches[0].clientY
+    tracking.current = true
+    swiping.current = false
+  }, [])
 
   const onTouchMove = useCallback(
     (e: React.TouchEvent) => {
@@ -92,9 +89,15 @@ export function useSwipe({
     (deltaX: number) => {
       if (Math.abs(deltaX) < threshold) return
 
-      if (deltaX < -threshold && (direction === "both" || direction === "left")) {
+      if (
+        deltaX < -threshold &&
+        (direction === "both" || direction === "left")
+      ) {
         onSwipeLeft?.()
-      } else if (deltaX > threshold && (direction === "both" || direction === "right")) {
+      } else if (
+        deltaX > threshold &&
+        (direction === "both" || direction === "right")
+      ) {
         onSwipeRight?.()
       }
     },

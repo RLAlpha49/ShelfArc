@@ -96,7 +96,7 @@ export function DashboardLayoutCustomizer() {
         render={
           <button
             type="button"
-            className="border-input dark:bg-input/30 hover:bg-accent hover:text-foreground hover:shadow-sm hover:border-border/80 inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs/relaxed font-medium transition-all outline-none"
+            className="border-input dark:bg-input/30 hover:bg-accent hover:text-foreground hover:border-border/80 inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs/relaxed font-medium transition-all outline-none hover:shadow-sm"
           />
         }
       >
@@ -156,7 +156,7 @@ export function DashboardLayoutCustomizer() {
                             type="button"
                             onClick={() => moveWidget(widget.id, "up")}
                             disabled={idx === 0}
-                            className="text-muted-foreground hover:text-foreground disabled:opacity-30 rounded p-0.5 transition-colors"
+                            className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors disabled:opacity-30"
                             aria-label={`Move ${widget.label} up`}
                           >
                             <svg
@@ -174,7 +174,7 @@ export function DashboardLayoutCustomizer() {
                             type="button"
                             onClick={() => moveWidget(widget.id, "down")}
                             disabled={idx === widgets.length - 1}
-                            className="text-muted-foreground hover:text-foreground disabled:opacity-30 rounded p-0.5 transition-colors"
+                            className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors disabled:opacity-30"
                             aria-label={`Move ${widget.label} down`}
                           >
                             <svg

@@ -175,11 +175,7 @@ export default async function DashboardPage() {
  * Async server component that fetches collection data and computes analytics.
  * Wrapped in Suspense so the page shell streams immediately while data loads.
  */
-async function DashboardDataSection({
-  userId
-}: {
-  readonly userId: string
-}) {
+async function DashboardDataSection({ userId }: { readonly userId: string }) {
   const supabase = await createUserClient()
 
   // Fetch all series + volumes in parallel

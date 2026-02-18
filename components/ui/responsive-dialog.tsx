@@ -74,9 +74,7 @@ export function ResponsiveDialog({
               </SheetDescription>
             )}
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto">
-            {children}
-          </div>
+          <div className="flex-1 overflow-y-auto">{children}</div>
           {footer && <SheetFooter>{footer}</SheetFooter>}
         </SheetContent>
       </Sheet>
@@ -85,10 +83,7 @@ export function ResponsiveDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={showCloseButton}
-        className={className}
-      >
+      <DialogContent showCloseButton={showCloseButton} className={className}>
         <DialogHeader>
           <DialogTitle className="font-display text-lg tracking-tight">
             {title}
@@ -161,4 +156,3 @@ export function ResponsiveDialogRaw({
     </Dialog>
   )
 }
-

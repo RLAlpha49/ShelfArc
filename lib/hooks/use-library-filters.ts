@@ -1,7 +1,11 @@
 "use client"
 
 import { useCallback, useMemo } from "react"
-import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
+import {
+  useLibraryStore,
+  selectAllSeries,
+  selectAllUnassignedVolumes
+} from "@/lib/store/library-store"
 import { useCollectionsStore } from "@/lib/store/collections-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
@@ -245,7 +249,10 @@ export function useLibraryFilters() {
         return false
       }
 
-      if (activeCollectionVolumeIds && !activeCollectionVolumeIds.has(volume.id))
+      if (
+        activeCollectionVolumeIds &&
+        !activeCollectionVolumeIds.has(volume.id)
+      )
         return false
 
       return true
@@ -290,7 +297,10 @@ export function useLibraryFilters() {
         return false
       }
 
-      if (activeCollectionVolumeIds && !activeCollectionVolumeIds.has(volume.id))
+      if (
+        activeCollectionVolumeIds &&
+        !activeCollectionVolumeIds.has(volume.id)
+      )
         return false
 
       return true
@@ -335,14 +345,28 @@ export function useLibraryFilters() {
               multiplier || compareStrings(a.series.title, b.series.title)
           )
         case "started_at": {
-          const aTs = a.volume.started_at ? new Date(a.volume.started_at).getTime() : 0
-          const bTs = b.volume.started_at ? new Date(b.volume.started_at).getTime() : 0
-          return (aTs - bTs) * multiplier || compareStrings(a.series.title, b.series.title)
+          const aTs = a.volume.started_at
+            ? new Date(a.volume.started_at).getTime()
+            : 0
+          const bTs = b.volume.started_at
+            ? new Date(b.volume.started_at).getTime()
+            : 0
+          return (
+            (aTs - bTs) * multiplier ||
+            compareStrings(a.series.title, b.series.title)
+          )
         }
         case "finished_at": {
-          const aTs = a.volume.finished_at ? new Date(a.volume.finished_at).getTime() : 0
-          const bTs = b.volume.finished_at ? new Date(b.volume.finished_at).getTime() : 0
-          return (aTs - bTs) * multiplier || compareStrings(a.series.title, b.series.title)
+          const aTs = a.volume.finished_at
+            ? new Date(a.volume.finished_at).getTime()
+            : 0
+          const bTs = b.volume.finished_at
+            ? new Date(b.volume.finished_at).getTime()
+            : 0
+          return (
+            (aTs - bTs) * multiplier ||
+            compareStrings(a.series.title, b.series.title)
+          )
         }
         case "volume_count":
           return (

@@ -44,9 +44,7 @@ export function BarcodeScanner() {
   const scanningRef = useRef(false)
 
   const [phase, setPhase] = useState<ScannerPhase>("idle")
-  const [isSupported] = useState<boolean>(
-    () => "BarcodeDetector" in globalThis
-  )
+  const [isSupported] = useState<boolean>(() => "BarcodeDetector" in globalThis)
   const [manualIsbn, setManualIsbn] = useState("")
   const [scannedItems, setScannedItems] = useState<ScannedIsbn[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -81,11 +79,7 @@ export function BarcodeScanner() {
   const scanFrameRef = useRef<(() => Promise<void>) | undefined>(undefined)
 
   const scanFrame = useCallback(async () => {
-    if (
-      !scanningRef.current ||
-      !videoRef.current ||
-      !detectorRef.current
-    ) {
+    if (!scanningRef.current || !videoRef.current || !detectorRef.current) {
       return
     }
 
@@ -157,7 +151,9 @@ export function BarcodeScanner() {
     if (!isbn) return
 
     if (!isValidIsbn(isbn)) {
-      toast.error("Invalid ISBN format. Please enter a valid ISBN-10 or ISBN-13.")
+      toast.error(
+        "Invalid ISBN format. Please enter a valid ISBN-10 or ISBN-13."
+      )
       return
     }
 
@@ -184,9 +180,7 @@ export function BarcodeScanner() {
         if (books.length === 0) {
           setScannedItems((prev) =>
             prev.map((i) =>
-              i.isbn === item.isbn
-                ? { ...i, status: "not-found" }
-                : i
+              i.isbn === item.isbn ? { ...i, status: "not-found" } : i
             )
           )
           return
@@ -289,7 +283,7 @@ export function BarcodeScanner() {
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="border-copper/60 h-24 w-48 rounded-lg border-2 shadow-[0_0_20px_var(--warm-glow)]" />
             </div>
-            <div className="absolute right-3 top-3 flex gap-2">
+            <div className="absolute top-3 right-3 flex gap-2">
               <Button
                 variant="secondary"
                 size="sm"
@@ -313,9 +307,7 @@ export function BarcodeScanner() {
           </div>
           <p className="text-muted-foreground text-center text-xs">
             Point your camera at an ISBN barcode.{" "}
-            {batchMode
-              ? "Batch mode: keep scanning to add multiple."
-              : ""}
+            {batchMode ? "Batch mode: keep scanning to add multiple." : ""}
           </p>
         </div>
       )}
@@ -365,9 +357,9 @@ export function BarcodeScanner() {
       {isSupported === false && (
         <div className="bg-muted/50 rounded-xl border p-4">
           <p className="text-muted-foreground text-sm">
-            Your browser doesn&apos;t support the BarcodeDetector API.
-            Use the manual ISBN input above, or try Chrome/Edge on a
-            mobile device for camera scanning.
+            Your browser doesn&apos;t support the BarcodeDetector API. Use the
+            manual ISBN input above, or try Chrome/Edge on a mobile device for
+            camera scanning.
           </p>
         </div>
       )}
@@ -414,9 +406,7 @@ export function BarcodeScanner() {
                       </span>
                     )}
                     <div className="flex-1" />
-                    <Badge
-                      className={`shrink-0 text-[10px] ${config.color}`}
-                    >
+                    <Badge className={`shrink-0 text-[10px] ${config.color}`}>
                       {config.label}
                     </Badge>
                     {item.status === "pending" && (
@@ -452,8 +442,7 @@ export function BarcodeScanner() {
               onClick={handleAddAll}
               disabled={
                 isProcessing ||
-                scannedItems.filter((i) => i.status === "pending")
-                  .length === 0
+                scannedItems.filter((i) => i.status === "pending").length === 0
               }
             >
               {isProcessing

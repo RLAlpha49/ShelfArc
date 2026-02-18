@@ -93,12 +93,23 @@ export function usePullToRefresh({
     const touchStartOpts = { passive: true } as const
     const touchMoveOpts = { passive: true } as const
 
-    target.addEventListener("touchstart", handleTouchStart as EventListener, touchStartOpts)
-    target.addEventListener("touchmove", handleTouchMove as EventListener, touchMoveOpts)
+    target.addEventListener(
+      "touchstart",
+      handleTouchStart as EventListener,
+      touchStartOpts
+    )
+    target.addEventListener(
+      "touchmove",
+      handleTouchMove as EventListener,
+      touchMoveOpts
+    )
     target.addEventListener("touchend", handleTouchEnd as EventListener)
 
     return () => {
-      target.removeEventListener("touchstart", handleTouchStart as EventListener)
+      target.removeEventListener(
+        "touchstart",
+        handleTouchStart as EventListener
+      )
       target.removeEventListener("touchmove", handleTouchMove as EventListener)
       target.removeEventListener("touchend", handleTouchEnd as EventListener)
     }

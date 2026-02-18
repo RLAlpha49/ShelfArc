@@ -15,7 +15,11 @@ import { NextRequest, NextResponse } from "next/server"
 
 const getUserMock = mock(async () => ({
   data: {
-    user: { id: "user-1", email: "test@example.com", email_confirmed_at: "2025-01-01T00:00:00Z" } as {
+    user: {
+      id: "user-1",
+      email: "test@example.com",
+      email_confirmed_at: "2025-01-01T00:00:00Z"
+    } as {
       id: string
       email: string
       email_confirmed_at: string | null
@@ -74,7 +78,13 @@ beforeEach(() => {
   setAllSpy.mockClear()
 
   getUserMock.mockResolvedValue({
-    data: { user: { id: "user-1", email: "test@example.com", email_confirmed_at: "2025-01-01T00:00:00Z" } },
+    data: {
+      user: {
+        id: "user-1",
+        email: "test@example.com",
+        email_confirmed_at: "2025-01-01T00:00:00Z"
+      }
+    },
     error: null
   })
 })

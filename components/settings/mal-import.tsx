@@ -34,10 +34,10 @@ type MalImportPhase = "idle" | "parsed" | "importing" | "complete"
 /* ─── MAL Status Mapping ────────────────────────────────── */
 
 const MAL_STATUS_MAP: Record<string, ReadingStatus> = {
-  "Reading": "reading",
-  "Completed": "completed",
+  Reading: "reading",
+  Completed: "completed",
   "On-Hold": "on_hold",
-  "Dropped": "dropped",
+  Dropped: "dropped",
   "Plan to Read": "unread"
 }
 
@@ -77,15 +77,15 @@ function parseMalXml(xmlText: string): MalMangaEntry[] {
   const entries: MalMangaEntry[] = []
 
   for (const manga of mangaElements) {
-    const title = getTextContent(manga, "series_title") ||
+    const title =
+      getTextContent(manga, "series_title") ||
       getTextContent(manga, "manga_title")
     if (!title) continue
 
     const rawStatus = getTextContent(manga, "my_status")
-    const readVolumes = parseIntSafe(
-      getTextContent(manga, "my_read_volumes")
-    )
-    const totalRaw = getTextContent(manga, "series_volumes") ||
+    const readVolumes = parseIntSafe(getTextContent(manga, "my_read_volumes"))
+    const totalRaw =
+      getTextContent(manga, "series_volumes") ||
       getTextContent(manga, "manga_volumes")
     const parsedTotal = Number.parseInt(totalRaw, 10)
     const totalVolumes = parsedTotal > 0 ? parsedTotal : null
@@ -170,16 +170,13 @@ export function MalImport() {
     []
   )
 
-  const resolveVolumeCount = useCallback(
-    (entry: MalMangaEntry): number => {
-      if (entry.readVolumes > 0) return entry.readVolumes
-      if (entry.totalVolumes && entry.status === "completed") {
-        return entry.totalVolumes
-      }
-      return 1
-    },
-    []
-  )
+  const resolveVolumeCount = useCallback((entry: MalMangaEntry): number => {
+    if (entry.readVolumes > 0) return entry.readVolumes
+    if (entry.totalVolumes && entry.status === "completed") {
+      return entry.totalVolumes
+    }
+    return 1
+  }, [])
 
   const importEntry = useCallback(
     async (entry: MalMangaEntry) => {
@@ -404,8 +401,7 @@ export function MalImport() {
               className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
               style={{
                 width: `${pct}%`,
-                background:
-                  "linear-gradient(90deg, var(--copper), var(--gold))"
+                background: "linear-gradient(90deg, var(--copper), var(--gold))"
               }}
             />
           </div>

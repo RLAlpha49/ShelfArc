@@ -368,7 +368,9 @@ export function useLibraryMutations() {
         if (seriesError) throw seriesError
 
         if (!deleteSeriesVolumes && volumesToUpdate.length > 0) {
-          const currentUnassigned = selectAllUnassignedVolumes(useLibraryStore.getState())
+          const currentUnassigned = selectAllUnassignedVolumes(
+            useLibraryStore.getState()
+          )
           const detachedVolumes = volumesToUpdate.map((volume) => ({
             ...volume,
             series_id: null
@@ -400,12 +402,7 @@ export function useLibraryMutations() {
         throw error
       }
     },
-    [
-      supabase,
-      deleteSeriesVolumes,
-      setUnassignedVolumes,
-      deleteSeries
-    ]
+    [supabase, deleteSeriesVolumes, setUnassignedVolumes, deleteSeries]
   )
 
   // Create new volume
@@ -505,10 +502,7 @@ export function useLibraryMutations() {
         const hasSeriesId = Object.hasOwn(data, "series_id")
         const nextSeriesId = hasSeriesId ? (data.series_id ?? null) : seriesId
         const editState = useLibraryStore.getState()
-        if (
-          nextSeriesId &&
-          !editState.seriesById[nextSeriesId]
-        ) {
+        if (nextSeriesId && !editState.seriesById[nextSeriesId]) {
           throw new Error("Series not found")
         }
         const sanitizedData = sanitizeVolumeUpdate(data)

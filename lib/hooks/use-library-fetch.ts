@@ -140,7 +140,14 @@ export function useLibraryFetch() {
         setIsLoading(false)
       }
     }
-  }, [setSeries, setUnassignedVolumes, setIsLoading, setLastFetchedAt, sortField, sortOrder])
+  }, [
+    setSeries,
+    setUnassignedVolumes,
+    setIsLoading,
+    setLastFetchedAt,
+    sortField,
+    sortOrder
+  ])
 
   return { fetchSeries, isLoading }
 }

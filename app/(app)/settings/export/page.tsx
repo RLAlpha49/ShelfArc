@@ -18,7 +18,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLibrary } from "@/lib/hooks/use-library"
-import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
+import {
+  useLibraryStore,
+  selectAllSeries,
+  selectAllUnassignedVolumes
+} from "@/lib/store/library-store"
 import { toast } from "sonner"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
@@ -377,260 +381,269 @@ export default function ExportPage() {
                 <Skeleton className="h-10 w-36 rounded-xl" />
               </div>
             ) : (
-            <>
-            <div className="space-y-3">
-              <Label>Export Format</Label>
-              <RadioGroup
-                value={format}
-                onValueChange={(value: ExportFormat) => setFormat(value)}
-                className="grid grid-cols-2 gap-4"
-              >
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
-                  <RadioGroupItem value="json" id="json" className="mt-1" />
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="json"
-                      className="cursor-pointer font-medium"
-                    >
-                      JSON
-                    </Label>
-                    <p className="text-muted-foreground text-sm">
-                      Full data. Best for backup and re-import.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
-                  <RadioGroupItem value="csv" id="csv" className="mt-1" />
-                  <div className="space-y-1">
-                    <Label htmlFor="csv" className="cursor-pointer font-medium">
-                      CSV
-                    </Label>
-                    <p className="text-muted-foreground text-sm">
-                      Spreadsheet-friendly. Great for Excel or sharing.
-                      Downloads two files (series &amp; volumes).
-                    </p>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-3">
-              <Label>Export Scope</Label>
-              <RadioGroup
-                value={scope}
-                onValueChange={(value: ExportScope) => setScope(value)}
-                className="grid grid-cols-2 gap-4"
-              >
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
-                  <RadioGroupItem value="all" id="scope-all" className="mt-1" />
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="scope-all"
-                      className="cursor-pointer font-medium"
-                    >
-                      All data
-                    </Label>
-                    <p className="text-muted-foreground text-sm">
-                      Export your entire library.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
-                  <RadioGroupItem
-                    value="selected"
-                    id="scope-selected"
-                    className="mt-1"
-                  />
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="scope-selected"
-                      className="cursor-pointer font-medium"
-                    >
-                      Selected
-                    </Label>
-                    <p className="text-muted-foreground text-sm">
-                      Choose series or volumes to export.
-                    </p>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {scope === "selected" && (
-              <div className="space-y-3">
-                <Label>Pick what to export</Label>
-                <Tabs
-                  value={selectionMode}
-                  onValueChange={(value) =>
-                    setSelectionMode(value as SelectionMode)
-                  }
-                >
-                  <TabsList className="rounded-xl">
-                    <TabsTrigger value="series">Series</TabsTrigger>
-                    <TabsTrigger value="volumes">Volumes</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="series" className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-xl"
-                        onClick={() =>
-                          setSelectedSeriesIds(
-                            new Set(storeSeries.map((s) => s.id))
-                          )
-                        }
-                      >
-                        Select all
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-xl"
-                        onClick={() => setSelectedSeriesIds(new Set())}
-                      >
-                        Clear
-                      </Button>
-                      <div className="flex-1" />
-                      <span className="text-muted-foreground text-xs">
-                        {selectedSeriesIds.size} selected
-                      </span>
-                    </div>
-
-                    <ScrollArea className="h-56 rounded-xl border">
-                      <div className="space-y-1 p-2">
-                        {storeSeries.map((s) => {
-                          const checked = selectedSeriesIds.has(s.id)
-                          return (
-                            <label
-                              key={s.id}
-                              className="hover:bg-muted/20 flex cursor-pointer items-start gap-3 rounded-lg p-2"
-                            >
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(next) => {
-                                  const isChecked = Boolean(next)
-                                  setSelectedSeriesIds((prev) => {
-                                    const copy = new Set(prev)
-                                    if (isChecked) copy.add(s.id)
-                                    else copy.delete(s.id)
-                                    return copy
-                                  })
-                                }}
-                              />
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium">
-                                  {s.title}
-                                </div>
-                                <div className="text-muted-foreground truncate text-xs">
-                                  {s.volumes.length} volumes
-                                  {s.author ? ` · ${s.author}` : ""}
-                                </div>
-                              </div>
-                            </label>
-                          )
-                        })}
+              <>
+                <div className="space-y-3">
+                  <Label>Export Format</Label>
+                  <RadioGroup
+                    value={format}
+                    onValueChange={(value: ExportFormat) => setFormat(value)}
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    <div className="flex items-start space-x-3 rounded-lg border p-4">
+                      <RadioGroupItem value="json" id="json" className="mt-1" />
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="json"
+                          className="cursor-pointer font-medium"
+                        >
+                          JSON
+                        </Label>
+                        <p className="text-muted-foreground text-sm">
+                          Full data. Best for backup and re-import.
+                        </p>
                       </div>
-                    </ScrollArea>
-                  </TabsContent>
-
-                  <TabsContent value="volumes" className="space-y-2">
-                    <Input
-                      value={volumeSearch}
-                      onChange={(e) => setVolumeSearch(e.target.value)}
-                      placeholder="Search volumes by title, series, ISBN, or number…"
-                      className="rounded-xl"
-                    />
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-xl"
-                        onClick={() =>
-                          setSelectedVolumeIds(
-                            new Set(filteredFlatVolumes.map((row) => row.id))
-                          )
-                        }
-                      >
-                        Select filtered
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-xl"
-                        onClick={() => setSelectedVolumeIds(new Set())}
-                      >
-                        Clear
-                      </Button>
-                      <div className="flex-1" />
-                      <span className="text-muted-foreground text-xs">
-                        {selectedVolumeIds.size} selected
-                      </span>
                     </div>
-
-                    <ScrollArea className="h-56 rounded-xl border">
-                      <div className="space-y-1 p-2">
-                        {filteredFlatVolumes.map((row) => {
-                          const checked = selectedVolumeIds.has(row.id)
-                          return (
-                            <label
-                              key={row.id}
-                              className="hover:bg-muted/20 flex cursor-pointer items-start gap-3 rounded-lg p-2"
-                            >
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(next) => {
-                                  const isChecked = Boolean(next)
-                                  setSelectedVolumeIds((prev) => {
-                                    const copy = new Set(prev)
-                                    if (isChecked) copy.add(row.id)
-                                    else copy.delete(row.id)
-                                    return copy
-                                  })
-                                }}
-                              />
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium">
-                                  {row.label}
-                                </div>
-                                <div className="text-muted-foreground truncate text-xs">
-                                  {row.subtitle}
-                                </div>
-                              </div>
-                            </label>
-                          )
-                        })}
+                    <div className="flex items-start space-x-3 rounded-lg border p-4">
+                      <RadioGroupItem value="csv" id="csv" className="mt-1" />
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="csv"
+                          className="cursor-pointer font-medium"
+                        >
+                          CSV
+                        </Label>
+                        <p className="text-muted-foreground text-sm">
+                          Spreadsheet-friendly. Great for Excel or sharing.
+                          Downloads two files (series &amp; volumes).
+                        </p>
                       </div>
-                    </ScrollArea>
-                  </TabsContent>
-                </Tabs>
+                    </div>
+                  </RadioGroup>
+                </div>
 
-                {!canExportSelected && (
-                  <p className="text-muted-foreground text-xs">
-                    Select at least one item to export.
-                  </p>
+                <div className="space-y-3">
+                  <Label>Export Scope</Label>
+                  <RadioGroup
+                    value={scope}
+                    onValueChange={(value: ExportScope) => setScope(value)}
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    <div className="flex items-start space-x-3 rounded-lg border p-4">
+                      <RadioGroupItem
+                        value="all"
+                        id="scope-all"
+                        className="mt-1"
+                      />
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="scope-all"
+                          className="cursor-pointer font-medium"
+                        >
+                          All data
+                        </Label>
+                        <p className="text-muted-foreground text-sm">
+                          Export your entire library.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 rounded-lg border p-4">
+                      <RadioGroupItem
+                        value="selected"
+                        id="scope-selected"
+                        className="mt-1"
+                      />
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="scope-selected"
+                          className="cursor-pointer font-medium"
+                        >
+                          Selected
+                        </Label>
+                        <p className="text-muted-foreground text-sm">
+                          Choose series or volumes to export.
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {scope === "selected" && (
+                  <div className="space-y-3">
+                    <Label>Pick what to export</Label>
+                    <Tabs
+                      value={selectionMode}
+                      onValueChange={(value) =>
+                        setSelectionMode(value as SelectionMode)
+                      }
+                    >
+                      <TabsList className="rounded-xl">
+                        <TabsTrigger value="series">Series</TabsTrigger>
+                        <TabsTrigger value="volumes">Volumes</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="series" className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() =>
+                              setSelectedSeriesIds(
+                                new Set(storeSeries.map((s) => s.id))
+                              )
+                            }
+                          >
+                            Select all
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() => setSelectedSeriesIds(new Set())}
+                          >
+                            Clear
+                          </Button>
+                          <div className="flex-1" />
+                          <span className="text-muted-foreground text-xs">
+                            {selectedSeriesIds.size} selected
+                          </span>
+                        </div>
+
+                        <ScrollArea className="h-56 rounded-xl border">
+                          <div className="space-y-1 p-2">
+                            {storeSeries.map((s) => {
+                              const checked = selectedSeriesIds.has(s.id)
+                              return (
+                                <label
+                                  key={s.id}
+                                  className="hover:bg-muted/20 flex cursor-pointer items-start gap-3 rounded-lg p-2"
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(next) => {
+                                      const isChecked = Boolean(next)
+                                      setSelectedSeriesIds((prev) => {
+                                        const copy = new Set(prev)
+                                        if (isChecked) copy.add(s.id)
+                                        else copy.delete(s.id)
+                                        return copy
+                                      })
+                                    }}
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium">
+                                      {s.title}
+                                    </div>
+                                    <div className="text-muted-foreground truncate text-xs">
+                                      {s.volumes.length} volumes
+                                      {s.author ? ` · ${s.author}` : ""}
+                                    </div>
+                                  </div>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </ScrollArea>
+                      </TabsContent>
+
+                      <TabsContent value="volumes" className="space-y-2">
+                        <Input
+                          value={volumeSearch}
+                          onChange={(e) => setVolumeSearch(e.target.value)}
+                          placeholder="Search volumes by title, series, ISBN, or number…"
+                          className="rounded-xl"
+                        />
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() =>
+                              setSelectedVolumeIds(
+                                new Set(
+                                  filteredFlatVolumes.map((row) => row.id)
+                                )
+                              )
+                            }
+                          >
+                            Select filtered
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() => setSelectedVolumeIds(new Set())}
+                          >
+                            Clear
+                          </Button>
+                          <div className="flex-1" />
+                          <span className="text-muted-foreground text-xs">
+                            {selectedVolumeIds.size} selected
+                          </span>
+                        </div>
+
+                        <ScrollArea className="h-56 rounded-xl border">
+                          <div className="space-y-1 p-2">
+                            {filteredFlatVolumes.map((row) => {
+                              const checked = selectedVolumeIds.has(row.id)
+                              return (
+                                <label
+                                  key={row.id}
+                                  className="hover:bg-muted/20 flex cursor-pointer items-start gap-3 rounded-lg p-2"
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(next) => {
+                                      const isChecked = Boolean(next)
+                                      setSelectedVolumeIds((prev) => {
+                                        const copy = new Set(prev)
+                                        if (isChecked) copy.add(row.id)
+                                        else copy.delete(row.id)
+                                        return copy
+                                      })
+                                    }}
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium">
+                                      {row.label}
+                                    </div>
+                                    <div className="text-muted-foreground truncate text-xs">
+                                      {row.subtitle}
+                                    </div>
+                                  </div>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </ScrollArea>
+                      </TabsContent>
+                    </Tabs>
+
+                    {!canExportSelected && (
+                      <p className="text-muted-foreground text-xs">
+                        Select at least one item to export.
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
 
-            <div className="flex gap-4">
-              <Button
-                onClick={handleExport}
-                disabled={isLoading || isExporting || !canExportSelected}
-                className="rounded-xl px-6"
-              >
-                {isExporting ? "Exporting..." : "Export"}
-              </Button>
-              <Link
-                href="/settings"
-                className="text-muted-foreground hover:text-foreground inline-flex h-10 items-center justify-center px-4 text-sm font-medium transition-colors"
-              >
-                Cancel
-              </Link>
-            </div>
-            </>
+                <div className="flex gap-4">
+                  <Button
+                    onClick={handleExport}
+                    disabled={isLoading || isExporting || !canExportSelected}
+                    className="rounded-xl px-6"
+                  >
+                    {isExporting ? "Exporting..." : "Export"}
+                  </Button>
+                  <Link
+                    href="/settings"
+                    className="text-muted-foreground hover:text-foreground inline-flex h-10 items-center justify-center px-4 text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </Link>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

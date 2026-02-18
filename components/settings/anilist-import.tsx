@@ -46,19 +46,15 @@ function mapAniListStatus(raw: string): ReadingStatus {
 
 /* ─── JSON Parsing ──────────────────────────────────────── */
 
-function extractLists(
-  parsed: unknown
-): Array<Record<string, unknown>> | null {
+function extractLists(parsed: unknown): Array<Record<string, unknown>> | null {
   if (!parsed || typeof parsed !== "object") return null
 
   // Format: { data: { MediaListCollection: { lists: [...] } } }
   const asObj = parsed as Record<string, unknown>
   if (asObj.data && typeof asObj.data === "object") {
     const data = asObj.data as Record<string, unknown>
-    const collection =
-      (data.MediaListCollection ?? data.mediaListCollection) as
-        | Record<string, unknown>
-        | undefined
+    const collection = (data.MediaListCollection ??
+      data.mediaListCollection) as Record<string, unknown> | undefined
     if (collection && Array.isArray(collection.lists)) {
       return collection.lists as Array<Record<string, unknown>>
     }
@@ -188,9 +184,7 @@ export function AniListImport() {
         )
       } catch (err) {
         toast.error(
-          err instanceof Error
-            ? err.message
-            : "Failed to parse the JSON file."
+          err instanceof Error ? err.message : "Failed to parse the JSON file."
         )
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = ""
@@ -199,16 +193,13 @@ export function AniListImport() {
     []
   )
 
-  const resolveVolumeCount = useCallback(
-    (entry: AniListEntry): number => {
-      if (entry.progress > 0) return entry.progress
-      if (entry.totalVolumes && entry.status === "completed") {
-        return entry.totalVolumes
-      }
-      return 1
-    },
-    []
-  )
+  const resolveVolumeCount = useCallback((entry: AniListEntry): number => {
+    if (entry.progress > 0) return entry.progress
+    if (entry.totalVolumes && entry.status === "completed") {
+      return entry.totalVolumes
+    }
+    return 1
+  }, [])
 
   const importEntry = useCallback(
     async (entry: AniListEntry) => {
@@ -433,8 +424,7 @@ export function AniListImport() {
               className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
               style={{
                 width: `${pct}%`,
-                background:
-                  "linear-gradient(90deg, var(--copper), var(--gold))"
+                background: "linear-gradient(90deg, var(--copper), var(--gold))"
               }}
             />
           </div>

@@ -2120,9 +2120,7 @@ export default function SettingsPage() {
                     }
                     className="rounded-xl"
                   >
-                    {isChangingPassword
-                      ? "Changing..."
-                      : "Change Password"}
+                    {isChangingPassword ? "Changing..." : "Change Password"}
                   </Button>
                 </div>
               </div>

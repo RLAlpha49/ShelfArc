@@ -13,11 +13,20 @@ export const LibraryStatsBar = memo(function LibraryStatsBar({
   const stats = useMemo(() => {
     const allVolumes = series.flatMap((s) => s.volumes)
     const totalVolumes = allVolumes.length
-    const owned = allVolumes.filter((v) => v.ownership_status === "owned").length
-    const wishlist = allVolumes.filter((v) => v.ownership_status === "wishlist").length
-    const read = allVolumes.filter((v) => v.reading_status === "completed").length
-    const inProgress = allVolumes.filter((v) => v.reading_status === "reading").length
-    const completionRate = totalVolumes > 0 ? Math.round((read / totalVolumes) * 100) : 0
+    const owned = allVolumes.filter(
+      (v) => v.ownership_status === "owned"
+    ).length
+    const wishlist = allVolumes.filter(
+      (v) => v.ownership_status === "wishlist"
+    ).length
+    const read = allVolumes.filter(
+      (v) => v.reading_status === "completed"
+    ).length
+    const inProgress = allVolumes.filter(
+      (v) => v.reading_status === "reading"
+    ).length
+    const completionRate =
+      totalVolumes > 0 ? Math.round((read / totalVolumes) * 100) : 0
     return { totalVolumes, owned, wishlist, read, inProgress, completionRate }
   }, [series])
 
@@ -75,7 +84,7 @@ export const LibraryStatsBar = memo(function LibraryStatsBar({
           </div>
         </div>
         <div className="hidden text-center md:block">
-          <div className="font-display text-lg font-bold text-copper md:text-xl">
+          <div className="font-display text-copper text-lg font-bold md:text-xl">
             {stats.completionRate}%
           </div>
           <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">

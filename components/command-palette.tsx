@@ -18,7 +18,11 @@ import {
   CommandList,
   CommandSeparator
 } from "@/components/ui/command"
-import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
+import {
+  useLibraryStore,
+  selectAllSeries,
+  selectAllUnassignedVolumes
+} from "@/lib/store/library-store"
 import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -472,7 +476,7 @@ export function CommandPalette() {
                       )
                     }
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
                       {entry.type === "series"
                         ? sectionIcons.series
                         : sectionIcons.volume}

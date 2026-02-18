@@ -73,7 +73,9 @@ export interface LibraryDialogsProps {
   readonly onVolumeDialogChange: (open: boolean) => void
   readonly editingVolume: Volume | null
   readonly nextVolumeNumber: number
-  readonly onVolumeSubmit: (data: Omit<VolumeInsert, "user_id" | "series_id">) => Promise<void>
+  readonly onVolumeSubmit: (
+    data: Omit<VolumeInsert, "user_id" | "series_id">
+  ) => Promise<void>
   readonly series: SeriesWithVolumes[]
   readonly selectedSeriesId: string | null
   readonly onSeriesChange: (id: string | null) => void

@@ -267,10 +267,7 @@ export function VolumeSelectionBar({
             variant="outline"
             size="sm"
             onClick={selectedCount === 1 ? onEdit : onBulkEdit}
-            disabled={
-              selectedCount === 0 ||
-              (selectedCount > 1 && !onBulkEdit)
-            }
+            disabled={selectedCount === 0 || (selectedCount > 1 && !onBulkEdit)}
             className="rounded-xl"
           >
             Edit{selectedCount > 1 ? ` (${selectedCount})` : ""}

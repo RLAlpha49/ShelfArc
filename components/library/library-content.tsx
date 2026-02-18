@@ -329,9 +329,7 @@ function VolumesView({
                     }
                     onToggleRead={() => onToggleRead(item.volume)}
                     onToggleWishlist={() => onToggleWishlist(item.volume)}
-                    onSetRating={(rating) =>
-                      onSetRating(item.volume, rating)
-                    }
+                    onSetRating={(rating) => onSetRating(item.volume, rating)}
                     amazonDomain={amazonDomain}
                     bindingLabel={amazonBindingLabel}
                     selected={selectedVolumeIds.has(item.volume.id)}
@@ -353,9 +351,7 @@ function VolumesView({
                     }
                     onToggleRead={() => onToggleRead(item.volume)}
                     onToggleWishlist={() => onToggleWishlist(item.volume)}
-                    onSetRating={(rating) =>
-                      onSetRating(item.volume, rating)
-                    }
+                    onSetRating={(rating) => onSetRating(item.volume, rating)}
                     amazonDomain={amazonDomain}
                     bindingLabel={amazonBindingLabel}
                     selected={selectedVolumeIds.has(item.volume.id)}
@@ -383,12 +379,8 @@ function VolumesView({
                         onVolumeScrape(item.volume, item.series)
                       }
                       onToggleRead={() => onToggleRead(item.volume)}
-                      onToggleWishlist={() =>
-                        onToggleWishlist(item.volume)
-                      }
-                      onSetRating={(rating) =>
-                        onSetRating(item.volume, rating)
-                      }
+                      onToggleWishlist={() => onToggleWishlist(item.volume)}
+                      onSetRating={(rating) => onSetRating(item.volume, rating)}
                       amazonDomain={amazonDomain}
                       bindingLabel={amazonBindingLabel}
                       selected={selectedVolumeIds.has(item.volume.id)}
@@ -411,9 +403,7 @@ function VolumesView({
                     }
                     onToggleRead={() => onToggleRead(item.volume)}
                     onToggleWishlist={() => onToggleWishlist(item.volume)}
-                    onSetRating={(rating) =>
-                      onSetRating(item.volume, rating)
-                    }
+                    onSetRating={(rating) => onSetRating(item.volume, rating)}
                     amazonDomain={amazonDomain}
                     bindingLabel={amazonBindingLabel}
                     selected={selectedVolumeIds.has(item.volume.id)}

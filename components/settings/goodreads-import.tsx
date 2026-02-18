@@ -96,8 +96,7 @@ function parseGoodreadsCsvRow(
   const ratingRaw = Number.parseInt(get("My Rating"), 10)
   // Goodreads uses 1-5 scale, ShelfArc uses 1-10
   const rating = ratingRaw > 0 ? ratingRaw * 2 : null
-  const shelf =
-    get("Exclusive Shelf") || get("Bookshelves") || "to-read"
+  const shelf = get("Exclusive Shelf") || get("Bookshelves") || "to-read"
   const dateRead = get("Date Read") || null
   const dateAdded = get("Date Added") || null
 
@@ -117,19 +116,13 @@ function parseGoodreadsCsvRow(
 function parseGoodreadsCsv(content: string): GoodreadsEntry[] {
   const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0)
   if (lines.length < 2) {
-    throw new Error(
-      "CSV file appears empty. Expected Goodreads export format."
-    )
+    throw new Error("CSV file appears empty. Expected Goodreads export format.")
   }
 
   const headers = parseCsvLine(lines[0])
-  const titleIdx = headers.findIndex(
-    (h) => h.toLowerCase().trim() === "title"
-  )
+  const titleIdx = headers.findIndex((h) => h.toLowerCase().trim() === "title")
   if (titleIdx < 0) {
-    throw new Error(
-      "Missing 'Title' column. Is this a Goodreads CSV export?"
-    )
+    throw new Error("Missing 'Title' column. Is this a Goodreads CSV export?")
   }
 
   const entries: GoodreadsEntry[] = []
@@ -163,12 +156,8 @@ const STATUS_LABELS: Record<ReadingStatus, string> = {
 /* ─── Component ─────────────────────────────────────────── */
 
 export function GoodreadsImport() {
-  const {
-    createSeries,
-    createVolume,
-    addBookFromSearchResult,
-    fetchSeries
-  } = useLibrary()
+  const { createSeries, createVolume, addBookFromSearchResult, fetchSeries } =
+    useLibrary()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [phase, setPhase] = useState<GoodreadsImportPhase>("idle")
@@ -204,14 +193,10 @@ export function GoodreadsImport() {
         setEntries(parsed)
         setFileName(file.name)
         setPhase("parsed")
-        toast.success(
-          `Parsed ${parsed.length} books from Goodreads export.`
-        )
+        toast.success(`Parsed ${parsed.length} books from Goodreads export.`)
       } catch (err) {
         toast.error(
-          err instanceof Error
-            ? err.message
-            : "Failed to parse the CSV file."
+          err instanceof Error ? err.message : "Failed to parse the CSV file."
         )
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = ""
@@ -343,9 +328,7 @@ export function GoodreadsImport() {
   }
 
   if (phase === "parsed") {
-    const withIsbn = entries.filter(
-      (e) => e.isbn || e.isbn13
-    ).length
+    const withIsbn = entries.filter((e) => e.isbn || e.isbn13).length
     const withoutIsbn = entries.length - withIsbn
 
     return (
@@ -391,7 +374,7 @@ export function GoodreadsImport() {
                     </p>
                     <p className="text-muted-foreground text-xs">
                       {entry.author || "Unknown author"}
-                      {entry.isbn13 ?? entry.isbn
+                      {(entry.isbn13 ?? entry.isbn)
                         ? ` · ${entry.isbn13 ?? entry.isbn}`
                         : ""}
                       {entry.rating ? ` · ★ ${entry.rating}/10` : ""}
@@ -499,8 +482,7 @@ export function GoodreadsImport() {
               className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
               style={{
                 width: `${pct}%`,
-                background:
-                  "linear-gradient(90deg, var(--copper), var(--gold))"
+                background: "linear-gradient(90deg, var(--copper), var(--gold))"
               }}
             />
           </div>

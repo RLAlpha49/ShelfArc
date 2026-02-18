@@ -956,7 +956,11 @@ export function CsvImport() {
       sessionStorage.setItem(
         IMPORT_STORAGE_KEY,
         JSON.stringify({
-          items: items.map(({ isbn, status, error }) => ({ isbn, status, error })),
+          items: items.map(({ isbn, status, error }) => ({
+            isbn,
+            status,
+            error
+          })),
           fileName,
           source,
           ownershipStatus
@@ -1091,8 +1095,11 @@ export function CsvImport() {
               </p>
               <p className="text-muted-foreground mt-1 text-sm">
                 {savedProgress.processed} of {savedProgress.total} ISBNs were
-                processed{savedProgress.fileName ? ` from ${savedProgress.fileName}` : ""}.
-                You can resume where you left off.
+                processed
+                {savedProgress.fileName
+                  ? ` from ${savedProgress.fileName}`
+                  : ""}
+                . You can resume where you left off.
               </p>
               <div className="mt-3 flex gap-3">
                 <Button

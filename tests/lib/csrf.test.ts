@@ -19,7 +19,7 @@ mock.module("@/lib/csrf", () => ({
       return apiError(403, "Forbidden")
     }
     return undefined
-  },
+  }
 }))
 
 import { enforceSameOrigin } from "@/lib/csrf"
@@ -91,9 +91,7 @@ describe("enforceSameOrigin", () => {
   })
 
   it("allows requests with no origin header", () => {
-    const result = enforceSameOrigin(
-      makeRequest({ host: "localhost:3000" })
-    )
+    const result = enforceSameOrigin(makeRequest({ host: "localhost:3000" }))
     expect(result).toBeUndefined()
   })
 

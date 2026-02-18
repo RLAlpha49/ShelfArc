@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils"
 
 /** Props for the {@link LoadingButton} component. @source */
 interface LoadingButtonProps
-  extends ButtonPrimitive.Props,
-    VariantProps<typeof buttonVariants> {
+  extends ButtonPrimitive.Props, VariantProps<typeof buttonVariants> {
   /** Shows a spinner and disables the button when true. */
   readonly loading?: boolean
 }

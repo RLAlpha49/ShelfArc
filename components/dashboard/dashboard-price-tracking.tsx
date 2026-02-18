@@ -30,9 +30,7 @@ export default function DashboardPriceTracking({
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
         </div>
-        <p className="text-muted-foreground text-sm">
-          No prices tracked yet
-        </p>
+        <p className="text-muted-foreground text-sm">No prices tracked yet</p>
         <p className="text-muted-foreground/60 mt-1 text-xs">
           Add purchase prices to volumes to see insights
         </p>
