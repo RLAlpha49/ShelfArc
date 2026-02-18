@@ -1,9 +1,11 @@
 import { type NextRequest } from "next/server"
-import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
+
 import { apiError } from "@/lib/api-response"
-import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
-import { getCorrelationId, CORRELATION_HEADER } from "@/lib/correlation"
+import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
+import { CORRELATION_HEADER, getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { createUserClient } from "@/lib/supabase/server"
 
 /** Base URL for the Open Library Covers API. @source */
 const OPEN_LIBRARY_BASE = "https://covers.openlibrary.org/b/isbn"
@@ -14,8 +16,61 @@ const VALID_SIZES = new Set(["S", "M", "L"])
 /** Timeout in milliseconds for upstream cover fetch requests. @source */
 const FETCH_TIMEOUT_MS = 5000
 
+/** Maximum allowed upstream response size in bytes (5 MB). @source */
+const MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+
+/** Allowed image content types for proxied responses. @source */
+const ALLOWED_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/avif"
+])
+
+/** Resolves the normalized content-type from an upstream response. @source */
+function resolveContentType(response: Response): string {
+  const raw = response.headers.get("content-type") ?? ""
+  const normalized = raw.split(";")[0].trim().toLowerCase()
+  return ALLOWED_CONTENT_TYPES.has(normalized) ? normalized : "image/jpeg"
+}
+
+/** Returns true when the upstream content-length exceeds the allowed maximum. @source */
+function exceedsMaxSize(response: Response): boolean {
+  const header = response.headers.get("content-length")
+  if (!header) return false
+  const length = Number.parseInt(header, 10)
+  return !Number.isNaN(length) && length > MAX_RESPONSE_BYTES
+}
+
+/** Fetches a cover from Open Library and returns the raw response or an error status. @source */
+async function fetchCover(
+  url: string,
+  log: ReturnType<typeof logger.withCorrelationId>
+): Promise<Response | { status: number }> {
+  try {
+    return await fetch(url, {
+      cache: "force-cache",
+      next: { revalidate: 60 * 60 * 24 },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+    })
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === "AbortError" || error.name === "TimeoutError")
+    ) {
+      return { status: 504 }
+    }
+    log.error("Open Library cover fetch failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
+    return { status: 502 }
+  }
+}
+
 /**
  * Proxies a book cover image from the Open Library Covers API by ISBN.
+ * Requires authentication to prevent open proxy abuse.
  * @param request - Incoming request with `isbn` and optional `size` query parameters.
  * @returns The cover image stream with appropriate caching headers.
  * @source
@@ -23,12 +78,21 @@ const FETCH_TIMEOUT_MS = 5000
 export async function GET(request: NextRequest) {
   const correlationId = getCorrelationId(request)
 
+  // Require authentication to prevent open proxy abuse
+  const supabase = await createUserClient()
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return apiError(401, "Not authenticated", { correlationId })
+  }
+
   const clientIp =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip")?.trim() ||
     "unknown"
   const rl = await consumeDistributedRateLimit({
-    key: `cover-proxy:ip:${clientIp}`,
+    key: `cover-proxy:user:${user.id}:ip:${clientIp}`,
     maxHits: 120,
     windowMs: 60_000,
     cooldownMs: 30_000,
@@ -55,65 +119,25 @@ export async function GET(request: NextRequest) {
     : "L"
 
   const url = `${OPEN_LIBRARY_BASE}/${normalized}-${size}.jpg?default=false`
+  const result = await fetchCover(url, log)
 
-  let response: Response
-  try {
-    response = await fetch(url, {
-      cache: "force-cache",
-      next: { revalidate: 60 * 60 * 24 },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
-    })
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.name === "AbortError" || error.name === "TimeoutError")
-    ) {
-      return new Response(null, { status: 504 })
-    }
-    log.error("Open Library cover fetch failed", {
-      error: error instanceof Error ? error.message : String(error)
-    })
-    return new Response(null, { status: 502 })
+  if (!("headers" in result)) {
+    return new Response(null, { status: result.status })
   }
 
-  if (response.status === 404) {
-    return new Response(null, { status: 404 })
-  }
+  const response = result
+  if (response.status === 404) return new Response(null, { status: 404 })
+  if (!response.ok || !response.body) return new Response(null, { status: 502 })
+  if (exceedsMaxSize(response)) return new Response(null, { status: 502 })
 
-  if (!response.ok) {
-    return new Response(null, { status: 502 })
-  }
-
-  if (!response.body) {
-    return new Response(null, { status: 502 })
-  }
-
-  const headers = new Headers()
-  const upstreamContentType = response.headers.get("content-type") ?? ""
-  const normalizedContentType = upstreamContentType
-    .split(";")[0]
-    .trim()
-    .toLowerCase()
-  const allowedContentTypes = new Set([
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "image/avif"
-  ])
-
-  headers.set(
-    "Content-Type",
-    allowedContentTypes.has(normalizedContentType)
-      ? normalizedContentType
-      : "image/jpeg"
-  )
-  headers.set(
+  const responseHeaders = new Headers()
+  responseHeaders.set("Content-Type", resolveContentType(response))
+  responseHeaders.set(
     "Cache-Control",
     "public, max-age=86400, stale-while-revalidate=604800"
   )
-  headers.set("X-Content-Type-Options", "nosniff")
-  headers.set(CORRELATION_HEADER, correlationId)
+  responseHeaders.set("X-Content-Type-Options", "nosniff")
+  responseHeaders.set(CORRELATION_HEADER, correlationId)
 
-  return new Response(response.body, { headers })
+  return new Response(response.body, { headers: responseHeaders })
 }
