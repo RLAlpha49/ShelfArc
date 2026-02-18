@@ -1,9 +1,9 @@
 import type {
-  TitleType,
+  BookOrientation,
   OwnershipStatus,
   ReadingStatus,
-  BookOrientation,
   SeriesStatus,
+  TitleType,
   VolumeEdition,
   VolumeFormat
 } from "@/lib/types/database"
@@ -168,7 +168,7 @@ export const isValidUrl = (value: unknown): value is string =>
   (value.startsWith("https://") || value.startsWith("http://"))
 
 /** Allow-listed Amazon hostnames for URL validation. @source */
-const AMAZON_DOMAINS: ReadonlySet<string> = new Set([
+export const AMAZON_DOMAINS: ReadonlySet<string> = new Set([
   "amazon.com",
   "amazon.co.jp",
   "amazon.co.uk",
@@ -265,3 +265,15 @@ export const USERNAME_PATTERN = /^\w{3,20}$/
 export function isValidUsername(value: unknown): value is string {
   return typeof value === "string" && USERNAME_PATTERN.test(value)
 }
+
+/** Regex matching a canonical UUID v1–v5 (case-insensitive). @source */
+export const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Type guard for valid UUIDs.
+ * @param value - The value to check.
+ * @source
+ */
+export const isValidUUID = (value: unknown): value is string =>
+  typeof value === "string" && UUID_PATTERN.test(value)
