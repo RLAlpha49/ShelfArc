@@ -3,6 +3,7 @@
 /docs
 /.env
 /.env.local
+/.lighthouseci
 /next-env.d.ts
 /TODO.md
 /*.tsbuildinfo

@@ -10,7 +10,17 @@
     "typecheck": "tsc --noEmit",
     "format:write": "prettier --write .",
     "update": "ncu -u",
-    "test": "bun test"
+    "test": "bun test",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,mts}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,css,scss,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
