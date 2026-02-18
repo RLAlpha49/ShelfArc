@@ -141,7 +141,6 @@ export function SeriesDialog({
   const previewUrlRef = useRef<string | null>(null)
   const [formData, setFormData] = useState(() => buildSeriesFormData(series))
   const [activeTab, setActiveTab] = useState("general")
-  const seriesRef = useRef(series)
   const seriesIdRef = useRef<string | null>(series?.id ?? null)
   const seriesSnapshotRef = useRef(buildSeriesFormData(series))
   const basisSeedRef = useRef<
@@ -195,9 +194,7 @@ export function SeriesDialog({
     }
   }, [])
 
-  useEffect(() => {
-    seriesRef.current = series
-  }, [series])
+  const initialFormData = useMemo(() => buildSeriesFormData(series), [series])
 
   useEffect(() => {
     if (!open) {
@@ -212,8 +209,7 @@ export function SeriesDialog({
       return
     }
 
-    const nextSeries = seriesRef.current
-    const nextSeriesId = nextSeries?.id ?? null
+    const nextSeriesId = series?.id ?? null
     const isOpening = !wasOpenRef.current
     const seriesChanged = seriesIdRef.current !== nextSeriesId
 
@@ -225,10 +221,9 @@ export function SeriesDialog({
     setCoverPreviewError(false)
 
     if (isOpening || seriesChanged) {
-      const nextFormData = buildSeriesFormData(nextSeries)
-      setFormData(nextFormData)
+      setFormData(initialFormData)
       setActiveTab("general")
-      seriesSnapshotRef.current = nextFormData
+      seriesSnapshotRef.current = initialFormData
       setBasisVolumeId(null)
       setSeedExpanded(true)
       basisSeedRef.current = {
@@ -236,11 +231,24 @@ export function SeriesDialog({
         description: "",
         cover_image_url: ""
       }
+    } else if (series) {
+      const hasMeaningfulChanges = !areSeriesFormDataEqual(
+        initialFormData,
+        seriesSnapshotRef.current
+      )
+      const userHasEdits = !areSeriesFormDataEqual(
+        formData,
+        seriesSnapshotRef.current
+      )
+      if (hasMeaningfulChanges && !userHasEdits) {
+        setFormData(initialFormData)
+        seriesSnapshotRef.current = initialFormData
+      }
     }
 
     seriesIdRef.current = nextSeriesId
     wasOpenRef.current = true
-  }, [open, series?.id])
+  }, [open, series?.id, initialFormData, formData])
 
   useEffect(() => {
     if (!basisVolumeId) return
@@ -251,23 +259,6 @@ export function SeriesDialog({
       setBasisVolumeId(null)
     }
   }, [availableVolumes, basisVolumeId])
-
-  useEffect(() => {
-    if (!open || !series) return
-
-    const nextFormData = buildSeriesFormData(series)
-    const previousSnapshot = seriesSnapshotRef.current
-    const hasMeaningfulChanges = !areSeriesFormDataEqual(
-      nextFormData,
-      previousSnapshot
-    )
-    const userHasEdits = !areSeriesFormDataEqual(formData, previousSnapshot)
-
-    if (hasMeaningfulChanges && !userHasEdits) {
-      setFormData(nextFormData)
-      seriesSnapshotRef.current = nextFormData
-    }
-  }, [open, series, formData])
 
   useEffect(() => {
     if (!basisVolume || isEditing) return

@@ -15,8 +15,10 @@ import { announce } from "@/components/live-announcer"
 import { AMAZON_BINDING_LABELS } from "@/lib/books/amazon-query"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import type { BookSearchResult } from "@/lib/books/search"
+import { LibraryActionsProvider } from "@/lib/context/library-actions-context"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryBulkOperations } from "@/lib/hooks/use-library-bulk-operations"
+import { useLibraryDialogs } from "@/lib/hooks/use-library-dialogs"
 import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh"
 import { useVolumeActions } from "@/lib/hooks/use-volume-actions"
@@ -78,36 +80,48 @@ export default function LibraryPage() {
 
   const libraryHeadingRef = useRef<HTMLHeadingElement>(null)
 
-  const [searchDialogOpen, setSearchDialogOpen] = useState(false)
-  const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
-  const [editingSeries, setEditingSeries] = useState<SeriesWithVolumes | null>(
-    null
-  )
-  const [volumeDialogOpen, setVolumeDialogOpen] = useState(false)
-  const [editingVolume, setEditingVolume] = useState<Volume | null>(null)
-  const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null)
-  const [pendingSeriesSelection, setPendingSeriesSelection] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deletingSeries, setDeletingSeries] =
-    useState<SeriesWithVolumes | null>(null)
-  const [deleteVolumeDialogOpen, setDeleteVolumeDialogOpen] = useState(false)
-  const [deletingVolume, setDeletingVolume] = useState<Volume | null>(null)
+  const {
+    searchDialogOpen,
+    setSearchDialogOpen,
+    seriesDialogOpen,
+    setSeriesDialogOpen,
+    editingSeries,
+    setEditingSeries,
+    volumeDialogOpen,
+    setVolumeDialogOpen,
+    editingVolume,
+    setEditingVolume,
+    selectedSeriesId,
+    setSelectedSeriesId,
+    pendingSeriesSelection,
+    setPendingSeriesSelection,
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    deletingSeries,
+    setDeletingSeries,
+    deleteVolumeDialogOpen,
+    setDeleteVolumeDialogOpen,
+    deletingVolume,
+    setDeletingVolume,
+    bulkDeleteDialogOpen,
+    setBulkDeleteDialogOpen,
+    assignToSeriesDialogOpen,
+    setAssignToSeriesDialogOpen,
+    duplicateDialogOpen,
+    setDuplicateDialogOpen,
+    scrapeTarget,
+    setScrapeTarget,
+    bulkEditDialogOpen,
+    setBulkEditDialogOpen,
+    addToCollectionDialogOpen,
+    setAddToCollectionDialogOpen
+  } = useLibraryDialogs()
   const [selectedSeriesIds, setSelectedSeriesIds] = useState<Set<string>>(
     () => new Set()
   )
   const [selectedVolumeIds, setSelectedVolumeIds] = useState<Set<string>>(
     () => new Set()
   )
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
-  const [assignToSeriesDialogOpen, setAssignToSeriesDialogOpen] =
-    useState(false)
-  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
-  const [scrapeTarget, setScrapeTarget] = useState<SeriesWithVolumes | null>(
-    null
-  )
-  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false)
-  const [addToCollectionDialogOpen, setAddToCollectionDialogOpen] =
-    useState(false)
 
   useEffect(() => {
     fetchSeries()
@@ -307,7 +321,8 @@ export default function LibraryPage() {
     filteredSeries,
     selectedSeriesIds,
     series,
-    selectedVolumeIds
+    selectedVolumeIds,
+    setScrapeTarget
   ])
 
   const assignSelectedUnassignedVolumes = useCallback(
@@ -458,10 +473,13 @@ export default function LibraryPage() {
     }
   }
 
-  const openEditDialog = useCallback((series: SeriesWithVolumes) => {
-    setEditingSeries(series)
-    setSeriesDialogOpen(true)
-  }, [])
+  const openEditDialog = useCallback(
+    (series: SeriesWithVolumes) => {
+      setEditingSeries(series)
+      setSeriesDialogOpen(true)
+    },
+    [setEditingSeries, setSeriesDialogOpen]
+  )
 
   const openDeleteDialog = useCallback(
     async (series: SeriesWithVolumes) => {
@@ -477,14 +495,17 @@ export default function LibraryPage() {
       setDeletingSeries(series)
       setDeleteDialogOpen(true)
     },
-    [confirmBeforeDelete, removeSeries]
+    [confirmBeforeDelete, removeSeries, setDeletingSeries, setDeleteDialogOpen]
   )
 
-  const openEditVolumeDialog = useCallback((volume: Volume) => {
-    setEditingVolume(volume)
-    setSelectedSeriesId(volume.series_id ?? null)
-    setVolumeDialogOpen(true)
-  }, [])
+  const openEditVolumeDialog = useCallback(
+    (volume: Volume) => {
+      setEditingVolume(volume)
+      setSelectedSeriesId(volume.series_id ?? null)
+      setVolumeDialogOpen(true)
+    },
+    [setEditingVolume, setSelectedSeriesId, setVolumeDialogOpen]
+  )
 
   const handleEditSelected = useCallback(() => {
     if (selectedCount !== 1) return
@@ -517,7 +538,7 @@ export default function LibraryPage() {
   const handleBulkEdit = useCallback(() => {
     if (selectedCount < 2) return
     setBulkEditDialogOpen(true)
-  }, [selectedCount])
+  }, [selectedCount, setBulkEditDialogOpen])
 
   const handleBulkEditApply = useCallback(
     async (changes: Record<string, unknown>) => {
@@ -581,7 +602,12 @@ export default function LibraryPage() {
       setDeletingVolume(volume)
       setDeleteVolumeDialogOpen(true)
     },
-    [confirmBeforeDelete, removeVolume]
+    [
+      confirmBeforeDelete,
+      removeVolume,
+      setDeletingVolume,
+      setDeleteVolumeDialogOpen
+    ]
   )
 
   const handleSeriesClick = useCallback(
@@ -628,7 +654,7 @@ export default function LibraryPage() {
     (seriesItem: SeriesWithVolumes) => {
       setScrapeTarget(seriesItem)
     },
-    []
+    [setScrapeTarget]
   )
 
   const openVolumeScrapeDialog = useCallback(
@@ -665,19 +691,54 @@ export default function LibraryPage() {
       }
       setScrapeTarget(standaloneSeries)
     },
-    []
+    [setScrapeTarget]
   )
 
   const openAddDialog = useCallback(() => {
     setEditingSeries(null)
     setSearchDialogOpen(true)
-  }, [])
+  }, [setEditingSeries, setSearchDialogOpen])
+
+  const libraryActions = useMemo(
+    () => ({
+      onSeriesItemClick: handleSeriesItemClick,
+      onEditSeries: openEditDialog,
+      onDeleteSeries: openDeleteDialog,
+      onSeriesScrape: openSeriesScrapeDialog,
+      onToggleSeriesSelection: toggleSeriesSelection,
+      onVolumeItemClick: handleVolumeItemClick,
+      onEditVolume: openEditVolumeDialog,
+      onDeleteVolume: openDeleteVolumeDialog,
+      onVolumeScrape: openVolumeScrapeDialog,
+      onToggleVolumeSelection: toggleVolumeSelection,
+      onToggleRead: handleToggleRead,
+      onToggleWishlist: handleToggleWishlist,
+      onSetRating: handleSetRating,
+      onAddBook: openAddDialog
+    }),
+    [
+      handleSeriesItemClick,
+      openEditDialog,
+      openDeleteDialog,
+      openSeriesScrapeDialog,
+      toggleSeriesSelection,
+      handleVolumeItemClick,
+      openEditVolumeDialog,
+      openDeleteVolumeDialog,
+      openVolumeScrapeDialog,
+      toggleVolumeSelection,
+      handleToggleRead,
+      handleToggleWishlist,
+      handleSetRating,
+      openAddDialog
+    ]
+  )
 
   const openAddSeriesDialog = useCallback(() => {
     setEditingSeries(null)
     setPendingSeriesSelection(false)
     setSeriesDialogOpen(true)
-  }, [])
+  }, [setEditingSeries, setPendingSeriesSelection, setSeriesDialogOpen])
 
   useEffect(() => {
     const addParam = searchParams.get("add")
@@ -708,13 +769,19 @@ export default function LibraryPage() {
     setSelectedSeriesId(null)
     setPendingSeriesSelection(false)
     setVolumeDialogOpen(true)
-  }, [])
+  }, [
+    setSearchDialogOpen,
+    setEditingVolume,
+    setSelectedSeriesId,
+    setPendingSeriesSelection,
+    setVolumeDialogOpen
+  ])
 
   const openSeriesDialogFromVolume = useCallback(() => {
     setEditingSeries(null)
     setPendingSeriesSelection(true)
     setSeriesDialogOpen(true)
-  }, [])
+  }, [setEditingSeries, setPendingSeriesSelection, setSeriesDialogOpen])
 
   const handleSearchSelect = useCallback(
     async (
@@ -755,26 +822,40 @@ export default function LibraryPage() {
     [addBooksFromSearchResults]
   )
 
-  const handleVolumeDialogChange = useCallback((open: boolean) => {
-    setVolumeDialogOpen(open)
-    if (!open) {
-      setEditingVolume(null)
-      setSelectedSeriesId(null)
-      setPendingSeriesSelection(false)
-    }
-  }, [])
+  const handleVolumeDialogChange = useCallback(
+    (open: boolean) => {
+      setVolumeDialogOpen(open)
+      if (!open) {
+        setEditingVolume(null)
+        setSelectedSeriesId(null)
+        setPendingSeriesSelection(false)
+      }
+    },
+    [
+      setVolumeDialogOpen,
+      setEditingVolume,
+      setSelectedSeriesId,
+      setPendingSeriesSelection
+    ]
+  )
 
-  const handleSeriesDialogChange = useCallback((open: boolean) => {
-    setSeriesDialogOpen(open)
-    if (!open) {
-      setEditingSeries(null)
-      setPendingSeriesSelection(false)
-    }
-  }, [])
+  const handleSeriesDialogChange = useCallback(
+    (open: boolean) => {
+      setSeriesDialogOpen(open)
+      if (!open) {
+        setEditingSeries(null)
+        setPendingSeriesSelection(false)
+      }
+    },
+    [setSeriesDialogOpen, setEditingSeries, setPendingSeriesSelection]
+  )
 
-  const handleScrapeTargetChange = useCallback((open: boolean) => {
-    if (!open) setScrapeTarget(null)
-  }, [])
+  const handleScrapeTargetChange = useCallback(
+    (open: boolean) => {
+      if (!open) setScrapeTarget(null)
+    },
+    [setScrapeTarget]
+  )
 
   return (
     <div
@@ -881,7 +962,7 @@ export default function LibraryPage() {
 
       <div className="my-8 border-t" />
       <ErrorBoundary>
-        <div>
+        <LibraryActionsProvider value={libraryActions}>
           <LibraryContent
             filteredSeries={filteredSeries}
             filteredVolumes={filteredVolumes}
@@ -896,22 +977,8 @@ export default function LibraryPage() {
             amazonBindingLabel={amazonBindingLabel}
             selectedSeriesIds={selectedSeriesIds}
             selectedVolumeIds={selectedVolumeIds}
-            onSeriesItemClick={handleSeriesItemClick}
-            onEditSeries={openEditDialog}
-            onDeleteSeries={openDeleteDialog}
-            onSeriesScrape={openSeriesScrapeDialog}
-            onToggleSeriesSelection={toggleSeriesSelection}
-            onVolumeItemClick={handleVolumeItemClick}
-            onEditVolume={openEditVolumeDialog}
-            onDeleteVolume={openDeleteVolumeDialog}
-            onVolumeScrape={openVolumeScrapeDialog}
-            onToggleVolumeSelection={toggleVolumeSelection}
-            onToggleRead={handleToggleRead}
-            onToggleWishlist={handleToggleWishlist}
-            onSetRating={handleSetRating}
-            onAddBook={openAddDialog}
           />
-        </div>
+        </LibraryActionsProvider>
       </ErrorBoundary>
 
       <LibraryDialogs

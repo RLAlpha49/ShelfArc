@@ -1,25 +1,27 @@
 "use client"
 
 import { memo } from "react"
+
+import { EmptyState } from "@/components/empty-state"
+import { LoadingSkeleton } from "@/components/library/library-skeleton"
 import { SeriesCard } from "@/components/library/series-card"
 import { SeriesListItem } from "@/components/library/series-list-item"
-import { VolumeGridItem } from "@/components/library/volume-grid-item"
-import { VolumeListItem } from "@/components/library/volume-list-item"
-import { VolumeCard } from "@/components/library/volume-card"
 import {
   VirtualizedWindowGrid,
   VirtualizedWindowList
 } from "@/components/library/virtualized-window"
-import { LoadingSkeleton } from "@/components/library/library-skeleton"
-import { EmptyState } from "@/components/empty-state"
-import {
-  getGridClasses,
-  VIRTUALIZE_THRESHOLD,
-  estimateGridRowSize
-} from "@/lib/library/grid-utils"
-import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
+import { VolumeCard } from "@/components/library/volume-card"
+import { VolumeGridItem } from "@/components/library/volume-grid-item"
+import { VolumeListItem } from "@/components/library/volume-list-item"
+import { useLibraryActions } from "@/lib/context/library-actions-context"
 import type { VolumeWithSeries } from "@/lib/hooks/use-library-filters"
+import {
+  estimateGridRowSize,
+  getGridClasses,
+  VIRTUALIZE_THRESHOLD
+} from "@/lib/library/grid-utils"
 import type { CardSize } from "@/lib/store/settings-store"
+import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 interface LibraryContentProps {
   readonly filteredSeries: SeriesWithVolumes[]
@@ -35,20 +37,6 @@ interface LibraryContentProps {
   readonly amazonBindingLabel: string
   readonly selectedSeriesIds: Set<string>
   readonly selectedVolumeIds: Set<string>
-  readonly onSeriesItemClick: (series: SeriesWithVolumes) => void
-  readonly onEditSeries: (series: SeriesWithVolumes) => void
-  readonly onDeleteSeries: (series: SeriesWithVolumes) => void
-  readonly onSeriesScrape: (series: SeriesWithVolumes) => void
-  readonly onToggleSeriesSelection: (seriesId: string) => void
-  readonly onVolumeItemClick: (volumeId: string) => void
-  readonly onEditVolume: (volume: Volume) => void
-  readonly onDeleteVolume: (volume: Volume) => void
-  readonly onVolumeScrape: (volume: Volume, series?: SeriesWithVolumes) => void
-  readonly onToggleVolumeSelection: (volumeId: string) => void
-  readonly onToggleRead: (volume: Volume) => void
-  readonly onToggleWishlist: (volume: Volume) => void
-  readonly onSetRating: (volume: Volume, rating: number | null) => void
-  readonly onAddBook: () => void
 }
 
 const BookIcon = (
@@ -82,21 +70,7 @@ export const LibraryContent = memo(function LibraryContent(
     amazonDomain,
     amazonBindingLabel,
     selectedSeriesIds,
-    selectedVolumeIds,
-    onSeriesItemClick,
-    onEditSeries,
-    onDeleteSeries,
-    onSeriesScrape,
-    onToggleSeriesSelection,
-    onVolumeItemClick,
-    onEditVolume,
-    onDeleteVolume,
-    onVolumeScrape,
-    onToggleVolumeSelection,
-    onToggleRead,
-    onToggleWishlist,
-    onSetRating,
-    onAddBook
+    selectedVolumeIds
   } = props
 
   if (isLoading) {
@@ -114,15 +88,6 @@ export const LibraryContent = memo(function LibraryContent(
       amazonDomain={amazonDomain}
       amazonBindingLabel={amazonBindingLabel}
       selectedVolumeIds={selectedVolumeIds}
-      onVolumeItemClick={onVolumeItemClick}
-      onEditVolume={onEditVolume}
-      onDeleteVolume={onDeleteVolume}
-      onVolumeScrape={onVolumeScrape}
-      onToggleVolumeSelection={onToggleVolumeSelection}
-      onToggleRead={onToggleRead}
-      onToggleWishlist={onToggleWishlist}
-      onSetRating={onSetRating}
-      onAddBook={onAddBook}
     />
   ) : (
     <SeriesView
@@ -134,20 +99,6 @@ export const LibraryContent = memo(function LibraryContent(
       gridGapPx={gridGapPx}
       selectedSeriesIds={selectedSeriesIds}
       selectedVolumeIds={selectedVolumeIds}
-      onSeriesItemClick={onSeriesItemClick}
-      onEditSeries={onEditSeries}
-      onDeleteSeries={onDeleteSeries}
-      onSeriesScrape={onSeriesScrape}
-      onToggleSeriesSelection={onToggleSeriesSelection}
-      onVolumeItemClick={onVolumeItemClick}
-      onEditVolume={onEditVolume}
-      onDeleteVolume={onDeleteVolume}
-      onVolumeScrape={onVolumeScrape}
-      onToggleVolumeSelection={onToggleVolumeSelection}
-      onToggleRead={onToggleRead}
-      onToggleWishlist={onToggleWishlist}
-      onSetRating={onSetRating}
-      onAddBook={onAddBook}
     />
   )
 })
@@ -162,14 +113,6 @@ interface UnassignedSectionProps {
   readonly gridColumnCount: number
   readonly gridGapPx: number
   readonly selectedVolumeIds: Set<string>
-  readonly onVolumeItemClick: (volumeId: string) => void
-  readonly onEditVolume: (volume: Volume) => void
-  readonly onDeleteVolume: (volume: Volume) => void
-  readonly onVolumeScrape: (volume: Volume) => void
-  readonly onToggleVolumeSelection: (volumeId: string) => void
-  readonly onToggleRead: (volume: Volume) => void
-  readonly onToggleWishlist: (volume: Volume) => void
-  readonly onSetRating: (volume: Volume, rating: number | null) => void
 }
 
 function UnassignedSection({
@@ -177,16 +120,18 @@ function UnassignedSection({
   cardSize,
   gridColumnCount,
   gridGapPx,
-  selectedVolumeIds,
-  onVolumeItemClick,
-  onEditVolume,
-  onDeleteVolume,
-  onVolumeScrape,
-  onToggleVolumeSelection,
-  onToggleRead,
-  onToggleWishlist,
-  onSetRating
+  selectedVolumeIds
 }: UnassignedSectionProps) {
+  const {
+    onVolumeItemClick,
+    onEditVolume,
+    onDeleteVolume,
+    onVolumeScrape,
+    onToggleVolumeSelection,
+    onToggleRead,
+    onToggleWishlist,
+    onSetRating
+  } = useLibraryActions()
   if (filteredUnassignedVolumes.length === 0) return null
 
   return (
@@ -260,15 +205,6 @@ interface VolumesViewProps {
   readonly amazonDomain: string
   readonly amazonBindingLabel: string
   readonly selectedVolumeIds: Set<string>
-  readonly onVolumeItemClick: (volumeId: string) => void
-  readonly onEditVolume: (volume: Volume) => void
-  readonly onDeleteVolume: (volume: Volume) => void
-  readonly onVolumeScrape: (volume: Volume, series?: SeriesWithVolumes) => void
-  readonly onToggleVolumeSelection: (volumeId: string) => void
-  readonly onToggleRead: (volume: Volume) => void
-  readonly onToggleWishlist: (volume: Volume) => void
-  readonly onSetRating: (volume: Volume, rating: number | null) => void
-  readonly onAddBook: () => void
 }
 
 function VolumesView({
@@ -280,17 +216,19 @@ function VolumesView({
   gridGapPx,
   amazonDomain,
   amazonBindingLabel,
-  selectedVolumeIds,
-  onVolumeItemClick,
-  onEditVolume,
-  onDeleteVolume,
-  onVolumeScrape,
-  onToggleVolumeSelection,
-  onToggleRead,
-  onToggleWishlist,
-  onSetRating,
-  onAddBook
+  selectedVolumeIds
 }: VolumesViewProps) {
+  const {
+    onVolumeItemClick,
+    onEditVolume,
+    onDeleteVolume,
+    onVolumeScrape,
+    onToggleVolumeSelection,
+    onToggleRead,
+    onToggleWishlist,
+    onSetRating,
+    onAddBook
+  } = useLibraryActions()
   const hasAssignedVolumes = filteredVolumes.length > 0
   const hasUnassignedVolumes = filteredUnassignedVolumes.length > 0
 
@@ -420,20 +358,12 @@ function VolumesView({
         gridColumnCount={gridColumnCount}
         gridGapPx={gridGapPx}
         selectedVolumeIds={selectedVolumeIds}
-        onVolumeItemClick={onVolumeItemClick}
-        onEditVolume={onEditVolume}
-        onDeleteVolume={onDeleteVolume}
-        onVolumeScrape={onVolumeScrape}
-        onToggleVolumeSelection={onToggleVolumeSelection}
-        onToggleRead={onToggleRead}
-        onToggleWishlist={onToggleWishlist}
-        onSetRating={onSetRating}
       />
     </div>
   )
 }
 
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------------------------------------------------------------------------- */
 /*  Series view                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -446,20 +376,6 @@ interface SeriesViewProps {
   readonly gridGapPx: number
   readonly selectedSeriesIds: Set<string>
   readonly selectedVolumeIds: Set<string>
-  readonly onSeriesItemClick: (series: SeriesWithVolumes) => void
-  readonly onEditSeries: (series: SeriesWithVolumes) => void
-  readonly onDeleteSeries: (series: SeriesWithVolumes) => void
-  readonly onSeriesScrape: (series: SeriesWithVolumes) => void
-  readonly onToggleSeriesSelection: (seriesId: string) => void
-  readonly onVolumeItemClick: (volumeId: string) => void
-  readonly onEditVolume: (volume: Volume) => void
-  readonly onDeleteVolume: (volume: Volume) => void
-  readonly onVolumeScrape: (volume: Volume) => void
-  readonly onToggleVolumeSelection: (volumeId: string) => void
-  readonly onToggleRead: (volume: Volume) => void
-  readonly onToggleWishlist: (volume: Volume) => void
-  readonly onSetRating: (volume: Volume, rating: number | null) => void
-  readonly onAddBook: () => void
 }
 
 function SeriesView({
@@ -470,22 +386,16 @@ function SeriesView({
   gridColumnCount,
   gridGapPx,
   selectedSeriesIds,
-  selectedVolumeIds,
-  onSeriesItemClick,
-  onEditSeries,
-  onDeleteSeries,
-  onSeriesScrape,
-  onToggleSeriesSelection,
-  onVolumeItemClick,
-  onEditVolume,
-  onDeleteVolume,
-  onVolumeScrape,
-  onToggleVolumeSelection,
-  onToggleRead,
-  onToggleWishlist,
-  onSetRating,
-  onAddBook
+  selectedVolumeIds
 }: SeriesViewProps) {
+  const {
+    onSeriesItemClick,
+    onEditSeries,
+    onDeleteSeries,
+    onSeriesScrape,
+    onToggleSeriesSelection,
+    onAddBook
+  } = useLibraryActions()
   if (filteredSeries.length === 0 && filteredUnassignedVolumes.length === 0) {
     return (
       <EmptyState
@@ -546,14 +456,6 @@ function SeriesView({
           gridColumnCount={gridColumnCount}
           gridGapPx={gridGapPx}
           selectedVolumeIds={selectedVolumeIds}
-          onVolumeItemClick={onVolumeItemClick}
-          onEditVolume={onEditVolume}
-          onDeleteVolume={onDeleteVolume}
-          onVolumeScrape={onVolumeScrape}
-          onToggleVolumeSelection={onToggleVolumeSelection}
-          onToggleRead={onToggleRead}
-          onToggleWishlist={onToggleWishlist}
-          onSetRating={onSetRating}
         />
       </div>
     )
@@ -602,14 +504,6 @@ function SeriesView({
         gridColumnCount={gridColumnCount}
         gridGapPx={gridGapPx}
         selectedVolumeIds={selectedVolumeIds}
-        onVolumeItemClick={onVolumeItemClick}
-        onEditVolume={onEditVolume}
-        onDeleteVolume={onDeleteVolume}
-        onVolumeScrape={onVolumeScrape}
-        onToggleVolumeSelection={onToggleVolumeSelection}
-        onToggleRead={onToggleRead}
-        onToggleWishlist={onToggleWishlist}
-        onSetRating={onSetRating}
       />
     </div>
   )
