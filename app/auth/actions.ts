@@ -3,13 +3,14 @@
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { createUserClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { sanitizePlainText } from "@/lib/sanitize-html"
-import { isValidUsername } from "@/lib/validation"
-import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+
 import { ALLOWED_REDIRECT_PREFIXES } from "@/lib/auth/constants"
 import { validatePassword } from "@/lib/auth/validate-password"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { sanitizePlainText } from "@/lib/sanitize-html"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createUserClient } from "@/lib/supabase/server"
+import { isValidUsername } from "@/lib/validation"
 
 function getSafeRedirect(raw: unknown): string {
   if (typeof raw !== "string") return "/library"
@@ -153,6 +154,54 @@ export async function signup(formData: FormData) {
   const destination = getSafeRedirect(formData.get("redirectTo"))
   revalidatePath("/", "layout")
   redirect(destination)
+}
+
+/**
+ * Sends a password reset email for the given address.
+ * Always returns a generic success message to prevent email enumeration.
+ * @param formData - Form data containing an `email` field.
+ * @returns A success or error object.
+ * @source
+ */
+export async function forgotPassword(formData: FormData) {
+  const email = (formData.get("email") as string)?.trim()
+
+  if (!email?.includes("@")) {
+    return { error: "Valid email is required" }
+  }
+
+  const headerStore = await headers()
+  const forwarded = headerStore.get("x-forwarded-for")
+  const clientIp = forwarded?.split(",")[0]?.trim() || "unknown"
+
+  const rateLimitResult = await consumeDistributedRateLimit({
+    key: `forgot-password:${clientIp}`,
+    maxHits: 3,
+    windowMs: 60_000,
+    cooldownMs: 10 * 60_000,
+    reason: "Forgot password rate limit"
+  })
+
+  if (rateLimitResult && !rateLimitResult.allowed) {
+    return { error: "Too many requests. Please try again later." }
+  }
+
+  const origin =
+    headerStore.get("origin") ||
+    headerStore.get("x-forwarded-proto") +
+      "://" +
+      headerStore.get("x-forwarded-host") ||
+    ""
+
+  const supabase = await createUserClient()
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/reset-password`
+  })
+
+  return {
+    success:
+      "If an account with that email exists, we've sent a password reset link."
+  }
 }
 
 /**

@@ -3,5 +3,7 @@ export const ALLOWED_REDIRECT_PREFIXES = [
   "/dashboard",
   "/library",
   "/settings",
-  "/activity"
+  "/activity",
+  "/reset-password",
+  "/forgot-password"
 ] as const

@@ -1,46 +1,46 @@
 "use client"
 
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Suspense, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
-import { login } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ALLOWED_REDIRECT_PREFIXES } from "@/lib/auth/constants"
-
-function getValidRedirect(raw: string | null): string | null {
-  if (!raw) return null
-  const path = raw.trim()
-  if (
-    !path.startsWith("/") ||
-    path.startsWith("//") ||
-    !ALLOWED_REDIRECT_PREFIXES.some((p) => path.startsWith(p))
-  ) {
-    return null
-  }
-  return path
-}
+import { validatePassword } from "@/lib/auth/validate-password"
+import { createClient } from "@/lib/supabase/client"
 
 /**
- * Login page with email/password form and decorative side panel.
+ * Reset-password page that handles Supabase PASSWORD_RECOVERY redirect.
  * @source
  */
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   return (
     <Suspense>
-      <LoginContent />
+      <ResetPasswordContent />
     </Suspense>
   )
 }
 
-function LoginContent() {
-  const searchParams = useSearchParams()
-  const redirectTo = getValidRedirect(searchParams.get("redirect"))
+function ResetPasswordContent() {
+  const router = useRouter()
+  const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const errorRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setReady(true)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
     if (error) {
@@ -48,17 +48,39 @@ function LoginContent() {
     }
   }, [error])
 
-  /** Submits the login form and surfaces errors without redirect. @source */
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     setError(null)
 
-    const result = await login(formData)
+    const password = formData.get("password") as string
+    const confirm = formData.get("confirmPassword") as string
 
-    if (result?.error) {
-      setError(result.error)
+    const passwordError = validatePassword(password)
+    if (passwordError) {
+      setError(passwordError)
       setLoading(false)
+      return
     }
+
+    if (password !== confirm) {
+      setError("Passwords do not match")
+      setLoading(false)
+      return
+    }
+
+    const supabase = createClient()
+    const { error: updateError } = await supabase.auth.updateUser({
+      password
+    })
+
+    if (updateError) {
+      setError(updateError.message)
+      setLoading(false)
+      return
+    }
+
+    toast.success("Password updated successfully")
+    router.push("/library")
   }
 
   return (
@@ -92,10 +114,10 @@ function LoginContent() {
 
           <div className="animate-fade-in-up stagger-2 space-y-6">
             <h2 className="font-display text-4xl leading-tight font-bold text-white">
-              Welcome back to your library
+              Set a new password
             </h2>
             <p className="max-w-sm text-lg leading-relaxed text-white/80">
-              Your collection awaits. Pick up right where you left off.
+              Choose a strong password to keep your collection secure.
             </p>
           </div>
 
@@ -123,7 +145,7 @@ function LoginContent() {
         </div>
       </div>
 
-      {/* Right: Login form */}
+      {/* Right: Form */}
       <div className="animate-slide-in-right relative z-10 flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
@@ -149,97 +171,92 @@ function LoginContent() {
 
           <div className="animate-fade-in-up mb-8">
             <h1 className="font-display text-3xl font-bold tracking-tight">
-              Sign in
+              New password
             </h1>
             <p className="text-muted-foreground mt-2">
-              Enter your credentials to access your collection
+              {ready
+                ? "Enter your new password below"
+                : "Verifying your reset link\u2026"}
             </p>
           </div>
 
-          <form action={handleSubmit} className="space-y-5">
-            {redirectTo && (
-              <input type="hidden" name="redirectTo" value={redirectTo} />
-            )}
-            {error && (
+          {ready ? (
+            <form action={handleSubmit} className="space-y-5">
+              {error && (
+                <div
+                  ref={errorRef}
+                  tabIndex={-1}
+                  role="alert"
+                  aria-live="assertive"
+                  aria-atomic="true"
+                  className="text-destructive focus-visible:ring-ring focus-visible:ring-offset-background bg-destructive/10 rounded-xl p-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                >
+                  {error}
+                </div>
+              )}
+
               <div
-                ref={errorRef}
-                tabIndex={-1}
-                role="alert"
-                aria-live="assertive"
-                aria-atomic="true"
-                className="text-destructive focus-visible:ring-ring focus-visible:ring-offset-background bg-destructive/10 rounded-xl p-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="animate-fade-in-up space-y-2"
+                style={{ animationDelay: "100ms", animationFillMode: "both" }}
               >
-                {error}
+                <Label htmlFor="password" className="text-sm font-medium">
+                  New password
+                </Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                  autoComplete="new-password"
+                  className="h-11 rounded-xl"
+                />
               </div>
-            )}
 
-            <div
-              className="animate-fade-in-up space-y-2"
-              style={{ animationDelay: "100ms", animationFillMode: "both" }}
-            >
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                className="h-11 rounded-xl"
-              />
-            </div>
-
-            <div
-              className="animate-fade-in-up space-y-2"
-              style={{ animationDelay: "200ms", animationFillMode: "both" }}
-            >
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                autoComplete="current-password"
-                className="h-11 rounded-xl"
-              />
-            </div>
-
-            <div
-              className="animate-fade-in-up flex justify-end"
-              style={{ animationDelay: "250ms", animationFillMode: "both" }}
-            >
-              <Link
-                href="/forgot-password"
-                className="text-primary text-sm hover:underline"
+              <div
+                className="animate-fade-in-up space-y-2"
+                style={{ animationDelay: "200ms", animationFillMode: "both" }}
               >
-                Forgot your password?
-              </Link>
+                <Label
+                  htmlFor="confirmPassword"
+                  className="text-sm font-medium"
+                >
+                  Confirm password
+                </Label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                  autoComplete="new-password"
+                  className="h-11 rounded-xl"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
+                disabled={loading}
+                style={{ animationDelay: "300ms", animationFillMode: "both" }}
+              >
+                {loading ? "Updating..." : "Update Password"}
+              </Button>
+            </form>
+          ) : (
+            <div className="text-muted-foreground space-y-4 text-sm">
+              <p>
+                If the link has expired or is invalid, you can{" "}
+                <Link
+                  href="/forgot-password"
+                  className="text-primary font-semibold hover:underline"
+                >
+                  request a new one
+                </Link>
+                .
+              </p>
             </div>
-
-            <Button
-              type="submit"
-              className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
-              disabled={loading}
-              style={{ animationDelay: "300ms", animationFillMode: "both" }}
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
-
-          <p className="text-muted-foreground animate-fade-in stagger-4 mt-8 text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/signup"
-              className="text-primary font-semibold hover:underline"
-            >
-              Create one
-            </Link>
-          </p>
+          )}
         </div>
       </div>
     </div>

@@ -1,44 +1,28 @@
 "use client"
 
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useRef, useState } from "react"
 
-import { login } from "@/app/auth/actions"
+import { forgotPassword } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ALLOWED_REDIRECT_PREFIXES } from "@/lib/auth/constants"
-
-function getValidRedirect(raw: string | null): string | null {
-  if (!raw) return null
-  const path = raw.trim()
-  if (
-    !path.startsWith("/") ||
-    path.startsWith("//") ||
-    !ALLOWED_REDIRECT_PREFIXES.some((p) => path.startsWith(p))
-  ) {
-    return null
-  }
-  return path
-}
 
 /**
- * Login page with email/password form and decorative side panel.
+ * Forgot-password page with email form and decorative side panel.
  * @source
  */
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   return (
     <Suspense>
-      <LoginContent />
+      <ForgotPasswordContent />
     </Suspense>
   )
 }
 
-function LoginContent() {
-  const searchParams = useSearchParams()
-  const redirectTo = getValidRedirect(searchParams.get("redirect"))
+function ForgotPasswordContent() {
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const errorRef = useRef<HTMLDivElement | null>(null)
 
@@ -48,17 +32,20 @@ function LoginContent() {
     }
   }, [error])
 
-  /** Submits the login form and surfaces errors without redirect. @source */
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     setError(null)
+    setSuccess(null)
 
-    const result = await login(formData)
+    const result = await forgotPassword(formData)
 
     if (result?.error) {
       setError(result.error)
-      setLoading(false)
+    } else if (result?.success) {
+      setSuccess(result.success)
     }
+
+    setLoading(false)
   }
 
   return (
@@ -92,10 +79,11 @@ function LoginContent() {
 
           <div className="animate-fade-in-up stagger-2 space-y-6">
             <h2 className="font-display text-4xl leading-tight font-bold text-white">
-              Welcome back to your library
+              Reset your password
             </h2>
             <p className="max-w-sm text-lg leading-relaxed text-white/80">
-              Your collection awaits. Pick up right where you left off.
+              It happens to the best of us. We&apos;ll help you get back into
+              your collection.
             </p>
           </div>
 
@@ -123,7 +111,7 @@ function LoginContent() {
         </div>
       </div>
 
-      {/* Right: Login form */}
+      {/* Right: Form */}
       <div className="animate-slide-in-right relative z-10 flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
@@ -149,97 +137,81 @@ function LoginContent() {
 
           <div className="animate-fade-in-up mb-8">
             <h1 className="font-display text-3xl font-bold tracking-tight">
-              Sign in
+              Forgot password
             </h1>
             <p className="text-muted-foreground mt-2">
-              Enter your credentials to access your collection
+              Enter your email and we&apos;ll send you a reset link
             </p>
           </div>
 
-          <form action={handleSubmit} className="space-y-5">
-            {redirectTo && (
-              <input type="hidden" name="redirectTo" value={redirectTo} />
-            )}
-            {error && (
+          {success ? (
+            <div className="space-y-6">
               <div
-                ref={errorRef}
-                tabIndex={-1}
-                role="alert"
-                aria-live="assertive"
-                aria-atomic="true"
-                className="text-destructive focus-visible:ring-ring focus-visible:ring-offset-background bg-destructive/10 rounded-xl p-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                role="status"
+                className="bg-primary/10 text-primary rounded-xl p-4 text-sm"
               >
-                {error}
+                {success}
               </div>
-            )}
-
-            <div
-              className="animate-fade-in-up space-y-2"
-              style={{ animationDelay: "100ms", animationFillMode: "both" }}
-            >
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                className="h-11 rounded-xl"
-              />
-            </div>
-
-            <div
-              className="animate-fade-in-up space-y-2"
-              style={{ animationDelay: "200ms", animationFillMode: "both" }}
-            >
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                autoComplete="current-password"
-                className="h-11 rounded-xl"
-              />
-            </div>
-
-            <div
-              className="animate-fade-in-up flex justify-end"
-              style={{ animationDelay: "250ms", animationFillMode: "both" }}
-            >
               <Link
-                href="/forgot-password"
-                className="text-primary text-sm hover:underline"
+                href="/login"
+                className="text-primary text-sm font-semibold hover:underline"
               >
-                Forgot your password?
+                &larr; Back to login
               </Link>
             </div>
+          ) : (
+            <form action={handleSubmit} className="space-y-5">
+              {error && (
+                <div
+                  ref={errorRef}
+                  tabIndex={-1}
+                  role="alert"
+                  aria-live="assertive"
+                  aria-atomic="true"
+                  className="text-destructive focus-visible:ring-ring focus-visible:ring-offset-background bg-destructive/10 rounded-xl p-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                >
+                  {error}
+                </div>
+              )}
 
-            <Button
-              type="submit"
-              className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
-              disabled={loading}
-              style={{ animationDelay: "300ms", animationFillMode: "both" }}
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
+              <div
+                className="animate-fade-in-up space-y-2"
+                style={{ animationDelay: "100ms", animationFillMode: "both" }}
+              >
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                  className="h-11 rounded-xl"
+                />
+              </div>
 
-          <p className="text-muted-foreground animate-fade-in stagger-4 mt-8 text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/signup"
-              className="text-primary font-semibold hover:underline"
-            >
-              Create one
-            </Link>
-          </p>
+              <Button
+                type="submit"
+                className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
+                disabled={loading}
+                style={{ animationDelay: "200ms", animationFillMode: "both" }}
+              >
+                {loading ? "Sending..." : "Send Reset Link"}
+              </Button>
+
+              <p className="text-muted-foreground animate-fade-in stagger-4 mt-8 text-center text-sm">
+                Remember your password?{" "}
+                <Link
+                  href="/login"
+                  className="text-primary font-semibold hover:underline"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </form>
+          )}
         </div>
       </div>
     </div>
