@@ -9,7 +9,8 @@ import {
   SearchIcon
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import { useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -24,11 +25,14 @@ const typeConfig: Record<
   import_complete: { icon: FileValidationIcon, className: "text-green-500" },
   scrape_complete: { icon: SearchIcon, className: "text-blue-500" },
   price_alert: { icon: DollarCircleIcon, className: "text-amber-500" },
+  release_reminder: {
+    icon: InformationCircleIcon,
+    className: "text-violet-500"
+  },
   info: { icon: InformationCircleIcon, className: "text-muted-foreground" }
 }
 
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now()
+function formatRelativeTime(timestamp: number, now: number): string {
   const diff = now - timestamp
   const seconds = Math.floor(diff / 1000)
   const minutes = Math.floor(seconds / 60)
@@ -44,18 +48,38 @@ function formatRelativeTime(timestamp: number): string {
 
 function NotificationItem({
   notification,
-  onRead
+  onRead,
+  now
 }: {
   readonly notification: Notification
   readonly onRead: (id: string) => void
+  readonly now: number
 }) {
+  const router = useRouter()
   const config = typeConfig[notification.type]
+
+  const meta = notification.metadata
+  let href: string | null = null
+  if (notification.type === "price_alert") {
+    if (typeof meta?.volume_id === "string") {
+      href = `/library/volume/${meta.volume_id}`
+    } else if (typeof meta?.series_id === "string") {
+      href = `/library/series/${meta.series_id}`
+    }
+  } else if (notification.type === "release_reminder") {
+    if (typeof meta?.series_id === "string") {
+      href = `/library/series/${meta.series_id}`
+    }
+  }
 
   return (
     <button
       type="button"
       className="hover:bg-accent flex w-full gap-3 px-4 py-3 text-left transition-colors"
-      onClick={() => onRead(notification.id)}
+      onClick={() => {
+        onRead(notification.id)
+        if (href) router.push(href)
+      }}
     >
       <div className={`mt-0.5 shrink-0 ${config.className}`}>
         <HugeiconsIcon icon={config.icon} size={16} strokeWidth={1.5} />
@@ -70,7 +94,7 @@ function NotificationItem({
           {notification.message}
         </p>
         <p className="text-muted-foreground/60 mt-1 text-[11px]">
-          {formatRelativeTime(notification.timestamp)}
+          {formatRelativeTime(notification.timestamp, now)}
         </p>
       </div>
       {!notification.read && (
@@ -88,6 +112,12 @@ export function NotificationCenter() {
   const markAllReadOnServer = useNotificationStore((s) => s.markAllReadOnServer)
   const clearAllOnServer = useNotificationStore((s) => s.clearAllOnServer)
   const unreadCount = useNotificationStore((s) => s.unreadCount())
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   const handleRead = useCallback(
     (id: string) => {
@@ -154,6 +184,7 @@ export function NotificationCenter() {
                 key={notification.id}
                 notification={notification}
                 onRead={handleRead}
+                now={now}
               />
             ))}
           </div>

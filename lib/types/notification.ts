@@ -2,6 +2,7 @@ export type NotificationType =
   | "import_complete"
   | "scrape_complete"
   | "price_alert"
+  | "release_reminder"
   | "info"
 
 export interface Notification {
