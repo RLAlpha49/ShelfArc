@@ -1,4 +1,6 @@
 import { type NextRequest } from "next/server"
+
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import {
@@ -8,14 +10,13 @@ import {
   parseJsonBody
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
-import { logger } from "@/lib/logger"
 import {
   buildSanitizedVolumeInsert,
   normalizeVolumeDates
 } from "@/lib/library/sanitize-library"
-import { isNonNegativeFinite } from "@/lib/validation"
-import { recordActivityEvent } from "@/lib/activity/record-event"
+import { logger } from "@/lib/logger"
 import type { VolumeInsert } from "@/lib/types/database"
+import { isNonNegativeFinite } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -80,11 +81,23 @@ export async function POST(request: NextRequest) {
       isNonNegativeFinite(data.purchase_price) &&
       data.purchase_price > 0
     ) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("settings")
+        .eq("id", user.id)
+        .single()
+      const userCurrency = (
+        profileData?.settings as Record<string, unknown> | null
+      )?.priceDisplayCurrency
+      const currency =
+        typeof userCurrency === "string" && userCurrency.length === 3
+          ? userCurrency.toUpperCase()
+          : "USD"
       void supabase.from("price_history").insert({
         volume_id: data.id,
         user_id: user.id,
         price: data.purchase_price,
-        currency: "USD",
+        currency,
         source: "manual",
         product_url: data.amazon_url ?? null
       })
