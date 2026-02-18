@@ -150,6 +150,9 @@ CREATE TABLE IF NOT EXISTS profiles (
   username TEXT NOT NULL,
   avatar_url TEXT,
   settings JSONB DEFAULT '{}' NOT NULL,
+  is_public BOOLEAN DEFAULT FALSE NOT NULL,
+  public_bio TEXT DEFAULT '' NOT NULL,
+  public_stats BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -200,6 +203,7 @@ CREATE TABLE IF NOT EXISTS series (
   total_volumes INTEGER,
   status series_status,
   tags TEXT[] DEFAULT '{}',
+  is_public BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -412,6 +416,17 @@ BEGIN
   END IF;
 END $$;
 
+-- Public profile access policy
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Anyone can view public profiles'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Anyone can view public profiles" ON public.profiles FOR SELECT USING (is_public = TRUE)';
+  END IF;
+END $$;
+
 ALTER TABLE series ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
@@ -456,6 +471,17 @@ BEGIN
   END IF;
 END $$;
 
+-- Public series access policy
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'series' AND policyname = 'Anyone can view public series'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Anyone can view public series" ON public.series FOR SELECT USING (is_public = TRUE)';
+  END IF;
+END $$;
+
 ALTER TABLE volumes ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
@@ -497,6 +523,19 @@ BEGIN
       AND policyname = 'Users can delete their own volumes'
   ) THEN
     EXECUTE 'CREATE POLICY "Users can delete their own volumes" ON public.volumes FOR DELETE USING ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+-- Public volumes access policy (volumes belonging to public series)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'volumes' AND policyname = 'Anyone can view volumes of public series'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Anyone can view volumes of public series" ON public.volumes FOR SELECT USING (
+      EXISTS (SELECT 1 FROM public.series s WHERE s.id = series_id AND s.is_public = TRUE)
+    )';
   END IF;
 END $$;
 

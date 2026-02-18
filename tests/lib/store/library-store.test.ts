@@ -1,14 +1,14 @@
-import { describe, expect, it, beforeEach } from "bun:test"
+import { beforeEach,describe, expect, it } from "bun:test"
+
 import {
-  useLibraryStore,
-  selectSeriesById,
-  selectVolumeById,
-  selectSeriesVolumes,
-  selectAllVolumes,
   selectAllSeries,
-  selectAllUnassignedVolumes
-} from "@/lib/store/library-store"
-import type { SeriesWithVolumes, Volume, Series } from "@/lib/types/database"
+  selectAllUnassignedVolumes,
+  selectAllVolumes,
+  selectSeriesById,
+  selectSeriesVolumes,
+  selectVolumeById,
+  useLibraryStore} from "@/lib/store/library-store"
+import type { Series,SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /* ------------------------------------------------------------------ */
 /*  Fixtures                                                          */
@@ -30,6 +30,7 @@ function makeSeries(overrides: Partial<Series> = {}): Series {
     total_volumes: null,
     status: null,
     tags: [],
+    is_public: false,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides

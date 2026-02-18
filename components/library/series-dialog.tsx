@@ -2,18 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { normalizeVolumeTitle } from "@/lib/normalize-title"
+
+import { CoverImage } from "@/components/library/cover-image"
+import { CoverPreviewImage } from "@/components/library/cover-preview-image"
 import { Button } from "@/components/ui/button"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
 import {
   Select,
@@ -22,14 +23,10 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { CoverImage } from "@/components/library/cover-image"
-import { CoverPreviewImage } from "@/components/library/cover-preview-image"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { uploadImage } from "@/lib/uploads/upload-image"
-import {
-  extractStoragePath,
-  resolveImageUrl
-} from "@/lib/uploads/resolve-image-url"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
+import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import type {
   SeriesInsert,
   SeriesStatus,
@@ -37,6 +34,11 @@ import type {
   TitleType,
   Volume
 } from "@/lib/types/database"
+import {
+  extractStoragePath,
+  resolveImageUrl
+} from "@/lib/uploads/resolve-image-url"
+import { uploadImage } from "@/lib/uploads/upload-image"
 
 /** Props for the {@link SeriesDialog} component. @source */
 interface SeriesDialogProps {
@@ -68,7 +70,8 @@ const defaultFormData = {
   type: "manga" as TitleType,
   total_volumes: "",
   status: "",
-  tags: ""
+  tags: "",
+  is_public: false
 }
 
 /**
@@ -89,7 +92,8 @@ const buildSeriesFormData = (series?: SeriesWithVolumes | null) => ({
   type: series?.type ?? "manga",
   total_volumes: series?.total_volumes ? String(series.total_volumes) : "",
   status: series?.status ?? "",
-  tags: series?.tags?.join(", ") ?? ""
+  tags: series?.tags?.join(", ") ?? "",
+  is_public: series?.is_public ?? false
 })
 
 /** Return type of {@link buildSeriesFormData}. @source */
@@ -113,7 +117,8 @@ const areSeriesFormDataEqual = (left: SeriesFormData, right: SeriesFormData) =>
   left.type === right.type &&
   left.total_volumes === right.total_volumes &&
   left.status === right.status &&
-  left.tags === right.tags
+  left.tags === right.tags &&
+  left.is_public === right.is_public
 
 /**
  * Dialog for creating or editing a series with cover art, seed-volume picker, and metadata fields.
@@ -354,7 +359,8 @@ export function SeriesDialog({
             ? Number.parseInt(formData.total_volumes, 10)
             : null,
           status: (formData.status || null) as SeriesStatus | null,
-          tags: tagsArray
+          tags: tagsArray,
+          is_public: formData.is_public
         },
         selectedVolumeIds.length > 0
           ? {
@@ -762,6 +768,23 @@ export function SeriesDialog({
                     }
                     placeholder="Brief description of the series"
                     rows={3}
+                  />
+                </div>
+
+                {/* Visibility */}
+                <div className="flex items-center justify-between border-t pt-4">
+                  <div>
+                    <Label htmlFor="series-is-public">Public</Label>
+                    <p className="text-muted-foreground text-xs">
+                      Allow anyone to view this series on your public profile
+                    </p>
+                  </div>
+                  <Switch
+                    id="series-is-public"
+                    checked={formData.is_public}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, is_public: checked })
+                    }
                   />
                 </div>
               </div>

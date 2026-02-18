@@ -230,6 +230,9 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [username, setUsername] = useState("")
+  const [isPublic, setIsPublic] = useState(false)
+  const [publicBio, setPublicBio] = useState("")
+  const [publicStats, setPublicStats] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
     null
   )
@@ -311,7 +314,10 @@ export default function SettingsPage() {
 
   const hasProfileChanges =
     username !== (profile?.username || "") ||
-    avatarUrl !== (profile?.avatar_url || "")
+    avatarUrl !== (profile?.avatar_url || "") ||
+    isPublic !== (profile?.is_public ?? false) ||
+    publicBio !== (profile?.public_bio ?? "") ||
+    publicStats !== (profile?.public_stats ?? false)
 
   useEffect(() => {
     async function loadProfile() {
@@ -331,6 +337,9 @@ export default function SettingsPage() {
         setProfile(profileData)
         setUsername(profileData.username || "")
         setAvatarUrl(profileData.avatar_url || "")
+        setIsPublic(profileData.is_public ?? false)
+        setPublicBio(profileData.public_bio ?? "")
+        setPublicStats(profileData.public_stats ?? false)
       }
       setIsLoading(false)
 
@@ -420,7 +429,10 @@ export default function SettingsPage() {
       }
       const nextProfileValues = {
         username: sanitizedUsername || null,
-        avatar_url: avatarUrl || null
+        avatar_url: avatarUrl || null,
+        is_public: isPublic,
+        public_bio: publicBio,
+        public_stats: publicStats
       }
       const nextAuthMetadata = {
         username: sanitizedUsername || null,
@@ -429,7 +441,10 @@ export default function SettingsPage() {
       }
       const previousProfileValues = {
         username: profile.username || null,
-        avatar_url: profile.avatar_url || null
+        avatar_url: profile.avatar_url || null,
+        is_public: profile.is_public ?? false,
+        public_bio: profile.public_bio ?? "",
+        public_stats: profile.public_stats ?? false
       }
       const { error } = await profilesTable
         .update(nextProfileValues)
@@ -449,10 +464,16 @@ export default function SettingsPage() {
           setProfile({
             ...profile,
             username: nextProfileValues.username,
-            avatar_url: nextProfileValues.avatar_url
+            avatar_url: nextProfileValues.avatar_url,
+            is_public: nextProfileValues.is_public,
+            public_bio: nextProfileValues.public_bio,
+            public_stats: nextProfileValues.public_stats
           })
           setUsername(nextProfileValues.username ?? "")
           setAvatarUrl(nextProfileValues.avatar_url ?? "")
+          setIsPublic(nextProfileValues.is_public)
+          setPublicBio(nextProfileValues.public_bio)
+          setPublicStats(nextProfileValues.public_stats)
           console.error("Failed to rollback profile update", {
             authError,
             rollbackError,
@@ -463,10 +484,16 @@ export default function SettingsPage() {
           setProfile({
             ...profile,
             username: previousProfileValues.username,
-            avatar_url: previousProfileValues.avatar_url
+            avatar_url: previousProfileValues.avatar_url,
+            is_public: previousProfileValues.is_public,
+            public_bio: previousProfileValues.public_bio,
+            public_stats: previousProfileValues.public_stats
           })
           setUsername(previousProfileValues.username ?? "")
           setAvatarUrl(previousProfileValues.avatar_url ?? "")
+          setIsPublic(previousProfileValues.is_public)
+          setPublicBio(previousProfileValues.public_bio)
+          setPublicStats(previousProfileValues.public_stats)
         }
         console.error("Failed to update auth metadata", {
           authError,
@@ -478,7 +505,10 @@ export default function SettingsPage() {
       setProfile({
         ...profile,
         username: nextProfileValues.username,
-        avatar_url: nextProfileValues.avatar_url
+        avatar_url: nextProfileValues.avatar_url,
+        is_public: nextProfileValues.is_public,
+        public_bio: nextProfileValues.public_bio,
+        public_stats: nextProfileValues.public_stats
       })
       toast.success("Profile updated successfully")
     } catch {
@@ -1067,6 +1097,61 @@ export default function SettingsPage() {
                       }}
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Privacy & Sharing */}
+              <div className="mt-6 border-t pt-6">
+                <h3 className="mb-4 text-sm font-semibold">
+                  Privacy &amp; Sharing
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="is-public">Public Profile</Label>
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        Allow others to view your profile at /u/{username}
+                      </p>
+                    </div>
+                    <Switch
+                      id="is-public"
+                      checked={isPublic}
+                      onCheckedChange={setIsPublic}
+                    />
+                  </div>
+
+                  {isPublic && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="public-bio">Public Bio</Label>
+                        <Input
+                          id="public-bio"
+                          value={publicBio}
+                          onChange={(e) => setPublicBio(e.target.value)}
+                          placeholder="A short bio for your public profile"
+                          maxLength={200}
+                          className="max-w-sm"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="public-stats">
+                            Show Collection Stats
+                          </Label>
+                          <p className="text-muted-foreground mt-0.5 text-xs">
+                            Display total series and volume counts on your
+                            profile
+                          </p>
+                        </div>
+                        <Switch
+                          id="public-stats"
+                          checked={publicStats}
+                          onCheckedChange={setPublicStats}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

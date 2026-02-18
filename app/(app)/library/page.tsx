@@ -1,32 +1,32 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { LibraryToolbar } from "@/components/library/library-toolbar"
-import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
+import { useCallback, useEffect, useMemo, useRef,useState } from "react"
+import { toast } from "sonner"
+
+import { ErrorBoundary } from "@/components/error-boundary"
 import { CollectionsPanel } from "@/components/library/collections-panel"
 import { LibraryContent } from "@/components/library/library-content"
-import { LibraryStatsBar } from "@/components/library/library-stats-bar"
 import { LibraryDialogs } from "@/components/library/library-dialogs"
+import { LibraryStatsBar } from "@/components/library/library-stats-bar"
+import { LibraryToolbar } from "@/components/library/library-toolbar"
+import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
+import { announce } from "@/components/live-announcer"
+import { AMAZON_BINDING_LABELS } from "@/lib/books/amazon-query"
+import { normalizeIsbn } from "@/lib/books/isbn"
+import type { BookSearchResult } from "@/lib/books/search"
 import { useLibrary } from "@/lib/hooks/use-library"
+import { useLibraryBulkOperations } from "@/lib/hooks/use-library-bulk-operations"
 import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
+import { getGridColumnCount, getGridGapPx } from "@/lib/library/grid-utils"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import { useLibraryBulkOperations } from "@/lib/hooks/use-library-bulk-operations"
-import { announce } from "@/components/live-announcer"
-import { ErrorBoundary } from "@/components/error-boundary"
-import { toast } from "sonner"
 import type {
+  OwnershipStatus,
   SeriesWithVolumes,
-  Volume,
-  OwnershipStatus
-} from "@/lib/types/database"
-import type { BookSearchResult } from "@/lib/books/search"
-import { normalizeIsbn } from "@/lib/books/isbn"
-import { AMAZON_BINDING_LABELS } from "@/lib/books/amazon-query"
-import { getGridColumnCount, getGridGapPx } from "@/lib/library/grid-utils"
+  Volume} from "@/lib/types/database"
 
 /**
  * Main library page for browsing, filtering, and managing the user's series and volume collection.
@@ -716,6 +716,7 @@ export default function LibraryPage() {
         total_volumes: 1,
         status: null,
         tags: [],
+        is_public: false,
         created_at: volume.created_at,
         updated_at: volume.updated_at,
         volumes: [volume]

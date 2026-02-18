@@ -70,6 +70,9 @@ export interface Database {
           username: string | null
           avatar_url: string | null
           settings: Record<string, unknown>
+          is_public: boolean
+          public_bio: string
+          public_stats: boolean
           created_at: string
           updated_at: string
         }
@@ -80,6 +83,9 @@ export interface Database {
           username?: string | null
           avatar_url?: string | null
           settings?: Record<string, unknown>
+          is_public?: boolean
+          public_bio?: string
+          public_stats?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -89,6 +95,9 @@ export interface Database {
           username?: string | null
           avatar_url?: string | null
           settings?: Record<string, unknown>
+          is_public?: boolean
+          public_bio?: string
+          public_stats?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -110,6 +119,7 @@ export interface Database {
           total_volumes: number | null
           status: SeriesStatus | null
           tags: string[]
+          is_public: boolean
           created_at: string
           updated_at: string
         }
@@ -128,6 +138,7 @@ export interface Database {
           total_volumes?: number | null
           status?: SeriesStatus | null
           tags?: string[]
+          is_public?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -146,6 +157,7 @@ export interface Database {
           total_volumes?: number | null
           status?: SeriesStatus | null
           tags?: string[]
+          is_public?: boolean
           created_at?: string
           updated_at?: string
         }
