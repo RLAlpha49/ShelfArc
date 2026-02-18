@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { CoverImage } from "@/components/library/cover-image"
-import { CoverPreviewImage } from "@/components/library/cover-preview-image"
 import { Button } from "@/components/ui/button"
 import {
   DialogDescription,
@@ -875,7 +874,8 @@ export function SeriesDialog({
               <div className="flex flex-col items-center gap-4 pt-3 sm:flex-row sm:items-start">
                 <div className="flex w-40 shrink-0 flex-col items-center gap-3 sm:w-50">
                   {coverUrl && !coverPreviewError && (
-                    <CoverPreviewImage
+                    <CoverImage
+                      preview
                       key={coverUrl}
                       src={coverUrl}
                       alt="Cover preview"

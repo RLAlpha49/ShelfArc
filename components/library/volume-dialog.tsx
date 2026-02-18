@@ -1,15 +1,17 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react"
+import { useCallback,useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
+
+import { CoverImage } from "@/components/library/cover-image"
+import { SeriesPicker } from "@/components/library/series-picker"
+import { Button } from "@/components/ui/button"
 import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   InputGroup,
@@ -18,7 +20,7 @@ import {
   InputGroupText
 } from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
 import {
   Select,
   SelectContent,
@@ -26,36 +28,34 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { CoverPreviewImage } from "@/components/library/cover-preview-image"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { uploadImage } from "@/lib/uploads/upload-image"
+import { Tabs, TabsContent,TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
+import { fetchPrice as fetchPriceEndpoint } from "@/lib/api/endpoints"
 import {
-  extractStoragePath,
-  resolveImageUrl
-} from "@/lib/uploads/resolve-image-url"
+  buildAmazonSearchUrl,
+  buildFetchPriceParams,
+  buildPriceQuery,
+  getFormatHint
+} from "@/lib/books/amazon-query"
+import { usePriceHistory } from "@/lib/hooks/use-price-history"
 import {
   DEFAULT_CURRENCY_CODE,
   useLibraryStore
 } from "@/lib/store/library-store"
-import { fetchPrice as fetchPriceEndpoint } from "@/lib/api/endpoints"
-import {
-  buildAmazonSearchUrl,
-  buildPriceQuery,
-  buildFetchPriceParams,
-  getFormatHint
-} from "@/lib/books/amazon-query"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import { usePriceHistory } from "@/lib/hooks/use-price-history"
-import { SeriesPicker } from "@/components/library/series-picker"
 import type {
+  OwnershipStatus,
+  ReadingStatus,
   SeriesWithVolumes,
   Volume,
   VolumeEdition,
   VolumeFormat,
-  VolumeInsert,
-  OwnershipStatus,
-  ReadingStatus
-} from "@/lib/types/database"
+  VolumeInsert} from "@/lib/types/database"
+import {
+  extractStoragePath,
+  resolveImageUrl
+} from "@/lib/uploads/resolve-image-url"
+import { uploadImage } from "@/lib/uploads/upload-image"
 
 /** Props for the {@link VolumeDialog} component. @source */
 interface VolumeDialogProps {
@@ -1038,7 +1038,8 @@ export function VolumeDialog({
                 <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
                   <div className="flex w-40 shrink-0 flex-col items-center gap-3 sm:w-50">
                     {coverUrl && !coverPreviewError && (
-                      <CoverPreviewImage
+                      <CoverImage
+                        preview
                         key={coverUrl}
                         src={coverUrl}
                         alt="Cover preview"
