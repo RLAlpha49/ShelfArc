@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { parsePagination } from "@/lib/api/pagination"
 import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
@@ -45,11 +46,10 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const page = Math.max(1, Number(searchParams.get("page")) || 1)
-    const limit = Math.min(
-      100,
-      Math.max(1, Number(searchParams.get("limit")) || 20)
-    )
+    const { page, limit, from, to } = parsePagination(searchParams, {
+      defaultLimit: 20,
+      maxLimit: 100
+    })
     const eventType = searchParams.get("eventType")
     const entityType = searchParams.get("entityType")
 
@@ -73,9 +73,6 @@ export async function GET(request: NextRequest) {
     if (entityType) {
       query = query.eq("entity_type", entityType)
     }
-
-    const from = (page - 1) * limit
-    const to = from + limit - 1
 
     const { data, error, count } = await query
       .order("created_at", { ascending: false })

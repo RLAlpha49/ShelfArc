@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+import { parsePagination } from "@/lib/api/pagination"
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
@@ -41,14 +42,10 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const page = Math.max(1, Number(searchParams.get("page")) || 1)
-    const limit = Math.min(
-      100,
-      Math.max(1, Number(searchParams.get("limit")) || 50)
-    )
-
-    const from = (page - 1) * limit
-    const to = from + limit - 1
+    const { page, limit, from, to } = parsePagination(searchParams, {
+      defaultLimit: 50,
+      maxLimit: 100
+    })
 
     const { data, error, count } = await supabase
       .from("notifications")
