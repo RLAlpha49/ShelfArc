@@ -6,6 +6,7 @@ import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createUserClient } from "@/lib/supabase/server"
+import { isValidUUID } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +39,10 @@ export async function PATCH(
     }
 
     const { id } = await params
+
+    if (!isValidUUID(id)) {
+      return apiError(400, "Invalid notification id", { correlationId })
+    }
 
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
