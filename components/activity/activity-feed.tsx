@@ -4,6 +4,13 @@ import { useEffect, useState } from "react"
 
 import { ActivityEventItem } from "@/components/activity/activity-event-item"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useActivityFeed } from "@/lib/hooks/use-activity-feed"
 import type { ActivityEventType } from "@/lib/types/database"
@@ -43,24 +50,26 @@ export function ActivityFeed() {
     <div>
       {/* Filter */}
       <div className="mb-6 flex items-center gap-2">
-        <label htmlFor="activity-type-filter" className="sr-only">
-          Filter by event type
-        </label>
-        <select
-          id="activity-type-filter"
-          value={selectedType ?? ""}
-          onChange={(e) =>
-            setSelectedType((e.target.value as ActivityEventType) || undefined)
+        <Select
+          value={selectedType ?? "all"}
+          onValueChange={(value) =>
+            setSelectedType(
+              value === "all" ? undefined : (value as ActivityEventType)
+            )
           }
-          className="bg-card border-border text-foreground rounded-lg border px-3 py-1.5 text-sm"
         >
-          <option value="">All events</option>
-          {eventTypeOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger aria-label="Filter by event type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All events</SelectItem>
+            {eventTypeOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Error state */}
