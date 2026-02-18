@@ -8,8 +8,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { sanitizePlainText } from "@/lib/sanitize-html"
 import { isValidUsername } from "@/lib/validation"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
-
-const ALLOWED_REDIRECT_PREFIXES = ["/dashboard", "/library", "/settings"]
+import { ALLOWED_REDIRECT_PREFIXES } from "@/lib/auth/constants"
+import { validatePassword } from "@/lib/auth/validate-password"
 
 function getSafeRedirect(raw: unknown): string {
   if (typeof raw !== "string") return "/library"
@@ -89,8 +89,9 @@ export async function signup(formData: FormData) {
   if (!email?.includes("@")) {
     return { error: "Valid email is required" }
   }
-  if (!password || password.length < 6) {
-    return { error: "Password must be at least 6 characters" }
+  const passwordError = validatePassword(password)
+  if (passwordError) {
+    return { error: passwordError }
   }
 
   const username = sanitizePlainText(rawUsername || "", 20)
@@ -99,6 +100,22 @@ export async function signup(formData: FormData) {
     return {
       error: "Username must be 3-20 characters (letters, numbers, underscores)"
     }
+  }
+
+  const headerStore = await headers()
+  const forwarded = headerStore.get("x-forwarded-for")
+  const clientIp = forwarded?.split(",")[0]?.trim() || "unknown"
+
+  const rateLimitResult = await consumeDistributedRateLimit({
+    key: `signup:${clientIp}`,
+    maxHits: 3,
+    windowMs: 60_000,
+    cooldownMs: 10 * 60_000,
+    reason: "Signup rate limit"
+  })
+
+  if (rateLimitResult && !rateLimitResult.allowed) {
+    return { error: "Too many signup attempts. Please try again later." }
   }
 
   const admin = createAdminClient({
