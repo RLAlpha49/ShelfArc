@@ -78,14 +78,25 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const seriesList: PublicSeries[] = []
 
-  if (seriesData) {
-    for (const s of seriesData) {
-      const { count } = await admin
-        .from("volumes")
-        .select("id", { count: "exact", head: true })
-        .eq("series_id", s.id)
+  if (seriesData && seriesData.length > 0) {
+    const seriesIds = seriesData.map((s) => s.id)
 
-      seriesList.push({ ...s, volumeCount: count ?? 0 })
+    // Single aggregated query instead of N+1 per-series count queries
+    const { data: volumeRows } = await admin
+      .from("volumes")
+      .select("series_id")
+      .eq("user_id", profile.id)
+      .in("series_id", seriesIds)
+
+    const countBySeries = new Map<string, number>()
+    for (const row of volumeRows ?? []) {
+      if (!row.series_id) continue
+      const prev = countBySeries.get(row.series_id) ?? 0
+      countBySeries.set(row.series_id, prev + 1)
+    }
+
+    for (const s of seriesData) {
+      seriesList.push({ ...s, volumeCount: countBySeries.get(s.id) ?? 0 })
     }
   }
 
