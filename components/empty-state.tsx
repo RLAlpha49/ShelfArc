@@ -7,25 +7,11 @@ interface EmptyStateAction {
   readonly variant?: "default" | "outline" | "secondary" | "ghost"
 }
 
-function buildActions(
-  actions?: readonly EmptyStateAction[],
-  action?: { label: string; onClick: () => void }
-): EmptyStateAction[] {
-  if (actions?.length) return [...actions]
-  if (action) return [{ label: action.label, onClick: action.onClick, variant: "default" }]
-  return []
-}
-
 /** Props for the {@link EmptyState} placeholder. @source */
 interface EmptyStateProps {
   readonly icon?: React.ReactNode
   readonly title: string
   readonly description: string
-  /** @deprecated Use `actions` array instead. Single action shorthand. */
-  readonly action?: {
-    label: string
-    onClick: () => void
-  }
   /** Multiple action buttons — first is primary, rest are outline by default. */
   readonly actions?: readonly EmptyStateAction[]
   /** Optional tip or hint displayed below the description. */
@@ -42,12 +28,9 @@ export function EmptyState({
   icon,
   title,
   description,
-  action,
   actions,
   tip
 }: EmptyStateProps) {
-  const allActions: EmptyStateAction[] = buildActions(actions, action)
-
   return (
     <div className="animate-fade-in-up relative flex flex-col items-center justify-center px-4 py-24 text-center">
       {icon && (
@@ -80,9 +63,9 @@ export function EmptyState({
           {tip}
         </p>
       )}
-      {allActions.length > 0 && (
+      {actions && actions.length > 0 && (
         <div className="flex flex-wrap items-center justify-center gap-3">
-          {allActions.map((a, i) => (
+          {actions.map((a, i) => (
             <Button
               key={a.label}
               onClick={a.onClick}
