@@ -97,6 +97,12 @@ export default function RootLayout({
       data-animations="auto"
       suppressHydrationWarning
     >
+      {/* Synchronously apply animation setting before hydration to prevent reduced-motion flash */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `try{var s=JSON.parse(localStorage.getItem('settings-store')||'{}');var a=s&&s.state&&s.state.animations;if(a&&a!=='auto'){document.documentElement.setAttribute('data-animations',a);}}catch(e){}`
+        }}
+      />
       <body className="bg-background min-h-screen font-sans antialiased">
         <ThemeProvider
           attribute="class"
