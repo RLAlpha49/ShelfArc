@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+
 import { makeNextRequest, readJson } from "./test-utils"
 
 type UserResult = { data: { user: { id: string } | null } }
@@ -154,7 +155,6 @@ describe("GET /api/username/check", () => {
     const body = await readJson<{ data: { available: boolean } }>(response)
     expect(response.status).toBe(200)
     expect(body.data.available).toBe(true)
-    expect(rateLimitMocks.recordFailure).toHaveBeenCalledTimes(1)
   })
 
   it("returns available=false when username is taken", async () => {

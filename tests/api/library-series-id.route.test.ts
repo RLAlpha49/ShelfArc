@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+
 import { makeNextRequest, readJson } from "./test-utils"
 
 const getUserMock = mock(
@@ -7,8 +8,8 @@ const getUserMock = mock(
   })
 )
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const singleMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: {
       id: "series-1",
@@ -22,8 +23,8 @@ const singleMock = mock(
   })
 )
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const volumesOrderMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: [{ id: "vol-1", volume_number: 1, title: "Vol 1" }],
     error: null
@@ -144,8 +145,12 @@ describe("GET /api/library/series/[id]", () => {
 
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest("http://localhost/api/library/series/series-1"),
-      { params: Promise.resolve({ id: "series-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001"
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(response.status).toBe(404)
@@ -154,8 +159,12 @@ describe("GET /api/library/series/[id]", () => {
   it("returns series with volumes on success", async () => {
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest("http://localhost/api/library/series/series-1"),
-      { params: Promise.resolve({ id: "series-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001"
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     const body = await readJson<{
@@ -194,12 +203,17 @@ describe("PATCH /api/library/series/[id]", () => {
   it("returns 400 for malformed JSON", async () => {
     const { PATCH } = await loadRoute()
     const response = await PATCH(
-      makeNextRequest("http://localhost/api/library/series/series-1", {
-        method: "PATCH",
-        body: "{{not json",
-        headers: { "Content-Type": "application/json" }
-      }),
-      { params: Promise.resolve({ id: "series-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001",
+        {
+          method: "PATCH",
+          body: "{{not json",
+          headers: { "Content-Type": "application/json" }
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     const body = await readJson<{ error: string }>(response)
@@ -215,12 +229,17 @@ describe("PATCH /api/library/series/[id]", () => {
 
     const { PATCH } = await loadRoute()
     const response = await PATCH(
-      makeNextRequest("http://localhost/api/library/series/series-1", {
-        method: "PATCH",
-        body: JSON.stringify({ title: "Updated" }),
-        headers: { "Content-Type": "application/json" }
-      }),
-      { params: Promise.resolve({ id: "series-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ title: "Updated" }),
+          headers: { "Content-Type": "application/json" }
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(response.status).toBe(404)
@@ -240,12 +259,17 @@ describe("PATCH /api/library/series/[id]", () => {
 
     const { PATCH } = await loadRoute()
     const response = await PATCH(
-      makeNextRequest("http://localhost/api/library/series/series-1", {
-        method: "PATCH",
-        body: JSON.stringify({ title: "Updated" }),
-        headers: { "Content-Type": "application/json" }
-      }),
-      { params: Promise.resolve({ id: "series-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ title: "Updated" }),
+          headers: { "Content-Type": "application/json" }
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     const body = await readJson<{ id: string; title: string }>(response)
@@ -256,12 +280,17 @@ describe("PATCH /api/library/series/[id]", () => {
   it("enforces CSRF protection", async () => {
     const { PATCH } = await loadRoute()
     await PATCH(
-      makeNextRequest("http://localhost/api/library/series/series-1", {
-        method: "PATCH",
-        body: JSON.stringify({ title: "Updated" }),
-        headers: { "Content-Type": "application/json" }
-      }),
-      { params: Promise.resolve({ id: "series-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ title: "Updated" }),
+          headers: { "Content-Type": "application/json" }
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(enforceSameOriginMock).toHaveBeenCalled()
@@ -291,10 +320,15 @@ describe("DELETE /api/library/series/[id]", () => {
   it("returns { deleted: true } on success", async () => {
     const { DELETE } = await loadRoute()
     const response = await DELETE(
-      makeNextRequest("http://localhost/api/library/series/series-1", {
-        method: "DELETE"
-      }),
-      { params: Promise.resolve({ id: "series-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001",
+        {
+          method: "DELETE"
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     const body = await readJson<{ deleted: boolean }>(response)
@@ -306,10 +340,12 @@ describe("DELETE /api/library/series/[id]", () => {
     const { DELETE } = await loadRoute()
     const response = await DELETE(
       makeNextRequest(
-        "http://localhost/api/library/series/series-1?deleteVolumes=true",
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001?deleteVolumes=true",
         { method: "DELETE" }
       ),
-      { params: Promise.resolve({ id: "series-1" }) }
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(response.status).toBe(200)
@@ -318,10 +354,15 @@ describe("DELETE /api/library/series/[id]", () => {
   it("enforces CSRF protection", async () => {
     const { DELETE } = await loadRoute()
     await DELETE(
-      makeNextRequest("http://localhost/api/library/series/series-1", {
-        method: "DELETE"
-      }),
-      { params: Promise.resolve({ id: "series-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/series/00000000-0000-0000-0000-000000000001",
+        {
+          method: "DELETE"
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(enforceSameOriginMock).toHaveBeenCalled()

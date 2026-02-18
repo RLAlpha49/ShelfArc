@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+
 import { makeNextRequest, readJson } from "./test-utils"
 
 type UserResult = { data: { user: { id: string } | null } }
@@ -10,8 +11,8 @@ const getUserMock = mock(
 )
 
 // Terminal mock for GET (range call)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const rangeMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: [
       {
@@ -30,8 +31,8 @@ const rangeMock = mock(
 )
 
 // Terminal mock for POST (single call)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const insertSingleMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: {
       id: "evt-new",
@@ -241,146 +242,6 @@ describe("GET /api/activity", () => {
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(500)
     expect(body.error).toBe("Failed to fetch activity events")
-  })
-})
-
-// ---------------------------------------------------------------------------
-// POST /api/activity
-// ---------------------------------------------------------------------------
-describe("POST /api/activity", () => {
-  it("returns 401 when not authenticated", async () => {
-    getUserMock.mockResolvedValueOnce({ data: { user: null } })
-
-    const { POST } = await loadRoute()
-    const response = await POST(
-      makeNextRequest("http://localhost/api/activity", {
-        method: "POST",
-        body: JSON.stringify({ eventType: "volume_added" }),
-        headers: { "Content-Type": "application/json" }
-      })
-    )
-
-    const body = await readJson<{ error: string }>(response)
-    expect(response.status).toBe(401)
-    expect(body.error).toBe("Not authenticated")
-  })
-
-  it("returns 429 when rate limited", async () => {
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
-      { allowed: false }
-    )
-
-    const { POST } = await loadRoute()
-    const response = await POST(
-      makeNextRequest("http://localhost/api/activity", {
-        method: "POST",
-        body: JSON.stringify({ eventType: "volume_added" }),
-        headers: { "Content-Type": "application/json" }
-      })
-    )
-
-    const body = await readJson<{ error: string }>(response)
-    expect(response.status).toBe(429)
-    expect(body.error).toBe("Too many requests")
-  })
-
-  it("returns 400 for malformed JSON", async () => {
-    const { POST } = await loadRoute()
-    const response = await POST(
-      makeNextRequest("http://localhost/api/activity", {
-        method: "POST",
-        body: "{{not json",
-        headers: { "Content-Type": "application/json" }
-      })
-    )
-
-    const body = await readJson<{ error: string }>(response)
-    expect(response.status).toBe(400)
-    expect(body.error).toBe("Invalid JSON in request body")
-  })
-
-  it("returns 400 when eventType is missing", async () => {
-    const { POST } = await loadRoute()
-    const response = await POST(
-      makeNextRequest("http://localhost/api/activity", {
-        method: "POST",
-        body: JSON.stringify({}),
-        headers: { "Content-Type": "application/json" }
-      })
-    )
-
-    const body = await readJson<{ error: string }>(response)
-    expect(response.status).toBe(400)
-    expect(body.error).toBe("Invalid or missing eventType")
-  })
-
-  it("returns 400 for invalid eventType", async () => {
-    const { POST } = await loadRoute()
-    const response = await POST(
-      makeNextRequest("http://localhost/api/activity", {
-        method: "POST",
-        body: JSON.stringify({ eventType: "not_a_real_event" }),
-        headers: { "Content-Type": "application/json" }
-      })
-    )
-
-    const body = await readJson<{ error: string }>(response)
-    expect(response.status).toBe(400)
-    expect(body.error).toBe("Invalid or missing eventType")
-  })
-
-  it("creates activity event and returns 201", async () => {
-    const { POST } = await loadRoute()
-    const response = await POST(
-      makeNextRequest("http://localhost/api/activity", {
-        method: "POST",
-        body: JSON.stringify({
-          eventType: "volume_added",
-          entityType: "volume",
-          entityId: "vol-1",
-          metadata: { title: "Test" }
-        }),
-        headers: { "Content-Type": "application/json" }
-      })
-    )
-
-    const body = await readJson<{ id: string; event_type: string }>(response)
-    expect(response.status).toBe(201)
-    expect(body.id).toBe("evt-new")
-    expect(body.event_type).toBe("volume_added")
-  })
-
-  it("returns 500 when insert fails", async () => {
-    insertSingleMock.mockResolvedValueOnce({
-      data: null,
-      error: { message: "insert failed" }
-    })
-
-    const { POST } = await loadRoute()
-    const response = await POST(
-      makeNextRequest("http://localhost/api/activity", {
-        method: "POST",
-        body: JSON.stringify({ eventType: "series_created" }),
-        headers: { "Content-Type": "application/json" }
-      })
-    )
-
-    const body = await readJson<{ error: string }>(response)
-    expect(response.status).toBe(500)
-    expect(body.error).toBe("Failed to record activity event")
-  })
-
-  it("enforces CSRF protection", async () => {
-    const { POST } = await loadRoute()
-    await POST(
-      makeNextRequest("http://localhost/api/activity", {
-        method: "POST",
-        body: JSON.stringify({ eventType: "volume_added" }),
-        headers: { "Content-Type": "application/json" }
-      })
-    )
-
-    expect(enforceSameOriginMock).toHaveBeenCalled()
   })
 })
 

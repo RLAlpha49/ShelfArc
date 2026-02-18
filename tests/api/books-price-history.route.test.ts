@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+
 import { makeNextRequest, readJson } from "./test-utils"
 
 type UserResult = { data: { user: { id: string } | null } }
@@ -321,7 +322,7 @@ describe("POST /api/books/price/history", () => {
     expect(body.error).toBe("currency must be a 3-letter ISO currency code")
   })
 
-  it("returns 400 when source exceeds max length", async () => {
+  it("returns 400 when source is not in allowlist", async () => {
     const { POST } = await loadRoute()
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/history", {
@@ -337,9 +338,7 @@ describe("POST /api/books/price/history", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe(
-      "source must be a non-empty string (max 50 characters)"
-    )
+    expect(body.error).toBe("source must be one of: amazon, manual, imported")
   })
 
   it("returns 400 for invalid productUrl", async () => {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+
 import { makeNextRequest, readJson } from "./test-utils"
 
 const getUserMock = mock(
@@ -7,8 +8,8 @@ const getUserMock = mock(
   })
 )
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const singleMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: {
       id: "vol-1",
@@ -116,8 +117,12 @@ describe("GET /api/library/volumes/[id]", () => {
 
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1"),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001"
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(response.status).toBe(404)
@@ -126,8 +131,12 @@ describe("GET /api/library/volumes/[id]", () => {
   it("returns volume with series on success", async () => {
     const { GET } = await loadRoute()
     const response = await GET(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1"),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001"
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     const body = await readJson<{ id: string; title: string }>(response)
@@ -162,12 +171,17 @@ describe("PATCH /api/library/volumes/[id]", () => {
   it("returns 400 for malformed JSON", async () => {
     const { PATCH } = await loadRoute()
     const response = await PATCH(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1", {
-        method: "PATCH",
-        body: "{{not json",
-        headers: { "Content-Type": "application/json" }
-      }),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001",
+        {
+          method: "PATCH",
+          body: "{{not json",
+          headers: { "Content-Type": "application/json" }
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     const body = await readJson<{ error: string }>(response)
@@ -183,12 +197,17 @@ describe("PATCH /api/library/volumes/[id]", () => {
 
     const { PATCH } = await loadRoute()
     const response = await PATCH(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1", {
-        method: "PATCH",
-        body: JSON.stringify({ title: "Updated Vol" }),
-        headers: { "Content-Type": "application/json" }
-      }),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ title: "Updated Vol" }),
+          headers: { "Content-Type": "application/json" }
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(response.status).toBe(404)
@@ -209,12 +228,17 @@ describe("PATCH /api/library/volumes/[id]", () => {
 
     const { PATCH } = await loadRoute()
     const response = await PATCH(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1", {
-        method: "PATCH",
-        body: JSON.stringify({ title: "Updated Vol" }),
-        headers: { "Content-Type": "application/json" }
-      }),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ title: "Updated Vol" }),
+          headers: { "Content-Type": "application/json" }
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     const body = await readJson<{ id: string; title: string }>(response)
@@ -225,12 +249,17 @@ describe("PATCH /api/library/volumes/[id]", () => {
   it("enforces CSRF protection", async () => {
     const { PATCH } = await loadRoute()
     await PATCH(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1", {
-        method: "PATCH",
-        body: JSON.stringify({ title: "Updated Vol" }),
-        headers: { "Content-Type": "application/json" }
-      }),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ title: "Updated Vol" }),
+          headers: { "Content-Type": "application/json" }
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(enforceSameOriginMock).toHaveBeenCalled()
@@ -260,10 +289,15 @@ describe("DELETE /api/library/volumes/[id]", () => {
   it("returns { deleted: true } on success", async () => {
     const { DELETE } = await loadRoute()
     const response = await DELETE(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1", {
-        method: "DELETE"
-      }),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001",
+        {
+          method: "DELETE"
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     const body = await readJson<{ deleted: boolean }>(response)
@@ -276,10 +310,15 @@ describe("DELETE /api/library/volumes/[id]", () => {
 
     const { DELETE } = await loadRoute()
     const response = await DELETE(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1", {
-        method: "DELETE"
-      }),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001",
+        {
+          method: "DELETE"
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(response.status).toBeGreaterThanOrEqual(400)
@@ -288,10 +327,15 @@ describe("DELETE /api/library/volumes/[id]", () => {
   it("enforces CSRF protection", async () => {
     const { DELETE } = await loadRoute()
     await DELETE(
-      makeNextRequest("http://localhost/api/library/volumes/vol-1", {
-        method: "DELETE"
-      }),
-      { params: Promise.resolve({ id: "vol-1" }) }
+      makeNextRequest(
+        "http://localhost/api/library/volumes/00000000-0000-0000-0000-000000000001",
+        {
+          method: "DELETE"
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "00000000-0000-0000-0000-000000000001" })
+      }
     )
 
     expect(enforceSameOriginMock).toHaveBeenCalled()
