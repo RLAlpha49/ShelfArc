@@ -150,6 +150,27 @@ const enforceRequestRateLimit = async (requestLimitKey: string) => {
 }
 
 /**
+ * Checks `price_history` for a recent (< 1 h) cached price for the given volume.
+ * Returns `{ price, currency, product_url, scraped_at }` or `null` when no fresh
+ * cache entry exists.
+ * @source
+ */
+async function fetchCachedPrice(
+  supabase: Awaited<ReturnType<typeof createUserClient>>,
+  volumeId: string
+) {
+  const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
+  const { data } = await supabase
+    .from("price_history")
+    .select("price, currency, product_url, scraped_at")
+    .eq("volume_id", volumeId)
+    .gt("scraped_at", oneHourAgo)
+    .order("scraped_at", { ascending: false })
+    .limit(1)
+  return data && data.length > 0 ? data[0] : null
+}
+
+/**
  * Amazon price-lookup endpoint: scrapes search results, scores them, and returns the best match with price/image data.
  * @param request - Incoming request with `title`, `domain`, `volume`, `format`, `binding`, and option flags.
  * @returns JSON with the matched result, price data, and search metadata.
@@ -178,6 +199,39 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get("includePrice") !== "false"
 
     const context = createAmazonSearchContext(request.nextUrl.searchParams)
+
+    // Return cached price from price_history when available (within the last hour)
+    // to avoid repeat Amazon scrapes for the same volume.
+    // Image URLs are not cached, so bypass cache when the caller needs an image.
+    const volumeId = request.nextUrl.searchParams.get("volumeId")
+    if (volumeId && includePrice && !includeImage) {
+      const cached = await fetchCachedPrice(supabase, volumeId)
+      if (cached) {
+        log.info("Returning cached price from price_history", {
+          volumeId,
+          scraped_at: cached.scraped_at
+        })
+        return apiSuccess(
+          {
+            data: {
+              searchUrl: context.searchUrl,
+              domain: context.domain,
+              expectedTitle: context.expectedTitle,
+              matchScore: 0,
+              binding: context.bindingLabel,
+              result: {
+                priceValue: Number(cached.price),
+                currency: cached.currency,
+                priceText: null,
+                url: cached.product_url ?? null,
+                imageUrl: null
+              }
+            }
+          },
+          { correlationId }
+        )
+      }
+    }
 
     const identity = resolveClientIdentity(request)
     const requestLimitKey = `amazon-request:${identity}`

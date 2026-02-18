@@ -41,6 +41,7 @@ export interface FetchPriceParams {
   format?: string
   binding: string
   domain: string
+  volumeId?: string
   includeImage?: boolean
   includePrice?: boolean
   fallbackToKindle?: boolean

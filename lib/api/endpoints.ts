@@ -52,6 +52,7 @@ export function fetchPrice(
   if (params.format) sp.set("format", params.format)
   sp.set("binding", params.binding)
   sp.set("domain", params.domain)
+  if (params.volumeId) sp.set("volumeId", params.volumeId)
   if (params.includeImage) sp.set("includeImage", "true")
   if (params.includePrice === false) sp.set("includePrice", "false")
   if (params.includePrice !== false && params.fallbackToKindle) {

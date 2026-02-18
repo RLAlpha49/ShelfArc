@@ -513,7 +513,7 @@ function buildJobParams(i: number, ctx: JobContext): FetchPriceParams | null {
     updateJob(i, { status: "failed", errorMessage: result.error }, setter)
     return null
   }
-  return result.params
+  return { ...result.params, volumeId: jobs[i].volumeId }
 }
 
 /**
