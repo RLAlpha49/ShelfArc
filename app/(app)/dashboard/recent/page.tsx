@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDate } from "@/lib/format-date"
-import { useLibrary } from "@/lib/hooks/use-library"
+import { useEnsureLibraryLoaded } from "@/lib/hooks/use-ensure-library-loaded"
 import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { useLibraryStore } from "@/lib/store/library-store"
@@ -186,17 +186,13 @@ function RecentContent({
 }
 
 export default function RecentPage() {
-  const { series, fetchSeries, isLoading } = useLibrary()
+  const { series, isLoading } = useEnsureLibraryLoaded()
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
 
   const [tab, setTab] = useState<"series" | "volumes">("series")
   const [formatFilter, setFormatFilter] = useState<FormatFilter>("all")
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all")
-
-  useEffect(() => {
-    if (series.length === 0) fetchSeries()
-  }, [series.length, fetchSeries])
 
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 

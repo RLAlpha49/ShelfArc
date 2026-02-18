@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { RecommendationsCard } from "@/components/library/recommendations-card"
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useLibrary } from "@/lib/hooks/use-library"
+import { useEnsureLibraryLoaded } from "@/lib/hooks/use-ensure-library-loaded"
 import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
 import type { SuggestionCategory } from "@/lib/library/analytics"
 import {
@@ -34,16 +34,12 @@ const CATEGORY_LABELS: Record<SuggestionCategory, string> = {
 }
 
 export default function SuggestionsPage() {
-  const { series, fetchSeries, isLoading } = useLibrary()
+  const { series, isLoading } = useEnsureLibraryLoaded()
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
 
   const [formatFilter, setFormatFilter] = useState<FormatFilter>("all")
   const [wishlistFilter, setWishlistFilter] = useState<WishlistFilter>("all")
   const [activeTab, setActiveTab] = useState<CategoryTab>("all")
-
-  useEffect(() => {
-    if (series.length === 0) fetchSeries()
-  }, [series.length, fetchSeries])
 
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 

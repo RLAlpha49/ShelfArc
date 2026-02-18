@@ -1,23 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useLibrary } from "@/lib/hooks/use-library"
+import { useEnsureLibraryLoaded } from "@/lib/hooks/use-ensure-library-loaded"
 import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { useLibraryStore } from "@/lib/store/library-store"
 
 export default function WishlistPage() {
-  const { series, fetchSeries, isLoading } = useLibrary()
+  const { series, isLoading } = useEnsureLibraryLoaded()
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const [tab, setTab] = useState<"wishlist" | "owned">("wishlist")
-
-  useEffect(() => {
-    if (series.length === 0) fetchSeries()
-  }, [series.length, fetchSeries])
 
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 

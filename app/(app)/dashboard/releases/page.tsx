@@ -1,17 +1,18 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useLibrary } from "@/lib/hooks/use-library"
-import { useSettingsStore } from "@/lib/store/settings-store"
-import { formatDate } from "@/lib/format-date"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useMemo, useState } from "react"
+
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { formatDate } from "@/lib/format-date"
+import { useEnsureLibraryLoaded } from "@/lib/hooks/use-ensure-library-loaded"
 import {
   computeReleases,
   type MonthGroup,
   type ReleaseItem
 } from "@/lib/library/analytics"
+import { useSettingsStore } from "@/lib/store/settings-store"
 
 type FormatFilter = "all" | "light_novel" | "manga"
 
@@ -171,15 +172,9 @@ function EmptyHint({
 }
 
 export default function ReleasesPage() {
-  const { series, fetchSeries, isLoading } = useLibrary()
+  const { series, isLoading } = useEnsureLibraryLoaded()
   const [formatFilter, setFormatFilter] = useState<FormatFilter>("all")
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming")
-
-  useEffect(() => {
-    if (series.length === 0) {
-      fetchSeries()
-    }
-  }, [series.length, fetchSeries])
 
   const filteredSeries = useMemo(() => {
     if (formatFilter === "all") return series

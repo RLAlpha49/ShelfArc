@@ -1,26 +1,22 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDate } from "@/lib/format-date"
-import { useLibrary } from "@/lib/hooks/use-library"
+import { useEnsureLibraryLoaded } from "@/lib/hooks/use-ensure-library-loaded"
 import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 
 export default function TrackedPage() {
-  const { series, fetchSeries, isLoading } = useLibrary()
+  const { series, isLoading } = useEnsureLibraryLoaded()
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
   const [tab, setTab] = useState<"priced" | "unpriced">("priced")
-
-  useEffect(() => {
-    if (series.length === 0) fetchSeries()
-  }, [series.length, fetchSeries])
 
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 
