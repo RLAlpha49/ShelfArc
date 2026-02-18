@@ -148,7 +148,11 @@ export function OnboardingDialog({
         showCloseButton={false}
         className="from-background to-muted/40 ring-border/60 rounded-2xl border-0 bg-linear-to-b p-0 shadow-xl ring-1 sm:max-w-md"
       >
-        <div className="flex flex-col items-center px-6 pt-8 pb-2 text-center">
+        <div
+          key={step}
+          style={{ animation: "fade-in-up 150ms ease-out both" }}
+          className="flex flex-col items-center px-6 pt-8 pb-2 text-center"
+        >
           <div className="bg-primary/8 text-primary mb-5 flex h-20 w-20 items-center justify-center rounded-2xl">
             {current.icon}
           </div>
@@ -163,8 +167,9 @@ export function OnboardingDialog({
         </div>
 
         {/* Progress dots */}
-        <fieldset
-          className="flex items-center justify-center gap-1.5 border-0 py-3"
+        <div
+          role="group"
+          className="flex items-center justify-center gap-1.5 py-3"
           aria-label={`Step ${step + 1} of ${STEPS.length}`}
         >
           {STEPS.map((s, i) => (
@@ -175,7 +180,7 @@ export function OnboardingDialog({
               }`}
             />
           ))}
-        </fieldset>
+        </div>
 
         <DialogFooter className="border-border/40 border-t px-6 py-4">
           <div className="flex w-full items-center justify-between">
