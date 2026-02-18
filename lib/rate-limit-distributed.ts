@@ -22,6 +22,14 @@ export type DistributedRateLimitResult = {
 
 let warnedMissingRpc = false
 
+/**
+ * Module-level singleton Supabase admin client.
+ * Created once on first use and reused for all subsequent calls,
+ * avoiding per-call connection overhead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let adminClient: any = null
+
 const isAdminConfigured = () => {
   const explicitlyEnabled =
     process.env.DISTRIBUTED_RATE_LIMIT_ENABLED === "true"
@@ -33,6 +41,24 @@ const isAdminConfigured = () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.SUPABASE_SECRET_KEY
   )
+}
+
+/**
+ * Returns the module-level singleton Supabase admin client, creating it on first call.
+ * @source
+ */
+function getAdminClient() {
+  if (adminClient) return adminClient
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY!
+  adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
+  })
+  return adminClient
 }
 
 /**
@@ -62,23 +88,11 @@ export async function consumeDistributedRateLimit(
   }
 
   try {
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      },
-      global: {
-        headers: {
-          "X-Client-Reason": input.reason
-        }
-      }
-    })
+    const supabase = getAdminClient()
 
     // Supabase type generation may not include custom RPCs; use a safe cast.
     // The RPC is expected to return a single row with { allowed, retry_after_ms }.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any).rpc("rate_limit_consume", {
+    const { data, error } = await supabase.rpc("rate_limit_consume", {
       p_key: input.key,
       p_max_hits: maxHits,
       p_window_ms: windowMs,
