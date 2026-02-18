@@ -7,6 +7,7 @@ import type {
   VolumeEdition,
   VolumeFormat
 } from "@/lib/types/database"
+import { extractStoragePath } from "@/lib/uploads/resolve-image-url"
 
 /** All valid title type values. @source */
 export const TITLE_TYPES: readonly TitleType[] = [
@@ -265,7 +266,42 @@ export const USERNAME_PATTERN = /^\w{3,20}$/
 export function isValidUsername(value: unknown): value is string {
   return typeof value === "string" && USERNAME_PATTERN.test(value)
 }
+/**
+ * Validates profile update fields (username + avatarUrl).
+ * Accepts `storage:`-prefixed paths and plain `userId/...` storage paths, or
+ * a well-formed HTTPS URL. Returns an error message string or `null`.
+ */
+export function validateProfileFields(
+  fields: { username?: string | null; avatarUrl?: string | null },
+  userId: string
+): string | null {
+  if (
+    fields.username !== undefined &&
+    fields.username !== null &&
+    !isValidUsername(fields.username)
+  ) {
+    return "Invalid username format"
+  }
 
+  if (
+    fields.avatarUrl !== undefined &&
+    fields.avatarUrl !== null &&
+    fields.avatarUrl !== ""
+  ) {
+    const trimmed = fields.avatarUrl.trim()
+    const isPlainUserPath =
+      trimmed.startsWith(userId + "/") && !trimmed.includes("://")
+    const isStoragePrefixed =
+      extractStoragePath(trimmed) !== null && !trimmed.includes("://")
+    const isStoragePath = isPlainUserPath || isStoragePrefixed
+
+    if (!isStoragePath && !isValidHttpsUrl(trimmed)) {
+      return "avatarUrl must be a valid HTTPS URL"
+    }
+  }
+
+  return null
+}
 /** Regex matching a canonical UUID v1–v5 (case-insensitive). @source */
 export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

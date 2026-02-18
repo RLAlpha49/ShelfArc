@@ -8,7 +8,7 @@ import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { sanitizePlainText } from "@/lib/sanitize-html"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
-import { isValidHttpsUrl, isValidUsername } from "@/lib/validation"
+import { validateProfileFields } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -37,33 +37,6 @@ function extractProfileFields(body: Record<string, unknown>): ProfileFields {
     avatarUrl:
       typeof body.avatarUrl === "string" ? body.avatarUrl.trim() : undefined
   }
-}
-
-/** Validates extracted profile fields, returning an error message or null. @source */
-function validateProfileFields(
-  fields: ProfileFields,
-  userId: string
-): string | null {
-  if (
-    fields.username !== undefined &&
-    fields.username !== null &&
-    !isValidUsername(fields.username)
-  ) {
-    return "Invalid username format"
-  }
-  if (
-    fields.avatarUrl !== undefined &&
-    fields.avatarUrl !== null &&
-    fields.avatarUrl !== ""
-  ) {
-    const isStoragePath =
-      fields.avatarUrl.startsWith(userId + "/") &&
-      !fields.avatarUrl.includes("://")
-    if (!isStoragePath && !isValidHttpsUrl(fields.avatarUrl)) {
-      return "avatarUrl must be a valid HTTPS URL"
-    }
-  }
-  return null
 }
 
 /** Builds the DB update payload from validated profile fields. @source */

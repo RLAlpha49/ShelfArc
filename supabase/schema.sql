@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   avatar_url TEXT,
   settings JSONB DEFAULT '{}' NOT NULL,
   is_public BOOLEAN DEFAULT FALSE NOT NULL,
-  public_bio TEXT DEFAULT '' NOT NULL,
+  public_bio TEXT,
   public_stats BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL

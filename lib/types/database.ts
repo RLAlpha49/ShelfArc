@@ -71,7 +71,7 @@ export interface Database {
           avatar_url: string | null
           settings: Record<string, unknown>
           is_public: boolean
-          public_bio: string
+          public_bio: string | null
           public_stats: boolean
           created_at: string
           updated_at: string
