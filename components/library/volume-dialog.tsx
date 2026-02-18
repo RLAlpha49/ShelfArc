@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback,useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { CoverImage } from "@/components/library/cover-image"
@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { Tabs, TabsContent,TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { fetchPrice as fetchPriceEndpoint } from "@/lib/api/endpoints"
 import {
@@ -50,7 +50,8 @@ import type {
   Volume,
   VolumeEdition,
   VolumeFormat,
-  VolumeInsert} from "@/lib/types/database"
+  VolumeInsert
+} from "@/lib/types/database"
 import {
   extractStoragePath,
   resolveImageUrl
@@ -121,6 +122,9 @@ const isValidReadingStatus = (
 /** Maximum upload size for cover images (5 MB). @source */
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 
+/** Tracks the active Amazon async operation in {@link VolumeDialog}. @source */
+type FetchState = "idle" | "price" | "image" | "all"
+
 /**
  * Dialog for creating or editing a volume with metadata fields, cover art management,
  * Amazon price/image fetching, and optional series picker.
@@ -142,8 +146,7 @@ export function VolumeDialog({
   const isEditing = !!volume
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploadingCover, setIsUploadingCover] = useState(false)
-  const [isFetchingPrice, setIsFetchingPrice] = useState(false)
-  const [isFetchingImage, setIsFetchingImage] = useState(false)
+  const [fetchState, setFetchState] = useState<FetchState>("idle")
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [coverPreviewError, setCoverPreviewError] = useState(false)
   const [showAmazonWarning, setShowAmazonWarning] = useState(false)
@@ -194,8 +197,7 @@ export function VolumeDialog({
   const selectedSeriesOption =
     seriesOptions?.find((series) => series.id === selectedSeriesId) ?? null
 
-  const isBusy =
-    isSubmitting || isUploadingCover || isFetchingPrice || isFetchingImage
+  const isBusy = isSubmitting || isUploadingCover || fetchState !== "idle"
   const isSubmitDisabled = isSubmitting || isUploadingCover
 
   useEffect(() => {
@@ -258,8 +260,7 @@ export function VolumeDialog({
       }
       setIsSubmitting(false)
       setIsUploadingCover(false)
-      setIsFetchingPrice(false)
-      setIsFetchingImage(false)
+      setFetchState("idle")
       setShowAmazonWarning(false)
       return
     }
@@ -543,8 +544,7 @@ export function VolumeDialog({
   const cleanupAmazonFetch = (controller: AbortController) => {
     if (!isMountedRef.current) return
     if (priceAbortRef.current === controller) priceAbortRef.current = null
-    setIsFetchingPrice(false)
-    setIsFetchingImage(false)
+    setFetchState("idle")
   }
 
   /** Core Amazon fetch — returns both price and image when requested. */
@@ -557,8 +557,10 @@ export function VolumeDialog({
       const controller = new AbortController()
       priceAbortRef.current = controller
 
-      if (options.includePrice) setIsFetchingPrice(true)
-      if (options.includeImage) setIsFetchingImage(true)
+      let nextFetchState: FetchState = "image"
+      if (options.includePrice && options.includeImage) nextFetchState = "all"
+      else if (options.includePrice) nextFetchState = "price"
+      setFetchState(nextFetchState)
 
       try {
         const data = await fetchPriceEndpoint(params, controller.signal)
@@ -962,7 +964,7 @@ export function VolumeDialog({
                     onClick={handleFetchAmazonPrice}
                     disabled={isBusy}
                   >
-                    {isFetchingPrice && !isFetchingImage ? (
+                    {fetchState === "price" ? (
                       <>
                         <svg
                           className="mr-1.5 h-3.5 w-3.5 animate-spin"
@@ -1169,7 +1171,7 @@ export function VolumeDialog({
                             onClick={handleFetchAmazonImage}
                             disabled={isBusy}
                           >
-                            {isFetchingImage && isFetchingPrice ? (
+                            {fetchState === "all" ? (
                               <>
                                 <svg
                                   className="mr-1.5 h-3.5 w-3.5 animate-spin"
@@ -1207,7 +1209,7 @@ export function VolumeDialog({
                             onClick={handleFetchAmazonImageOnly}
                             disabled={isBusy}
                           >
-                            {isFetchingImage && !isFetchingPrice ? (
+                            {fetchState === "image" ? (
                               <>
                                 <svg
                                   className="mr-1.5 h-3.5 w-3.5 animate-spin"
