@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import { CommandPalette } from "@/components/command-palette"
 import { Header } from "@/components/header"
@@ -25,6 +26,28 @@ interface AppShellProps {
       avatar_url?: string
     }
   } | null
+}
+
+const PREFIX_HINTS: Record<string, string> = {
+  g: "g + … → d=Dashboard, l=Library, s=Settings, a=Activity",
+  a: "a + … → b=Add Book, s=Add Series",
+  v: "v + … → g=Grid, l=List, s=Series, v=Volumes"
+}
+
+function clearPendingPrefix(
+  prefixRef: React.RefObject<string | null>,
+  timerRef: React.RefObject<ReturnType<typeof setTimeout> | null>,
+  toastIdRef: React.RefObject<string | number | null>
+): void {
+  prefixRef.current = null
+  if (timerRef.current) {
+    clearTimeout(timerRef.current)
+    timerRef.current = null
+  }
+  if (toastIdRef.current !== null) {
+    toast.dismiss(toastIdRef.current)
+    toastIdRef.current = null
+  }
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -116,6 +139,7 @@ export function AppShell({ children, user }: AppShellProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const pendingPrefix = useRef<string | null>(null)
   const prefixTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prefixToastId = useRef<string | number | null>(null)
 
   const handleGlobalShortcut = useCallback(
     (event: KeyboardEvent) => {
@@ -124,15 +148,15 @@ export function AppShell({ children, user }: AppShellProps) {
 
       const key = event.key.toLowerCase()
 
+      if (key === "escape" && pendingPrefix.current) {
+        clearPendingPrefix(pendingPrefix, prefixTimer, prefixToastId)
+        return // consume Escape
+      }
+
       // Handle pending two-key sequences
       if (pendingPrefix.current) {
         const prefix = pendingPrefix.current
-        pendingPrefix.current = null
-        if (prefixTimer.current) {
-          clearTimeout(prefixTimer.current)
-          prefixTimer.current = null
-        }
-
+        clearPendingPrefix(pendingPrefix, prefixTimer, prefixToastId)
         event.preventDefault()
         executePrefixShortcut(prefix, key, router)
         return
@@ -141,10 +165,10 @@ export function AppShell({ children, user }: AppShellProps) {
       // Start two-key sequence
       if (key === "g" || key === "a" || key === "v") {
         pendingPrefix.current = key
+        prefixToastId.current = toast(PREFIX_HINTS[key], { duration: 1500 })
         prefixTimer.current = setTimeout(() => {
-          pendingPrefix.current = null
-          prefixTimer.current = null
-        }, 1000)
+          clearPendingPrefix(pendingPrefix, prefixTimer, prefixToastId)
+        }, 1500)
         return
       }
 
