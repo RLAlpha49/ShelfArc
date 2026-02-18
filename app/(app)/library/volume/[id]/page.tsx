@@ -1,27 +1,18 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Breadcrumbs } from "@/components/breadcrumbs"
-import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { CoverImage } from "@/components/library/cover-image"
-import { VolumeDialog } from "@/components/library/volume-dialog"
-import { EmptyState } from "@/components/empty-state"
-import { useLibrary } from "@/lib/hooks/use-library"
-import {
-  DEFAULT_CURRENCY_CODE,
-  useLibraryStore
-} from "@/lib/store/library-store"
-import { useSettingsStore } from "@/lib/store/settings-store"
-import { normalizeVolumeTitle } from "@/lib/normalize-title"
-import { formatDate } from "@/lib/format-date"
-import { sanitizeHtml } from "@/lib/sanitize-html"
-import { announce } from "@/components/live-announcer"
-import { ErrorBoundary } from "@/components/error-boundary"
+import { useParams, useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+
+import { Breadcrumbs } from "@/components/breadcrumbs"
+import { EmptyState } from "@/components/empty-state"
+import { ErrorBoundary } from "@/components/error-boundary"
+import { CoverImage } from "@/components/library/cover-image"
+import { ExternalLinks } from "@/components/library/external-links"
+import { PriceHistoryCard } from "@/components/library/price-history-card"
+import { VolumeDialog } from "@/components/library/volume-dialog"
+import { announce } from "@/components/live-announcer"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,9 +23,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { PriceHistoryCard } from "@/components/library/price-history-card"
-import { ExternalLinks } from "@/components/library/external-links"
+import { formatDate } from "@/lib/format-date"
+import { useLibrary } from "@/lib/hooks/use-library"
+import { ownershipColors, readingColors } from "@/lib/library/status-colors"
+import { normalizeVolumeTitle } from "@/lib/normalize-title"
+import { sanitizeHtml } from "@/lib/sanitize-html"
+import {
+  DEFAULT_CURRENCY_CODE,
+  useLibraryStore
+} from "@/lib/store/library-store"
+import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { Volume, VolumeInsert } from "@/lib/types/database"
 
 /**
@@ -47,24 +49,6 @@ const formatReadingStatus = (status: string) => {
   const normalized = status.replaceAll("_", " ")
   if (!normalized) return normalized
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
-}
-
-/** Tailwind badge color classes keyed by ownership status. @source */
-export const ownershipColors: Record<string, string> = {
-  owned: "bg-copper/10 text-copper",
-  wishlist: "bg-gold/10 text-gold",
-  reading: "bg-primary/10 text-primary",
-  completed: "bg-copper/10 text-copper",
-  dropped: "bg-destructive/10 text-destructive"
-}
-
-/** Tailwind badge color classes keyed by reading status. @source */
-export const readingColors: Record<string, string> = {
-  unread: "bg-muted text-muted-foreground",
-  reading: "bg-primary/10 text-primary",
-  completed: "bg-copper/10 text-copper",
-  on_hold: "bg-gold/10 text-gold",
-  dropped: "bg-destructive/10 text-destructive"
 }
 
 /** Props for the volume stats strip component. @source */
