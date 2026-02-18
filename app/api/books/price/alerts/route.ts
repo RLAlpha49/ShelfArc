@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createUserClient } from "@/lib/supabase/server"
-import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
-import { enforceSameOrigin } from "@/lib/csrf"
-import { isNonNegativeFinite, isValidCurrencyCode } from "@/lib/validation"
-import { getCorrelationId } from "@/lib/correlation"
-import { logger } from "@/lib/logger"
+
 import { recordActivityEvent } from "@/lib/activity/record-event"
+import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
+import { enforceSameOrigin } from "@/lib/csrf"
+import { logger } from "@/lib/logger"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { createUserClient } from "@/lib/supabase/server"
+import { isNonNegativeFinite, isValidCurrencyCode } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -19,6 +21,16 @@ export async function GET(request: NextRequest) {
       data: { user }
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated", { correlationId })
+
+    const rl = await consumeDistributedRateLimit({
+      key: `alert-read:${user.id}`,
+      maxHits: 60,
+      windowMs: 60_000,
+      cooldownMs: 30_000,
+      reason: "Rate limit price alert reads"
+    })
+    if (rl && !rl.allowed)
+      return apiError(429, "Too many requests", { correlationId })
 
     const volumeId = request.nextUrl.searchParams.get("volumeId")
 
@@ -98,6 +110,16 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated", { correlationId })
 
+    const rlPost = await consumeDistributedRateLimit({
+      key: `alert-write:${user.id}`,
+      maxHits: 30,
+      windowMs: 60_000,
+      cooldownMs: 60_000,
+      reason: "Rate limit price alert writes"
+    })
+    if (rlPost && !rlPost.allowed)
+      return apiError(429, "Too many requests", { correlationId })
+
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
@@ -145,6 +167,16 @@ export async function PATCH(request: NextRequest) {
       data: { user }
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated", { correlationId })
+
+    const rlPatch = await consumeDistributedRateLimit({
+      key: `alert-write:${user.id}`,
+      maxHits: 30,
+      windowMs: 60_000,
+      cooldownMs: 60_000,
+      reason: "Rate limit price alert writes"
+    })
+    if (rlPatch && !rlPatch.allowed)
+      return apiError(429, "Too many requests", { correlationId })
 
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
@@ -202,6 +234,16 @@ export async function DELETE(request: NextRequest) {
       data: { user }
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated", { correlationId })
+
+    const rlDelete = await consumeDistributedRateLimit({
+      key: `alert-write:${user.id}`,
+      maxHits: 30,
+      windowMs: 60_000,
+      cooldownMs: 60_000,
+      reason: "Rate limit price alert writes"
+    })
+    if (rlDelete && !rlDelete.allowed)
+      return apiError(429, "Too many requests", { correlationId })
 
     const id = request.nextUrl.searchParams.get("id")
     if (!id) return apiError(400, "id is required", { correlationId })
