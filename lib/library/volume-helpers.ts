@@ -1,6 +1,20 @@
 import { toast } from "sonner"
+
 import { getErrorMessage } from "@/lib/library/series-insights"
 import type { Volume } from "@/lib/types/database"
+
+/**
+ * Returns the lowest-numbered volume that has an ISBN.
+ * Used to select the "primary" volume for cover/metadata purposes.
+ * @source
+ */
+export function findPrimaryVolume(volumes: Volume[]): Volume | null {
+  return volumes.reduce<Volume | null>((best, volume) => {
+    if (!volume.isbn) return best
+    if (!best || volume.volume_number < best.volume_number) return volume
+    return best
+  }, null)
+}
 
 /**
  * Applies a rating to a volume with validation and user feedback.

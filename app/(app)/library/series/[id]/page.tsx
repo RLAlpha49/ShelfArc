@@ -1,15 +1,15 @@
 "use client"
 
+import { useParams, useRouter } from "next/navigation"
 import {
-  useEffect,
-  useState,
+  lazy,
+  Suspense,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
-  lazy,
-  Suspense
-} from "react"
-import { useParams, useRouter } from "next/navigation"
+  useState} from "react"
+
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
 
@@ -33,16 +33,13 @@ const BookSearchDialog = lazy(() =>
     default: m.BookSearchDialog
   }))
 )
+import { toast } from "sonner"
+
+import { EmptyState } from "@/components/empty-state"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { SeriesHeaderSection } from "@/components/library/series-header-section"
 import { SeriesVolumesSection } from "@/components/library/series-volumes-section"
-import { EmptyState } from "@/components/empty-state"
-import { useLibrary } from "@/lib/hooks/use-library"
-import { useLibraryStore } from "@/lib/store/library-store"
-import { useSettingsStore } from "@/lib/store/settings-store"
-import { sanitizeHtml } from "@/lib/sanitize-html"
 import { announce } from "@/components/live-announcer"
-import { ErrorBoundary } from "@/components/error-boundary"
-import { toast } from "sonner"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,33 +51,28 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { normalizeIsbn } from "@/lib/books/isbn"
+import { type BookSearchResult } from "@/lib/books/search"
+import { useLibrary } from "@/lib/hooks/use-library"
 import {
   buildSeriesInsights,
   getErrorMessage
 } from "@/lib/library/series-insights"
 import {
   applyRating,
-  toggleInSet,
-  buildCurrencyFormatter
-} from "@/lib/library/volume-helpers"
+  buildCurrencyFormatter,
+  findPrimaryVolume,
+  toggleInSet} from "@/lib/library/volume-helpers"
+import { sanitizeHtml } from "@/lib/sanitize-html"
+import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
-  SeriesWithVolumes,
-  SeriesInsert,
-  Volume,
-  VolumeInsert,
   OwnershipStatus,
-  ReadingStatus
-} from "@/lib/types/database"
-import { type BookSearchResult } from "@/lib/books/search"
-import { normalizeIsbn } from "@/lib/books/isbn"
-
-function findPrimaryVolume(volumes: Volume[]): Volume | null {
-  return volumes.reduce<Volume | null>((best, volume) => {
-    if (!volume.isbn) return best
-    if (!best || volume.volume_number < best.volume_number) return volume
-    return best
-  }, null)
-}
+  ReadingStatus,
+  SeriesInsert,
+  SeriesWithVolumes,
+  Volume,
+  VolumeInsert} from "@/lib/types/database"
 
 /**
  * Series detail page showing cover, metadata, volume grid, and editing controls.
