@@ -1,12 +1,12 @@
 "use client"
 
 import { useCallback, useMemo } from "react"
-import {
-  useLibraryStore,
-  selectAllSeries,
-  selectAllUnassignedVolumes
-} from "@/lib/store/library-store"
+
 import { useCollectionsStore } from "@/lib/store/collections-store"
+import {
+  selectAllSeries,
+  selectAllUnassignedVolumes,
+  useLibraryStore} from "@/lib/store/library-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** A volume paired with its parent series, used for flat volume views. @source */
@@ -309,11 +309,6 @@ export function useLibraryFilters() {
 
   const sortedVolumes = useMemo(() => {
     const multiplier = sortOrder === "asc" ? 1 : -1
-    const compareStrings = (a?: string | null, b?: string | null) => {
-      return (a ?? "").localeCompare(b ?? "", undefined, {
-        sensitivity: "base"
-      })
-    }
 
     return [...filteredVolumes].sort((a, b) => {
       switch (sortField) {
