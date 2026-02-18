@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries } from "@/lib/store/library-store"
 import { formatDate } from "@/lib/format-date"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { PriceAlert } from "@/lib/types/database"
@@ -17,7 +17,7 @@ interface AlertWithInfo extends PriceAlert {
 export function PriceAlertsDashboardCard() {
   const [alerts, setAlerts] = useState<PriceAlert[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const series = useLibraryStore((s) => s.series)
+  const series = useLibraryStore(selectAllSeries)
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
 

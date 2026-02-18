@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react"
 
+const THROTTLE_MS = 100
+
 /**
- * Tracks the current window innerWidth.
+ * Tracks the current window innerWidth (throttled at 100 ms).
  * @source
  */
 export function useWindowWidth() {
@@ -12,13 +14,19 @@ export function useWindowWidth() {
   })
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
     const handleResize = () => {
-      setWidth(globalThis.window.innerWidth)
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        setWidth(globalThis.window.innerWidth)
+      }, THROTTLE_MS)
     }
 
     globalThis.addEventListener("resize", handleResize, { passive: true })
     return () => {
       globalThis.removeEventListener("resize", handleResize)
+      clearTimeout(timeoutId)
     }
   }, [])
 

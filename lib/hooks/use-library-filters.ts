@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useMemo } from "react"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
 import { useCollectionsStore } from "@/lib/store/collections-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
@@ -119,8 +119,9 @@ function getSortValue(
 }
 
 export function useLibraryFilters() {
-  const { series, unassignedVolumes, filters, sortField, sortOrder } =
-    useLibraryStore()
+  const series = useLibraryStore(selectAllSeries)
+  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
+  const { filters, sortField, sortOrder } = useLibraryStore()
   const { activeCollectionId, collections } = useCollectionsStore()
 
   const activeCollectionVolumeIds = useMemo(() => {

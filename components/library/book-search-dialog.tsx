@@ -47,7 +47,7 @@ import { searchBooks } from "@/lib/api/endpoints"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { CoverImage } from "@/components/library/cover-image"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
 import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import {
   findDuplicateCandidates,
@@ -149,8 +149,8 @@ export function BookSearchDialog({
     (s) => s.defaultOwnershipStatus
   )
   const defaultSearchSource = useSettingsStore((s) => s.defaultSearchSource)
-  const librarySeries = useLibraryStore((s) => s.series)
-  const unassignedVolumes = useLibraryStore((s) => s.unassignedVolumes)
+  const librarySeries = useLibraryStore(selectAllSeries)
+  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
 
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")

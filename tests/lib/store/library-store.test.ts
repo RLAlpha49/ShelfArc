@@ -4,7 +4,9 @@ import {
   selectSeriesById,
   selectVolumeById,
   selectSeriesVolumes,
-  selectAllVolumes
+  selectAllVolumes,
+  selectAllSeries,
+  selectAllUnassignedVolumes
 } from "@/lib/store/library-store"
 import type { SeriesWithVolumes, Volume, Series } from "@/lib/types/database"
 
@@ -94,8 +96,8 @@ describe("library-store", () => {
   describe("initial state", () => {
     it("has empty data collections", () => {
       const s = useLibraryStore.getState()
-      expect(s.series).toEqual([])
-      expect(s.unassignedVolumes).toEqual([])
+      expect(selectAllSeries(s)).toEqual([])
+      expect(selectAllUnassignedVolumes(s)).toEqual([])
       expect(s.selectedSeries).toBeNull()
       expect(s.seriesIds).toEqual([])
       expect(Object.keys(s.seriesById)).toHaveLength(0)
@@ -147,7 +149,7 @@ describe("library-store", () => {
       expect(s.seriesById["s1"].title).toBe("Test Series")
       expect(s.volumesById["v1"]).toBeDefined()
       expect(s.volumeIdsBySeriesId["s1"]).toEqual(["v1"])
-      expect(s.series).toHaveLength(1)
+      expect(selectAllSeries(s)).toHaveLength(1)
     })
 
     it("setSeries preserves unassigned volumes in volumesById", () => {
@@ -173,7 +175,7 @@ describe("library-store", () => {
       expect(s.seriesIds).toEqual(["s1", "s2"])
       expect(s.seriesById["s2"].title).toBe("Second")
       expect(s.volumesById["v2"]).toBeDefined()
-      expect(s.series).toHaveLength(2)
+      expect(selectAllSeries(s)).toHaveLength(2)
     })
 
     it("updateSeries merges partial updates", () => {
@@ -184,7 +186,7 @@ describe("library-store", () => {
 
       const s = useLibraryStore.getState()
       expect(s.seriesById["s1"].title).toBe("Updated")
-      expect(s.series[0].title).toBe("Updated")
+      expect(selectAllSeries(s)[0].title).toBe("Updated")
     })
 
     it("updateSeries updates selectedSeries when it matches", () => {
@@ -221,7 +223,7 @@ describe("library-store", () => {
       expect(s.seriesById["s1"]).toBeUndefined()
       expect(s.volumesById["v1"]).toBeUndefined()
       expect(s.volumeIdsBySeriesId["s1"]).toBeUndefined()
-      expect(s.series).toEqual([])
+      expect(selectAllSeries(s)).toEqual([])
     })
 
     it("deleteSeries clears selectedSeries when it matches", () => {
@@ -248,7 +250,7 @@ describe("library-store", () => {
       const s = useLibraryStore.getState()
       expect(s.volumesById["v1"]).toBeDefined()
       expect(s.volumeIdsBySeriesId["s1"]).toContain("v1")
-      expect(s.series[0].volumes).toHaveLength(1)
+      expect(selectAllSeries(s)[0].volumes).toHaveLength(1)
     })
 
     it("addVolume updates selectedSeries when matching", () => {
@@ -271,7 +273,7 @@ describe("library-store", () => {
 
       const s = useLibraryStore.getState()
       expect(s.volumesById["v1"].rating).toBe(5)
-      expect(s.series[0].volumes[0].rating).toBe(5)
+      expect(selectAllSeries(s)[0].volumes[0].rating).toBe(5)
     })
 
     it("updateVolume is a no-op for unknown volume", () => {
@@ -294,7 +296,7 @@ describe("library-store", () => {
       const s = useLibraryStore.getState()
       expect(s.volumesById["v1"]).toBeUndefined()
       expect(s.volumeIdsBySeriesId["s1"]).toEqual([])
-      expect(s.series[0].volumes).toEqual([])
+      expect(selectAllSeries(s)[0].volumes).toEqual([])
     })
 
     it("deleteVolume updates selectedSeries when matching", () => {
@@ -303,7 +305,7 @@ describe("library-store", () => {
       useLibraryStore.getState().setSeries([sw])
       useLibraryStore
         .getState()
-        .setSelectedSeries(useLibraryStore.getState().series[0])
+        .setSelectedSeries(selectAllSeries(useLibraryStore.getState())[0])
 
       useLibraryStore.getState().deleteVolume("s1", "v1")
 
@@ -321,7 +323,7 @@ describe("library-store", () => {
       const s = useLibraryStore.getState()
       expect(s.unassignedVolumeIds).toContain("uv1")
       expect(s.volumesById["uv1"]).toBeDefined()
-      expect(s.unassignedVolumes).toHaveLength(1)
+      expect(selectAllUnassignedVolumes(s)).toHaveLength(1)
     })
 
     it("updateUnassignedVolume merges updates", () => {
@@ -334,7 +336,7 @@ describe("library-store", () => {
 
       const s = useLibraryStore.getState()
       expect(s.volumesById["uv1"].reading_status).toBe("reading")
-      expect(s.unassignedVolumes[0].reading_status).toBe("reading")
+      expect(selectAllUnassignedVolumes(s)[0].reading_status).toBe("reading")
     })
 
     it("updateUnassignedVolume is a no-op for unknown id", () => {
@@ -352,7 +354,7 @@ describe("library-store", () => {
       const s = useLibraryStore.getState()
       expect(s.unassignedVolumeIds).not.toContain("uv1")
       expect(s.volumesById["uv1"]).toBeUndefined()
-      expect(s.unassignedVolumes).toEqual([])
+      expect(selectAllUnassignedVolumes(s)).toEqual([])
     })
 
     it("setUnassignedVolumes replaces all unassigned", () => {
@@ -731,7 +733,7 @@ describe("library-store", () => {
       // Since there's no real localStorage in test, verify that getInitialState
       // does NOT contain data:
       const initial = useLibraryStore.getInitialState()
-      expect(initial.series).toEqual([])
+      expect(initial.seriesIds).toEqual([])
       expect(initial.seriesById).toEqual({})
       expect(initial.volumesById).toEqual({})
       expect(initial.selectedSeries).toBeNull()

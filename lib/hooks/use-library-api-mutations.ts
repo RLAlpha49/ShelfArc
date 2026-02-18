@@ -1,10 +1,13 @@
 "use client"
 
 import { useCallback } from "react"
+import { toast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 import {
   DEFAULT_CURRENCY_CODE,
-  useLibraryStore
+  useLibraryStore,
+  selectAllUnassignedVolumes,
+  selectSeriesById
 } from "@/lib/store/library-store"
 import { isNonNegativeFinite } from "@/lib/validation"
 import type {
@@ -17,6 +20,23 @@ import type {
 } from "@/lib/types/database"
 import type { BookSearchResult } from "@/lib/books/search"
 
+/** Fields safe for optimistic updates (no server-side logic dependencies). */
+const OPTIMISTIC_SERIES_FIELDS = new Set(["type", "status"])
+const OPTIMISTIC_VOLUME_FIELDS = new Set([
+  "ownership_status",
+  "reading_status",
+  "rating"
+])
+
+/** Returns true when every key in `data` is safe for optimistic application. */
+function isOptimisticCandidate(
+  data: Record<string, unknown>,
+  allowedFields: Set<string>
+): boolean {
+  const keys = Object.keys(data)
+  return keys.length > 0 && keys.every((k) => allowedFields.has(k))
+}
+
 /**
  * React hook providing library mutations via API routes instead of direct Supabase client calls.
  * Auth, CSRF, rate limiting, sanitization, and activity recording are handled server-side.
@@ -25,8 +45,6 @@ import type { BookSearchResult } from "@/lib/books/search"
  */
 export function useLibraryApiMutations() {
   const {
-    series,
-    unassignedVolumes,
     setUnassignedVolumes,
     addSeries,
     updateSeries,
@@ -122,6 +140,26 @@ export function useLibraryApiMutations() {
 
   const editSeries = useCallback(
     async (id: string, data: Partial<Series>) => {
+      // Optimistic update for lightweight field changes (type, status)
+      if (isOptimisticCandidate(data, OPTIMISTIC_SERIES_FIELDS)) {
+        const prev = useLibraryStore.getState().seriesById[id]
+        if (prev) {
+          updateSeries(id, data as Partial<SeriesWithVolumes>)
+          try {
+            const updated = await apiFetch<Series>(
+              `/api/library/series/${encodeURIComponent(id)}`,
+              { method: "PATCH", body: data }
+            )
+            updateSeries(id, updated)
+          } catch (error) {
+            updateSeries(id, prev)
+            toast.error("Failed to update series")
+            throw error
+          }
+          return
+        }
+      }
+
       const updated = await apiFetch<Series>(
         `/api/library/series/${encodeURIComponent(id)}`,
         { method: "PATCH", body: data }
@@ -136,8 +174,8 @@ export function useLibraryApiMutations() {
       const nextCoverUrl = volume.cover_image_url?.trim() ?? ""
       if (!nextCoverUrl) return
 
-      const seriesSnapshot = useLibraryStore.getState().series
-      const targetSeries = seriesSnapshot.find((item) => item.id === seriesId)
+      const state = useLibraryStore.getState()
+      const targetSeries = selectSeriesById(state, seriesId)
       if (!targetSeries) return
 
       const lowestExistingVolume =
@@ -217,7 +255,8 @@ export function useLibraryApiMutations() {
 
   const removeSeries = useCallback(
     async (id: string) => {
-      const targetSeries = series.find((item) => item.id === id)
+      const currentState = useLibraryStore.getState()
+      const targetSeries = selectSeriesById(currentState, id)
       const volumesToUpdate = targetSeries?.volumes ?? []
 
       await apiFetch(
@@ -226,15 +265,16 @@ export function useLibraryApiMutations() {
       )
 
       if (!deleteSeriesVolumes && volumesToUpdate.length > 0) {
+        const currentUnassigned = selectAllUnassignedVolumes(useLibraryStore.getState())
         const detachedVolumes = volumesToUpdate.map((volume) => ({
           ...volume,
           series_id: null
         }))
         const existingIds = new Set(
-          unassignedVolumes.map((volume) => volume.id)
+          currentUnassigned.map((volume) => volume.id)
         )
         const nextUnassigned = [
-          ...unassignedVolumes,
+          ...currentUnassigned,
           ...detachedVolumes.filter((volume) => !existingIds.has(volume.id))
         ]
         setUnassignedVolumes(nextUnassigned)
@@ -243,8 +283,6 @@ export function useLibraryApiMutations() {
       deleteSeries(id)
     },
     [
-      series,
-      unassignedVolumes,
       deleteSeriesVolumes,
       setUnassignedVolumes,
       deleteSeries
@@ -273,6 +311,17 @@ export function useLibraryApiMutations() {
     [addVolume, addUnassignedVolume, updateSeriesCoverFromVolume]
   )
 
+  const applyVolumeUpdate = useCallback(
+    (seriesId: string | null, volumeId: string, data: Partial<Volume>) => {
+      if (seriesId) {
+        updateVolume(seriesId, volumeId, data)
+      } else {
+        updateUnassignedVolume(volumeId, data)
+      }
+    },
+    [updateVolume, updateUnassignedVolume]
+  )
+
   const editVolume = useCallback(
     async (
       seriesId: string | null,
@@ -282,17 +331,36 @@ export function useLibraryApiMutations() {
       const hasSeriesId = Object.hasOwn(data, "series_id")
       const nextSeriesId = hasSeriesId ? (data.series_id ?? null) : seriesId
 
+      // Optimistic path: simple field edits within the same bucket
+      if (
+        nextSeriesId === seriesId &&
+        isOptimisticCandidate(data, OPTIMISTIC_VOLUME_FIELDS)
+      ) {
+        const prev = useLibraryStore.getState().volumesById[volumeId]
+        if (prev) {
+          applyVolumeUpdate(seriesId, volumeId, data)
+          try {
+            const updated = await apiFetch<Volume>(
+              `/api/library/volumes/${encodeURIComponent(volumeId)}`,
+              { method: "PATCH", body: data }
+            )
+            applyVolumeUpdate(seriesId, volumeId, updated)
+          } catch (error) {
+            applyVolumeUpdate(seriesId, volumeId, prev)
+            toast.error("Failed to update volume")
+            throw error
+          }
+          return
+        }
+      }
+
       const updatedVolume = await apiFetch<Volume>(
         `/api/library/volumes/${encodeURIComponent(volumeId)}`,
         { method: "PATCH", body: data }
       )
 
       if (nextSeriesId === seriesId) {
-        if (seriesId) {
-          updateVolume(seriesId, volumeId, updatedVolume)
-        } else {
-          updateUnassignedVolume(volumeId, updatedVolume)
-        }
+        applyVolumeUpdate(seriesId, volumeId, updatedVolume)
         return
       }
 
@@ -311,8 +379,7 @@ export function useLibraryApiMutations() {
       }
     },
     [
-      updateVolume,
-      updateUnassignedVolume,
+      applyVolumeUpdate,
       deleteVolume,
       deleteUnassignedVolume,
       addVolume,
@@ -351,21 +418,15 @@ export function useLibraryApiMutations() {
         { method: "PATCH", body: { volumeIds, updates } }
       )
 
-      const currentSeries = useLibraryStore.getState().series
-      const idSet = new Set(volumeIds)
+      const batchState = useLibraryStore.getState()
 
-      for (const s of currentSeries) {
-        for (const v of s.volumes) {
-          if (idSet.has(v.id)) {
-            updateVolume(s.id, v.id, updates as Partial<Volume>)
-          }
-        }
-      }
-
-      const currentUnassigned = useLibraryStore.getState().unassignedVolumes
-      for (const v of currentUnassigned) {
-        if (idSet.has(v.id)) {
-          updateUnassignedVolume(v.id, updates as Partial<Volume>)
+      for (const vid of volumeIds) {
+        const volume = batchState.volumesById[vid]
+        if (!volume) continue
+        if (volume.series_id) {
+          updateVolume(volume.series_id, vid, updates as Partial<Volume>)
+        } else if (batchState.unassignedVolumeIds.includes(vid)) {
+          updateUnassignedVolume(vid, updates as Partial<Volume>)
         }
       }
 

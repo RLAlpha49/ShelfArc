@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries } from "@/lib/store/library-store"
 import { useLibraryMutations } from "./use-library-mutations"
 import type { BookSearchResult } from "@/lib/books/search"
 import { fetchBookVolume } from "@/lib/api/endpoints"
@@ -29,7 +29,7 @@ export function useLibraryImport() {
     updateSeriesTypeIfMissing
   } = useLibraryMutations()
 
-  const series = useLibraryStore((s) => s.series)
+  const series = useLibraryStore(selectAllSeries)
 
   const fetchGoogleVolumeDetails = useCallback(async (volumeId: string) => {
     const { data } = await fetchBookVolume(volumeId)
@@ -109,7 +109,7 @@ export function useLibraryImport() {
       const hasAuthor = normalizedAuthor.length > 0
       const matches: SeriesWithVolumes[] = []
 
-      const seriesSnapshot = useLibraryStore.getState().series
+      const seriesSnapshot = selectAllSeries(useLibraryStore.getState())
 
       for (const item of seriesSnapshot) {
         if (normalizeSeriesTitle(item.title) !== normalizedTitle) continue

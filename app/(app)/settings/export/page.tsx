@@ -18,7 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLibrary } from "@/lib/hooks/use-library"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
 import { toast } from "sonner"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
@@ -53,8 +53,8 @@ function csvEscape(value: unknown): string {
 /** Export page allowing users to download their library as JSON or CSV. @source */
 export default function ExportPage() {
   const { series, isLoading, fetchSeries } = useLibrary()
-  const storeSeries = useLibraryStore((s) => s.series)
-  const storeUnassignedVolumes = useLibraryStore((s) => s.unassignedVolumes)
+  const storeSeries = useLibraryStore(selectAllSeries)
+  const storeUnassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
 
   useEffect(() => {
     if (series.length === 0) fetchSeries()
@@ -117,8 +117,8 @@ export default function ExportPage() {
 
   const resolveExportPayload = useCallback((): ExportPayload => {
     const state = useLibraryStore.getState()
-    const currentSeries = state.series
-    const currentUnassigned = state.unassignedVolumes
+    const currentSeries = selectAllSeries(state)
+    const currentUnassigned = selectAllUnassignedVolumes(state)
 
     if (scope === "all") {
       return {

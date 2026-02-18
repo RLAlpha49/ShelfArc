@@ -1,6 +1,6 @@
 "use client"
 
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
 import { useLibraryFetch } from "./use-library-fetch"
 import { useLibraryApiMutations } from "./use-library-api-mutations"
 import { useLibraryFilters } from "./use-library-filters"
@@ -14,7 +14,8 @@ export type { VolumeWithSeries } from "./use-library-filters"
  * @source
  */
 export function useLibrary() {
-  const { series, unassignedVolumes } = useLibraryStore()
+  const series = useLibraryStore(selectAllSeries)
+  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
   const { fetchSeries, isLoading } = useLibraryFetch()
   const mutations = useLibraryApiMutations()
   const filters = useLibraryFilters()

@@ -127,15 +127,48 @@ function applyUrlToStore(searchParams: URLSearchParams) {
   if (mode) store.setViewMode(mode)
 }
 
+const URL_DEBOUNCE_MS = 150
+
+function buildUrlFromState(
+  state: ReturnType<typeof useLibraryStore.getState>,
+  pathname: string
+): string {
+  const params = new URLSearchParams()
+
+  if (state.filters.search) params.set("q", state.filters.search)
+  if (state.filters.type !== "all") params.set("type", state.filters.type)
+  if (state.filters.ownershipStatus !== "all")
+    params.set("ownership", state.filters.ownershipStatus)
+  if (state.filters.readingStatus !== "all")
+    params.set("reading", state.filters.readingStatus)
+  if (state.filters.tags.length > 0)
+    params.set("tags", state.filters.tags.join(","))
+  if (state.filters.excludeTags.length > 0)
+    params.set("excludeTags", state.filters.excludeTags.join(","))
+  if (state.sortField !== DEFAULT_SORT_FIELD)
+    params.set("sort", state.sortField)
+  if (state.sortOrder !== DEFAULT_SORT_ORDER)
+    params.set("order", state.sortOrder)
+  if (state.collectionView !== DEFAULT_COLLECTION_VIEW)
+    params.set("view", state.collectionView)
+  if (state.viewMode !== DEFAULT_VIEW_MODE)
+    params.set("mode", state.viewMode)
+
+  const search = params.toString()
+  return search ? `${pathname}?${search}` : pathname
+}
+
 /**
  * Syncs library filter, sort, and view state between the Zustand store and URL search params.
- * Reads from URL on mount; writes to URL when store changes.
+ * Reads from URL on mount; writes to URL when store changes (debounced 150 ms).
  */
 export function useLibraryUrlSync() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
   const initializedRef = useRef(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const lastUrlRef = useRef("")
 
   // Read URL → store on mount
   useEffect(() => {
@@ -144,37 +177,23 @@ export function useLibraryUrlSync() {
     applyUrlToStore(searchParams)
   }, [searchParams])
 
-  // Write store → URL on changes
+  // Write store → URL on changes (debounced + shallow comparison)
   useEffect(() => {
     const unsubscribe = useLibraryStore.subscribe((state) => {
       if (!initializedRef.current) return
 
-      const params = new URLSearchParams()
-
-      if (state.filters.search) params.set("q", state.filters.search)
-      if (state.filters.type !== "all") params.set("type", state.filters.type)
-      if (state.filters.ownershipStatus !== "all")
-        params.set("ownership", state.filters.ownershipStatus)
-      if (state.filters.readingStatus !== "all")
-        params.set("reading", state.filters.readingStatus)
-      if (state.filters.tags.length > 0)
-        params.set("tags", state.filters.tags.join(","))
-      if (state.filters.excludeTags.length > 0)
-        params.set("excludeTags", state.filters.excludeTags.join(","))
-      if (state.sortField !== DEFAULT_SORT_FIELD)
-        params.set("sort", state.sortField)
-      if (state.sortOrder !== DEFAULT_SORT_ORDER)
-        params.set("order", state.sortOrder)
-      if (state.collectionView !== DEFAULT_COLLECTION_VIEW)
-        params.set("view", state.collectionView)
-      if (state.viewMode !== DEFAULT_VIEW_MODE)
-        params.set("mode", state.viewMode)
-
-      const search = params.toString()
-      const url = search ? `${pathname}?${search}` : pathname
-      router.replace(url, { scroll: false })
+      clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => {
+        const url = buildUrlFromState(state, pathname)
+        if (url === lastUrlRef.current) return
+        lastUrlRef.current = url
+        router.replace(url, { scroll: false })
+      }, URL_DEBOUNCE_MS)
     })
 
-    return unsubscribe
+    return () => {
+      unsubscribe()
+      clearTimeout(timerRef.current)
+    }
   }, [pathname, router])
 }

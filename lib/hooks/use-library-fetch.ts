@@ -12,23 +12,41 @@ import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 /** Keep client requests within route-level max page size. @source */
 const API_PAGE_LIMIT = 100
 
+/** Data is considered fresh for this duration (ms). @source */
+const STALE_AFTER_MS = 30_000
+
 export function useLibraryFetch() {
   const fetchRunIdRef = useRef(0)
   const {
     setSeries,
     setUnassignedVolumes,
     setIsLoading,
+    setLastFetchedAt,
     isLoading,
     sortField,
     sortOrder
   } = useLibraryStore()
 
-  // Fetch all series with volumes
+  // Fetch all series with volumes (stale-while-revalidate)
   const fetchSeries = useCallback(async () => {
+    const state = useLibraryStore.getState()
+    const hasCachedData = state.seriesIds.length > 0
+    const isFresh =
+      state.lastFetchedAt != null &&
+      Date.now() - state.lastFetchedAt < STALE_AFTER_MS
+
+    // If we have fresh cached data, skip the fetch entirely
+    if (hasCachedData && isFresh) return
+
+    // If we have stale cached data, keep it visible (no loading skeleton)
+    // but still fetch in the background
+    const showLoadingSkeleton = !hasCachedData
+
     const fetchRunId = ++fetchRunIdRef.current
     const isLatestRun = () => fetchRunIdRef.current === fetchRunId
 
-    setIsLoading(true)
+    if (showLoadingSkeleton) setIsLoading(true)
+
     try {
       const seriesData: FetchLibrarySeriesResponse["data"] = []
       const unassignedVolumes: Volume[] = []
@@ -61,7 +79,7 @@ export function useLibraryFetch() {
       commitProgress()
 
       // Stop blocking render after first page; keep loading the rest in background.
-      setIsLoading(false)
+      if (showLoadingSkeleton) setIsLoading(false)
 
       const loadRemainingSeriesPages = async () => {
         for (
@@ -111,6 +129,10 @@ export function useLibraryFetch() {
       }
 
       await Promise.all([loadRemainingSeriesPages(), loadVolumePages()])
+
+      if (isLatestRun()) {
+        setLastFetchedAt(Date.now())
+      }
     } catch (error) {
       console.error("Error fetching series:", error)
     } finally {
@@ -118,7 +140,7 @@ export function useLibraryFetch() {
         setIsLoading(false)
       }
     }
-  }, [setSeries, setUnassignedVolumes, setIsLoading, sortField, sortOrder])
+  }, [setSeries, setUnassignedVolumes, setIsLoading, setLastFetchedAt, sortField, sortOrder])
 
   return { fetchSeries, isLoading }
 }

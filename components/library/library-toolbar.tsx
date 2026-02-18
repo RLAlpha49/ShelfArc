@@ -67,7 +67,7 @@ function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
 
   const availableTags = useMemo(() => {
     const tagSet = new Set<string>()
-    for (const s of series) {
+    for (const s of series ?? []) {
       for (const tag of s.tags ?? []) tagSet.add(tag)
     }
     return [...tagSet].sort((a, b) => a.localeCompare(b))

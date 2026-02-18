@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useLibrary } from "@/lib/hooks/use-library"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { toast } from "sonner"
@@ -303,8 +303,8 @@ export function DuplicateMergeDialog({
   readonly onOpenChange: (open: boolean) => void
 }) {
   const { fetchSeries, editVolume, removeVolume } = useLibrary()
-  const series = useLibraryStore((s) => s.series)
-  const unassignedVolumes = useLibraryStore((s) => s.unassignedVolumes)
+  const series = useLibraryStore(selectAllSeries)
+  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
 
   const groups = useMemo(() => {
     return buildDuplicateGroups(series, unassignedVolumes)

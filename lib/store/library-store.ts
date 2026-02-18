@@ -121,17 +121,14 @@ function normalizeFilterPreset(preset: FilterPreset): FilterPreset {
 
 /** Combined data, UI, and action state for the library Zustand store. @source */
 interface LibraryState {
-  // Data
-  series: SeriesWithVolumes[]
-  unassignedVolumes: Volume[]
-  selectedSeries: SeriesWithVolumes | null
-
-  // Normalized entities (source of truth for lookups)
+  // Normalized entities (source of truth)
   seriesById: Record<string, Series>
   volumesById: Record<string, Volume>
   seriesIds: string[]
   volumeIdsBySeriesId: Record<string, string[]>
   unassignedVolumeIds: string[]
+
+  selectedSeries: SeriesWithVolumes | null
 
   // UI State
   collectionView: CollectionView
@@ -151,6 +148,7 @@ interface LibraryState {
   showAmazonDisclaimer: boolean
   navigationMode: NavigationMode
   isLoading: boolean
+  lastFetchedAt: number | null
 
   // Actions
   setSeries: (series: SeriesWithVolumes[]) => void
@@ -202,6 +200,7 @@ interface LibraryState {
   setShowAmazonDisclaimer: (value: boolean) => void
   setNavigationMode: (value: NavigationMode) => void
   setIsLoading: (loading: boolean) => void
+  setLastFetchedAt: (ts: number | null) => void
 }
 
 /** Default filter state with no active filters. @source */
@@ -245,15 +244,13 @@ const DEFAULT_FILTER_PRESETS: FilterPreset[] = [
 export const useLibraryStore = create<LibraryState>()(
   persist(
     (set, get) => ({
-      // Initial state
-      series: [],
-      unassignedVolumes: [],
-      selectedSeries: null,
+      // Initial state — normalized only
       seriesById: {},
       volumesById: {},
       seriesIds: [],
       volumeIdsBySeriesId: {},
       unassignedVolumeIds: [],
+      selectedSeries: null,
       collectionView: "series",
       viewMode: "grid",
       sortField: "title",
@@ -271,6 +268,7 @@ export const useLibraryStore = create<LibraryState>()(
       showAmazonDisclaimer: true,
       navigationMode: "sidebar",
       isLoading: false,
+      lastFetchedAt: null,
 
       // Actions
       setSeries: (seriesArr) => {
@@ -303,8 +301,7 @@ export const useLibraryStore = create<LibraryState>()(
             seriesById: nextSeriesById,
             volumesById: mergedVolumesById,
             seriesIds: nextSeriesIds,
-            volumeIdsBySeriesId: nextVolumeIdsBySeriesId,
-            series: seriesArr
+            volumeIdsBySeriesId: nextVolumeIdsBySeriesId
           }
         })
       },
@@ -326,8 +323,7 @@ export const useLibraryStore = create<LibraryState>()(
           }
           return {
             volumesById: nextVolumesById,
-            unassignedVolumeIds: nextUnassignedIds,
-            unassignedVolumes: volumes
+            unassignedVolumeIds: nextUnassignedIds
           }
         }),
 
@@ -350,8 +346,7 @@ export const useLibraryStore = create<LibraryState>()(
             volumeIdsBySeriesId: {
               ...state.volumeIdsBySeriesId,
               [newSeries.id]: vIds
-            },
-            series: [...state.series, newSeries]
+            }
           }
         }),
 
@@ -362,9 +357,6 @@ export const useLibraryStore = create<LibraryState>()(
           const updated = { ...existing, ...updates }
           return {
             seriesById: { ...state.seriesById, [id]: updated },
-            series: state.series.map((s) =>
-              s.id === id ? { ...s, ...updates } : s
-            ),
             selectedSeries:
               state.selectedSeries?.id === id
                 ? { ...state.selectedSeries, ...updates }
@@ -386,7 +378,6 @@ export const useLibraryStore = create<LibraryState>()(
             volumesById: nextVolumesById,
             seriesIds: state.seriesIds.filter((sid) => sid !== id),
             volumeIdsBySeriesId: restVolumeIdsBySeriesId,
-            series: state.series.filter((s) => s.id !== id),
             selectedSeries:
               state.selectedSeries?.id === id ? null : state.selectedSeries
           }
@@ -402,9 +393,6 @@ export const useLibraryStore = create<LibraryState>()(
               volume.id
             ]
           },
-          series: state.series.map((s) =>
-            s.id === seriesId ? { ...s, volumes: [...s.volumes, volume] } : s
-          ),
           selectedSeries:
             state.selectedSeries?.id === seriesId
               ? {
@@ -421,16 +409,6 @@ export const useLibraryStore = create<LibraryState>()(
           const updated = { ...existing, ...updates }
           return {
             volumesById: { ...state.volumesById, [volumeId]: updated },
-            series: state.series.map((s) =>
-              s.id === seriesId
-                ? {
-                    ...s,
-                    volumes: s.volumes.map((v) =>
-                      v.id === volumeId ? updated : v
-                    )
-                  }
-                : s
-            ),
             selectedSeries:
               state.selectedSeries?.id === seriesId
                 ? {
@@ -454,14 +432,6 @@ export const useLibraryStore = create<LibraryState>()(
                 (vid) => vid !== volumeId
               )
             },
-            series: state.series.map((s) =>
-              s.id === seriesId
-                ? {
-                    ...s,
-                    volumes: s.volumes.filter((v) => v.id !== volumeId)
-                  }
-                : s
-            ),
             selectedSeries:
               state.selectedSeries?.id === seriesId
                 ? {
@@ -477,8 +447,7 @@ export const useLibraryStore = create<LibraryState>()(
       addUnassignedVolume: (volume) =>
         set((state) => ({
           volumesById: { ...state.volumesById, [volume.id]: volume },
-          unassignedVolumeIds: [...state.unassignedVolumeIds, volume.id],
-          unassignedVolumes: [...state.unassignedVolumes, volume]
+          unassignedVolumeIds: [...state.unassignedVolumeIds, volume.id]
         })),
 
       updateUnassignedVolume: (volumeId, updates) =>
@@ -487,10 +456,7 @@ export const useLibraryStore = create<LibraryState>()(
           if (!existing) return state
           const updated = { ...existing, ...updates }
           return {
-            volumesById: { ...state.volumesById, [volumeId]: updated },
-            unassignedVolumes: state.unassignedVolumes.map((v) =>
-              v.id === volumeId ? updated : v
-            )
+            volumesById: { ...state.volumesById, [volumeId]: updated }
           }
         }),
 
@@ -501,9 +467,6 @@ export const useLibraryStore = create<LibraryState>()(
             volumesById: restVolumesById,
             unassignedVolumeIds: state.unassignedVolumeIds.filter(
               (id) => id !== volumeId
-            ),
-            unassignedVolumes: state.unassignedVolumes.filter(
-              (v) => v.id !== volumeId
             )
           }
         }),
@@ -649,7 +612,8 @@ export const useLibraryStore = create<LibraryState>()(
       setPriceDisplayCurrency: (value) => set({ priceDisplayCurrency: value }),
       setShowAmazonDisclaimer: (value) => set({ showAmazonDisclaimer: value }),
       setNavigationMode: (value) => set({ navigationMode: value }),
-      setIsLoading: (loading) => set({ isLoading: loading })
+      setIsLoading: (loading) => set({ isLoading: loading }),
+      setLastFetchedAt: (ts) => set({ lastFetchedAt: ts })
     }),
     {
       name: "shelfarc-library",
@@ -714,7 +678,65 @@ export function selectSeriesVolumes(
     .filter((v): v is Volume => v != null)
 }
 
-/** Select all volumes (assigned + unassigned). @source */
-export function selectAllVolumes(state: LibraryState): Volume[] {
-  return Object.values(state.volumesById)
+/**
+ * Lightweight memoizer for Zustand selectors that derive new array/object
+ * references. Returns the cached result when all dependency slots are
+ * reference-equal, preventing the `getSnapshot` instability warning from
+ * React's useSyncExternalStore.
+ */
+function memoizeSelector<TState, TResult>(
+  selector: (state: TState) => TResult,
+  getDeps: (state: TState) => readonly unknown[]
+): (state: TState) => TResult {
+  let lastDeps: readonly unknown[] | undefined
+  let lastResult: TResult
+  return (state: TState): TResult => {
+    const deps = getDeps(state)
+    if (
+      lastDeps !== undefined &&
+      deps.length === lastDeps.length &&
+      deps.every((d, i) => d === lastDeps![i])
+    ) {
+      return lastResult
+    }
+    lastDeps = deps
+    lastResult = selector(state)
+    return lastResult
+  }
 }
+
+/** Select all volumes (assigned + unassigned). @source */
+export const selectAllVolumes = memoizeSelector(
+  (state: LibraryState): Volume[] => Object.values(state.volumesById),
+  (state) => [state.volumesById]
+)
+
+/** Derive the full SeriesWithVolumes[] array from normalized maps. @source */
+export const selectAllSeries = memoizeSelector(
+  (state: LibraryState): SeriesWithVolumes[] =>
+    state.seriesIds.map((id) => {
+      const s = state.seriesById[id]
+      const volumeIds = state.volumeIdsBySeriesId[id] ?? []
+      return {
+        ...s,
+        volumes: volumeIds
+          .map((vid) => state.volumesById[vid])
+          .filter((v): v is Volume => v != null)
+      }
+    }),
+  (state) => [
+    state.seriesIds,
+    state.seriesById,
+    state.volumeIdsBySeriesId,
+    state.volumesById,
+  ]
+)
+
+/** Derive the unassigned volumes array from normalized maps. @source */
+export const selectAllUnassignedVolumes = memoizeSelector(
+  (state: LibraryState): Volume[] =>
+    state.unassignedVolumeIds
+      .map((id) => state.volumesById[id])
+      .filter((v): v is Volume => v != null),
+  (state) => [state.unassignedVolumeIds, state.volumesById]
+)

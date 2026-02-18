@@ -18,7 +18,7 @@ import {
   CommandList,
   CommandSeparator
 } from "@/components/ui/command"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries, selectAllUnassignedVolumes } from "@/lib/store/library-store"
 import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -322,8 +322,8 @@ export function CommandPalette() {
   const setViewMode = useLibraryStore((s) => s.setViewMode)
   const setNavigationMode = useLibraryStore((s) => s.setNavigationMode)
 
-  const series = useLibraryStore((s) => s.series)
-  const unassignedVolumes = useLibraryStore((s) => s.unassignedVolumes)
+  const series = useLibraryStore(selectAllSeries)
+  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
   const recentEntries = useRecentlyVisitedStore((s) => s.entries)
 
   const normalizedQuery = useMemo(() => normalizeQuery(query), [query])

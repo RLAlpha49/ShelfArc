@@ -4,7 +4,9 @@ import { useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   DEFAULT_CURRENCY_CODE,
-  useLibraryStore
+  useLibraryStore,
+  selectSeriesById,
+  selectAllUnassignedVolumes
 } from "@/lib/store/library-store"
 import {
   sanitizeOptionalHtml,
@@ -38,8 +40,6 @@ import { recordActivityEvent } from "@/lib/activity/record-event"
 export function useLibraryMutations() {
   const supabase = createClient()
   const {
-    series,
-    unassignedVolumes,
     setUnassignedVolumes,
     addSeries,
     updateSeries,
@@ -246,8 +246,8 @@ export function useLibraryMutations() {
       const nextCoverUrl = volume.cover_image_url?.trim() ?? ""
       if (!nextCoverUrl) return
 
-      const seriesSnapshot = useLibraryStore.getState().series
-      const targetSeries = seriesSnapshot.find((item) => item.id === seriesId)
+      const seriesSnapshot = useLibraryStore.getState()
+      const targetSeries = selectSeriesById(seriesSnapshot, seriesId)
       if (!targetSeries) return
 
       const lowestExistingVolume =
@@ -334,7 +334,8 @@ export function useLibraryMutations() {
         } = await supabase.auth.getUser()
         if (!user) throw new Error("Not authenticated")
 
-        const targetSeries = series.find((item) => item.id === id)
+        const currentState = useLibraryStore.getState()
+        const targetSeries = selectSeriesById(currentState, id)
         const volumesToUpdate = targetSeries?.volumes ?? []
 
         if (deleteSeriesVolumes) {
@@ -367,15 +368,16 @@ export function useLibraryMutations() {
         if (seriesError) throw seriesError
 
         if (!deleteSeriesVolumes && volumesToUpdate.length > 0) {
+          const currentUnassigned = selectAllUnassignedVolumes(useLibraryStore.getState())
           const detachedVolumes = volumesToUpdate.map((volume) => ({
             ...volume,
             series_id: null
           }))
           const existingIds = new Set(
-            unassignedVolumes.map((volume) => volume.id)
+            currentUnassigned.map((volume) => volume.id)
           )
           const nextUnassigned = [
-            ...unassignedVolumes,
+            ...currentUnassigned,
             ...detachedVolumes.filter((volume) => !existingIds.has(volume.id))
           ]
           setUnassignedVolumes(nextUnassigned)
@@ -400,8 +402,6 @@ export function useLibraryMutations() {
     },
     [
       supabase,
-      series,
-      unassignedVolumes,
       deleteSeriesVolumes,
       setUnassignedVolumes,
       deleteSeries
@@ -423,9 +423,7 @@ export function useLibraryMutations() {
         const sanitizedData = buildSanitizedVolumeInsert(data)
 
         if (!sanitizedData.format && seriesId) {
-          const parentSeries = useLibraryStore
-            .getState()
-            .series.find((s) => s.id === seriesId)
+          const parentSeries = useLibraryStore.getState().seriesById[seriesId]
           if (parentSeries) {
             const formatFromType: Partial<Record<string, VolumeFormat>> = {
               light_novel: "paperback",
@@ -506,10 +504,10 @@ export function useLibraryMutations() {
 
         const hasSeriesId = Object.hasOwn(data, "series_id")
         const nextSeriesId = hasSeriesId ? (data.series_id ?? null) : seriesId
-        const seriesSnapshot = useLibraryStore.getState().series
+        const editState = useLibraryStore.getState()
         if (
           nextSeriesId &&
-          !seriesSnapshot.some((item) => item.id === nextSeriesId)
+          !editState.seriesById[nextSeriesId]
         ) {
           throw new Error("Series not found")
         }
@@ -528,11 +526,7 @@ export function useLibraryMutations() {
 
         if (error) throw error
 
-        const currentVolume =
-          seriesSnapshot
-            .flatMap((item) => item.volumes)
-            .find((volume) => volume.id === volumeId) ??
-          unassignedVolumes.find((volume) => volume.id === volumeId)
+        const currentVolume = editState.volumesById[volumeId]
 
         if (!currentVolume) {
           return
@@ -602,7 +596,6 @@ export function useLibraryMutations() {
     },
     [
       supabase,
-      unassignedVolumes,
       updateVolume,
       updateUnassignedVolume,
       deleteVolume,
