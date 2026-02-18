@@ -42,6 +42,824 @@ const LazyPriceAlerts = lazy(() =>
   }))
 )
 
+// ── Widget prop interfaces ────────────────────────────────────────────────
+
+type PriceFormatter = ReturnType<typeof usePriceFormatter>
+
+interface StatsWidgetProps {
+  readonly stats: CollectionStats
+  readonly priceFormatter: PriceFormatter
+}
+
+interface CurrentlyReadingWidgetProps {
+  readonly currentlyReading: readonly AugmentedVolume[]
+}
+
+interface RecentlyAddedWidgetProps {
+  readonly recentSeries: readonly SeriesWithVolumes[]
+  readonly recentVolumes: readonly AugmentedVolume[]
+  readonly priceFormatter: PriceFormatter
+  readonly dateFormat: string
+}
+
+interface RecommendationsWidgetProps {
+  readonly suggestedNextBuys: readonly SuggestedBuy[]
+  readonly suggestionCounts: SuggestionCounts
+  readonly priceFormatter: PriceFormatter
+}
+
+interface BreakdownWidgetProps {
+  readonly stats: CollectionStats
+}
+
+interface HealthWidgetProps {
+  readonly healthScore: HealthScore | null
+  readonly series: readonly SeriesWithVolumes[]
+}
+
+interface ProgressWidgetProps {
+  readonly stats: CollectionStats
+}
+
+interface PriceTrackingWidgetProps {
+  readonly priceBreakdown: PriceBreakdown
+  readonly ownedVolumes: number
+  readonly priceFormatter: PriceFormatter
+}
+
+interface WishlistWidgetProps {
+  readonly wishlistStats: WishlistStats
+  readonly wishlistCount: number
+  readonly totalVolumes: number
+  readonly priceFormatter: PriceFormatter
+}
+
+interface ReleasesWidgetProps {
+  readonly upcomingReleases: readonly ReleaseItem[]
+  readonly dateFormat: string
+}
+
+// ── Standalone widget components ─────────────────────────────────────────
+
+function StatsWidget({ stats, priceFormatter }: StatsWidgetProps) {
+  const readPercentage =
+    stats.totalVolumes > 0
+      ? Math.round((stats.readVolumes / stats.totalVolumes) * 100)
+      : 0
+  const ownedPercentage =
+    stats.totalVolumes > 0
+      ? Math.round((stats.ownedVolumes / stats.totalVolumes) * 100)
+      : 0
+
+  return (
+    <section className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border md:grid-cols-4">
+      {[
+        {
+          id: "series",
+          label: "Series",
+          value: stats.totalSeries,
+          detail: `${stats.lightNovelSeries} LN · ${stats.mangaSeries} Manga`,
+          icon: (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4"
+            >
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+          )
+        },
+        {
+          id: "volumes",
+          label: "Volumes",
+          value: stats.totalVolumes,
+          detail: `${stats.ownedVolumes} owned · ${ownedPercentage}%`,
+          icon: (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4"
+            >
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </svg>
+          )
+        },
+        {
+          id: "read",
+          label: "Read",
+          value: stats.readVolumes,
+          detail: `${readPercentage}% complete`,
+          icon: (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4"
+            >
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          )
+        },
+        {
+          id: "spent",
+          label: "Invested",
+          value: priceFormatter.format(stats.totalSpent),
+          detail: `${priceFormatter.format(stats.averagePricePerTrackedVolume)}/priced vol`,
+          icon: (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4"
+            >
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          )
+        }
+      ].map((stat) => (
+        <div
+          key={stat.id}
+          className="bg-card group hover:bg-accent/60 flex flex-col gap-1 p-5 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <div className="text-primary bg-primary/8 flex h-6 w-6 items-center justify-center rounded-md">
+              {stat.icon}
+            </div>
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+              {stat.label}
+            </span>
+          </div>
+          <div className="font-display text-2xl font-bold tracking-tight">
+            {stat.value}
+          </div>
+          <div className="text-muted-foreground text-xs">{stat.detail}</div>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+function CurrentlyReadingWidget({
+  currentlyReading
+}: CurrentlyReadingWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-lg font-semibold tracking-tight">
+            Currently Reading
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            Continue where you left off
+          </p>
+        </div>
+        {currentlyReading.length > 0 && (
+          <Link
+            href="/library"
+            className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+          >
+            View all
+          </Link>
+        )}
+      </div>
+
+      {currentlyReading.length === 0 ? (
+        <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+          <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-5 w-5"
+            >
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </svg>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            Nothing in progress yet
+          </p>
+          <p className="text-muted-foreground/60 mt-1 text-xs">
+            Mark a volume as &quot;reading&quot; to see it here
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {currentlyReading.map((v) => {
+            const progress =
+              v.page_count && v.current_page
+                ? Math.round((v.current_page / v.page_count) * 100)
+                : null
+            return (
+              <Link
+                key={v.id}
+                href={`/library/volume/${v.id}`}
+                className="glass-card group block rounded-xl p-4 transition-all hover:shadow-md"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
+                      {v.seriesTitle}
+                    </div>
+                    <div className="text-muted-foreground mt-0.5 text-xs">
+                      Volume {v.volume_number}
+                      {progress !== null && (
+                        <span className="text-primary/80 ml-2 font-medium">
+                          {progress}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+                  >
+                    <polyline points="9,18 15,12 9,6" />
+                  </svg>
+                </div>
+                {progress !== null && (
+                  <div className="bg-primary/8 mt-3 h-1.5 overflow-hidden rounded-full">
+                    <div
+                      className="progress-animate from-primary to-gold h-full rounded-full bg-linear-to-r"
+                      style={
+                        {
+                          "--target-width": `${progress}%`
+                        } as React.CSSProperties
+                      }
+                    />
+                  </div>
+                )}
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RecentlyAddedWidget({
+  recentSeries,
+  recentVolumes,
+  priceFormatter,
+  dateFormat
+}: RecentlyAddedWidgetProps) {
+  const [recentTab, setRecentTab] = useState<"series" | "volumes">("series")
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-lg font-semibold tracking-tight">
+            Recently Added
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            Latest additions to your collection
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="bg-muted flex rounded-lg p-0.5">
+            <button
+              type="button"
+              onClick={() => setRecentTab("series")}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                recentTab === "series"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Series
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecentTab("volumes")}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                recentTab === "volumes"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Volumes
+            </button>
+          </div>
+          {(recentTab === "series"
+            ? recentSeries.length > 0
+            : recentVolumes.length > 0) && (
+            <Link
+              href="/dashboard/recent"
+              className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+            >
+              View all
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <RecentlyAddedContent
+        tab={recentTab}
+        recentSeries={recentSeries}
+        recentVolumes={recentVolumes}
+        priceFormatter={priceFormatter}
+        dateFormat={dateFormat}
+      />
+    </div>
+  )
+}
+
+function RecommendationsWidget({
+  suggestedNextBuys,
+  suggestionCounts,
+  priceFormatter
+}: RecommendationsWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-lg font-semibold tracking-tight">
+            What to Buy Next
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            Continue your collection
+          </p>
+        </div>
+        {suggestedNextBuys.length > 0 && (
+          <Link
+            href="/dashboard/recommendations"
+            className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+          >
+            View all recommendations
+          </Link>
+        )}
+      </div>
+
+      {suggestedNextBuys.length === 0 ? (
+        <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+          <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-5 w-5"
+            >
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <line x1="3" x2="21" y1="6" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+          </div>
+          <p className="text-muted-foreground text-sm">No suggestions yet</p>
+          <p className="text-muted-foreground/60 mt-1 text-xs">
+            Start collecting volumes to get personalized picks
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="mb-1 flex flex-wrap gap-1.5">
+            {suggestionCounts.gap_fill > 0 && (
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                {suggestionCounts.gap_fill} gaps
+              </span>
+            )}
+            {suggestionCounts.continue_reading > 0 && (
+              <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-600 dark:text-purple-400">
+                {suggestionCounts.continue_reading} reading
+              </span>
+            )}
+            {suggestionCounts.complete_series > 0 && (
+              <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
+                {suggestionCounts.complete_series} completable
+              </span>
+            )}
+            {suggestionCounts.continue > 0 && (
+              <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                {suggestionCounts.continue} next
+              </span>
+            )}
+          </div>
+
+          {suggestedNextBuys.map((buy) => (
+            <RecommendationsCard
+              key={`${buy.seriesId}-${buy.volumeNumber}`}
+              suggestion={buy}
+              currencyFormatter={priceFormatter}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BreakdownWidget({ stats }: BreakdownWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Breakdown
+        </h2>
+        <p className="text-muted-foreground text-xs">Collection composition</p>
+      </div>
+
+      <div className="grid-stagger grid grid-cols-2 gap-3">
+        {[
+          {
+            id: "ln",
+            label: "Light Novels",
+            value: stats.lightNovelSeries,
+            unit: "series",
+            gradient: "from-primary/15 to-primary/5",
+            textColor: "text-primary",
+            iconBg: "bg-primary/12",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-3.5 w-3.5"
+              >
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
+            )
+          },
+          {
+            id: "manga",
+            label: "Manga",
+            value: stats.mangaSeries,
+            unit: "series",
+            gradient: "from-copper/15 to-copper/5",
+            textColor: "text-copper",
+            iconBg: "bg-copper/12",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-3.5 w-3.5"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                <line x1="3" x2="21" y1="9" y2="9" />
+                <line x1="9" x2="9" y1="3" y2="21" />
+              </svg>
+            )
+          },
+          {
+            id: "complete",
+            label: "Complete series",
+            value: stats.completeSets,
+            unit: "series",
+            gradient: "from-green-500/12 to-green-500/4",
+            textColor: "text-green-600 dark:text-green-400",
+            iconBg: "bg-green-500/12",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-3.5 w-3.5"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            )
+          },
+          {
+            id: "wishlist",
+            label: "Wishlisted volumes",
+            value: stats.wishlistCount,
+            unit: "volumes",
+            gradient: "from-gold/15 to-gold/5",
+            textColor: "text-gold",
+            iconBg: "bg-gold/12",
+            icon: (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-3.5 w-3.5"
+              >
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+              </svg>
+            )
+          }
+        ].map((card) => (
+          <div
+            key={card.id}
+            className={`bg-linear-to-br ${card.gradient} rounded-xl border p-4 transition-transform hover:scale-[1.02]`}
+          >
+            <div className="mb-2 flex items-center gap-1.5">
+              <div
+                className={`${card.iconBg} ${card.textColor} flex h-5 w-5 items-center justify-center rounded`}
+              >
+                {card.icon}
+              </div>
+              <span className="text-muted-foreground text-[11px] font-medium uppercase">
+                {card.label}
+              </span>
+            </div>
+            <div
+              className={`font-display text-2xl font-bold ${card.textColor}`}
+            >
+              {card.value}
+            </div>
+            <div className="text-muted-foreground text-[10px] uppercase">
+              {card.unit}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function HealthWidget({ healthScore, series }: HealthWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Collection Health
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          Overall collection quality score
+        </p>
+      </div>
+      <CollectionHealthCard healthScore={healthScore} series={series} />
+    </div>
+  )
+}
+
+function ProgressWidget({ stats }: ProgressWidgetProps) {
+  const readPercentage =
+    stats.totalVolumes > 0
+      ? Math.round((stats.readVolumes / stats.totalVolumes) * 100)
+      : 0
+
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Progress
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          Overall reading completion
+        </p>
+      </div>
+
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center gap-6">
+          <div className="relative h-24 w-24 shrink-0">
+            <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                className="stroke-primary/10"
+                strokeWidth="8"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                className="stroke-primary"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={`${readPercentage * 2.64} ${264 - readPercentage * 2.64}`}
+                style={{
+                  transition: "stroke-dasharray 1s ease-out"
+                }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-display text-xl font-bold">
+                {readPercentage}%
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-0 flex-1 space-y-3">
+            <div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Read</span>
+                <span className="font-medium">
+                  {stats.readVolumes}/{stats.totalVolumes}
+                </span>
+              </div>
+              <div className="bg-primary/8 mt-1 h-1.5 overflow-hidden rounded-full">
+                <div
+                  className="bg-primary h-full rounded-full transition-all duration-700"
+                  style={{ width: `${readPercentage}%` }}
+                />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">In progress</span>
+                <span className="font-medium">{stats.readingVolumes}</span>
+              </div>
+              <div className="bg-gold/10 mt-1 h-1.5 overflow-hidden rounded-full">
+                <div
+                  className="bg-gold h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${stats.totalVolumes > 0 ? Math.round((stats.readingVolumes / stats.totalVolumes) * 100) : 0}%`
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PriceTrackingWidget({
+  priceBreakdown,
+  ownedVolumes,
+  priceFormatter
+}: PriceTrackingWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Price Tracking
+        </h2>
+        <p className="text-muted-foreground text-xs">Investment breakdown</p>
+      </div>
+      <Suspense fallback={<WidgetSkeleton />}>
+        <LazyPriceTracking
+          priceBreakdown={priceBreakdown}
+          ownedVolumes={ownedVolumes}
+          priceFormatter={priceFormatter}
+        />
+      </Suspense>
+    </div>
+  )
+}
+
+function WishlistWidget({
+  wishlistStats,
+  wishlistCount,
+  totalVolumes,
+  priceFormatter
+}: WishlistWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Wishlist
+        </h2>
+        <p className="text-muted-foreground text-xs">Your want list</p>
+      </div>
+      <Suspense fallback={<WidgetSkeleton />}>
+        <LazyWishlist
+          wishlistStats={wishlistStats}
+          wishlistCount={wishlistCount}
+          totalVolumes={totalVolumes}
+          priceFormatter={priceFormatter}
+        />
+      </Suspense>
+    </div>
+  )
+}
+
+function ReleasesWidget({ upcomingReleases, dateFormat }: ReleasesWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-lg font-semibold tracking-tight">
+            Upcoming Releases
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            Next volumes by publish date
+          </p>
+        </div>
+        {upcomingReleases.length > 0 && (
+          <Link
+            href="/dashboard/releases"
+            className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+          >
+            View all
+          </Link>
+        )}
+      </div>
+
+      {upcomingReleases.length === 0 ? (
+        <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
+          <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-5 w-5"
+            >
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+              <line x1="16" x2="16" y1="2" y2="6" />
+              <line x1="8" x2="8" y1="2" y2="6" />
+              <line x1="3" x2="21" y1="10" y2="10" />
+            </svg>
+          </div>
+          <p className="text-muted-foreground text-sm">No upcoming releases</p>
+          <p className="text-muted-foreground/60 mt-1 text-xs">
+            Add publish dates to volumes to track releases
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-px overflow-hidden rounded-xl border">
+          {upcomingReleases.map((r) => (
+            <Link
+              key={r.volumeId}
+              href={`/library/volume/${r.volumeId}`}
+              className="bg-card group hover:bg-accent/60 flex items-center justify-between p-3 transition-colors"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
+                  {r.seriesTitle}
+                  {r.volumeNumber != null && (
+                    <span className="text-muted-foreground ml-1.5 text-xs font-normal">
+                      Vol. {r.volumeNumber}
+                    </span>
+                  )}
+                </div>
+                <div className="text-muted-foreground mt-0.5 text-xs">
+                  {formatDate(r.publishDate, dateFormat)}
+                  <span className="text-muted-foreground/40"> · </span>
+                  {r.seriesType === "light_novel" ? "Light Novel" : "Manga"}
+                </div>
+              </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+              >
+                <polyline points="9,18 15,12 9,6" />
+              </svg>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PriceAlertsWidget() {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Price Alerts
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          Track price drops on your volumes
+        </p>
+      </div>
+      <Suspense fallback={<WidgetSkeleton />}>
+        <LazyPriceAlerts />
+      </Suspense>
+    </div>
+  )
+}
+
+function ActivityWidget() {
+  return <RecentActivityCard />
+}
+
+// ── Main dashboard component ──────────────────────────────────────────────
+
 export interface DashboardContentProps {
   readonly stats: CollectionStats
   readonly priceBreakdown: PriceBreakdown
@@ -81,16 +899,6 @@ export function DashboardContent({
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
   const layout = useSettingsStore((s) => s.dashboardLayout)
-  const [recentTab, setRecentTab] = useState<"series" | "volumes">("series")
-
-  const readPercentage =
-    stats.totalVolumes > 0
-      ? Math.round((stats.readVolumes / stats.totalVolumes) * 100)
-      : 0
-  const ownedPercentage =
-    stats.totalVolumes > 0
-      ? Math.round((stats.ownedVolumes / stats.totalVolumes) * 100)
-      : 0
 
   const isVisible = (id: DashboardWidgetId) => !layout.hidden.includes(id)
   const widgetColumn = (id: DashboardWidgetId) =>
@@ -106,748 +914,52 @@ export function DashboardContent({
     (id) => widgetColumn(id) === "right" && isVisible(id)
   )
 
-  function renderStatsWidget() {
-    return (
-      <section className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border md:grid-cols-4">
-        {[
-          {
-            id: "series",
-            label: "Series",
-            value: stats.totalSeries,
-            detail: `${stats.lightNovelSeries} LN · ${stats.mangaSeries} Manga`,
-            icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-              </svg>
-            )
-          },
-          {
-            id: "volumes",
-            label: "Volumes",
-            value: stats.totalVolumes,
-            detail: `${stats.ownedVolumes} owned · ${ownedPercentage}%`,
-            icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-              </svg>
-            )
-          },
-          {
-            id: "read",
-            label: "Read",
-            value: stats.readVolumes,
-            detail: `${readPercentage}% complete`,
-            icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-            )
-          },
-          {
-            id: "spent",
-            label: "Invested",
-            value: priceFormatter.format(stats.totalSpent),
-            detail: `${priceFormatter.format(stats.averagePricePerTrackedVolume)}/priced vol`,
-            icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            )
-          }
-        ].map((stat) => (
-          <div
-            key={stat.id}
-            className="bg-card group hover:bg-accent/60 flex flex-col gap-1 p-5 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <div className="text-primary bg-primary/8 flex h-6 w-6 items-center justify-center rounded-md">
-                {stat.icon}
-              </div>
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-                {stat.label}
-              </span>
-            </div>
-            <div className="font-display text-2xl font-bold tracking-tight">
-              {stat.value}
-            </div>
-            <div className="text-muted-foreground text-xs">{stat.detail}</div>
-          </div>
-        ))}
-      </section>
-    )
-  }
-
-  function renderCurrentlyReadingWidget() {
-    return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold tracking-tight">
-              Currently Reading
-            </h2>
-            <p className="text-muted-foreground text-xs">
-              Continue where you left off
-            </p>
-          </div>
-          {currentlyReading.length > 0 && (
-            <Link
-              href="/library"
-              className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
-            >
-              View all
-            </Link>
-          )}
-        </div>
-
-        {currentlyReading.length === 0 ? (
-          <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
-            <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-5 w-5"
-              >
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-              </svg>
-            </div>
-            <p className="text-muted-foreground text-sm">
-              Nothing in progress yet
-            </p>
-            <p className="text-muted-foreground/60 mt-1 text-xs">
-              Mark a volume as &quot;reading&quot; to see it here
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {currentlyReading.map((v) => {
-              const progress =
-                v.page_count && v.current_page
-                  ? Math.round((v.current_page / v.page_count) * 100)
-                  : null
-              return (
-                <Link
-                  key={v.id}
-                  href={`/library/volume/${v.id}`}
-                  className="glass-card group block rounded-xl p-4 transition-all hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
-                        {v.seriesTitle}
-                      </div>
-                      <div className="text-muted-foreground mt-0.5 text-xs">
-                        Volume {v.volume_number}
-                        {progress !== null && (
-                          <span className="text-primary/80 ml-2 font-medium">
-                            {progress}%
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
-                    >
-                      <polyline points="9,18 15,12 9,6" />
-                    </svg>
-                  </div>
-                  {progress !== null && (
-                    <div className="bg-primary/8 mt-3 h-1.5 overflow-hidden rounded-full">
-                      <div
-                        className="progress-animate from-primary to-gold h-full rounded-full bg-linear-to-r"
-                        style={
-                          {
-                            "--target-width": `${progress}%`
-                          } as React.CSSProperties
-                        }
-                      />
-                    </div>
-                  )}
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  function renderRecentlyAddedWidget() {
-    return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold tracking-tight">
-              Recently Added
-            </h2>
-            <p className="text-muted-foreground text-xs">
-              Latest additions to your collection
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-muted flex rounded-lg p-0.5">
-              <button
-                type="button"
-                onClick={() => setRecentTab("series")}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
-                  recentTab === "series"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Series
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecentTab("volumes")}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
-                  recentTab === "volumes"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Volumes
-              </button>
-            </div>
-            {(recentTab === "series"
-              ? recentSeries.length > 0
-              : recentVolumes.length > 0) && (
-              <Link
-                href="/dashboard/recent"
-                className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
-              >
-                View all
-              </Link>
-            )}
-          </div>
-        </div>
-
-        <RecentlyAddedContent
-          tab={recentTab}
-          recentSeries={recentSeries}
-          recentVolumes={recentVolumes}
-          priceFormatter={priceFormatter}
-          dateFormat={dateFormat}
-        />
-      </div>
-    )
-  }
-
-  function renderRecommendationsWidget() {
-    return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold tracking-tight">
-              What to Buy Next
-            </h2>
-            <p className="text-muted-foreground text-xs">
-              Continue your collection
-            </p>
-          </div>
-          {suggestedNextBuys.length > 0 && (
-            <Link
-              href="/dashboard/recommendations"
-              className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
-            >
-              View all recommendations
-            </Link>
-          )}
-        </div>
-
-        {suggestedNextBuys.length === 0 ? (
-          <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
-            <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-5 w-5"
-              >
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                <line x1="3" x2="21" y1="6" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
-            </div>
-            <p className="text-muted-foreground text-sm">No suggestions yet</p>
-            <p className="text-muted-foreground/60 mt-1 text-xs">
-              Start collecting volumes to get personalized picks
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="mb-1 flex flex-wrap gap-1.5">
-              {suggestionCounts.gap_fill > 0 && (
-                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                  {suggestionCounts.gap_fill} gaps
-                </span>
-              )}
-              {suggestionCounts.continue_reading > 0 && (
-                <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-600 dark:text-purple-400">
-                  {suggestionCounts.continue_reading} reading
-                </span>
-              )}
-              {suggestionCounts.complete_series > 0 && (
-                <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
-                  {suggestionCounts.complete_series} completable
-                </span>
-              )}
-              {suggestionCounts.continue > 0 && (
-                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
-                  {suggestionCounts.continue} next
-                </span>
-              )}
-            </div>
-
-            {suggestedNextBuys.map((buy) => (
-              <RecommendationsCard
-                key={`${buy.seriesId}-${buy.volumeNumber}`}
-                suggestion={buy}
-                currencyFormatter={priceFormatter}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  function renderBreakdownWidget() {
-    return (
-      <div>
-        <div className="mb-4">
-          <h2 className="font-display text-lg font-semibold tracking-tight">
-            Breakdown
-          </h2>
-          <p className="text-muted-foreground text-xs">
-            Collection composition
-          </p>
-        </div>
-
-        <div className="grid-stagger grid grid-cols-2 gap-3">
-          {[
-            {
-              id: "ln",
-              label: "Light Novels",
-              value: stats.lightNovelSeries,
-              unit: "series",
-              gradient: "from-primary/15 to-primary/5",
-              textColor: "text-primary",
-              iconBg: "bg-primary/12",
-              icon: (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  className="h-3.5 w-3.5"
-                >
-                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-                </svg>
-              )
-            },
-            {
-              id: "manga",
-              label: "Manga",
-              value: stats.mangaSeries,
-              unit: "series",
-              gradient: "from-copper/15 to-copper/5",
-              textColor: "text-copper",
-              iconBg: "bg-copper/12",
-              icon: (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  className="h-3.5 w-3.5"
-                >
-                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                  <line x1="3" x2="21" y1="9" y2="9" />
-                  <line x1="9" x2="9" y1="3" y2="21" />
-                </svg>
-              )
-            },
-            {
-              id: "complete",
-              label: "Complete series",
-              value: stats.completeSets,
-              unit: "series",
-              gradient: "from-green-500/12 to-green-500/4",
-              textColor: "text-green-600 dark:text-green-400",
-              iconBg: "bg-green-500/12",
-              icon: (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  className="h-3.5 w-3.5"
-                >
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-              )
-            },
-            {
-              id: "wishlist",
-              label: "Wishlisted volumes",
-              value: stats.wishlistCount,
-              unit: "volumes",
-              gradient: "from-gold/15 to-gold/5",
-              textColor: "text-gold",
-              iconBg: "bg-gold/12",
-              icon: (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  className="h-3.5 w-3.5"
-                >
-                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                </svg>
-              )
-            }
-          ].map((card) => (
-            <div
-              key={card.id}
-              className={`bg-linear-to-br ${card.gradient} rounded-xl border p-4 transition-transform hover:scale-[1.02]`}
-            >
-              <div className="mb-2 flex items-center gap-1.5">
-                <div
-                  className={`${card.iconBg} ${card.textColor} flex h-5 w-5 items-center justify-center rounded`}
-                >
-                  {card.icon}
-                </div>
-                <span className="text-muted-foreground text-[11px] font-medium uppercase">
-                  {card.label}
-                </span>
-              </div>
-              <div
-                className={`font-display text-2xl font-bold ${card.textColor}`}
-              >
-                {card.value}
-              </div>
-              <div className="text-muted-foreground text-[10px] uppercase">
-                {card.unit}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  function renderHealthWidget() {
-    return (
-      <div>
-        <div className="mb-4">
-          <h2 className="font-display text-lg font-semibold tracking-tight">
-            Collection Health
-          </h2>
-          <p className="text-muted-foreground text-xs">
-            Overall collection quality score
-          </p>
-        </div>
-        <CollectionHealthCard healthScore={healthScore} series={series} />
-      </div>
-    )
-  }
-
-  function renderProgressWidget() {
-    return (
-      <div>
-        <div className="mb-4">
-          <h2 className="font-display text-lg font-semibold tracking-tight">
-            Progress
-          </h2>
-          <p className="text-muted-foreground text-xs">
-            Overall reading completion
-          </p>
-        </div>
-
-        <div className="glass-card rounded-xl p-6">
-          <div className="flex items-center gap-6">
-            <div className="relative h-24 w-24 shrink-0">
-              <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  className="stroke-primary/10"
-                  strokeWidth="8"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  className="stroke-primary"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={`${readPercentage * 2.64} ${264 - readPercentage * 2.64}`}
-                  style={{
-                    transition: "stroke-dasharray 1s ease-out"
-                  }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="font-display text-xl font-bold">
-                  {readPercentage}%
-                </span>
-              </div>
-            </div>
-
-            <div className="min-w-0 flex-1 space-y-3">
-              <div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Read</span>
-                  <span className="font-medium">
-                    {stats.readVolumes}/{stats.totalVolumes}
-                  </span>
-                </div>
-                <div className="bg-primary/8 mt-1 h-1.5 overflow-hidden rounded-full">
-                  <div
-                    className="bg-primary h-full rounded-full transition-all duration-700"
-                    style={{ width: `${readPercentage}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">In progress</span>
-                  <span className="font-medium">{stats.readingVolumes}</span>
-                </div>
-                <div className="bg-gold/10 mt-1 h-1.5 overflow-hidden rounded-full">
-                  <div
-                    className="bg-gold h-full rounded-full transition-all duration-700"
-                    style={{
-                      width: `${stats.totalVolumes > 0 ? Math.round((stats.readingVolumes / stats.totalVolumes) * 100) : 0}%`
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  function renderPriceTrackingWidget() {
-    return (
-      <div>
-        <div className="mb-4">
-          <h2 className="font-display text-lg font-semibold tracking-tight">
-            Price Tracking
-          </h2>
-          <p className="text-muted-foreground text-xs">Investment breakdown</p>
-        </div>
-        <Suspense fallback={<WidgetSkeleton />}>
-          <LazyPriceTracking
-            priceBreakdown={priceBreakdown}
-            ownedVolumes={stats.ownedVolumes}
-            priceFormatter={priceFormatter}
-          />
-        </Suspense>
-      </div>
-    )
-  }
-
-  function renderWishlistWidget() {
-    return (
-      <div>
-        <div className="mb-4">
-          <h2 className="font-display text-lg font-semibold tracking-tight">
-            Wishlist
-          </h2>
-          <p className="text-muted-foreground text-xs">Your want list</p>
-        </div>
-        <Suspense fallback={<WidgetSkeleton />}>
-          <LazyWishlist
-            wishlistStats={wishlistStats}
-            wishlistCount={stats.wishlistCount}
-            totalVolumes={stats.totalVolumes}
-            priceFormatter={priceFormatter}
-          />
-        </Suspense>
-      </div>
-    )
-  }
-
-  function renderReleasesWidget() {
-    return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold tracking-tight">
-              Upcoming Releases
-            </h2>
-            <p className="text-muted-foreground text-xs">
-              Next volumes by publish date
-            </p>
-          </div>
-          {upcomingReleases.length > 0 && (
-            <Link
-              href="/dashboard/releases"
-              className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
-            >
-              View all
-            </Link>
-          )}
-        </div>
-
-        {upcomingReleases.length === 0 ? (
-          <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
-            <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-5 w-5"
-              >
-                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                <line x1="16" x2="16" y1="2" y2="6" />
-                <line x1="8" x2="8" y1="2" y2="6" />
-                <line x1="3" x2="21" y1="10" y2="10" />
-              </svg>
-            </div>
-            <p className="text-muted-foreground text-sm">
-              No upcoming releases
-            </p>
-            <p className="text-muted-foreground/60 mt-1 text-xs">
-              Add publish dates to volumes to track releases
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-px overflow-hidden rounded-xl border">
-            {upcomingReleases.map((r) => (
-              <Link
-                key={r.volumeId}
-                href={`/library/volume/${r.volumeId}`}
-                className="bg-card group hover:bg-accent/60 flex items-center justify-between p-3 transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
-                    {r.seriesTitle}
-                    {r.volumeNumber != null && (
-                      <span className="text-muted-foreground ml-1.5 text-xs font-normal">
-                        Vol. {r.volumeNumber}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-muted-foreground mt-0.5 text-xs">
-                    {formatDate(r.publishDate, dateFormat)}
-                    <span className="text-muted-foreground/40"> · </span>
-                    {r.seriesType === "light_novel" ? "Light Novel" : "Manga"}
-                  </div>
-                </div>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
-                >
-                  <polyline points="9,18 15,12 9,6" />
-                </svg>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  function renderPriceAlertsWidget() {
-    return (
-      <div>
-        <div className="mb-4">
-          <h2 className="font-display text-lg font-semibold tracking-tight">
-            Price Alerts
-          </h2>
-          <p className="text-muted-foreground text-xs">
-            Track price drops on your volumes
-          </p>
-        </div>
-        <Suspense fallback={<WidgetSkeleton />}>
-          <LazyPriceAlerts />
-        </Suspense>
-      </div>
-    )
-  }
-
-  function renderActivityWidget() {
-    return <RecentActivityCard />
-  }
-
-  const widgetRenderers: Record<DashboardWidgetId, () => React.ReactNode> = {
-    stats: renderStatsWidget,
-    "currently-reading": renderCurrentlyReadingWidget,
-    "recently-added": renderRecentlyAddedWidget,
-    recommendations: renderRecommendationsWidget,
-    breakdown: renderBreakdownWidget,
-    health: renderHealthWidget,
-    activity: renderActivityWidget,
-    progress: renderProgressWidget,
-    "price-tracking": renderPriceTrackingWidget,
-    wishlist: renderWishlistWidget,
-    releases: renderReleasesWidget,
-    "price-alerts": renderPriceAlertsWidget
-  }
-
-  function renderWidget(id: DashboardWidgetId) {
-    return widgetRenderers[id]?.() ?? null
+  const widgetRenderers: Record<DashboardWidgetId, React.ReactNode> = {
+    stats: <StatsWidget stats={stats} priceFormatter={priceFormatter} />,
+    "currently-reading": (
+      <CurrentlyReadingWidget currentlyReading={currentlyReading} />
+    ),
+    "recently-added": (
+      <RecentlyAddedWidget
+        recentSeries={recentSeries}
+        recentVolumes={recentVolumes}
+        priceFormatter={priceFormatter}
+        dateFormat={dateFormat}
+      />
+    ),
+    recommendations: (
+      <RecommendationsWidget
+        suggestedNextBuys={suggestedNextBuys}
+        suggestionCounts={suggestionCounts}
+        priceFormatter={priceFormatter}
+      />
+    ),
+    breakdown: <BreakdownWidget stats={stats} />,
+    health: <HealthWidget healthScore={healthScore} series={series} />,
+    activity: <ActivityWidget />,
+    progress: <ProgressWidget stats={stats} />,
+    "price-tracking": (
+      <PriceTrackingWidget
+        priceBreakdown={priceBreakdown}
+        ownedVolumes={stats.ownedVolumes}
+        priceFormatter={priceFormatter}
+      />
+    ),
+    wishlist: (
+      <WishlistWidget
+        wishlistStats={wishlistStats}
+        wishlistCount={stats.wishlistCount}
+        totalVolumes={stats.totalVolumes}
+        priceFormatter={priceFormatter}
+      />
+    ),
+    releases: (
+      <ReleasesWidget
+        upcomingReleases={upcomingReleases}
+        dateFormat={dateFormat}
+      />
+    ),
+    "price-alerts": <PriceAlertsWidget />
   }
 
   return (
@@ -864,7 +976,7 @@ export function DashboardContent({
           className="animate-fade-in-up"
           style={{ animationDelay: `${(i + 1) * 75}ms` }}
         >
-          <ErrorBoundary>{renderWidget(id)}</ErrorBoundary>
+          <ErrorBoundary>{widgetRenderers[id] ?? null}</ErrorBoundary>
         </div>
       ))}
 
@@ -881,7 +993,7 @@ export function DashboardContent({
                     animationDelay: `${(i + fullWidgets.length + 2) * 75}ms`
                   }}
                 >
-                  <ErrorBoundary>{renderWidget(id)}</ErrorBoundary>
+                  <ErrorBoundary>{widgetRenderers[id] ?? null}</ErrorBoundary>
                 </div>
               ))}
             </div>
@@ -896,7 +1008,7 @@ export function DashboardContent({
                     animationDelay: `${(i + fullWidgets.length + leftWidgets.length + 2) * 75}ms`
                   }}
                 >
-                  <ErrorBoundary>{renderWidget(id)}</ErrorBoundary>
+                  <ErrorBoundary>{widgetRenderers[id] ?? null}</ErrorBoundary>
                 </div>
               ))}
             </div>
