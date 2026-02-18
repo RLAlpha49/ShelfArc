@@ -1,25 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
-import { useLibraryStore } from "@/lib/store/library-store"
-import { useSettingsStore } from "@/lib/store/settings-store"
-import type {
-  DisplayFont,
-  BodyFont,
-  CardSize,
-  DateFormat,
-  DefaultOwnershipStatus,
-  SearchSource,
-  FontSizeScale,
-  FocusIndicators
-} from "@/lib/store/settings-store"
-import type { BulkScrapeMode } from "@/lib/hooks/use-bulk-scrape"
-import { cn } from "@/lib/utils"
-import { sanitizePlainText } from "@/lib/sanitize-html"
-import { validatePassword } from "@/lib/auth/validate-password"
-import { USERNAME_PATTERN } from "@/lib/validation"
+import { useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
+
+import { AccountDeleteDialog } from "@/components/settings/account-delete-dialog"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,20 +19,36 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { toast } from "sonner"
-import { uploadImage } from "@/lib/uploads/upload-image"
-import {
-  extractStoragePath,
-  resolveImageUrl
-} from "@/lib/uploads/resolve-image-url"
-import type { Profile } from "@/lib/types/database"
+import { validatePassword } from "@/lib/auth/validate-password"
+import type { BulkScrapeMode } from "@/lib/hooks/use-bulk-scrape"
+import { sanitizePlainText } from "@/lib/sanitize-html"
 import type {
   AmazonDomain,
   CurrencyCode,
   NavigationMode,
   PriceSource
 } from "@/lib/store/library-store"
+import { useLibraryStore } from "@/lib/store/library-store"
+import type {
+  BodyFont,
+  CardSize,
+  DateFormat,
+  DefaultOwnershipStatus,
+  DisplayFont,
+  FocusIndicators,
+  FontSizeScale,
+  SearchSource
+} from "@/lib/store/settings-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
+import { createClient } from "@/lib/supabase/client"
+import type { Profile } from "@/lib/types/database"
+import {
+  extractStoragePath,
+  resolveImageUrl
+} from "@/lib/uploads/resolve-image-url"
+import { uploadImage } from "@/lib/uploads/upload-image"
+import { cn } from "@/lib/utils"
+import { USERNAME_PATTERN } from "@/lib/validation"
 
 /** Maximum avatar file size in bytes (2 MB). @source */
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
@@ -160,7 +162,8 @@ const settingsNav = [
   { id: "accessibility", label: "Accessibility" },
   { id: "pricing", label: "Pricing" },
   { id: "security", label: "Security" },
-  { id: "data", label: "Data" }
+  { id: "data", label: "Data" },
+  { id: "danger-zone", label: "Danger Zone" }
 ] as const
 
 /**
@@ -861,6 +864,13 @@ export default function SettingsPage() {
                           <ellipse cx="12" cy="5" rx="9" ry="3" />
                           <path d="M3 5v14a9 3 0 0 0 18 0V5" />
                           <path d="M3 12a9 3 0 0 0 18 0" />
+                        </>
+                      )}
+                      {section.id === "danger-zone" && (
+                        <>
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
                         </>
                       )}
                     </svg>
@@ -2326,6 +2336,56 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </Link>
+            </div>
+          </section>
+
+          {/* Danger Zone */}
+          <section id="danger-zone" className="scroll-mt-8">
+            <div className="border-destructive/30 bg-destructive/5 rounded-2xl border p-6 md:p-8">
+              <div className="mb-6 flex items-center gap-3">
+                <div className="bg-destructive/10 flex h-10 w-10 items-center justify-center rounded-xl">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="text-destructive h-5 w-5"
+                  >
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-semibold">
+                    Danger Zone
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    Irreversible actions that affect your account
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="border-destructive/20 bg-background/50 rounded-xl border p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="font-medium">Delete Account</h3>
+                      <p className="text-muted-foreground text-sm">
+                        Permanently delete your account and all associated data.
+                        This action cannot be undone.
+                      </p>
+                    </div>
+                    <AccountDeleteDialog
+                      trigger={
+                        <Button variant="destructive" size="sm">
+                          Delete Account
+                        </Button>
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </div>
