@@ -5,6 +5,7 @@ import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { sanitizePlainText } from "@/lib/sanitize-html"
 import { createUserClient } from "@/lib/supabase/server"
 import type { NotificationType } from "@/lib/types/notification"
 
@@ -83,9 +84,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function validateNotificationBody(
-  body: Record<string, unknown>
-):
+function validateNotificationBody(body: Record<string, unknown>):
   | { error: string }
   | {
       type: NotificationType
@@ -98,10 +97,16 @@ function validateNotificationBody(
     return { error: "Invalid or missing type" }
   }
 
-  const title = typeof body.title === "string" ? body.title.trim() : ""
+  const title = sanitizePlainText(
+    typeof body.title === "string" ? body.title : "",
+    200
+  )
   if (!title) return { error: "Title is required" }
 
-  const message = typeof body.message === "string" ? body.message.trim() : ""
+  const message = sanitizePlainText(
+    typeof body.message === "string" ? body.message : "",
+    2000
+  )
   if (!message) return { error: "Message is required" }
 
   const metadata =
