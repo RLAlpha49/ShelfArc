@@ -37,7 +37,9 @@ const SORT_LABELS: Record<SortField, string> = {
   updated_at: "Date Updated",
   rating: "Rating",
   volume_count: "Volume Count",
-  price: "Price"
+  price: "Price",
+  started_at: "Date Started",
+  finished_at: "Date Finished"
 }
 
 const SORT_FIELDS: SortField[] = [
@@ -45,6 +47,8 @@ const SORT_FIELDS: SortField[] = [
   "author",
   "created_at",
   "updated_at",
+  "started_at",
+  "finished_at",
   "rating",
   "volume_count",
   "price"

@@ -32,7 +32,9 @@ const VALID_SORT_FIELDS = new Set([
   "author",
   "rating",
   "volume_count",
-  "price"
+  "price",
+  "started_at",
+  "finished_at"
 ])
 const VALID_SORT_ORDERS = new Set(["asc", "desc"])
 const VALID_COLLECTION_VIEWS = new Set(["series", "volumes"])

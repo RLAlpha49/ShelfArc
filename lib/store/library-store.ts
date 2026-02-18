@@ -18,6 +18,8 @@ export type SortField =
   | "rating"
   | "volume_count"
   | "price"
+  | "started_at"
+  | "finished_at"
 /** Sort direction. @source */
 export type SortOrder = "asc" | "desc"
 /** Display mode for the library grid. @source */

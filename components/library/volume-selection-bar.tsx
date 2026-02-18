@@ -38,7 +38,11 @@ export function VolumeSelectionBar({
   onApplyAllVolumesReading,
   // Assign to series (library page, unassigned volumes)
   onAssignToSeries,
-  assignToSeriesCount
+  assignToSeriesCount,
+  // Bulk edit
+  onBulkEdit,
+  // Collections
+  onAddToCollection
 }: {
   readonly selectedCount: number
   readonly totalSelectableCount: number
@@ -60,6 +64,8 @@ export function VolumeSelectionBar({
   ) => void | Promise<void>
   readonly onAssignToSeries?: () => void
   readonly assignToSeriesCount?: number
+  readonly onBulkEdit?: () => void
+  readonly onAddToCollection?: () => void
 }) {
   if (selectedCount <= 0) return null
 
@@ -260,12 +266,26 @@ export function VolumeSelectionBar({
           <Button
             variant="outline"
             size="sm"
-            onClick={onEdit}
-            disabled={selectedCount !== 1}
+            onClick={selectedCount === 1 ? onEdit : onBulkEdit}
+            disabled={
+              selectedCount === 0 ||
+              (selectedCount > 1 && !onBulkEdit)
+            }
             className="rounded-xl"
           >
-            Edit
+            Edit{selectedCount > 1 ? ` (${selectedCount})` : ""}
           </Button>
+          {onAddToCollection && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onAddToCollection}
+              disabled={selectedCount === 0}
+              className="rounded-xl"
+            >
+              + Collection
+            </Button>
+          )}
           <Button
             variant="destructive"
             size="sm"

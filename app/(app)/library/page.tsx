@@ -49,6 +49,8 @@ import { VolumeGridItem } from "@/components/library/volume-grid-item"
 import { VolumeListItem } from "@/components/library/volume-list-item"
 import { VolumeCard } from "@/components/library/volume-card"
 import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
+import { CollectionsPanel, AddToCollectionDialog } from "@/components/library/collections-panel"
+import { BulkEditDialog } from "@/components/library/bulk-edit-dialog"
 import {
   VirtualizedWindowGrid,
   VirtualizedWindowList
@@ -136,6 +138,17 @@ export default function LibraryPage() {
   const confirmBeforeDelete = useSettingsStore((s) => s.confirmBeforeDelete)
   const amazonBindingLabel = AMAZON_BINDING_LABELS[Number(amazonPreferKindle)]
 
+  const collectionStats = useMemo(() => {
+    const allVolumes = series.flatMap((s) => s.volumes)
+    const totalVolumes = allVolumes.length
+    const owned = allVolumes.filter((v) => v.ownership_status === "owned").length
+    const wishlist = allVolumes.filter((v) => v.ownership_status === "wishlist").length
+    const read = allVolumes.filter((v) => v.reading_status === "completed").length
+    const inProgress = allVolumes.filter((v) => v.reading_status === "reading").length
+    const completionRate = totalVolumes > 0 ? Math.round((read / totalVolumes) * 100) : 0
+    return { totalVolumes, owned, wishlist, read, inProgress, completionRate }
+  }, [series])
+
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
   const [editingSeries, setEditingSeries] = useState<SeriesWithVolumes | null>(
@@ -163,6 +176,9 @@ export default function LibraryPage() {
   const [scrapeTarget, setScrapeTarget] = useState<SeriesWithVolumes | null>(
     null
   )
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false)
+  const [addToCollectionDialogOpen, setAddToCollectionDialogOpen] =
+    useState(false)
 
   useEffect(() => {
     fetchSeries()
@@ -782,6 +798,44 @@ export default function LibraryPage() {
     openEditVolumeDialog
   ])
 
+  const handleBulkEdit = useCallback(() => {
+    if (selectedCount < 2) return
+    setBulkEditDialogOpen(true)
+  }, [selectedCount])
+
+  const handleBulkEditApply = useCallback(
+    async (changes: Record<string, unknown>) => {
+      if (collectionView === "series") {
+        const targets = Array.from(selectedSeriesIds)
+        const results = await Promise.allSettled(
+          targets.map((id) => editSeries(id, changes))
+        )
+        const successCount = results.filter((r) => r.status === "fulfilled").length
+        const failureCount = results.length - successCount
+        if (successCount > 0) toast.success(`Updated ${successCount} series`)
+        if (failureCount > 0) toast.error(`${failureCount} updates failed`)
+      } else {
+        const targets = Array.from(selectedVolumeIds)
+          .map((id) => volumeLookup.get(id))
+          .filter((v): v is Volume => Boolean(v))
+        const results = await Promise.allSettled(
+          targets.map((v) => editVolume(v.series_id ?? null, v.id, changes))
+        )
+        const successCount = results.filter((r) => r.status === "fulfilled").length
+        const failureCount = results.length - successCount
+        if (successCount > 0) toast.success(`Updated ${successCount} volume${successCount === 1 ? "" : "s"}`)
+        if (failureCount > 0) toast.error(`${failureCount} updates failed`)
+      }
+      clearSelection()
+    },
+    [collectionView, selectedSeriesIds, selectedVolumeIds, volumeLookup, editSeries, editVolume, clearSelection]
+  )
+
+  const selectedVolumeIdsArray = useMemo(
+    () => Array.from(selectedVolumeIds),
+    [selectedVolumeIds]
+  )
+
   const openDeleteVolumeDialog = useCallback(
     async (volume: Volume) => {
       if (!confirmBeforeDelete) {
@@ -1377,9 +1431,8 @@ export default function LibraryPage() {
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
 
-      <div className="mb-10 grid items-end gap-6 lg:grid-cols-12">
-        {/* Left: editorial heading — 7 columns */}
-        <div className="animate-fade-in-up lg:col-span-7">
+      <div className="mb-6">
+        <div className="animate-fade-in-up">
           <span className="text-muted-foreground mb-3 block text-xs tracking-widest uppercase">
             Collection
           </span>
@@ -1393,46 +1446,73 @@ export default function LibraryPage() {
             Manage your light novel and manga collection
           </p>
         </div>
-        {/* Right: quick stats — 5 columns */}
-        <div className="animate-fade-in-up stagger-2 hidden lg:col-span-5 lg:flex lg:items-end lg:justify-end lg:gap-6">
-          {!isLoading && series.length > 0 && (
-            <>
-              <div className="text-right">
-                <div className="font-display text-primary text-2xl font-bold">
-                  {series.length}
-                </div>
-                <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                  Series
-                </div>
-              </div>
-              <div className="bg-border h-8 w-px" />
-              <div className="text-right">
-                <div className="font-display text-primary text-2xl font-bold">
-                  {series.reduce(
-                    (sum, s) =>
-                      sum +
-                      s.volumes.filter((v) => v.ownership_status === "owned")
-                        .length,
-                    0
-                  )}
-                </div>
-                <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                  Owned
-                </div>
-              </div>
-              <div className="bg-border h-8 w-px" />
-              <div className="text-right">
-                <div className="font-display text-primary text-2xl font-bold">
-                  {series.reduce((sum, s) => sum + s.volumes.length, 0)}
-                </div>
-                <div className="text-muted-foreground text-xs tracking-widest uppercase">
-                  Volumes
-                </div>
-              </div>
-            </>
-          )}
-        </div>
       </div>
+
+      {/* Responsive collection stats bar */}
+      {!isLoading && series.length > 0 && (
+        <div className="animate-fade-in-up stagger-2 mb-8">
+          <div className="glass-card grid grid-cols-3 gap-2 rounded-2xl p-3 sm:grid-cols-4 md:grid-cols-7 md:gap-4 md:p-4">
+            <div className="text-center">
+              <div className="font-display text-primary text-lg font-bold md:text-xl">
+                {series.length}
+              </div>
+              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
+                Series
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="font-display text-primary text-lg font-bold md:text-xl">
+                {collectionStats.totalVolumes}
+              </div>
+              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
+                Volumes
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="font-display text-primary text-lg font-bold md:text-xl">
+                {collectionStats.owned}
+              </div>
+              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
+                Owned
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="font-display text-primary text-lg font-bold md:text-xl">
+                {collectionStats.read}
+              </div>
+              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
+                Read
+              </div>
+            </div>
+            <div className="hidden text-center sm:block">
+              <div className="font-display text-primary text-lg font-bold md:text-xl">
+                {collectionStats.inProgress}
+              </div>
+              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
+                In Progress
+              </div>
+            </div>
+            <div className="hidden text-center md:block">
+              <div className="font-display text-primary text-lg font-bold md:text-xl">
+                {collectionStats.wishlist}
+              </div>
+              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
+                Wishlist
+              </div>
+            </div>
+            <div className="hidden text-center md:block">
+              <div className="font-display text-lg font-bold text-copper md:text-xl">
+                {collectionStats.completionRate}%
+              </div>
+              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
+                Complete
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <CollectionsPanel />
 
       <LibraryToolbar
         onAddBook={openAddDialog}
@@ -1480,6 +1560,8 @@ export default function LibraryPage() {
             : undefined
         }
         assignToSeriesCount={selectedUnassignedCount}
+        onBulkEdit={handleBulkEdit}
+        onAddToCollection={() => setAddToCollectionDialogOpen(true)}
       />
 
       <div className="my-8 border-t" />
@@ -1649,6 +1731,20 @@ export default function LibraryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <BulkEditDialog
+        open={bulkEditDialogOpen}
+        onOpenChange={setBulkEditDialogOpen}
+        mode={collectionView === "series" ? "series" : "volumes"}
+        selectedCount={selectedCount}
+        onApply={handleBulkEditApply}
+      />
+
+      <AddToCollectionDialog
+        open={addToCollectionDialogOpen}
+        onOpenChange={setAddToCollectionDialogOpen}
+        volumeIds={selectedVolumeIdsArray}
+      />
     </div>
   )
 }
