@@ -214,6 +214,7 @@ CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
 CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
 CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_series_title_trgm ON series USING gin (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_series_author_trgm ON series USING gin (author gin_trgm_ops);
 
 -- Volumes table (individual books/volumes)
 CREATE TABLE IF NOT EXISTS volumes (
