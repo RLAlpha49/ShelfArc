@@ -360,10 +360,12 @@ export default function VolumeDetailPage() {
         <EmptyState
           title="Volume not found"
           description="The volume you're looking for doesn't exist or has been deleted."
-          action={{
-            label: "Back to Library",
-            onClick: () => router.push("/library")
-          }}
+          actions={[
+            {
+              label: "Back to Library",
+              onClick: () => router.push("/library")
+            }
+          ]}
         />
       </div>
     )

@@ -756,10 +756,12 @@ export default function SeriesDetailPage() {
         <EmptyState
           title="Series not found"
           description="The series you're looking for doesn't exist or has been deleted."
-          action={{
-            label: "Back to Library",
-            onClick: () => router.push("/library")
-          }}
+          actions={[
+            {
+              label: "Back to Library",
+              onClick: () => router.push("/library")
+            }
+          ]}
         />
       </div>
     )
