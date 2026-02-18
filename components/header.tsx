@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSyncExternalStore } from "react"
+import { toast } from "sonner"
 
 import { logout } from "@/app/auth/actions"
 import { NotificationBell } from "@/components/notification-bell"
@@ -215,19 +216,22 @@ export function Header({ user }: HeaderProps) {
                       pathname === item.href ||
                       pathname.startsWith(`${item.href}/`)
                     return (
-                      <DropdownMenuItem key={`mobile-${item.href}`}>
-                        <Link
-                          href={item.href}
-                          aria-current={isActive ? "page" : undefined}
-                          className={cn(
-                            "flex w-full items-center gap-2",
-                            isActive ? "font-medium" : undefined
-                          )}
-                        >
-                          {item.icon}
-                          {item.label}
-                        </Link>
-                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        key={`mobile-${item.href}`}
+                        render={
+                          <Link
+                            href={item.href}
+                            aria-current={isActive ? "page" : undefined}
+                            className={cn(
+                              "flex w-full items-center gap-2",
+                              isActive ? "font-medium" : undefined
+                            )}
+                          >
+                            {item.icon}
+                            {item.label}
+                          </Link>
+                        }
+                      />
                     )
                   })}
                 </DropdownMenuContent>
@@ -354,7 +358,11 @@ export function Header({ user }: HeaderProps) {
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive cursor-pointer"
                   onClick={async () => {
-                    await logout()
+                    try {
+                      await logout()
+                    } catch {
+                      toast.error("Sign out failed — try again")
+                    }
                   }}
                 >
                   Sign out
