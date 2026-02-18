@@ -28,6 +28,10 @@ export function useLibraryFetch() {
     sortOrder
   } = useLibraryStore()
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [seriesProgress, setSeriesProgress] = useState<{
+    loaded: number
+    total: number
+  } | null>(null)
 
   // Fetch all series with volumes (stale-while-revalidate)
   const fetchSeries = useCallback(async () => {
@@ -83,12 +87,15 @@ export function useLibraryFetch() {
       // Stop blocking render after first page; keep loading the rest in background.
       if (showLoadingSkeleton) setIsLoading(false)
 
+      const { totalPages, total: seriesTotal } = firstSeriesResponse.pagination
+
+      // Show progress indicator only when there are more pages to fetch.
+      if (totalPages > 1) {
+        setSeriesProgress({ loaded: seriesData.length, total: seriesTotal })
+      }
+
       const loadRemainingSeriesPages = async () => {
-        for (
-          let page = 2;
-          page <= firstSeriesResponse.pagination.totalPages;
-          page += 1
-        ) {
+        for (let page = 2; page <= totalPages; page += 1) {
           const response = (await fetchLibrary({
             view: "series",
             page,
@@ -101,6 +108,7 @@ export function useLibraryFetch() {
 
           seriesData.push(...response.data)
           commitProgress()
+          setSeriesProgress({ loaded: seriesData.length, total: seriesTotal })
         }
       }
 
@@ -145,6 +153,7 @@ export function useLibraryFetch() {
     } finally {
       if (isLatestRun()) {
         setIsLoading(false)
+        setSeriesProgress(null)
       }
     }
   }, [
@@ -156,5 +165,5 @@ export function useLibraryFetch() {
     sortOrder
   ])
 
-  return { fetchSeries, isLoading, error: fetchError }
+  return { fetchSeries, isLoading, error: fetchError, seriesProgress }
 }

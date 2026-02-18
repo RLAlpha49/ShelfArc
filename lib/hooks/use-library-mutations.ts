@@ -298,6 +298,9 @@ export function useLibraryMutations() {
       const nextAuthor = author?.trim()
       if (!nextAuthor) return targetSeries
       if (targetSeries.author?.trim()) return targetSeries
+      // Skip auto-fill when the series already has volumes — the empty field
+      // may have been intentionally cleared by the user.
+      if (targetSeries.volumes.length > 0) return targetSeries
 
       try {
         await editSeries(targetSeries.id, { author: nextAuthor })
@@ -314,6 +317,9 @@ export function useLibraryMutations() {
     async (targetSeries: SeriesWithVolumes, typeHint?: TitleType | null) => {
       if (!typeHint) return targetSeries
       if (targetSeries.type !== "other") return targetSeries
+      // Skip auto-fill when the series already has volumes — the "other" type
+      // may have been intentionally kept by the user.
+      if (targetSeries.volumes.length > 0) return targetSeries
 
       try {
         await editSeries(targetSeries.id, { type: typeHint })

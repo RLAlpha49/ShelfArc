@@ -21,7 +21,7 @@ export type { VolumeWithSeries } from "./use-library-filters"
 export function useLibrary() {
   const series = useLibraryStore(selectAllSeries)
   const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
-  const { fetchSeries, isLoading } = useLibraryFetch()
+  const { fetchSeries, isLoading, seriesProgress } = useLibraryFetch()
   const mutations = useLibraryApiMutations()
   const filters = useLibraryFilters()
   const imports = useLibraryImport()
@@ -30,6 +30,7 @@ export function useLibrary() {
     series,
     unassignedVolumes,
     isLoading,
+    seriesProgress,
     fetchSeries,
     ...mutations,
     ...filters,
