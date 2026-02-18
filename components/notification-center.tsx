@@ -1,15 +1,16 @@
 "use client"
 
-import { useCallback } from "react"
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import {
-  FileValidationIcon,
-  SearchIcon,
-  DollarCircleIcon,
-  InformationCircleIcon,
   CheckmarkBadge02Icon,
-  Delete02Icon
+  Delete02Icon,
+  DollarCircleIcon,
+  FileValidationIcon,
+  InformationCircleIcon,
+  SearchIcon
 } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
+import { useCallback } from "react"
+
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -83,16 +84,16 @@ function NotificationItem({
 
 export function NotificationCenter() {
   const notifications = useNotificationStore((s) => s.notifications)
-  const markRead = useNotificationStore((s) => s.markRead)
-  const markAllRead = useNotificationStore((s) => s.markAllRead)
-  const clearAll = useNotificationStore((s) => s.clearAll)
+  const markReadOnServer = useNotificationStore((s) => s.markReadOnServer)
+  const markAllReadOnServer = useNotificationStore((s) => s.markAllReadOnServer)
+  const clearAllOnServer = useNotificationStore((s) => s.clearAllOnServer)
   const unreadCount = useNotificationStore((s) => s.unreadCount())
 
   const handleRead = useCallback(
     (id: string) => {
-      markRead(id)
+      markReadOnServer(id)
     },
-    [markRead]
+    [markReadOnServer]
   )
 
   return (
@@ -105,7 +106,7 @@ export function NotificationCenter() {
               variant="ghost"
               size="sm"
               className="h-7 px-2 text-xs"
-              onClick={markAllRead}
+              onClick={markAllReadOnServer}
             >
               <HugeiconsIcon
                 icon={CheckmarkBadge02Icon}
@@ -121,7 +122,7 @@ export function NotificationCenter() {
               variant="ghost"
               size="sm"
               className="text-muted-foreground h-7 px-2 text-xs"
-              onClick={clearAll}
+              onClick={clearAllOnServer}
             >
               <HugeiconsIcon
                 icon={Delete02Icon}

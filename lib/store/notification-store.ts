@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+
 import type { Notification } from "@/lib/types/notification"
 
 const MAX_NOTIFICATIONS = 50
@@ -7,6 +8,7 @@ const MAX_NOTIFICATIONS = 50
 interface NotificationStore {
   _hydrated: boolean
   notifications: Notification[]
+  lastSyncedAt: number | null
   addNotification: (
     notification: Omit<Notification, "id" | "timestamp" | "read">
   ) => void
@@ -14,6 +16,13 @@ interface NotificationStore {
   markAllRead: () => void
   clearAll: () => void
   unreadCount: () => number
+  loadFromServer: () => Promise<void>
+  syncToServer: (
+    notification: Omit<Notification, "id" | "timestamp" | "read">
+  ) => Promise<void>
+  markReadOnServer: (id: string) => void
+  markAllReadOnServer: () => void
+  clearAllOnServer: () => void
 }
 
 export const useNotificationStore = create<NotificationStore>()(
@@ -21,6 +30,7 @@ export const useNotificationStore = create<NotificationStore>()(
     (set, get) => ({
       _hydrated: false,
       notifications: [],
+      lastSyncedAt: null,
 
       addNotification: (notification) => {
         const cryptoObj = globalThis.crypto
@@ -44,6 +54,10 @@ export const useNotificationStore = create<NotificationStore>()(
             MAX_NOTIFICATIONS
           )
         }))
+
+        get()
+          .syncToServer(notification)
+          .catch(() => {})
       },
 
       markRead: (id) =>
@@ -65,7 +79,81 @@ export const useNotificationStore = create<NotificationStore>()(
 
       clearAll: () => set({ notifications: [] }),
 
-      unreadCount: () => get().notifications.filter((n) => !n.read).length
+      unreadCount: () => get().notifications.filter((n) => !n.read).length,
+
+      loadFromServer: async () => {
+        try {
+          const res = await fetch("/api/notifications?limit=50")
+          if (!res.ok) return
+          const json = await res.json()
+          const rows = json?.data
+          if (!Array.isArray(rows)) return
+
+          const mapped: Notification[] = rows.map(
+            (row: {
+              id: string
+              type: Notification["type"]
+              title: string
+              message: string
+              read: boolean
+              metadata?: Record<string, unknown>
+              created_at: string
+            }) => ({
+              id: row.id,
+              type: row.type,
+              title: row.title,
+              message: row.message,
+              read: row.read,
+              metadata: row.metadata ?? {},
+              timestamp: new Date(row.created_at).getTime()
+            })
+          )
+
+          set({ notifications: mapped, lastSyncedAt: Date.now() })
+        } catch {
+          // Silently fail — localStorage cache remains
+        }
+      },
+
+      syncToServer: async (notification) => {
+        try {
+          await fetch("/api/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: notification.type,
+              title: notification.title,
+              message: notification.message,
+              metadata: notification.metadata ?? {}
+            })
+          })
+        } catch {
+          // Fire-and-forget
+        }
+      },
+
+      markReadOnServer: (id) => {
+        get().markRead(id)
+        fetch(`/api/notifications/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ read: true })
+        }).catch(() => {})
+      },
+
+      markAllReadOnServer: () => {
+        get().markAllRead()
+        fetch("/api/notifications/mark-all-read", {
+          method: "POST"
+        }).catch(() => {})
+      },
+
+      clearAllOnServer: () => {
+        get().clearAll()
+        fetch("/api/notifications", {
+          method: "DELETE"
+        }).catch(() => {})
+      }
     }),
     {
       name: "shelfarc-notifications",

@@ -7,6 +7,8 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+import type { NotificationType } from "@/lib/types/notification"
+
 /** Series classification: light novel, manga, or other. @source */
 export type TitleType = "light_novel" | "manga" | "other"
 /** Volume ownership status. @source */
@@ -416,6 +418,46 @@ export interface Database {
           }
         ]
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: NotificationType
+          title: string
+          message: string
+          read: boolean
+          metadata: Record<string, unknown>
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: NotificationType
+          title: string
+          message: string
+          read?: boolean
+          metadata?: Record<string, unknown>
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: NotificationType
+          title?: string
+          message?: string
+          read?: boolean
+          metadata?: Record<string, unknown>
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -429,6 +471,7 @@ export interface Database {
       reading_status: ReadingStatus
       book_orientation: BookOrientation
       activity_event_type: ActivityEventType
+      notification_type: NotificationType
       series_status: SeriesStatus
       volume_edition: VolumeEdition
       volume_format: VolumeFormat
@@ -472,3 +515,7 @@ export type ActivityEvent =
 /** Activity event insert payload type. @source */
 export type ActivityEventInsert =
   Database["public"]["Tables"]["activity_events"]["Insert"]
+
+/** Notification row type. @source */
+export type DbNotification =
+  Database["public"]["Tables"]["notifications"]["Row"]

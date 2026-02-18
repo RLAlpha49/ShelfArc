@@ -11,6 +11,7 @@ import { LiveAnnouncer } from "@/components/live-announcer"
 import { OnboardingDialog } from "@/components/onboarding-dialog"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useNotificationStore } from "@/lib/store/notification-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { cn } from "@/lib/utils"
 
@@ -102,6 +103,7 @@ export function AppShell({ children, user }: AppShellProps) {
   // Load settings from server on mount (non-blocking)
   useEffect(() => {
     useSettingsStore.getState().loadFromServer()
+    useNotificationStore.getState().loadFromServer()
   }, [])
 
   const handleOnboardingOpenChange = useCallback(

@@ -354,6 +354,36 @@ CREATE INDEX IF NOT EXISTS idx_activity_events_user_event_type
 CREATE INDEX IF NOT EXISTS idx_activity_events_entity
   ON activity_events(entity_type, entity_id);
 
+-- Notification type enum
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type') THEN
+    CREATE TYPE notification_type AS ENUM (
+      'import_complete',
+      'scrape_complete',
+      'price_alert',
+      'info'
+    );
+  END IF;
+END $$;
+
+-- Notifications table (server-synced user notifications)
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  type notification_type NOT NULL DEFAULT 'info',
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  read BOOLEAN DEFAULT FALSE NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+  ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+  ON notifications(user_id) WHERE NOT read;
+
 -- -----------------------------------------------------------------------------
 -- Row Level Security (enable + policies grouped per-table)
 -- -----------------------------------------------------------------------------
@@ -608,6 +638,38 @@ BEGIN
   END IF;
 END $$;
 
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Users can view their own notifications'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Users can insert their own notifications'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own notifications" ON public.notifications FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Users can update their own notifications'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Users can delete their own notifications'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can delete their own notifications" ON public.notifications FOR DELETE USING ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
 -- -----------------------------------------------------------------------------
 -- Functions
 -- -----------------------------------------------------------------------------
@@ -852,6 +914,31 @@ $$;
 REVOKE ALL ON FUNCTION public.activity_events_cleanup(integer)
   FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.activity_events_cleanup(integer)
+  TO service_role;
+
+-- Cleanup helper to prevent unbounded growth of notifications
+CREATE OR REPLACE FUNCTION public.notifications_cleanup(p_max_age_days integer DEFAULT 90)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v_now timestamptz := clock_timestamp();
+  v_cutoff timestamptz := v_now - make_interval(days => GREATEST(p_max_age_days, 1));
+  v_deleted integer;
+BEGIN
+  DELETE FROM public.notifications
+  WHERE created_at < v_cutoff;
+
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.notifications_cleanup(integer)
+  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.notifications_cleanup(integer)
   TO service_role;
 
 -- -----------------------------------------------------------------------------
