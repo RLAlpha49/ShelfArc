@@ -23,7 +23,11 @@ export function NotificationBell() {
           <button
             type="button"
             className="focus-visible:ring-ring focus-visible:ring-offset-background text-muted-foreground hover:text-foreground hover:bg-accent relative inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-            aria-label="Open notifications"
+            aria-label={
+              unreadCount > 0
+                ? `Open notifications, ${unreadCount} unread`
+                : "Open notifications"
+            }
           />
         }
       >
