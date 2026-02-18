@@ -5,57 +5,15 @@ import {
   useState,
   useCallback,
   useMemo,
-  useRef,
-  lazy,
-  Suspense
+  useRef
 } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { SeriesCard } from "@/components/library/series-card"
-
-const SeriesDialog = lazy(() =>
-  import("@/components/library/series-dialog").then((m) => ({
-    default: m.SeriesDialog
-  }))
-)
-const AssignToSeriesDialog = lazy(() =>
-  import("@/components/library/assign-to-series-dialog").then((m) => ({
-    default: m.AssignToSeriesDialog
-  }))
-)
-const DuplicateMergeDialog = lazy(() =>
-  import("@/components/library/duplicate-merge-dialog").then((m) => ({
-    default: m.DuplicateMergeDialog
-  }))
-)
-const BulkScrapeDialog = lazy(() =>
-  import("@/components/library/bulk-scrape-dialog").then((m) => ({
-    default: m.BulkScrapeDialog
-  }))
-)
-const VolumeDialog = lazy(() =>
-  import("@/components/library/volume-dialog").then((m) => ({
-    default: m.VolumeDialog
-  }))
-)
-const BookSearchDialog = lazy(() =>
-  import("@/components/library/book-search-dialog").then((m) => ({
-    default: m.BookSearchDialog
-  }))
-)
 import { LibraryToolbar } from "@/components/library/library-toolbar"
-import { LoadingSkeleton } from "@/components/library/library-skeleton"
-import { SeriesListItem } from "@/components/library/series-list-item"
-import { VolumeGridItem } from "@/components/library/volume-grid-item"
-import { VolumeListItem } from "@/components/library/volume-list-item"
-import { VolumeCard } from "@/components/library/volume-card"
 import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
-import { CollectionsPanel, AddToCollectionDialog } from "@/components/library/collections-panel"
-import { BulkEditDialog } from "@/components/library/bulk-edit-dialog"
-import {
-  VirtualizedWindowGrid,
-  VirtualizedWindowList
-} from "@/components/library/virtualized-window"
-import { EmptyState } from "@/components/empty-state"
+import { CollectionsPanel } from "@/components/library/collections-panel"
+import { LibraryContent } from "@/components/library/library-content"
+import { LibraryStatsBar } from "@/components/library/library-stats-bar"
+import { LibraryDialogs } from "@/components/library/library-dialogs"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh"
@@ -65,17 +23,6 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 import { announce } from "@/components/live-announcer"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { toast } from "sonner"
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from "@/components/ui/alert-dialog"
 import type {
   SeriesWithVolumes,
   Volume,
@@ -83,16 +30,12 @@ import type {
   ReadingStatus,
   TitleType
 } from "@/lib/types/database"
-import { type BookSearchResult } from "@/lib/books/search"
+import type { BookSearchResult } from "@/lib/books/search"
 import { normalizeIsbn } from "@/lib/books/isbn"
-
 import { AMAZON_BINDING_LABELS } from "@/lib/books/amazon-query"
 import {
-  getGridClasses,
-  VIRTUALIZE_THRESHOLD,
   getGridColumnCount,
-  getGridGapPx,
-  estimateGridRowSize
+  getGridGapPx
 } from "@/lib/library/grid-utils"
 
 /**
@@ -140,17 +83,6 @@ export default function LibraryPage() {
   const gridGapPx = useMemo(() => getGridGapPx(cardSize), [cardSize])
   const confirmBeforeDelete = useSettingsStore((s) => s.confirmBeforeDelete)
   const amazonBindingLabel = AMAZON_BINDING_LABELS[Number(amazonPreferKindle)]
-
-  const collectionStats = useMemo(() => {
-    const allVolumes = series.flatMap((s) => s.volumes)
-    const totalVolumes = allVolumes.length
-    const owned = allVolumes.filter((v) => v.ownership_status === "owned").length
-    const wishlist = allVolumes.filter((v) => v.ownership_status === "wishlist").length
-    const read = allVolumes.filter((v) => v.reading_status === "completed").length
-    const inProgress = allVolumes.filter((v) => v.reading_status === "reading").length
-    const completionRate = totalVolumes > 0 ? Math.round((read / totalVolumes) * 100) : 0
-    return { totalVolumes, owned, wishlist, read, inProgress, completionRate }
-  }, [series])
 
   const libraryHeadingRef = useRef<HTMLHeadingElement>(null)
 
@@ -1112,346 +1044,35 @@ export default function LibraryPage() {
     [addBooksFromSearchResults]
   )
 
-  const renderUnassignedSection = () => {
-    if (filteredUnassignedVolumes.length === 0) return null
+  const handleVolumeDialogChange = useCallback(
+    (open: boolean) => {
+      setVolumeDialogOpen(open)
+      if (!open) {
+        setEditingVolume(null)
+        setSelectedSeriesId(null)
+        setPendingSeriesSelection(false)
+      }
+    },
+    []
+  )
 
-    return (
-      <div className="animate-fade-in-up stagger-3 mt-10 space-y-4 border-t pt-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
-              Uncategorized
-            </span>
-            <h2 className="font-display text-lg font-semibold">
-              Unassigned Books
-            </h2>
-          </div>
-        </div>
-        {filteredUnassignedVolumes.length > VIRTUALIZE_THRESHOLD ? (
-          <VirtualizedWindowGrid
-            items={filteredUnassignedVolumes}
-            columnCount={gridColumnCount}
-            gapPx={gridGapPx}
-            estimateRowSize={() => estimateGridRowSize(cardSize)}
-            getItemKey={(volume) => volume.id}
-            renderItem={(volume) => (
-              <VolumeCard
-                volume={volume}
-                onClick={() => handleVolumeItemClick(volume.id)}
-                onEdit={() => openEditVolumeDialog(volume)}
-                onDelete={() => openDeleteVolumeDialog(volume)}
-                onScrapePrice={() => openVolumeScrapeDialog(volume)}
-                onToggleRead={() => handleToggleRead(volume)}
-                onToggleWishlist={() => handleToggleWishlist(volume)}
-                onSetRating={(rating) => handleSetRating(volume, rating)}
-                selected={selectedVolumeIds.has(volume.id)}
-                onSelect={() => toggleVolumeSelection(volume.id)}
-              />
-            )}
-          />
-        ) : (
-          <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
-            {filteredUnassignedVolumes.map((volume) => (
-              <VolumeCard
-                key={volume.id}
-                volume={volume}
-                onClick={() => handleVolumeItemClick(volume.id)}
-                onEdit={() => openEditVolumeDialog(volume)}
-                onDelete={() => openDeleteVolumeDialog(volume)}
-                onScrapePrice={() => openVolumeScrapeDialog(volume)}
-                onToggleRead={() => handleToggleRead(volume)}
-                onToggleWishlist={() => handleToggleWishlist(volume)}
-                onSetRating={(rating) => handleSetRating(volume, rating)}
-                selected={selectedVolumeIds.has(volume.id)}
-                onSelect={() => toggleVolumeSelection(volume.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
+  const handleSeriesDialogChange = useCallback(
+    (open: boolean) => {
+      setSeriesDialogOpen(open)
+      if (!open) {
+        setEditingSeries(null)
+        setPendingSeriesSelection(false)
+      }
+    },
+    []
+  )
 
-  const renderVolumesView = () => {
-    const hasAssignedVolumes = filteredVolumes.length > 0
-    const hasUnassignedVolumes = filteredUnassignedVolumes.length > 0
-
-    if (!hasAssignedVolumes && !hasUnassignedVolumes) {
-      return (
-        <EmptyState
-          icon={
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-muted-foreground h-8 w-8"
-            >
-              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-            </svg>
-          }
-          title="No volumes found"
-          description="Search for a book to add your first volume"
-          action={{
-            label: "Add Book",
-            onClick: openAddDialog
-          }}
-        />
-      )
-    }
-
-    return (
-      <div className="space-y-8">
-        {hasAssignedVolumes &&
-          (viewMode === "grid" ? (
-            <div className="animate-fade-in-up">
-              {filteredVolumes.length > VIRTUALIZE_THRESHOLD ? (
-                <VirtualizedWindowGrid
-                  items={filteredVolumes}
-                  columnCount={gridColumnCount}
-                  gapPx={gridGapPx}
-                  estimateRowSize={() => estimateGridRowSize(cardSize)}
-                  getItemKey={(item) => item.volume.id}
-                  renderItem={(item) => (
-                    <VolumeGridItem
-                      item={item}
-                      onClick={() => handleVolumeItemClick(item.volume.id)}
-                      onEdit={() => openEditVolumeDialog(item.volume)}
-                      onDelete={() => openDeleteVolumeDialog(item.volume)}
-                      onScrapePrice={() =>
-                        openVolumeScrapeDialog(item.volume, item.series)
-                      }
-                      onToggleRead={() => handleToggleRead(item.volume)}
-                      onToggleWishlist={() => handleToggleWishlist(item.volume)}
-                      onSetRating={(rating) =>
-                        handleSetRating(item.volume, rating)
-                      }
-                      amazonDomain={amazonDomain}
-                      bindingLabel={amazonBindingLabel}
-                      selected={selectedVolumeIds.has(item.volume.id)}
-                      onSelect={() => toggleVolumeSelection(item.volume.id)}
-                    />
-                  )}
-                />
-              ) : (
-                <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
-                  {filteredVolumes.map((item) => (
-                    <VolumeGridItem
-                      key={item.volume.id}
-                      item={item}
-                      onClick={() => handleVolumeItemClick(item.volume.id)}
-                      onEdit={() => openEditVolumeDialog(item.volume)}
-                      onDelete={() => openDeleteVolumeDialog(item.volume)}
-                      onScrapePrice={() =>
-                        openVolumeScrapeDialog(item.volume, item.series)
-                      }
-                      onToggleRead={() => handleToggleRead(item.volume)}
-                      onToggleWishlist={() => handleToggleWishlist(item.volume)}
-                      onSetRating={(rating) =>
-                        handleSetRating(item.volume, rating)
-                      }
-                      amazonDomain={amazonDomain}
-                      bindingLabel={amazonBindingLabel}
-                      selected={selectedVolumeIds.has(item.volume.id)}
-                      onSelect={() => toggleVolumeSelection(item.volume.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="animate-fade-in-up">
-              {filteredVolumes.length > VIRTUALIZE_THRESHOLD ? (
-                <VirtualizedWindowList
-                  items={filteredVolumes}
-                  estimateSize={() => 104}
-                  getItemKey={(item) => item.volume.id}
-                  renderItem={(item) => (
-                    <div className="pb-2">
-                      <VolumeListItem
-                        item={item}
-                        onClick={() => handleVolumeItemClick(item.volume.id)}
-                        onEdit={() => openEditVolumeDialog(item.volume)}
-                        onDelete={() => openDeleteVolumeDialog(item.volume)}
-                        onScrapePrice={() =>
-                          openVolumeScrapeDialog(item.volume, item.series)
-                        }
-                        onToggleRead={() => handleToggleRead(item.volume)}
-                        onToggleWishlist={() =>
-                          handleToggleWishlist(item.volume)
-                        }
-                        onSetRating={(rating) =>
-                          handleSetRating(item.volume, rating)
-                        }
-                        amazonDomain={amazonDomain}
-                        bindingLabel={amazonBindingLabel}
-                        selected={selectedVolumeIds.has(item.volume.id)}
-                        onSelect={() => toggleVolumeSelection(item.volume.id)}
-                      />
-                    </div>
-                  )}
-                />
-              ) : (
-                <div className="list-stagger space-y-2">
-                  {filteredVolumes.map((item) => (
-                    <VolumeListItem
-                      key={item.volume.id}
-                      item={item}
-                      onClick={() => handleVolumeItemClick(item.volume.id)}
-                      onEdit={() => openEditVolumeDialog(item.volume)}
-                      onDelete={() => openDeleteVolumeDialog(item.volume)}
-                      onScrapePrice={() =>
-                        openVolumeScrapeDialog(item.volume, item.series)
-                      }
-                      onToggleRead={() => handleToggleRead(item.volume)}
-                      onToggleWishlist={() => handleToggleWishlist(item.volume)}
-                      onSetRating={(rating) =>
-                        handleSetRating(item.volume, rating)
-                      }
-                      amazonDomain={amazonDomain}
-                      bindingLabel={amazonBindingLabel}
-                      selected={selectedVolumeIds.has(item.volume.id)}
-                      onSelect={() => toggleVolumeSelection(item.volume.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        {renderUnassignedSection()}
-      </div>
-    )
-  }
-
-  const renderSeriesView = () => {
-    if (filteredSeries.length === 0 && filteredUnassignedVolumes.length === 0) {
-      return (
-        <EmptyState
-          icon={
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-muted-foreground h-8 w-8"
-            >
-              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-            </svg>
-          }
-          title="No series found"
-          description="Start building your collection by adding your first series"
-          action={{
-            label: "Add Book",
-            onClick: openAddDialog
-          }}
-        />
-      )
-    }
-
-    if (viewMode === "grid") {
-      return (
-        <div className="space-y-8">
-          <div className="animate-fade-in-up">
-            <div className="rounded-2xl">
-              {filteredSeries.length > VIRTUALIZE_THRESHOLD ? (
-                <VirtualizedWindowGrid
-                  items={filteredSeries}
-                  columnCount={gridColumnCount}
-                  gapPx={gridGapPx}
-                  estimateRowSize={() => estimateGridRowSize(cardSize)}
-                  getItemKey={(series) => series.id}
-                  renderItem={(series) => (
-                    <SeriesCard
-                      series={series}
-                      onEdit={() => openEditDialog(series)}
-                      onDelete={() => openDeleteDialog(series)}
-                      onBulkScrape={() => openSeriesScrapeDialog(series)}
-                      onClick={() => handleSeriesItemClick(series)}
-                      selected={selectedSeriesIds.has(series.id)}
-                      onSelect={() => toggleSeriesSelection(series.id)}
-                    />
-                  )}
-                />
-              ) : (
-                <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
-                  {filteredSeries.map((series) => (
-                    <SeriesCard
-                      key={series.id}
-                      series={series}
-                      onEdit={() => openEditDialog(series)}
-                      onDelete={() => openDeleteDialog(series)}
-                      onBulkScrape={() => openSeriesScrapeDialog(series)}
-                      onClick={() => handleSeriesItemClick(series)}
-                      selected={selectedSeriesIds.has(series.id)}
-                      onSelect={() => toggleSeriesSelection(series.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          {renderUnassignedSection()}
-        </div>
-      )
-    }
-
-    return (
-      <div className="space-y-8">
-        <div className="animate-fade-in-up">
-          {filteredSeries.length > VIRTUALIZE_THRESHOLD ? (
-            <VirtualizedWindowList
-              items={filteredSeries}
-              estimateSize={() => 104}
-              getItemKey={(series) => series.id}
-              renderItem={(series) => (
-                <div className="pb-2">
-                  <SeriesListItem
-                    series={series}
-                    onClick={() => handleSeriesItemClick(series)}
-                    onEdit={() => openEditDialog(series)}
-                    onDelete={() => openDeleteDialog(series)}
-                    selected={selectedSeriesIds.has(series.id)}
-                    onSelect={() => toggleSeriesSelection(series.id)}
-                  />
-                </div>
-              )}
-            />
-          ) : (
-            <div className="list-stagger space-y-2">
-              {filteredSeries.map((series) => (
-                <SeriesListItem
-                  key={series.id}
-                  series={series}
-                  onClick={() => handleSeriesItemClick(series)}
-                  onEdit={() => openEditDialog(series)}
-                  onDelete={() => openDeleteDialog(series)}
-                  selected={selectedSeriesIds.has(series.id)}
-                  onSelect={() => toggleSeriesSelection(series.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        {renderUnassignedSection()}
-      </div>
-    )
-  }
-
-  const renderContent = () => {
-    if (isLoading) {
-      return <LoadingSkeleton viewMode={viewMode} />
-    }
-
-    return collectionView === "volumes"
-      ? renderVolumesView()
-      : renderSeriesView()
-  }
+  const handleScrapeTargetChange = useCallback(
+    (open: boolean) => {
+      if (!open) setScrapeTarget(null)
+    },
+    []
+  )
 
   return (
     <div
@@ -1509,69 +1130,7 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Responsive collection stats bar */}
-      {!isLoading && series.length > 0 && (
-        <div className="animate-fade-in-up stagger-2 mb-8">
-          <div className="glass-card grid grid-cols-3 gap-2 rounded-2xl p-3 sm:grid-cols-4 md:grid-cols-7 md:gap-4 md:p-4">
-            <div className="text-center">
-              <div className="font-display text-primary text-lg font-bold md:text-xl">
-                {series.length}
-              </div>
-              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
-                Series
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="font-display text-primary text-lg font-bold md:text-xl">
-                {collectionStats.totalVolumes}
-              </div>
-              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
-                Volumes
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="font-display text-primary text-lg font-bold md:text-xl">
-                {collectionStats.owned}
-              </div>
-              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
-                Owned
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="font-display text-primary text-lg font-bold md:text-xl">
-                {collectionStats.read}
-              </div>
-              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
-                Read
-              </div>
-            </div>
-            <div className="hidden text-center sm:block">
-              <div className="font-display text-primary text-lg font-bold md:text-xl">
-                {collectionStats.inProgress}
-              </div>
-              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
-                In Progress
-              </div>
-            </div>
-            <div className="hidden text-center md:block">
-              <div className="font-display text-primary text-lg font-bold md:text-xl">
-                {collectionStats.wishlist}
-              </div>
-              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
-                Wishlist
-              </div>
-            </div>
-            <div className="hidden text-center md:block">
-              <div className="font-display text-lg font-bold text-copper md:text-xl">
-                {collectionStats.completionRate}%
-              </div>
-              <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
-                Complete
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {!isLoading && <LibraryStatsBar series={series} />}
 
       <CollectionsPanel />
 
@@ -1580,13 +1139,6 @@ export default function LibraryPage() {
         onAddSeries={openAddSeriesDialog}
         onFindDuplicates={() => setDuplicateDialogOpen(true)}
       />
-
-      <Suspense fallback={null}>
-        <DuplicateMergeDialog
-          open={duplicateDialogOpen}
-          onOpenChange={setDuplicateDialogOpen}
-        />
-      </Suspense>
 
       <VolumeSelectionBar
         selectedCount={selectedCount}
@@ -1627,186 +1179,88 @@ export default function LibraryPage() {
 
       <div className="my-8 border-t" />
       <ErrorBoundary>
-        <div>{renderContent()}</div>
+        <div>
+          <LibraryContent
+            filteredSeries={filteredSeries}
+            filteredVolumes={filteredVolumes}
+            filteredUnassignedVolumes={filteredUnassignedVolumes}
+            isLoading={isLoading}
+            viewMode={viewMode}
+            collectionView={collectionView}
+            cardSize={cardSize}
+            gridColumnCount={gridColumnCount}
+            gridGapPx={gridGapPx}
+            amazonDomain={amazonDomain}
+            amazonBindingLabel={amazonBindingLabel}
+            selectedSeriesIds={selectedSeriesIds}
+            selectedVolumeIds={selectedVolumeIds}
+            onSeriesItemClick={handleSeriesItemClick}
+            onEditSeries={openEditDialog}
+            onDeleteSeries={openDeleteDialog}
+            onSeriesScrape={openSeriesScrapeDialog}
+            onToggleSeriesSelection={toggleSeriesSelection}
+            onVolumeItemClick={handleVolumeItemClick}
+            onEditVolume={openEditVolumeDialog}
+            onDeleteVolume={openDeleteVolumeDialog}
+            onVolumeScrape={openVolumeScrapeDialog}
+            onToggleVolumeSelection={toggleVolumeSelection}
+            onToggleRead={handleToggleRead}
+            onToggleWishlist={handleToggleWishlist}
+            onSetRating={handleSetRating}
+            onAddBook={openAddDialog}
+          />
+        </div>
       </ErrorBoundary>
 
-      <Suspense fallback={null}>
-        <BookSearchDialog
-          open={searchDialogOpen}
-          onOpenChange={setSearchDialogOpen}
-          onSelectResult={handleSearchSelect}
-          onSelectResults={handleSearchSelectMany}
-          onAddManual={openManualDialog}
-          context="series"
-          existingIsbns={existingIsbns}
-        />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <VolumeDialog
-          open={volumeDialogOpen}
-          onOpenChange={(open) => {
-            setVolumeDialogOpen(open)
-            if (!open) {
-              setEditingVolume(null)
-              setSelectedSeriesId(null)
-              setPendingSeriesSelection(false)
-            }
-          }}
-          volume={editingVolume}
-          nextVolumeNumber={getNextVolumeNumber(selectedSeriesId)}
-          onSubmit={editingVolume ? handleEditVolume : handleAddVolume}
-          seriesOptions={series}
-          selectedSeriesId={selectedSeriesId}
-          onSeriesChange={setSelectedSeriesId}
-          onCreateSeries={openSeriesDialogFromVolume}
-          allowNoSeries
-        />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <SeriesDialog
-          open={seriesDialogOpen}
-          onOpenChange={(open) => {
-            setSeriesDialogOpen(open)
-            if (!open) {
-              setEditingSeries(null)
-              setPendingSeriesSelection(false)
-            }
-          }}
-          series={editingSeries}
-          unassignedVolumes={unassignedVolumes}
-          onSubmit={editingSeries ? handleEditSeries : handleAddSeries}
-        />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <AssignToSeriesDialog
-          open={assignToSeriesDialogOpen}
-          onOpenChange={setAssignToSeriesDialogOpen}
-          series={series}
-          selectedVolumeCount={selectedUnassignedCount}
-          onAssign={assignSelectedUnassignedVolumes}
-        />
-      </Suspense>
-
-      <AlertDialog
-        open={deleteVolumeDialogOpen}
-        onOpenChange={setDeleteVolumeDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Book</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this book? This action cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteVolume}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Series</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete &quot;{deletingSeries?.title}
-              &quot;?{" "}
-              {deleteSeriesVolumes
-                ? "This will also delete all volumes associated with this series."
-                : "The volumes will be kept and moved to Unassigned Books."}{" "}
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteSeries}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {scrapeTarget && (
-        <Suspense fallback={null}>
-          <BulkScrapeDialog
-            open
-            onOpenChange={(open) => {
-              if (!open) {
-                setScrapeTarget(null)
-              }
-            }}
-            series={scrapeTarget}
-            editVolume={editVolume}
-          />
-        </Suspense>
-      )}
-
-      <AlertDialog
-        open={bulkDeleteDialogOpen}
-        onOpenChange={setBulkDeleteDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {collectionView === "series"
-                ? "Delete Selected Series"
-                : "Delete Selected Books"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {collectionView === "series" ? (
-                <>
-                  You are about to delete {selectedCount} series. {""}
-                  {deleteSeriesVolumes
-                    ? "This will also delete all volumes associated with these series."
-                    : "The volumes will be kept and moved to Unassigned Books."}{" "}
-                  This action cannot be undone.
-                </>
-              ) : (
-                <>
-                  You are about to delete {selectedCount} book
-                  {selectedCount === 1 ? "" : "s"}. This action cannot be
-                  undone.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={performBulkDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <BulkEditDialog
-        open={bulkEditDialogOpen}
-        onOpenChange={setBulkEditDialogOpen}
-        mode={collectionView === "series" ? "series" : "volumes"}
+      <LibraryDialogs
+        searchDialogOpen={searchDialogOpen}
+        onSearchDialogChange={setSearchDialogOpen}
+        onSearchSelect={handleSearchSelect}
+        onSearchSelectMany={handleSearchSelectMany}
+        onAddManual={openManualDialog}
+        existingIsbns={existingIsbns}
+        volumeDialogOpen={volumeDialogOpen}
+        onVolumeDialogChange={handleVolumeDialogChange}
+        editingVolume={editingVolume}
+        nextVolumeNumber={getNextVolumeNumber(selectedSeriesId)}
+        onVolumeSubmit={editingVolume ? handleEditVolume : handleAddVolume}
+        series={series}
+        selectedSeriesId={selectedSeriesId}
+        onSeriesChange={setSelectedSeriesId}
+        onCreateSeries={openSeriesDialogFromVolume}
+        seriesDialogOpen={seriesDialogOpen}
+        onSeriesDialogChange={handleSeriesDialogChange}
+        editingSeries={editingSeries}
+        unassignedVolumes={unassignedVolumes}
+        onSeriesSubmit={editingSeries ? handleEditSeries : handleAddSeries}
+        assignToSeriesDialogOpen={assignToSeriesDialogOpen}
+        onAssignToSeriesDialogChange={setAssignToSeriesDialogOpen}
+        selectedUnassignedCount={selectedUnassignedCount}
+        onAssign={assignSelectedUnassignedVolumes}
+        deleteVolumeDialogOpen={deleteVolumeDialogOpen}
+        onDeleteVolumeDialogChange={setDeleteVolumeDialogOpen}
+        onDeleteVolumeConfirm={handleDeleteVolume}
+        deleteDialogOpen={deleteDialogOpen}
+        onDeleteDialogChange={setDeleteDialogOpen}
+        deletingSeries={deletingSeries}
+        deleteSeriesVolumes={deleteSeriesVolumes}
+        onDeleteSeriesConfirm={handleDeleteSeries}
+        scrapeTarget={scrapeTarget}
+        onScrapeTargetChange={handleScrapeTargetChange}
+        editVolume={editVolume}
+        bulkDeleteDialogOpen={bulkDeleteDialogOpen}
+        onBulkDeleteDialogChange={setBulkDeleteDialogOpen}
+        collectionView={collectionView}
         selectedCount={selectedCount}
-        onApply={handleBulkEditApply}
-      />
-
-      <AddToCollectionDialog
-        open={addToCollectionDialogOpen}
-        onOpenChange={setAddToCollectionDialogOpen}
-        volumeIds={selectedVolumeIdsArray}
+        onBulkDeleteConfirm={performBulkDelete}
+        bulkEditDialogOpen={bulkEditDialogOpen}
+        onBulkEditDialogChange={setBulkEditDialogOpen}
+        onBulkEditApply={handleBulkEditApply}
+        addToCollectionDialogOpen={addToCollectionDialogOpen}
+        onAddToCollectionDialogChange={setAddToCollectionDialogOpen}
+        selectedVolumeIdsArray={selectedVolumeIdsArray}
+        duplicateDialogOpen={duplicateDialogOpen}
+        onDuplicateDialogChange={setDuplicateDialogOpen}
       />
     </div>
   )

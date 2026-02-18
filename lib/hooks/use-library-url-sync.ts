@@ -167,7 +167,7 @@ export function useLibraryUrlSync() {
   const router = useRouter()
   const pathname = usePathname()
   const initializedRef = useRef(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const lastUrlRef = useRef("")
 
   // Read URL → store on mount
