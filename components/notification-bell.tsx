@@ -2,7 +2,7 @@
 
 import { Notification02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { NotificationCenter } from "@/components/notification-center"
 import {
@@ -15,6 +15,13 @@ import { useNotificationStore } from "@/lib/store/notification-store"
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const unreadCount = useNotificationStore((s) => s.unreadCount())
+
+  useEffect(() => {
+    const handleOpen = () => setOpen(true)
+    globalThis.addEventListener("open-notification-center", handleOpen)
+    return () =>
+      globalThis.removeEventListener("open-notification-center", handleOpen)
+  }, [])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

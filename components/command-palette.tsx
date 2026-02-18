@@ -412,6 +412,12 @@ export function CommandPalette() {
       globalThis.removeEventListener("open-command-palette", handleOpen)
   }, [])
 
+  useEffect(() => {
+    const handleReload = () => void fetchSeries()
+    globalThis.addEventListener("reload-library", handleReload)
+    return () => globalThis.removeEventListener("reload-library", handleReload)
+  }, [fetchSeries])
+
   const hintedEmptyMessage = useMemo(() => {
     if (!query.trim()) return "Type to search commands…"
     if (normalizedQuery.length < 2) {

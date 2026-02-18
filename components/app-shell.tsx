@@ -179,6 +179,17 @@ export function AppShell({ children, user }: AppShellProps) {
       } else if (key === "t") {
         event.preventDefault()
         setTheme(resolvedTheme === "dark" ? "light" : "dark")
+      } else if (key === "[" || key === "\\") {
+        event.preventDefault()
+        const s = useSettingsStore.getState()
+        s.setSidebarCollapsed(!s.sidebarCollapsed)
+      } else if (key === "r") {
+        event.preventDefault()
+        useLibraryStore.getState().setLastFetchedAt(null)
+        globalThis.dispatchEvent(new Event("reload-library"))
+      } else if (key === "n") {
+        event.preventDefault()
+        globalThis.dispatchEvent(new Event("open-notification-center"))
       }
     },
     [router, setTheme, resolvedTheme]

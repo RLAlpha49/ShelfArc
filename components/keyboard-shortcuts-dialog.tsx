@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+
 import {
   Dialog,
   DialogContent,
@@ -7,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import {
   KEYBOARD_SHORTCUTS,
   SHORTCUT_CATEGORY_LABELS,
@@ -40,8 +43,17 @@ export function KeyboardShortcutsDialog({
   open,
   onOpenChange
 }: KeyboardShortcutsDialogProps) {
+  const [filterQuery, setFilterQuery] = useState("")
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) setFilterQuery("")
+    onOpenChange(isOpen)
+  }
+
+  const q = filterQuery.toLowerCase()
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="command-palette-glass max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-xl font-semibold tracking-tight">
@@ -52,10 +64,22 @@ export function KeyboardShortcutsDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <Input
+          placeholder="Filter shortcuts…"
+          value={filterQuery}
+          onChange={(e) => setFilterQuery(e.target.value)}
+          className="mt-3"
+          aria-label="Filter keyboard shortcuts"
+        />
+
         <div className="mt-2 max-h-96 space-y-5 overflow-y-auto">
           {categories.map((category) => {
             const shortcuts = KEYBOARD_SHORTCUTS.filter(
-              (s) => s.category === category
+              (s) =>
+                s.category === category &&
+                (!q ||
+                  s.label.toLowerCase().includes(q) ||
+                  s.keys.toLowerCase().includes(q))
             )
             if (shortcuts.length === 0) return null
 

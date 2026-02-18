@@ -31,6 +31,12 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   },
   { keys: "a then b", label: "Add book", category: "library" },
   { keys: "a then s", label: "Add series", category: "library" },
+  { keys: "r", label: "Reload library data", category: "library" },
+  {
+    keys: `${PLATFORM_MOD}A`,
+    label: "Select all in library",
+    category: "library"
+  },
 
   // Views
   { keys: "v then g", label: "Switch to grid view", category: "views" },
@@ -40,7 +46,14 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
 
   // System
   { keys: "?", label: "Show keyboard shortcuts", category: "system" },
-  { keys: "t", label: "Toggle theme", category: "system" }
+  { keys: "t", label: "Toggle theme", category: "system" },
+  { keys: "[", label: "Toggle sidebar", category: "system" },
+  { keys: "n", label: "Open notification center", category: "system" },
+  {
+    keys: "Escape",
+    label: "Cancel pending shortcut prefix",
+    category: "system"
+  }
 ]
 
 /** Category display labels. @source */
