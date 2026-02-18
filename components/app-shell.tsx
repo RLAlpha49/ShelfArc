@@ -77,6 +77,33 @@ export function AppShell({ children, user }: AppShellProps) {
   const hasCompletedOnboarding = useSettingsStore(
     (s) => s.hasCompletedOnboarding
   )
+  const setHasCompletedOnboarding = useSettingsStore(
+    (s) => s.setHasCompletedOnboarding
+  )
+
+  // Safety net: ensure _hydrated is set even if onRehydrateStorage callback
+  // did not fire (e.g. storage unavailable during SSR).
+  useEffect(() => {
+    if (
+      useSettingsStore.persist.hasHydrated() &&
+      !useSettingsStore.getState()._hydrated
+    ) {
+      useSettingsStore.setState({ _hydrated: true })
+    }
+    const unsub = useSettingsStore.persist.onFinishHydration(() => {
+      if (!useSettingsStore.getState()._hydrated) {
+        useSettingsStore.setState({ _hydrated: true })
+      }
+    })
+    return unsub
+  }, [])
+
+  const handleOnboardingOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) setHasCompletedOnboarding(true)
+    },
+    [setHasCompletedOnboarding]
+  )
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const pendingPrefix = useRef<string | null>(null)
@@ -207,7 +234,7 @@ export function AppShell({ children, user }: AppShellProps) {
         />
         <OnboardingDialog
           open={_hydrated && !hasCompletedOnboarding}
-          onOpenChange={() => {}}
+          onOpenChange={handleOnboardingOpenChange}
         />
         <Header user={user} />
         <main id="main" tabIndex={-1} className={mainClassName}>
@@ -235,7 +262,7 @@ export function AppShell({ children, user }: AppShellProps) {
       />
       <OnboardingDialog
         open={_hydrated && !hasCompletedOnboarding}
-        onOpenChange={() => {}}
+        onOpenChange={handleOnboardingOpenChange}
       />
       <SidebarNav
         user={user}

@@ -19,6 +19,7 @@ import {
   CommandSeparator
 } from "@/components/ui/command"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -219,6 +220,20 @@ const sectionIcons = {
       <path d="M3 8h10M11 6l2 2-2 2" />
     </svg>
   ),
+  recent: (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+    >
+      <circle cx="8" cy="8" r="6" />
+      <polyline points="8 4 8 8 10.5 9.5" />
+    </svg>
+  ),
   library: (
     <svg
       viewBox="0 0 16 16"
@@ -309,6 +324,7 @@ export function CommandPalette() {
 
   const series = useLibraryStore((s) => s.series)
   const unassignedVolumes = useLibraryStore((s) => s.unassignedVolumes)
+  const recentEntries = useRecentlyVisitedStore((s) => s.entries)
 
   const normalizedQuery = useMemo(() => normalizeQuery(query), [query])
   const searchEnabled = normalizedQuery.length >= 2
@@ -432,6 +448,45 @@ export function CommandPalette() {
               )}
             </div>
           </CommandEmpty>
+
+          {!searchEnabled && recentEntries.length > 0 && (
+            <>
+              <CommandGroup
+                heading={
+                  <SectionHeading icon={sectionIcons.recent}>
+                    Recent
+                  </SectionHeading>
+                }
+              >
+                {recentEntries.slice(0, 8).map((entry) => (
+                  <CommandItem
+                    key={`recent-${entry.id}`}
+                    value={`recent ${entry.title} ${entry.type}`}
+                    onSelect={() =>
+                      runCommand(() =>
+                        router.push(
+                          entry.type === "series"
+                            ? `/library/series/${entry.id}`
+                            : `/library/volume/${entry.id}`
+                        )
+                      )
+                    }
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {entry.type === "series"
+                        ? sectionIcons.series
+                        : sectionIcons.volume}
+                      <span className="truncate">{entry.title}</span>
+                      <span className="text-muted-foreground/50 ml-auto shrink-0 text-[10px]">
+                        {entry.type}
+                      </span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandSeparator />
+            </>
+          )}
 
           <CommandGroup
             heading={

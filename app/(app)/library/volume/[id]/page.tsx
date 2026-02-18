@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { Breadcrumbs } from "@/components/breadcrumbs"
+import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CoverImage } from "@/components/library/cover-image"
@@ -30,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PriceHistoryCard } from "@/components/library/price-history-card"
+import { ExternalLinks } from "@/components/library/external-links"
 import type { Volume, VolumeInsert } from "@/lib/types/database"
 
 /**
@@ -245,6 +248,19 @@ export default function VolumeDetailPage() {
   const currentVolume = volumeEntry?.volume ?? null
   const currentSeries = volumeEntry?.series ?? null
 
+  const recordVisit = useRecentlyVisitedStore((s) => s.recordVisit)
+  useEffect(() => {
+    if (currentVolume) {
+      recordVisit({
+        id: currentVolume.id,
+        title: currentVolume.title?.trim() || `Vol. ${currentVolume.volume_number}`,
+        type: "volume"
+      })
+    }
+    // Only record when the volume id changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentVolume?.id, recordVisit])
+
   const handleEditVolume = async (
     data: Omit<VolumeInsert, "user_id" | "series_id">
   ) => {
@@ -420,49 +436,20 @@ export default function VolumeDetailPage() {
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_30%_20%,var(--warm-glow-strong),transparent_70%)]" />
 
-      <nav className="animate-fade-in-down mb-8 flex flex-wrap items-center gap-3 text-xs tracking-wider">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-3.5 w-3.5"
-          >
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-          Back
-        </button>
-        <span className="text-muted-foreground">/</span>
-        <Link
-          href="/library"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Library
-        </Link>
-        {currentSeries && (
-          <>
-            <span className="text-muted-foreground">/</span>
-            <Link
-              href={`/library/series/${currentSeries.id}`}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              {currentSeries.title}
-            </Link>
-          </>
-        )}
-        <span className="text-muted-foreground">/</span>
-        <span className="font-medium" aria-current="page">
-          {breadcrumbLabel}
-        </span>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "Library", href: "/library" },
+          ...(currentSeries
+            ? [
+                {
+                  label: currentSeries.title,
+                  href: `/library/series/${currentSeries.id}`
+                }
+              ]
+            : []),
+          { label: breadcrumbLabel }
+        ]}
+      />
 
       {/* Series-style header + content */}
       <div className="relative mb-10">
@@ -577,6 +564,14 @@ export default function VolumeDetailPage() {
               </dl>
             </div>
 
+            {/* External Links */}
+            <div className="animate-fade-in-up stagger-3">
+              <ExternalLinks
+                title={currentSeries?.title ?? currentVolume.title ?? ""}
+                amazonUrl={currentVolume.amazon_url}
+              />
+            </div>
+
             {/* Description */}
             {descriptionHtml && (
               <div className="animate-fade-in-up stagger-4 border-border/60 bg-card/60 rounded-2xl border p-5">
@@ -610,9 +605,12 @@ export default function VolumeDetailPage() {
                 <h2 className="font-display mt-2 text-lg font-semibold tracking-tight">
                   Notes
                 </h2>
-                <p className="text-muted-foreground mt-2 whitespace-pre-line">
-                  {currentVolume.notes}
-                </p>
+                <div
+                  className="prose-notes text-muted-foreground mt-2"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(currentVolume.notes)
+                  }}
+                />
               </div>
             )}
           </div>

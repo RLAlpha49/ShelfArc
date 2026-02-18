@@ -10,7 +10,8 @@ import {
   Suspense
 } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
+import { Breadcrumbs } from "@/components/breadcrumbs"
+import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
 
 const VolumeDialog = lazy(() =>
   import("@/components/library/volume-dialog").then((m) => ({
@@ -167,6 +168,19 @@ export default function SeriesDetailPage() {
       setSelectedSeries(currentSeries)
     }
   }, [currentSeries, selectedSeries?.id, setSelectedSeries])
+
+  const recordVisit = useRecentlyVisitedStore((s) => s.recordVisit)
+  useEffect(() => {
+    if (currentSeries) {
+      recordVisit({
+        id: currentSeries.id,
+        title: currentSeries.title,
+        type: "series"
+      })
+    }
+    // Only record when the series id changes, not on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSeries?.id, recordVisit])
 
   useEffect(() => {
     if (!seriesId) {
@@ -753,39 +767,12 @@ export default function SeriesDetailPage() {
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_30%_20%,var(--warm-glow-strong),transparent_70%)]" />
 
-      {/* Breadcrumb with Go Back */}
-      <nav className="animate-fade-in-down mb-8 flex items-center gap-3 text-xs tracking-wider">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-3.5 w-3.5"
-          >
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-          Back
-        </button>
-        <span className="text-muted-foreground">/</span>
-        <Link
-          href="/library"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Library
-        </Link>
-        <span className="text-muted-foreground">/</span>
-        <span className="font-medium" aria-current="page">
-          {currentSeries.title}
-        </span>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "Library", href: "/library" },
+          { label: currentSeries.title }
+        ]}
+      />
 
       <SeriesHeaderSection
         currentSeries={currentSeries}

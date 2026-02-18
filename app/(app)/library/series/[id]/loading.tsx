@@ -1,16 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton"
+import { BreadcrumbsSkeleton } from "@/components/breadcrumbs"
 
 export default function SeriesDetailLoading() {
   return (
     <div className="px-6 py-8 lg:px-10">
       {/* Breadcrumb */}
-      <div className="mb-8 flex items-center gap-3">
-        <Skeleton className="h-4 w-12" />
-        <Skeleton className="h-4 w-3" />
-        <Skeleton className="h-4 w-14" />
-        <Skeleton className="h-4 w-3" />
-        <Skeleton className="h-4 w-32" />
-      </div>
+      <BreadcrumbsSkeleton segmentCount={2} />
 
       {/* Header section */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
