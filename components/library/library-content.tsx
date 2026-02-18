@@ -300,7 +300,7 @@ function VolumesView({
         icon={BookIcon}
         title="No volumes found"
         description="Search for a book to add your first volume"
-        action={{ label: "Add Book", onClick: onAddBook }}
+        actions={[{ label: "Add Book", onClick: onAddBook }]}
         tip="You can also import your collection from a CSV file"
       />
     )
@@ -502,7 +502,7 @@ function SeriesView({
         icon={BookIcon}
         title="No series found"
         description="Start building your collection by adding your first series"
-        action={{ label: "Add Book", onClick: onAddBook }}
+        actions={[{ label: "Add Book", onClick: onAddBook }]}
         tip="Books are automatically grouped into series when added"
       />
     )
