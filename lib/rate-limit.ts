@@ -29,12 +29,31 @@ interface RateLimitState {
 const stores = new Map<string, RateLimitState>()
 
 /**
+ * Evicts entries that are no longer active (expired cooldown and no recent failures).
+ * Called on each write to prevent unbounded growth in long-running processes.
+ * @param windowMs - The failure window duration used to determine staleness.
+ * @source
+ */
+function evictStaleEntries(windowMs: number): void {
+  const now = Date.now()
+  for (const [key, state] of stores) {
+    const cooldownExpired = state.cooldownUntil <= now
+    const noRecentFailures = state.failures.every((ts) => now - ts >= windowMs)
+    if (cooldownExpired && noRecentFailures) {
+      stores.delete(key)
+    }
+  }
+}
+
+/**
  * Retrieves or initializes rate-limit state for the given key.
  * @param key - The rate-limit bucket identifier.
+ * @param config - Rate-limit configuration used for eviction.
  * @returns The mutable state object.
  * @source
  */
-function getState(key: string): RateLimitState {
+function getState(key: string, config: RateLimitConfig): RateLimitState {
+  evictStaleEntries(config.failureWindowMs)
   let state = stores.get(key)
   if (!state) {
     state = { failures: [], cooldownUntil: 0 }
@@ -51,7 +70,7 @@ function getState(key: string): RateLimitState {
  * @source
  */
 export function isRateLimited(key: string, config: RateLimitConfig): boolean {
-  const state = getState(key)
+  const state = getState(key, config)
   const now = Date.now()
 
   if (state.cooldownUntil > now) {
@@ -72,7 +91,7 @@ export function isRateLimited(key: string, config: RateLimitConfig): boolean {
  * @source
  */
 export function recordFailure(key: string, config: RateLimitConfig): void {
-  const state = getState(key)
+  const state = getState(key, config)
   const now = Date.now()
 
   state.failures = state.failures.filter(
