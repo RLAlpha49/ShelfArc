@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server"
+
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import {
@@ -10,9 +11,9 @@ import {
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 import {
+  isNonNegativeFinite,
   isValidOwnershipStatus,
-  isValidReadingStatus,
-  isNonNegativeFinite
+  isValidReadingStatus
 } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"

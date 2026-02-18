@@ -1,15 +1,16 @@
-import { type NextRequest } from "next/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { type NextRequest } from "next/server"
+
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
+import type { FetchPriceParams } from "@/lib/api/types"
 import {
   apiError,
   apiSuccess,
   getErrorMessage,
   parseJsonBody
 } from "@/lib/api-response"
-import { getCorrelationId } from "@/lib/correlation"
-import { logger } from "@/lib/logger"
 import { buildFetchPriceParams } from "@/lib/books/amazon-query"
 import {
   createAmazonSearchContext,
@@ -17,9 +18,10 @@ import {
   parseAmazonResult
 } from "@/lib/books/price/amazon-price"
 import { ApiError } from "@/lib/books/price/api-error"
-import { recordActivityEvent } from "@/lib/activity/record-event"
-import type { FetchPriceParams } from "@/lib/api/types"
+import { getCorrelationId } from "@/lib/correlation"
+import { logger } from "@/lib/logger"
 import type { Database } from "@/lib/types/database"
+import { AMAZON_DOMAINS, isValidHttpsUrl } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -29,6 +31,12 @@ type ScrapeMode = (typeof VALID_MODES)[number]
 interface JobResult {
   volumeId: string
   status: "done" | "failed" | "skipped"
+  errorCode?:
+    | "rate_limited"
+    | "blocked"
+    | "timeout"
+    | "parse_error"
+    | "build_error"
   priceValue?: number | null
   imageUrl?: string | null
   errorMessage?: string
@@ -92,10 +100,13 @@ function validateBody(
     mode: scrapeMode,
     skipExisting:
       typeof body.skipExisting === "boolean" ? body.skipExisting : false,
-    domain:
-      typeof body.domain === "string" && body.domain.trim()
-        ? body.domain.trim()
-        : "amazon.com",
+    domain: (() => {
+      const raw =
+        typeof body.domain === "string" && body.domain.trim()
+          ? body.domain.trim()
+          : "amazon.com"
+      return AMAZON_DOMAINS.has(raw) ? raw : "amazon.com"
+    })(),
     binding:
       typeof body.binding === "string" && body.binding.trim()
         ? body.binding.trim()
@@ -156,7 +167,11 @@ async function scrapeAndUpdate(
   if (opts.includePrice && parsed.priceValue != null) {
     update.purchase_price = parsed.priceValue
   }
-  if (opts.includeImage && parsed.imageUrl) {
+  if (
+    opts.includeImage &&
+    parsed.imageUrl &&
+    isValidHttpsUrl(parsed.imageUrl)
+  ) {
     update.cover_image_url = parsed.imageUrl
   }
   if (parsed.productUrl) {
@@ -212,6 +227,16 @@ async function processVolumes(
   return { results, summary: { total: volumes.length, done, failed, skipped } }
 }
 
+function classifyErrorCode(err: unknown): JobResult["errorCode"] {
+  if (err instanceof ApiError) {
+    if (err.status === 429) return "rate_limited"
+    if (err.status === 403) return "blocked"
+    return "parse_error"
+  }
+  if (err instanceof Error && err.name === "AbortError") return "timeout"
+  return "parse_error"
+}
+
 async function processSingleVolume(
   vol: Record<string, unknown>,
   opts: ValidatedBody,
@@ -228,12 +253,15 @@ async function processSingleVolume(
   try {
     return await scrapeAndUpdate(vol, opts, supabase, userId)
   } catch (err) {
-    const message =
-      err instanceof ApiError
-        ? err.message
-        : getErrorMessage(err, "Scrape failed")
+    const message = getErrorMessage(err, "Scrape failed")
+    const errorCode = classifyErrorCode(err)
     log.warn("Batch scrape item failed", { volumeId: volId, error: message })
-    return { volumeId: volId, status: "failed", errorMessage: message }
+    return {
+      volumeId: volId,
+      status: "failed",
+      errorCode,
+      errorMessage: message
+    }
   }
 }
 
