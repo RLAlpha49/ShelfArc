@@ -30,7 +30,7 @@ async function cleanupUserStorage(
   log: ReturnType<typeof logger.withCorrelationId>
 ) {
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || "media"
-  for (const folder of [`avatars/${userId}`, `covers/${userId}`]) {
+  for (const folder of [`${userId}/avatars`, `${userId}/covers`]) {
     try {
       await cleanupStorageFolder(admin, bucket, folder)
     } catch (err) {
@@ -107,6 +107,9 @@ export async function DELETE(request: NextRequest) {
     })
 
     await cleanupUserStorage(admin, user.id, log)
+
+    // Revoke all active sessions before deleting the auth user
+    await admin.auth.admin.signOut(user.id, "global")
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(user.id)
     if (deleteError) {
