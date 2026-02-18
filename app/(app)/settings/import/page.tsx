@@ -11,9 +11,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CsvImport } from "@/components/settings/csv-import"
 import { JsonImport } from "@/components/settings/json-import"
+import { MalImport } from "@/components/settings/mal-import"
+import { AniListImport } from "@/components/settings/anilist-import"
+import { GoodreadsImport } from "@/components/settings/goodreads-import"
+import { BarcodeScanner } from "@/components/settings/barcode-scanner"
 
 /**
- * Import page with tabbed CSV and JSON import workflows.
+ * Import page with tabbed CSV, JSON, MAL, AniList, Goodreads, and barcode import workflows.
  * @source
  */
 export default function ImportPage() {
@@ -50,15 +54,27 @@ export default function ImportPage() {
             <CardHeader>
               <CardTitle>Import Your Library</CardTitle>
               <CardDescription>
-                Import books from a CSV file with ISBNs or restore from a
-                ShelfArc JSON backup.
+                Import books from CSV, JSON backup, external services, or scan
+                barcodes directly.
               </CardDescription>
-              <TabsList className="mt-3 w-full rounded-xl sm:w-auto">
+              <TabsList className="mt-3 flex w-full flex-wrap gap-1 rounded-xl sm:w-auto">
                 <TabsTrigger value="csv" className="rounded-lg">
-                  CSV Import
+                  CSV
                 </TabsTrigger>
                 <TabsTrigger value="json" className="rounded-lg">
-                  JSON Import
+                  JSON
+                </TabsTrigger>
+                <TabsTrigger value="mal" className="rounded-lg">
+                  MAL
+                </TabsTrigger>
+                <TabsTrigger value="anilist" className="rounded-lg">
+                  AniList
+                </TabsTrigger>
+                <TabsTrigger value="goodreads" className="rounded-lg">
+                  Goodreads
+                </TabsTrigger>
+                <TabsTrigger value="barcode" className="rounded-lg">
+                  📷 Scan
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -68,6 +84,18 @@ export default function ImportPage() {
               </TabsContent>
               <TabsContent value="json" className="mt-0">
                 <JsonImport />
+              </TabsContent>
+              <TabsContent value="mal" className="mt-0">
+                <MalImport />
+              </TabsContent>
+              <TabsContent value="anilist" className="mt-0">
+                <AniListImport />
+              </TabsContent>
+              <TabsContent value="goodreads" className="mt-0">
+                <GoodreadsImport />
+              </TabsContent>
+              <TabsContent value="barcode" className="mt-0">
+                <BarcodeScanner />
               </TabsContent>
             </CardContent>
           </Tabs>

@@ -35,6 +35,9 @@ import { FileDownloadIcon } from "@hugeicons/core-free-icons"
 
 /* ─── Constants ─────────────────────────────────────────── */
 
+/** Session storage key for persisting import progress. @source */
+const IMPORT_STORAGE_KEY = "shelfarc-csv-import-progress"
+
 /** Accepted file extensions for the file-picker input. @source */
 const ACCEPTED_EXTENSIONS = ".csv,.tsv,.txt"
 
@@ -897,7 +900,8 @@ export function CsvImport() {
     parseFile,
     startImport,
     cancelImport,
-    reset
+    reset,
+    restoreState
   } = useCsvImport({ existingIsbns })
 
   const [source, setSource] = useState<BookSearchSource>(defaultSearchSource)
@@ -905,6 +909,36 @@ export function CsvImport() {
     defaultOwnershipStatus
   )
   const [isDragging, setIsDragging] = useState(false)
+  const [savedProgress, setSavedProgress] = useState<{
+    items: IsbnImportItem[]
+    fileName: string | null
+    source: BookSearchSource
+    ownershipStatus: OwnershipStatus
+    processed: number
+    total: number
+  } | null>(() => {
+    try {
+      const raw = sessionStorage.getItem(IMPORT_STORAGE_KEY)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as {
+        items: IsbnImportItem[]
+        fileName: string | null
+        source: BookSearchSource
+        ownershipStatus: OwnershipStatus
+      }
+      if (!Array.isArray(parsed.items) || parsed.items.length === 0) return null
+      const processed = parsed.items.filter(
+        (i) =>
+          i.status === "added" ||
+          i.status === "not-found" ||
+          i.status === "error"
+      ).length
+      return { ...parsed, processed, total: parsed.items.length }
+    } catch {
+      sessionStorage.removeItem(IMPORT_STORAGE_KEY)
+      return null
+    }
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
   const lastAnnouncedImport = useRef(0)
@@ -914,6 +948,47 @@ export function CsvImport() {
   const activeIndex = items.findIndex((item) =>
     ACTIVE_STATUSES.has(item.status)
   )
+
+  // ── SessionStorage: persist during import ──
+  useEffect(() => {
+    if (phase !== "importing") return
+    try {
+      sessionStorage.setItem(
+        IMPORT_STORAGE_KEY,
+        JSON.stringify({
+          items: items.map(({ isbn, status, error }) => ({ isbn, status, error })),
+          fileName,
+          source,
+          ownershipStatus
+        })
+      )
+    } catch {
+      // sessionStorage full or unavailable — ignore
+    }
+  }, [phase, items, fileName, source, ownershipStatus])
+
+  // ── SessionStorage: clear on complete or reset ──
+  useEffect(() => {
+    if (phase === "complete") {
+      sessionStorage.removeItem(IMPORT_STORAGE_KEY)
+    }
+  }, [phase])
+
+  const handleResumeImport = useCallback(() => {
+    if (!savedProgress) return
+    setSource(savedProgress.source)
+    setOwnershipStatus(savedProgress.ownershipStatus)
+    restoreState({
+      items: savedProgress.items,
+      fileName: savedProgress.fileName
+    })
+    setSavedProgress(null)
+  }, [savedProgress, restoreState])
+
+  const handleDismissResume = useCallback(() => {
+    sessionStorage.removeItem(IMPORT_STORAGE_KEY)
+    setSavedProgress(null)
+  }, [])
 
   useEffect(() => {
     if (phase === "parsed" && parseMeta) {
@@ -997,6 +1072,50 @@ export function CsvImport() {
     })
   }, [source, ownershipStatus, addBooksFromSearchResults, startImport])
 
+  const handleReset = useCallback(() => {
+    sessionStorage.removeItem(IMPORT_STORAGE_KEY)
+    reset()
+  }, [reset])
+
+  if (savedProgress && phase === "idle") {
+    return (
+      <div className="animate-fade-in space-y-4">
+        <div className="glass-card rounded-2xl p-5">
+          <div className="flex items-start gap-3">
+            <div className="from-copper/20 to-gold/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br">
+              <span className="text-lg">📋</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-sm font-semibold">
+                Resume previous import?
+              </p>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {savedProgress.processed} of {savedProgress.total} ISBNs were
+                processed{savedProgress.fileName ? ` from ${savedProgress.fileName}` : ""}.
+                You can resume where you left off.
+              </p>
+              <div className="mt-3 flex gap-3">
+                <Button
+                  className="rounded-xl px-5"
+                  onClick={handleResumeImport}
+                >
+                  Resume Import
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={handleDismissResume}
+                >
+                  Discard
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (phase === "idle") {
     return (
       <IdlePhase
@@ -1020,7 +1139,7 @@ export function CsvImport() {
         ownershipStatus={ownershipStatus}
         onSourceChange={setSource}
         onOwnershipChange={setOwnershipStatus}
-        onReset={reset}
+        onReset={handleReset}
         onStartImport={handleStartImport}
       />
     )
@@ -1035,7 +1154,7 @@ export function CsvImport() {
       activeIndex={activeIndex}
       scrollViewportRef={scrollViewportRef}
       onCancel={cancelImport}
-      onReset={reset}
+      onReset={handleReset}
     />
   )
 }

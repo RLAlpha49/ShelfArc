@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
   Card,
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { toast } from "sonner"
@@ -51,9 +52,20 @@ function csvEscape(value: unknown): string {
 
 /** Export page allowing users to download their library as JSON or CSV. @source */
 export default function ExportPage() {
-  const { series, fetchSeries } = useLibrary()
+  const { series, isLoading, fetchSeries } = useLibrary()
   const storeSeries = useLibraryStore((s) => s.series)
   const storeUnassignedVolumes = useLibraryStore((s) => s.unassignedVolumes)
+
+  useEffect(() => {
+    if (series.length === 0) fetchSeries()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const totalVolumes = useMemo(
+    () =>
+      storeSeries.reduce((sum, s) => sum + s.volumes.length, 0) +
+      storeUnassignedVolumes.length,
+    [storeSeries, storeUnassignedVolumes]
+  )
 
   const [format, setFormat] = useState<ExportFormat>("json")
   const [scope, setScope] = useState<ExportScope>("all")
@@ -156,10 +168,8 @@ export default function ExportPage() {
 
     setIsExporting(true)
     try {
-      // Ensure data is loaded
-      if (series.length === 0) {
-        await fetchSeries()
-      }
+      // Ensure data is loaded (normally pre-fetched on mount)
+      if (series.length === 0) await fetchSeries()
 
       const payload = resolveExportPayload()
       const today = new Date().toISOString().split("T")[0]
@@ -332,8 +342,42 @@ export default function ExportPage() {
               migration. Use JSON for backup and re-import, or CSV for
               spreadsheets and manual editing.
             </CardDescription>
+
+            {isLoading ? (
+              <div className="mt-3 flex items-center gap-3">
+                <Skeleton className="h-4 w-4 rounded-full" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            ) : (
+              storeSeries.length > 0 && (
+                <p className="text-muted-foreground mt-3 text-sm">
+                  {storeSeries.length} series &middot; {totalVolumes} volumes
+                  ready to export
+                </p>
+              )
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
+            {isLoading ? (
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Skeleton className="h-24 rounded-lg" />
+                    <Skeleton className="h-24 rounded-lg" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Skeleton className="h-24 rounded-lg" />
+                    <Skeleton className="h-24 rounded-lg" />
+                  </div>
+                </div>
+                <Skeleton className="h-10 w-36 rounded-xl" />
+              </div>
+            ) : (
+            <>
             <div className="space-y-3">
               <Label>Export Format</Label>
               <RadioGroup
@@ -574,7 +618,7 @@ export default function ExportPage() {
             <div className="flex gap-4">
               <Button
                 onClick={handleExport}
-                disabled={isExporting || !canExportSelected}
+                disabled={isLoading || isExporting || !canExportSelected}
                 className="rounded-xl px-6"
               >
                 {isExporting ? "Exporting..." : "Export"}
@@ -586,6 +630,8 @@ export default function ExportPage() {
                 Cancel
               </Link>
             </div>
+            </>
+            )}
           </CardContent>
         </Card>
       </div>

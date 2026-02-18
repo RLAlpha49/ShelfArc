@@ -54,6 +54,13 @@ async function searchIsbn(
   return data.data ?? []
 }
 
+/** Statuses indicating a completed (non-resumable) item. @source */
+const COMPLETED_STATUSES = new Set<IsbnImportItem["status"]>([
+  "added",
+  "not-found",
+  "error"
+])
+
 /**
  * React hook managing the full CSV ISBN import lifecycle.
  * @param options - Optional set of existing ISBNs to skip.
@@ -259,6 +266,46 @@ export function useCsvImport({
     abortRef.current = null
   }, [])
 
+  const attemptProcessIsbn = useCallback(
+    async (
+      index: number,
+      source: BookSearchSource,
+      alternate: BookSearchSource,
+      ownershipStatus: OwnershipStatus,
+      addBooks: (
+        results: BookSearchResult[],
+        opts?: { ownershipStatus?: OwnershipStatus }
+      ) => Promise<{ successCount: number; failureCount: number }>,
+      signal: AbortSignal
+    ): Promise<"abort" | "ok"> => {
+      try {
+        await processOneIsbn(
+          items[index].isbn,
+          index,
+          source,
+          alternate,
+          ownershipStatus,
+          addBooks,
+          signal
+        )
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          updateItem(index, { status: "error", error: "Cancelled" })
+          return "abort"
+        }
+        updateItem(index, {
+          status: "error",
+          error:
+            err instanceof Error
+              ? err.message
+              : "An unexpected error occurred"
+        })
+      }
+      return "ok"
+    },
+    [items, updateItem, processOneIsbn]
+  )
+
   const startImport = useCallback(
     async (options: {
       source: BookSearchSource
@@ -282,29 +329,18 @@ export function useCsvImport({
       for (let i = 0; i < items.length; i++) {
         if (controller.signal.aborted) break
 
-        try {
-          await processOneIsbn(
-            items[i].isbn,
-            i,
-            source,
-            alternate,
-            ownershipStatus,
-            addBooks,
-            controller.signal
-          )
-        } catch (err) {
-          if (err instanceof Error && err.name === "AbortError") {
-            updateItem(i, { status: "error", error: "Cancelled" })
-            break
-          }
-          updateItem(i, {
-            status: "error",
-            error:
-              err instanceof Error
-                ? err.message
-                : "An unexpected error occurred"
-          })
-        }
+        // Skip already-processed items (supports resume)
+        if (COMPLETED_STATUSES.has(items[i].status)) continue
+
+        const result = await attemptProcessIsbn(
+          i,
+          source,
+          alternate,
+          ownershipStatus,
+          addBooks,
+          controller.signal
+        )
+        if (result === "abort") break
 
         if (i < items.length - 1 && !controller.signal.aborted) {
           await new Promise((resolve) => setTimeout(resolve, PROCESS_DELAY_MS))
@@ -313,7 +349,7 @@ export function useCsvImport({
 
       markCancelledAndComplete(controller.signal.aborted)
     },
-    [items, updateItem, processOneIsbn, markCancelledAndComplete]
+    [items, attemptProcessIsbn, markCancelledAndComplete]
   )
 
   const cancelImport = useCallback(() => {
@@ -329,6 +365,25 @@ export function useCsvImport({
     setStartTime(null)
   }, [])
 
+  const restoreState = useCallback(
+    (saved: {
+      items: IsbnImportItem[]
+      fileName: string | null
+    }) => {
+      // Reset any in-flight items to pending so they can be re-processed
+      const restored = saved.items.map((item) =>
+        COMPLETED_STATUSES.has(item.status)
+          ? item
+          : { ...item, status: "pending" as const, result: undefined, error: undefined }
+      )
+      setItems(restored)
+      setFileName(saved.fileName)
+      setParseMeta(null)
+      setPhase("parsed")
+    },
+    []
+  )
+
   return {
     phase,
     items,
@@ -339,6 +394,7 @@ export function useCsvImport({
     parseFile,
     startImport,
     cancelImport,
-    reset
+    reset,
+    restoreState
   }
 }
