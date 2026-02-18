@@ -14,10 +14,11 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { TypeBadge, SeriesStatusBadge } from "@/components/ui/status-badge"
+import { ExternalLinks } from "@/components/library/external-links"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import type { SeriesInsightData } from "@/lib/library/series-insights"
 import type {
   SeriesWithVolumes,
-  Volume,
   OwnershipStatus,
   ReadingStatus
 } from "@/lib/types/database"
@@ -202,6 +203,11 @@ export function SeriesHeaderSection({
             </div>
           )}
 
+          {/* External Links */}
+          <div className="animate-fade-in stagger-2">
+            <ExternalLinks title={currentSeries.title} />
+          </div>
+
           {/* Stats strip */}
           <div className="animate-fade-in-up stagger-1 mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-6">
             <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
@@ -289,9 +295,12 @@ export function SeriesHeaderSection({
               <h2 className="font-display mt-2 text-lg font-semibold tracking-tight">
                 Notes
               </h2>
-              <p className="text-muted-foreground mt-2 whitespace-pre-line">
-                {currentSeries.notes}
-              </p>
+              <div
+                className="prose-notes text-muted-foreground mt-2"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeHtml(currentSeries.notes)
+                }}
+              />
             </div>
           )}
         </div>

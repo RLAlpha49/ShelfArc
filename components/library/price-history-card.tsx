@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,10 +17,27 @@ interface PriceHistoryCardProps {
   readonly currency?: string
 }
 
+/** Available time range options for chart filtering. @source */
+type TimeRange = "30d" | "90d" | "1y" | "all"
+
+const TIME_RANGES: { value: TimeRange; label: string }[] = [
+  { value: "30d", label: "30d" },
+  { value: "90d", label: "90d" },
+  { value: "1y", label: "1y" },
+  { value: "all", label: "All" }
+]
+
+/** Returns a cutoff Date for filtering history entries by time range. @source */
+function getCutoff(range: TimeRange): Date | null {
+  if (range === "all") return null
+  const now = new Date()
+  if (range === "30d") return new Date(now.getTime() - 30 * 86_400_000)
+  if (range === "90d") return new Date(now.getTime() - 90 * 86_400_000)
+  return new Date(now.getTime() - 365 * 86_400_000)
+}
+
 /**
- * Builds an SVG polyline points string from price history entries.
- * Takes the most recent 20 entries (reversed to chronological order)
- * and maps them into a viewBox-relative coordinate string.
+ * Builds an SVG polyline points string from price entries.
  * @source
  */
 function buildSparklinePath(
@@ -45,9 +62,22 @@ function buildSparklinePath(
     .join(" ")
 }
 
+/** Maps a price value to a Y coordinate in the SVG viewBox. @source */
+function priceToY(
+  price: number,
+  min: number,
+  max: number,
+  height: number,
+  padding = 4
+): number {
+  const range = max - min || 1
+  const usableH = height - padding * 2
+  return padding + usableH - ((price - min) / range) * usableH
+}
+
 /**
- * Card displaying price history sparkline, current alert, and recent price entries
- * for a single volume. Uses the {@link usePriceHistory} hook for data fetching.
+ * Card displaying price history sparkline with min/max/avg annotations,
+ * time range selector, alert threshold overlay, and recent price entries.
  * @param props - {@link PriceHistoryCardProps}
  * @source
  */
@@ -71,13 +101,13 @@ export function PriceHistoryCard({
 
   const [alertInput, setAlertInput] = useState("")
   const [alertPending, setAlertPending] = useState(false)
+  const [timeRange, setTimeRange] = useState<TimeRange>("all")
 
   useEffect(() => {
     fetchHistory()
     fetchAlert()
   }, [fetchHistory, fetchAlert])
 
-  // Seed alert input when an existing alert loads
   useEffect(() => {
     if (alert) setAlertInput(String(alert.target_price))
   }, [alert])
@@ -112,21 +142,41 @@ export function PriceHistoryCard({
     }
   }
 
-  // Sparkline data — most recent 20 entries in chronological order
-  const sparkPrices = history
-    .slice(0, 20)
-    .map((e) => e.price)
-    .reverse()
+  // Filter history by time range, then take most recent entries in chronological order
+  const filteredHistory = useMemo(() => {
+    const cutoff = getCutoff(timeRange)
+    if (!cutoff) return history
+    return history.filter(
+      (e) => new Date(e.scraped_at).getTime() >= cutoff.getTime()
+    )
+  }, [history, timeRange])
 
-  const recentEntries = history.slice(0, 5)
+  const sparkPrices = useMemo(
+    () =>
+      filteredHistory
+        .slice(0, 30)
+        .map((e) => e.price)
+        .reverse(),
+    [filteredHistory]
+  )
+
+  const stats = useMemo(() => {
+    if (sparkPrices.length === 0) return null
+    const min = Math.min(...sparkPrices)
+    const max = Math.max(...sparkPrices)
+    const avg = sparkPrices.reduce((s, p) => s + p, 0) / sparkPrices.length
+    return { min, max, avg }
+  }, [sparkPrices])
+
+  const recentEntries = filteredHistory.slice(0, 5)
   const svgW = 240
-  const svgH = 56
+  const svgH = 80
 
   if (isLoading) {
     return (
       <div className="glass-card animate-fade-in-down space-y-4 rounded-xl p-5">
         <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-14 w-full rounded-lg" />
+        <Skeleton className="h-20 w-full rounded-lg" />
         <div className="space-y-2">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />
@@ -135,6 +185,9 @@ export function PriceHistoryCard({
       </div>
     )
   }
+
+  const alertTargetPrice = alert?.enabled ? alert.target_price : null
+  const pad = 4
 
   return (
     <div className="glass-card animate-fade-in-down space-y-4 rounded-xl p-5">
@@ -200,12 +253,63 @@ export function PriceHistoryCard({
         )}
       </div>
 
-      {/* Sparkline */}
-      {sparkPrices.length >= 2 && (
-        <div className="bg-primary/5 overflow-hidden rounded-lg">
+      {/* Time Range Selector */}
+      <div className="flex gap-1">
+        {TIME_RANGES.map((r) => (
+          <button
+            key={r.value}
+            type="button"
+            onClick={() => setTimeRange(r.value)}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              timeRange === r.value
+                ? "bg-copper/15 text-copper"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            )}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sparkline with annotations */}
+      {sparkPrices.length >= 2 && stats ? (
+        <div className="bg-primary/5 relative overflow-hidden rounded-lg">
+          {/* Stat labels */}
+          <div className="text-muted-foreground pointer-events-none absolute top-1 right-2 flex gap-3 text-[9px]">
+            <span>
+              Min{" "}
+              <span className="text-foreground font-medium tabular-nums">
+                {stats.min.toLocaleString(undefined, {
+                  style: "currency",
+                  currency
+                })}
+              </span>
+            </span>
+            <span>
+              Avg{" "}
+              <span className="text-copper font-medium tabular-nums">
+                {stats.avg.toLocaleString(undefined, {
+                  style: "currency",
+                  currency,
+                  maximumFractionDigits: 2
+                })}
+              </span>
+            </span>
+            <span>
+              Max{" "}
+              <span className="text-foreground font-medium tabular-nums">
+                {stats.max.toLocaleString(undefined, {
+                  style: "currency",
+                  currency
+                })}
+              </span>
+            </span>
+          </div>
+
           <svg
             viewBox={`0 0 ${svgW} ${svgH}`}
-            className="h-14 w-full"
+            className="h-20 w-full"
             preserveAspectRatio="none"
             aria-hidden="true"
           >
@@ -219,39 +323,102 @@ export function PriceHistoryCard({
               >
                 <stop
                   offset="0%"
-                  className="text-primary"
+                  className="text-copper"
                   stopColor="currentColor"
                   stopOpacity="0.2"
                 />
                 <stop
                   offset="100%"
-                  className="text-primary"
+                  className="text-copper"
                   stopColor="currentColor"
                   stopOpacity="0"
                 />
               </linearGradient>
             </defs>
+
+            {/* Average reference line */}
+            <line
+              x1={pad}
+              x2={svgW - pad}
+              y1={priceToY(stats.avg, stats.min, stats.max, svgH, pad)}
+              y2={priceToY(stats.avg, stats.min, stats.max, svgH, pad)}
+              stroke="oklch(0.6 0.14 45)"
+              strokeWidth="0.8"
+              strokeDasharray="4 3"
+              opacity="0.5"
+            />
+
+            {/* Min reference line */}
+            <line
+              x1={pad}
+              x2={svgW - pad}
+              y1={priceToY(stats.min, stats.min, stats.max, svgH, pad)}
+              y2={priceToY(stats.min, stats.min, stats.max, svgH, pad)}
+              stroke="oklch(0.55 0.1 250)"
+              strokeWidth="0.5"
+              strokeDasharray="2 4"
+              opacity="0.35"
+            />
+
+            {/* Max reference line */}
+            <line
+              x1={pad}
+              x2={svgW - pad}
+              y1={priceToY(stats.max, stats.min, stats.max, svgH, pad)}
+              y2={priceToY(stats.max, stats.min, stats.max, svgH, pad)}
+              stroke="oklch(0.55 0.1 250)"
+              strokeWidth="0.5"
+              strokeDasharray="2 4"
+              opacity="0.35"
+            />
+
+            {/* Alert threshold line */}
+            {alertTargetPrice !== null &&
+              alertTargetPrice >= stats.min &&
+              alertTargetPrice <= stats.max && (
+                <line
+                  x1={pad}
+                  x2={svgW - pad}
+                  y1={priceToY(
+                    alertTargetPrice,
+                    stats.min,
+                    stats.max,
+                    svgH,
+                    pad
+                  )}
+                  y2={priceToY(
+                    alertTargetPrice,
+                    stats.min,
+                    stats.max,
+                    svgH,
+                    pad
+                  )}
+                  stroke="oklch(0.7 0.12 65)"
+                  strokeWidth="1"
+                  strokeDasharray="3 2"
+                  opacity="0.7"
+                />
+              )}
+
             {/* Fill area */}
             <polygon
-              points={`${buildSparklinePath(sparkPrices, svgW, svgH)} ${svgW - 4},${svgH - 4} 4,${svgH - 4}`}
+              points={`${buildSparklinePath(sparkPrices, svgW, svgH)} ${svgW - pad},${svgH - pad} ${pad},${svgH - pad}`}
               fill={`url(#spark-fill-${volumeId})`}
             />
+
             {/* Line */}
             <polyline
               points={buildSparklinePath(sparkPrices, svgW, svgH)}
               fill="none"
-              className="text-primary"
-              stroke="currentColor"
+              stroke="oklch(0.6 0.14 45)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           </svg>
         </div>
-      )}
-
-      {sparkPrices.length < 2 && (
-        <div className="text-muted-foreground bg-primary/5 flex h-14 items-center justify-center rounded-lg text-xs">
+      ) : (
+        <div className="text-muted-foreground bg-primary/5 flex h-20 items-center justify-center rounded-lg text-xs">
           Not enough data for trend
         </div>
       )}

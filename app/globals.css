@@ -765,3 +765,52 @@
 .section-reveal {
   animation: slide-in-bottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* Prose-like styling for sanitized HTML notes */
+.prose-notes {
+  line-height: 1.65;
+}
+.prose-notes p {
+  margin-bottom: 0.5em;
+}
+.prose-notes p:last-child {
+  margin-bottom: 0;
+}
+.prose-notes a {
+  color: oklch(0.6 0.14 45);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-notes a:hover {
+  color: oklch(0.7 0.12 65);
+}
+.prose-notes strong,
+.prose-notes b {
+  font-weight: 600;
+  color: var(--foreground);
+}
+.prose-notes em,
+.prose-notes i {
+  font-style: italic;
+}
+.prose-notes ul,
+.prose-notes ol {
+  padding-left: 1.25em;
+  margin-bottom: 0.5em;
+}
+.prose-notes ul {
+  list-style-type: disc;
+}
+.prose-notes ol {
+  list-style-type: decimal;
+}
+.prose-notes li {
+  margin-bottom: 0.15em;
+}
+.prose-notes blockquote {
+  border-left: 3px solid oklch(0.6 0.14 45 / 40%);
+  padding-left: 0.75em;
+  margin: 0.5em 0;
+  font-style: italic;
+  opacity: 0.85;
+}
