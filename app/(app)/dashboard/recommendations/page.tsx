@@ -49,29 +49,35 @@ export default function SuggestionsPage() {
 
   const allSuggestions = useMemo(() => computeSuggestedBuys(series), [series])
 
-  const categoryCounts = useMemo(
-    () => computeSuggestionCounts(allSuggestions),
-    [allSuggestions]
-  )
-
-  const filtered = useMemo(() => {
+  // Filtered by format/wishlist only (not by active tab) — used for tab badge counts
+  // so that selecting a tab doesn't zero out the other tab badges.
+  const filteredByFilters = useMemo(() => {
     return allSuggestions.filter((buy) => {
       if (formatFilter !== "all" && buy.seriesType !== formatFilter)
         return false
       if (wishlistFilter === "wishlisted" && !buy.isWishlisted) return false
       if (wishlistFilter === "not_wishlisted" && buy.isWishlisted) return false
-      if (activeTab !== "all" && buy.category !== activeTab) return false
       return true
     })
-  }, [allSuggestions, formatFilter, wishlistFilter, activeTab])
+  }, [allSuggestions, formatFilter, wishlistFilter])
+
+  const categoryCounts = useMemo(
+    () => computeSuggestionCounts(filteredByFilters),
+    [filteredByFilters]
+  )
+
+  const filtered = useMemo(() => {
+    if (activeTab === "all") return filteredByFilters
+    return filteredByFilters.filter((buy) => buy.category === activeTab)
+  }, [filteredByFilters, activeTab])
 
   const stats = useMemo(() => {
-    const totalCost = allSuggestions.reduce(
+    const totalCost = filteredByFilters.reduce(
       (acc, b) => acc + (b.estimatedPrice ?? 0),
       0
     )
-    return { total: allSuggestions.length, totalCost }
-  }, [allSuggestions])
+    return { total: filteredByFilters.length, totalCost }
+  }, [filteredByFilters])
 
   if (isLoading && series.length === 0) {
     return (
