@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signup } from "@/app/auth/actions"
-
-const ALLOWED_REDIRECT_PREFIXES = ["/dashboard", "/library", "/settings"]
+import { ALLOWED_REDIRECT_PREFIXES } from "@/lib/auth/constants"
 
 function getValidRedirect(raw: string | null): string | null {
   if (!raw) return null
@@ -225,12 +224,12 @@ function SignupContent() {
                 type="password"
                 placeholder="••••••••"
                 required
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
                 className="h-11 rounded-xl"
               />
               <p className="text-muted-foreground text-xs">
-                Must be at least 6 characters
+                Minimum 8 characters with uppercase, lowercase, and a number
               </p>
             </div>
 
