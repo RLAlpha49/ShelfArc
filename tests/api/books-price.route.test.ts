@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 
 import { makeNextRequest, readJson } from "./test-utils"
 
+// Prevent "server-only" guard from throwing in the test environment
+mock.module("server-only", () => ({}))
+
 type RateLimitModule = {
   isRateLimited: ReturnType<typeof mock>
   getCooldownRemaining: ReturnType<typeof mock>
@@ -22,6 +25,28 @@ const distributedRateLimitMocks = {
 
 mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 
+// Build a chainable Supabase query stub that returns no cached rows
+const makeQueryChain = () => ({
+  select: () => makeQueryChain(),
+  eq: () => makeQueryChain(),
+  gt: () => makeQueryChain(),
+  order: () => makeQueryChain(),
+  limit: () => Promise.resolve({ data: [] })
+})
+
+const getUserMock = mock(
+  async (): Promise<{ data: { user: { id: string } | null } }> => ({
+    data: { user: { id: "user-1" } }
+  })
+)
+
+const createUserClient = mock(async () => ({
+  auth: { getUser: getUserMock },
+  from: () => makeQueryChain()
+}))
+
+mock.module("@/lib/supabase/server", () => ({ createUserClient }))
+
 const loadRoute = async () => await import("../../app/api/books/price/route")
 
 const originalFetch = globalThis.fetch
@@ -38,6 +63,10 @@ describe("GET /api/books/price", () => {
     distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(
       null
     )
+
+    getUserMock.mockClear()
+    getUserMock.mockResolvedValue({ data: { user: { id: "user-1" } } })
+    createUserClient.mockClear()
   })
 
   afterEach(() => {
