@@ -1,11 +1,12 @@
 import { type NextRequest } from "next/server"
-import { createUserClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { isValidUsername } from "@/lib/validation"
-import { isRateLimited, recordFailure } from "@/lib/rate-limit"
+
 import { apiError, apiSuccess } from "@/lib/api-response"
-import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { getCorrelationId } from "@/lib/correlation"
+import { isRateLimited } from "@/lib/rate-limit"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createUserClient } from "@/lib/supabase/server"
+import { isValidUsername } from "@/lib/validation"
 
 /** Rate-limit config for username availability checks. @source */
 const USERNAME_CHECK_RATE_LIMIT = {
@@ -67,8 +68,6 @@ export async function GET(request: NextRequest) {
     if (isRateLimited(rateLimitKey, USERNAME_CHECK_RATE_LIMIT)) {
       return apiError(429, "Too many requests")
     }
-
-    recordFailure(rateLimitKey, USERNAME_CHECK_RATE_LIMIT)
   }
 
   const admin = createAdminClient({
