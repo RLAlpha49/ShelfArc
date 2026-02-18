@@ -17,7 +17,7 @@ export function getGridClasses(cardSize: CardSize): string {
 }
 
 /** Item count above which /library switches to window virtualization. */
-export const VIRTUALIZE_THRESHOLD = 200
+export const VIRTUALIZE_THRESHOLD = 20
 
 /** Returns the number of grid columns for the given card size + viewport width. */
 export const GRID_COLUMNS_BY_CARD_SIZE: Record<CardSize, readonly number[]> = {
