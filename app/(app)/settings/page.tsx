@@ -407,108 +407,33 @@ export default function SettingsPage() {
       const sanitizedUsername = sanitizePlainText(username, 20)
       setUsername(sanitizedUsername)
 
-      if (avatarUrl && !avatarUrl.startsWith("blob:")) {
-        try {
-          const parsed = new URL(avatarUrl)
-          if (parsed.protocol !== "https:") {
-            toast.error("Avatar URL must use HTTPS")
-            setIsSaving(false)
-            return
-          }
-        } catch {
-          toast.error("Invalid avatar URL")
-          setIsSaving(false)
-          return
+      const res = await fetch("/api/account/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: sanitizedUsername,
+          avatarUrl: avatarUrl || null,
+          isPublic,
+          publicBio,
+          publicStats
+        })
+      })
+
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as {
+          error?: string
         }
+        toast.error(json.error ?? "Failed to update profile")
+        return
       }
 
-      const profilesTable = supabase.from("profiles") as unknown as {
-        update: (data: Record<string, unknown>) => {
-          eq: (field: string, value: string) => Promise<{ error: Error | null }>
-        }
-      }
-      const nextProfileValues = {
+      setProfile({
+        ...profile,
         username: sanitizedUsername || null,
         avatar_url: avatarUrl || null,
         is_public: isPublic,
         public_bio: publicBio,
         public_stats: publicStats
-      }
-      const nextAuthMetadata = {
-        username: sanitizedUsername || null,
-        avatar_url: avatarUrl || null,
-        display_name: sanitizedUsername || null
-      }
-      const previousProfileValues = {
-        username: profile.username || null,
-        avatar_url: profile.avatar_url || null,
-        is_public: profile.is_public ?? false,
-        public_bio: profile.public_bio ?? "",
-        public_stats: profile.public_stats ?? false
-      }
-      const { error } = await profilesTable
-        .update(nextProfileValues)
-        .eq("id", profile.id)
-
-      if (error) throw error
-
-      const { error: authError } = await supabase.auth.updateUser({
-        data: nextAuthMetadata
-      })
-
-      if (authError) {
-        const { error: rollbackError } = await profilesTable
-          .update(previousProfileValues)
-          .eq("id", profile.id)
-        if (rollbackError) {
-          setProfile({
-            ...profile,
-            username: nextProfileValues.username,
-            avatar_url: nextProfileValues.avatar_url,
-            is_public: nextProfileValues.is_public,
-            public_bio: nextProfileValues.public_bio,
-            public_stats: nextProfileValues.public_stats
-          })
-          setUsername(nextProfileValues.username ?? "")
-          setAvatarUrl(nextProfileValues.avatar_url ?? "")
-          setIsPublic(nextProfileValues.is_public)
-          setPublicBio(nextProfileValues.public_bio)
-          setPublicStats(nextProfileValues.public_stats)
-          console.error("Failed to rollback profile update", {
-            authError,
-            rollbackError,
-            userId: profile.id,
-            nextProfileValues
-          })
-        } else {
-          setProfile({
-            ...profile,
-            username: previousProfileValues.username,
-            avatar_url: previousProfileValues.avatar_url,
-            is_public: previousProfileValues.is_public,
-            public_bio: previousProfileValues.public_bio,
-            public_stats: previousProfileValues.public_stats
-          })
-          setUsername(previousProfileValues.username ?? "")
-          setAvatarUrl(previousProfileValues.avatar_url ?? "")
-          setIsPublic(previousProfileValues.is_public)
-          setPublicBio(previousProfileValues.public_bio)
-          setPublicStats(previousProfileValues.public_stats)
-        }
-        console.error("Failed to update auth metadata", {
-          authError,
-          userId: profile.id
-        })
-        toast.error("Failed to update profile")
-        return
-      }
-      setProfile({
-        ...profile,
-        username: nextProfileValues.username,
-        avatar_url: nextProfileValues.avatar_url,
-        is_public: nextProfileValues.is_public,
-        public_bio: nextProfileValues.public_bio,
-        public_stats: nextProfileValues.public_stats
       })
       toast.success("Profile updated successfully")
     } catch {
@@ -591,29 +516,17 @@ export default function SettingsPage() {
 
     setIsChangingPassword(true)
     try {
-      // Re-authenticate with current password
-      const {
-        data: { user }
-      } = await supabase.auth.getUser()
-      if (!user?.email) {
-        toast.error("Unable to verify identity")
-        return
-      }
-
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword
+      const res = await fetch("/api/account/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword })
       })
-      if (authError) {
-        toast.error("Current password is incorrect")
-        return
-      }
 
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      })
-      if (error) {
-        toast.error(error.message)
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as {
+          error?: string
+        }
+        toast.error(json.error ?? "Failed to change password")
         return
       }
 
@@ -2228,7 +2141,7 @@ export default function SettingsPage() {
                 <p className="text-muted-foreground mb-4 text-sm">
                   Add an extra layer of security with a TOTP authenticator app.
                 </p>
-                {mfaEnabled ? (
+                {mfaEnabled && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-green-500" />
@@ -2245,7 +2158,8 @@ export default function SettingsPage() {
                       {mfaUnenrolling ? "Disabling..." : "Disable 2FA"}
                     </Button>
                   </div>
-                ) : mfaQrCode ? (
+                )}
+                {!mfaEnabled && mfaQrCode && (
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <p className="text-sm">
@@ -2279,7 +2193,7 @@ export default function SettingsPage() {
                         value={mfaVerifyCode}
                         onChange={(e) =>
                           setMfaVerifyCode(
-                            e.target.value.replace(/\D/g, "").slice(0, 6)
+                            e.target.value.replaceAll(/\D/g, "").slice(0, 6)
                           )
                         }
                         className="rounded-xl"
@@ -2307,7 +2221,8 @@ export default function SettingsPage() {
                       </Button>
                     </div>
                   </div>
-                ) : (
+                )}
+                {!mfaEnabled && !mfaQrCode && (
                   <Button
                     onClick={handleEnrollMfa}
                     disabled={mfaEnrolling}
