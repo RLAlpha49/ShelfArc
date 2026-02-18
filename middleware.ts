@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/dashboard")) {
     response.headers.set(
       "Cache-Control",
-      "private, max-age=60, stale-while-revalidate=300"
+      "private, max-age=60, stale-while-revalidate=30"
     )
   }
 
