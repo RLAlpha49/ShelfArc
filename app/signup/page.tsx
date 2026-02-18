@@ -1,12 +1,13 @@
 "use client"
 
-import { Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { Suspense, useEffect, useRef, useState } from "react"
+
+import { signup } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { signup } from "@/app/auth/actions"
 import { ALLOWED_REDIRECT_PREFIXES } from "@/lib/auth/constants"
 
 function getValidRedirect(raw: string | null): string | null {

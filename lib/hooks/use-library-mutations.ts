@@ -1,33 +1,8 @@
 "use client"
 
 import { useCallback } from "react"
-import { createClient } from "@/lib/supabase/client"
-import {
-  DEFAULT_CURRENCY_CODE,
-  useLibraryStore,
-  selectSeriesById,
-  selectAllUnassignedVolumes
-} from "@/lib/store/library-store"
-import {
-  sanitizeOptionalHtml,
-  sanitizeOptionalPlainText,
-  sanitizePlainText
-} from "@/lib/sanitize-html"
-import {
-  isNonNegativeFinite,
-  isPositiveInteger,
-  isValidSeriesStatus,
-  isValidTitleType
-} from "@/lib/validation"
-import type {
-  Series,
-  SeriesWithVolumes,
-  SeriesInsert,
-  TitleType,
-  Volume,
-  VolumeFormat,
-  VolumeInsert
-} from "@/lib/types/database"
+
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import type { BookSearchResult } from "@/lib/books/search"
 import {
   buildSanitizedVolumeInsert,
@@ -35,7 +10,33 @@ import {
   sanitizeSeriesUpdate,
   sanitizeVolumeUpdate
 } from "@/lib/library/sanitize-library"
-import { recordActivityEvent } from "@/lib/activity/record-event"
+import {
+  sanitizeOptionalHtml,
+  sanitizeOptionalPlainText,
+  sanitizePlainText
+} from "@/lib/sanitize-html"
+import {
+  DEFAULT_CURRENCY_CODE,
+  selectAllUnassignedVolumes,
+  selectSeriesById,
+  useLibraryStore
+} from "@/lib/store/library-store"
+import { createClient } from "@/lib/supabase/client"
+import type {
+  Series,
+  SeriesInsert,
+  SeriesWithVolumes,
+  TitleType,
+  Volume,
+  VolumeFormat,
+  VolumeInsert
+} from "@/lib/types/database"
+import {
+  isNonNegativeFinite,
+  isPositiveInteger,
+  isValidSeriesStatus,
+  isValidTitleType
+} from "@/lib/validation"
 
 export function useLibraryMutations() {
   const supabase = createClient()

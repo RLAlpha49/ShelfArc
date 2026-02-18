@@ -1,10 +1,11 @@
 "use client"
 
 import Link from "next/link"
+
 import { formatDate } from "@/lib/format-date"
-import type { SeriesWithVolumes } from "@/lib/types/database"
 import type { AugmentedVolume } from "@/lib/library/analytics"
 import type { DateFormat } from "@/lib/store/settings-store"
+import type { SeriesWithVolumes } from "@/lib/types/database"
 
 /** Empty state shown when the user has no series yet. @source */
 export function RecentSeriesEmpty() {

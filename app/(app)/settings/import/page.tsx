@@ -1,6 +1,13 @@
 "use client"
 
 import Link from "next/link"
+
+import { AniListImport } from "@/components/settings/anilist-import"
+import { BarcodeScanner } from "@/components/settings/barcode-scanner"
+import { CsvImport } from "@/components/settings/csv-import"
+import { GoodreadsImport } from "@/components/settings/goodreads-import"
+import { JsonImport } from "@/components/settings/json-import"
+import { MalImport } from "@/components/settings/mal-import"
 import {
   Card,
   CardContent,
@@ -9,12 +16,6 @@ import {
   CardTitle
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CsvImport } from "@/components/settings/csv-import"
-import { JsonImport } from "@/components/settings/json-import"
-import { MalImport } from "@/components/settings/mal-import"
-import { AniListImport } from "@/components/settings/anilist-import"
-import { GoodreadsImport } from "@/components/settings/goodreads-import"
-import { BarcodeScanner } from "@/components/settings/barcode-scanner"
 
 /**
  * Import page with tabbed CSV, JSON, MAL, AniList, Goodreads, and barcode import workflows.

@@ -1,13 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useLibraryStore, selectAllSeries } from "@/lib/store/library-store"
+import { useCallback, useEffect, useMemo, useState } from "react"
+
+import { Skeleton } from "@/components/ui/skeleton"
+import { fetchPriceAlerts } from "@/lib/api/endpoints"
 import { formatDate } from "@/lib/format-date"
+import { selectAllSeries, useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { PriceAlert } from "@/lib/types/database"
-import { fetchPriceAlerts } from "@/lib/api/endpoints"
-import { Skeleton } from "@/components/ui/skeleton"
 
 interface AlertWithInfo extends PriceAlert {
   volumeTitle: string

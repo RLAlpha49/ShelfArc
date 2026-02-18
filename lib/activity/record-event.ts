@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { Database, ActivityEventType, Json } from "@/lib/types/database"
+
+import type { ActivityEventType, Database, Json } from "@/lib/types/database"
 
 type ActivityPayload = {
   userId: string

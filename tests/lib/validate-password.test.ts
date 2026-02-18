@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test"
+
 import { validatePassword } from "@/lib/auth/validate-password"
 
 describe("validatePassword", () => {

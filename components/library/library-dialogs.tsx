@@ -1,6 +1,7 @@
 "use client"
 
-import { lazy, Suspense, memo } from "react"
+import { lazy, memo, Suspense } from "react"
+
 import { BulkEditDialog } from "@/components/library/bulk-edit-dialog"
 import { AddToCollectionDialog } from "@/components/library/collections-panel"
 import {
@@ -13,14 +14,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
+import type { BookSearchResult } from "@/lib/books/search"
 import type {
+  OwnershipStatus,
+  SeriesInsert,
   SeriesWithVolumes,
   Volume,
-  VolumeInsert,
-  SeriesInsert,
-  OwnershipStatus
+  VolumeInsert
 } from "@/lib/types/database"
-import type { BookSearchResult } from "@/lib/books/search"
 
 const SeriesDialog = lazy(() =>
   import("@/components/library/series-dialog").then((m) => ({

@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
 import Link from "next/link"
+import { useCallback, useRef, useState } from "react"
+import { toast } from "sonner"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -14,7 +16,6 @@ import {
 } from "@/components/ui/select"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { sanitizePlainText } from "@/lib/sanitize-html"
-import { toast } from "sonner"
 import type { ReadingStatus } from "@/lib/types/database"
 
 /* ─── Types ─────────────────────────────────────────────── */

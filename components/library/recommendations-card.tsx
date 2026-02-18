@@ -1,6 +1,7 @@
 import Link from "next/link"
-import type { SuggestedBuy, SuggestionCategory } from "@/lib/library/analytics"
+
 import { Badge } from "@/components/ui/badge"
+import type { SuggestedBuy, SuggestionCategory } from "@/lib/library/analytics"
 
 const CATEGORY_CONFIG: Record<
   SuggestionCategory,

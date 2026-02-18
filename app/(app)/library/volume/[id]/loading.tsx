@@ -1,5 +1,5 @@
-import { Skeleton } from "@/components/ui/skeleton"
 import { BreadcrumbsSkeleton } from "@/components/breadcrumbs"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function VolumeDetailLoading() {
   return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { usePathname,useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useRef } from "react"
 
 import type {
@@ -13,7 +13,8 @@ import { useLibraryStore } from "@/lib/store/library-store"
 import type {
   OwnershipStatus,
   ReadingStatus,
-  TitleType} from "@/lib/types/database"
+  TitleType
+} from "@/lib/types/database"
 
 const VALID_TYPES = new Set(["all", "manga", "light_novel", "other"])
 const VALID_OWNERSHIP = new Set(["all", "owned", "wishlist"])

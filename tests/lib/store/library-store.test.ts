@@ -1,4 +1,4 @@
-import { beforeEach,describe, expect, it } from "bun:test"
+import { beforeEach, describe, expect, it } from "bun:test"
 
 import {
   selectAllSeries,
@@ -7,8 +7,9 @@ import {
   selectSeriesById,
   selectSeriesVolumes,
   selectVolumeById,
-  useLibraryStore} from "@/lib/store/library-store"
-import type { Series,SeriesWithVolumes, Volume } from "@/lib/types/database"
+  useLibraryStore
+} from "@/lib/store/library-store"
+import type { Series, SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /* ------------------------------------------------------------------ */
 /*  Fixtures                                                          */

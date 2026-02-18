@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect } from "react"
-import {
-  useSettingsStore,
-  DISPLAY_FONT_MAP,
-  BODY_FONT_MAP
-} from "@/lib/store/settings-store"
+
 import type { FontSizeScale } from "@/lib/store/settings-store"
+import {
+  BODY_FONT_MAP,
+  DISPLAY_FONT_MAP,
+  useSettingsStore
+} from "@/lib/store/settings-store"
 
 /**
  * Client component that applies global settings (fonts, animations) to the

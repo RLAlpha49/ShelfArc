@@ -1,15 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog"
 import {
   Combobox,
   ComboboxContent,
@@ -18,6 +11,14 @@ import {
   ComboboxItem,
   ComboboxList
 } from "@/components/ui/combobox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 /** Props for the {@link AssignToSeriesDialog} component. @source */

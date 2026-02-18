@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, memo } from "react"
+import { memo, useMemo } from "react"
+
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 interface LibraryStatsBarProps {

@@ -6,7 +6,8 @@ import { useCollectionsStore } from "@/lib/store/collections-store"
 import {
   selectAllSeries,
   selectAllUnassignedVolumes,
-  useLibraryStore} from "@/lib/store/library-store"
+  useLibraryStore
+} from "@/lib/store/library-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** A volume paired with its parent series, used for flat volume views. @source */

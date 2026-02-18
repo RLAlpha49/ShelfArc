@@ -2,19 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
-import { useLibraryStore } from "@/lib/store/library-store"
-import {
-  persistPriceEntry,
-  checkPriceAlert
-} from "@/lib/hooks/use-price-history"
-import { fetchPrice } from "@/lib/api/endpoints"
-import { buildFetchPriceParams } from "@/lib/books/amazon-query"
-import type { FetchPriceParams } from "@/lib/api/types"
+
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { ApiClientError } from "@/lib/api/client"
+import { fetchPrice } from "@/lib/api/endpoints"
+import type { FetchPriceParams } from "@/lib/api/types"
+import { buildFetchPriceParams } from "@/lib/books/amazon-query"
+import {
+  checkPriceAlert,
+  persistPriceEntry
+} from "@/lib/hooks/use-price-history"
+import { useLibraryStore } from "@/lib/store/library-store"
 import { useNotificationStore } from "@/lib/store/notification-store"
 import { createClient } from "@/lib/supabase/client"
-import { recordActivityEvent } from "@/lib/activity/record-event"
+import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** Scraping mode: price only, image only, or both. @source */
 export type BulkScrapeMode = "price" | "image" | "both"
@@ -231,6 +232,7 @@ function buildCooldownMessage(): string {
  */
 function handleRateLimit(
   i: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any, // Accepts error details object
   setter: StateSetter
 ) {

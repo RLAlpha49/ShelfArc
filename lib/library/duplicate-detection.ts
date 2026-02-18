@@ -1,6 +1,6 @@
 import { normalizeIsbn } from "@/lib/books/isbn"
-import { normalizeSeriesTitle } from "@/lib/library/volume-normalization"
 import type { BookSearchResult } from "@/lib/books/search"
+import { normalizeSeriesTitle } from "@/lib/library/volume-normalization"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** Describes why a search result may be a duplicate of an existing volume. */

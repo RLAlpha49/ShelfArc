@@ -1,15 +1,15 @@
 "use client"
 
-import { useTheme } from "next-themes"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
+  Alert02Icon,
   CheckmarkCircle02Icon,
   InformationCircleIcon,
-  Alert02Icon,
-  MultiplicationSignCircleIcon,
-  Loading03Icon
+  Loading03Icon,
+  MultiplicationSignCircleIcon
 } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { useTheme } from "next-themes"
+import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 /** Pre-configured toast notification container using Sonner with themed icons. @source */
 const Toaster = ({ ...props }: ToasterProps) => {

@@ -1,8 +1,8 @@
 "use client"
 
 import { Skeleton } from "@/components/ui/skeleton"
-import { useSettingsStore } from "@/lib/store/settings-store"
 import { getGridClasses } from "@/lib/library/grid-utils"
+import { useSettingsStore } from "@/lib/store/settings-store"
 
 /**
  * Skeleton placeholder shown while the library data is loading.

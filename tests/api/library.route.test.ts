@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+
 import { makeNextRequest, readJson } from "./test-utils"
 
 type UserResult = { data: { user: { id: string } | null } }
@@ -20,8 +21,8 @@ qb.not = mock(() => qb)
 qb.or = mock(() => qb)
 qb.contains = mock(() => qb)
 qb.in = mock(() => qb)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 qb.range = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: [],
     error: null

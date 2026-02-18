@@ -2,23 +2,24 @@
 
 import { useCallback } from "react"
 import { toast } from "sonner"
+
 import { apiFetch } from "@/lib/api/client"
+import type { BookSearchResult } from "@/lib/books/search"
 import {
   DEFAULT_CURRENCY_CODE,
-  useLibraryStore,
   selectAllUnassignedVolumes,
-  selectSeriesById
+  selectSeriesById,
+  useLibraryStore
 } from "@/lib/store/library-store"
-import { isNonNegativeFinite } from "@/lib/validation"
 import type {
   Series,
-  SeriesWithVolumes,
   SeriesInsert,
+  SeriesWithVolumes,
   TitleType,
   Volume,
   VolumeInsert
 } from "@/lib/types/database"
-import type { BookSearchResult } from "@/lib/books/search"
+import { isNonNegativeFinite } from "@/lib/validation"
 
 /** Fields safe for optimistic updates (no server-side logic dependencies). */
 const OPTIMISTIC_SERIES_FIELDS = new Set(["type", "status"])

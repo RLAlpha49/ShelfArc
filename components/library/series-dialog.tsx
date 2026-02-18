@@ -248,7 +248,7 @@ export function SeriesDialog({
 
     seriesIdRef.current = nextSeriesId
     wasOpenRef.current = true
-  }, [open, series?.id, initialFormData, formData])
+  }, [open, series?.id, initialFormData, formData, series])
 
   useEffect(() => {
     if (!basisVolumeId) return

@@ -1,10 +1,13 @@
 "use client"
 
 import { useMemo, useState, useSyncExternalStore } from "react"
+
+import { FilterPresetsControl } from "@/components/library/filter-presets-control"
+import { TagFilterControl } from "@/components/library/tag-filter-control"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -18,16 +21,14 @@ import {
   SheetHeader,
   SheetTitle
 } from "@/components/ui/sheet"
-import { FilterPresetsControl } from "@/components/library/filter-presets-control"
-import { TagFilterControl } from "@/components/library/tag-filter-control"
-import { useLibraryStore, selectAllSeries } from "@/lib/store/library-store"
-import type { SortField } from "@/lib/store/library-store"
-import { useSettingsStore } from "@/lib/store/settings-store"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
+import type { SortField } from "@/lib/store/library-store"
+import { selectAllSeries, useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
-  TitleType,
   OwnershipStatus,
-  ReadingStatus
+  ReadingStatus,
+  TitleType
 } from "@/lib/types/database"
 
 const SORT_LABELS: Record<SortField, string> = {

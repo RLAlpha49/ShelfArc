@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import {
   type ReactNode,
   useCallback,
@@ -7,7 +8,7 @@ import {
   useMemo,
   useState
 } from "react"
-import { useRouter } from "next/navigation"
+
 import {
   Command,
   CommandDialog,
@@ -19,9 +20,9 @@ import {
   CommandSeparator
 } from "@/components/ui/command"
 import {
-  useLibraryStore,
   selectAllSeries,
-  selectAllUnassignedVolumes
+  selectAllUnassignedVolumes,
+  useLibraryStore
 } from "@/lib/store/library-store"
 import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
 

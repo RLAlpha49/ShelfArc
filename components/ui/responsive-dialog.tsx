@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useWindowWidth } from "@/lib/hooks/use-window-width"
+
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   SheetHeader,
   SheetTitle
 } from "@/components/ui/sheet"
+import { useWindowWidth } from "@/lib/hooks/use-window-width"
 
 /** Breakpoint below which the sheet layout is used. */
 const MOBILE_BREAKPOINT = 640

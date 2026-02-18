@@ -1,11 +1,12 @@
 "use client"
 
 import { useMemo } from "react"
+
 import { CoverImage } from "@/components/library/cover-image"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useSettingsStore } from "@/lib/store/settings-store"
 import { TypeBadge } from "@/components/ui/status-badge"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 export interface SeriesListItemProps {

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useCallback, useState } from "react"
+
 import type { ActivityEvent, ActivityEventType } from "@/lib/types/database"
 
 type Pagination = {

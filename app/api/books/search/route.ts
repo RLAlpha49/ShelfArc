@@ -1,18 +1,19 @@
 import { type NextRequest } from "next/server"
+
+import { apiError, apiSuccess } from "@/lib/api-response"
+import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
+import { normalizeIsbn } from "@/lib/books/isbn"
 import {
+  type BookSearchResult,
+  type BookSearchSource,
   isIsbnQuery,
   normalizeGoogleBooksItems,
-  normalizeOpenLibraryDocs,
-  type BookSearchResult,
-  type BookSearchSource
+  normalizeOpenLibraryDocs
 } from "@/lib/books/search"
-import { normalizeIsbn } from "@/lib/books/isbn"
-import { getGoogleBooksApiKeys } from "@/lib/books/google-books-keys"
-import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
-import { createUserClient } from "@/lib/supabase/server"
+import { type Logger, logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
-import { logger, type Logger } from "@/lib/logger"
+import { createUserClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 

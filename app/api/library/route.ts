@@ -1,8 +1,6 @@
-import { type NextRequest } from "next/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { apiError, apiSuccess } from "@/lib/api-response"
-import { getCorrelationId } from "@/lib/correlation"
-import { logger } from "@/lib/logger"
+import { type NextRequest } from "next/server"
+
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import type {
@@ -10,11 +8,14 @@ import type {
   FetchLibraryVolumesResponse,
   PaginationMeta
 } from "@/lib/api/types"
+import { apiError, apiSuccess } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
+import { logger } from "@/lib/logger"
 import type {
   Database,
-  TitleType,
   OwnershipStatus,
-  ReadingStatus
+  ReadingStatus,
+  TitleType
 } from "@/lib/types/database"
 
 export const dynamic = "force-dynamic"

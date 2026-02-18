@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect } from "react"
 import Link from "next/link"
-import { useActivityFeed } from "@/lib/hooks/use-activity-feed"
+import { useEffect } from "react"
+
 import { ActivityEventItem } from "@/components/activity/activity-event-item"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useActivityFeed } from "@/lib/hooks/use-activity-feed"
 
 export function RecentActivityCard() {
   const { events, isLoading, fetchEvents } = useActivityFeed()

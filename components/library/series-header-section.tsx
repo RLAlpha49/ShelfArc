@@ -1,9 +1,10 @@
 "use client"
 
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { CoverImage } from "@/components/library/cover-image"
+import { ExternalLinks } from "@/components/library/external-links"
 import { SeriesInsightsPanel } from "@/components/library/series-insights-panel"
+import { Badge } from "@/components/ui/badge"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,14 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { TypeBadge, SeriesStatusBadge } from "@/components/ui/status-badge"
-import { ExternalLinks } from "@/components/library/external-links"
-import { sanitizeHtml } from "@/lib/sanitize-html"
+import { SeriesStatusBadge, TypeBadge } from "@/components/ui/status-badge"
 import type { SeriesInsightData } from "@/lib/library/series-insights"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import type {
-  SeriesWithVolumes,
   OwnershipStatus,
-  ReadingStatus
+  ReadingStatus,
+  SeriesWithVolumes
 } from "@/lib/types/database"
 
 /** Series header section with cover, metadata, stats, insights, and notes. @source */

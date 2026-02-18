@@ -1,5 +1,6 @@
 "use client"
 
+import { useWindowVirtualizer } from "@tanstack/react-virtual"
 import {
   Fragment,
   type ReactNode,
@@ -8,7 +9,6 @@ import {
   useRef,
   useState
 } from "react"
-import { useWindowVirtualizer } from "@tanstack/react-virtual"
 
 const DEFAULT_OVERSCAN = 8
 

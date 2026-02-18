@@ -1,14 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
 import { Notification02Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { useState } from "react"
+
+import { NotificationCenter } from "@/components/notification-center"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/popover"
-import { NotificationCenter } from "@/components/notification-center"
 import { useNotificationStore } from "@/lib/store/notification-store"
 
 export function NotificationBell() {

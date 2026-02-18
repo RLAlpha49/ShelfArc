@@ -1,17 +1,18 @@
 "use client"
 
 import { useMemo } from "react"
-import { Button } from "@/components/ui/button"
+
+import { EmptyState } from "@/components/empty-state"
+import { VirtualizedWindowGrid } from "@/components/library/virtualized-window"
 import { VolumeCard } from "@/components/library/volume-card"
 import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
-import { VirtualizedWindowGrid } from "@/components/library/virtualized-window"
-import { EmptyState } from "@/components/empty-state"
+import { Button } from "@/components/ui/button"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import type {
-  SeriesWithVolumes,
-  Volume,
   OwnershipStatus,
-  ReadingStatus
+  ReadingStatus,
+  SeriesWithVolumes,
+  Volume
 } from "@/lib/types/database"
 
 /** Item count above which series detail volumes switch to virtualization. @source */

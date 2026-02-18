@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+
 import type { WishlistStats } from "@/lib/library/analytics"
 
 interface DashboardWishlistProps {

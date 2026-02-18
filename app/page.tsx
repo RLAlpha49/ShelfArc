@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { createUserClient } from "@/lib/supabase/server"
+
 import { ThemeToggle } from "@/components/theme-toggle"
+import { createUserClient } from "@/lib/supabase/server"
 
 /**
  * Public landing page with hero, features, and CTA sections.

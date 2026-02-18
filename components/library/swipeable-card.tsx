@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useState, useRef, useEffect } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+
 import { useSwipe } from "@/lib/hooks/use-swipe"
 
 /** Props for the {@link SwipeableCard} wrapper. @source */

@@ -1,33 +1,34 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useRef, useState } from "react"
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { createClient } from "@/lib/supabase/client"
 import {
   sanitizeOptionalHtml,
   sanitizeOptionalPlainText,
   sanitizePlainText
 } from "@/lib/sanitize-html"
-import {
-  isValidTitleType,
-  isValidOwnershipStatus,
-  isValidReadingStatus,
-  isValidSeriesStatus,
-  isValidVolumeEdition,
-  isValidVolumeFormat,
-  isPositiveInteger,
-  isNonNegativeInteger,
-  isNonNegativeFinite
-} from "@/lib/validation"
-import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 import type {
-  SeriesWithVolumes,
   SeriesInsert,
+  SeriesWithVolumes,
   Volume,
   VolumeInsert
 } from "@/lib/types/database"
+import {
+  isNonNegativeFinite,
+  isNonNegativeInteger,
+  isPositiveInteger,
+  isValidOwnershipStatus,
+  isValidReadingStatus,
+  isValidSeriesStatus,
+  isValidTitleType,
+  isValidVolumeEdition,
+  isValidVolumeFormat
+} from "@/lib/validation"
 
 /** Whether imported data is merged or replaces the existing collection. @source */
 type ImportMode = "merge" | "replace"

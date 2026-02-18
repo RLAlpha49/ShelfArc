@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useActivityFeed } from "@/lib/hooks/use-activity-feed"
+
 import { ActivityEventItem } from "@/components/activity/activity-event-item"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useActivityFeed } from "@/lib/hooks/use-activity-feed"
 import type { ActivityEventType } from "@/lib/types/database"
 
 const eventTypeOptions: { value: ActivityEventType; label: string }[] = [

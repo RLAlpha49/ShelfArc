@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+
 import { makeNextRequest, readJson } from "./test-utils"
 
 const getUserMock = mock(
@@ -7,16 +8,16 @@ const getUserMock = mock(
   })
 )
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const seriesSingleMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: { id: "series-1" },
     error: null
   })
 )
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const volumeSingleMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: {
       id: "vol-new",

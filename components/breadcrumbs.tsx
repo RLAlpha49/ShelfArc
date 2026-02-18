@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+
 import { Skeleton } from "@/components/ui/skeleton"
 
 /** A single breadcrumb segment. @source */

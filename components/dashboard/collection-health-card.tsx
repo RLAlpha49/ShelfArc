@@ -1,8 +1,9 @@
 "use client"
 
 import { useMemo } from "react"
-import { computeHealthScore } from "@/lib/library/health-score"
+
 import type { HealthScore } from "@/lib/library/health-score"
+import { computeHealthScore } from "@/lib/library/health-score"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 interface CollectionHealthCardProps {

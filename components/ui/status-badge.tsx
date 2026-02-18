@@ -4,12 +4,12 @@ import {
   READING_STATUS_COLORS,
   SERIES_TYPE_COLORS
 } from "@/lib/library/status-colors"
-import { cn } from "@/lib/utils"
 import type {
   OwnershipStatus,
   ReadingStatus,
   TitleType
 } from "@/lib/types/database"
+import { cn } from "@/lib/utils"
 
 /** Human-readable labels per reading status. */
 const READING_STATUS_LABELS: Record<ReadingStatus, string> = {
@@ -121,4 +121,4 @@ function SeriesStatusBadge({ status, className }: SeriesStatusBadgeProps) {
   )
 }
 
-export { OwnershipBadge, ReadingStatusBadge, TypeBadge, SeriesStatusBadge }
+export { OwnershipBadge, ReadingStatusBadge, SeriesStatusBadge, TypeBadge }

@@ -1,26 +1,26 @@
 "use client"
 
+import { CoverImage } from "@/components/library/cover-image"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-  OwnershipBadge,
-  ReadingStatusBadge
-} from "@/components/ui/status-badge"
-import { CoverImage } from "@/components/library/cover-image"
-import {
   DropdownMenu,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { useSettingsStore } from "@/lib/store/settings-store"
-import { useLibraryStore } from "@/lib/store/library-store"
+import {
+  OwnershipBadge,
+  ReadingStatusBadge
+} from "@/components/ui/status-badge"
 import { buildAmazonSearchUrl } from "@/lib/books/amazon-query"
+import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { Volume } from "@/lib/types/database"
 
 /** Props for the {@link VolumeCard} component. @source */

@@ -9,8 +9,8 @@ import {
   ReadingStatusBadge
 } from "@/components/ui/status-badge"
 import { buildAmazonSearchUrl } from "@/lib/books/amazon-query"
-import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import type { VolumeWithSeries } from "@/lib/hooks/use-library-filters"
+import { normalizeVolumeTitle } from "@/lib/normalize-title"
 
 export interface VolumeGridItemProps {
   readonly item: VolumeWithSeries

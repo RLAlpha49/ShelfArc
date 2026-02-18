@@ -1,15 +1,12 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { useSyncExternalStore } from "react"
+
+import { logout } from "@/app/auth/actions"
 import { NotificationBell } from "@/components/notification-bell"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from "@/components/ui/tooltip"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -18,9 +15,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { logout } from "@/app/auth/actions"
-import { cn } from "@/lib/utils"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
+import { cn } from "@/lib/utils"
 
 const noopSubscribe = () => () => {}
 const getIsMac = () => /mac|iphone|ipad/i.test(navigator.userAgent)

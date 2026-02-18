@@ -1,12 +1,13 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+
 import type {
+  OwnershipStatus,
+  ReadingStatus,
   Series,
   SeriesWithVolumes,
-  Volume,
   TitleType,
-  OwnershipStatus,
-  ReadingStatus
+  Volume
 } from "@/lib/types/database"
 
 /** Sort field options for the library view. @source */

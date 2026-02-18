@@ -22,11 +22,15 @@ module.exports = async function lhciAuth(browser) {
       const raw = readFileSync(envPath, "utf8")
       raw.split(/\r?\n/).forEach((line) => {
         const trimmed = line.trim()
-        if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) return
+        if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("="))
+          return
         const idx = trimmed.indexOf("=")
         const key = trimmed.slice(0, idx).trim()
         let val = trimmed.slice(idx + 1)
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
           val = val.slice(1, -1)
         }
         if (!process.env[key]) process.env[key] = val
@@ -56,7 +60,10 @@ module.exports = async function lhciAuth(browser) {
 
     // Log response status to help debug server-side failures.
     try {
-      console.log("[LHCI Auth] /login response status:", resp?.status?.() ?? "no-response")
+      console.log(
+        "[LHCI Auth] /login response status:",
+        resp?.status?.() ?? "no-response"
+      )
     } catch {
       /* ignore */
     }
@@ -74,9 +81,14 @@ module.exports = async function lhciAuth(browser) {
     // Wait for client-side hydration to render the inputs (prevents "No element found").
     try {
       await page.waitForSelector("#email", { visible: true, timeout: 30_000 })
-      await page.waitForSelector("#password", { visible: true, timeout: 30_000 })
+      await page.waitForSelector("#password", {
+        visible: true,
+        timeout: 30_000
+      })
     } catch (err) {
-      console.error("[LHCI Auth] Login inputs not found after navigation; capturing debug output.")
+      console.error(
+        "[LHCI Auth] Login inputs not found after navigation; capturing debug output."
+      )
       try {
         console.error("[LHCI Auth] Page URL:", page.url())
         const html = await page.content()
@@ -85,8 +97,13 @@ module.exports = async function lhciAuth(browser) {
         // ignore
       }
       try {
-        await page.screenshot({ path: "lhci-login-no-inputs.png", fullPage: true })
-        console.error("[LHCI Auth] Saved screenshot to lhci-login-no-inputs.png for debugging.")
+        await page.screenshot({
+          path: "lhci-login-no-inputs.png",
+          fullPage: true
+        })
+        console.error(
+          "[LHCI Auth] Saved screenshot to lhci-login-no-inputs.png for debugging."
+        )
       } catch {
         // ignore
       }
@@ -117,7 +134,10 @@ module.exports = async function lhciAuth(browser) {
 
     // Verify login by waiting for the unauthenticated "Sign In" link to disappear.
     try {
-      await page.waitForSelector('a[href="/login"]', { hidden: true, timeout: 8_000 })
+      await page.waitForSelector('a[href="/login"]', {
+        hidden: true,
+        timeout: 8_000
+      })
       console.log(`[LHCI Auth] Login succeeded; landed on ${page.url()}`)
     } catch (err) {
       console.error(
@@ -125,8 +145,13 @@ module.exports = async function lhciAuth(browser) {
         err
       )
       try {
-        await page.screenshot({ path: "lhci-login-failure.png", fullPage: true })
-        console.error("[LHCI Auth] Saved screenshot to lhci-login-failure.png for debugging.")
+        await page.screenshot({
+          path: "lhci-login-failure.png",
+          fullPage: true
+        })
+        console.error(
+          "[LHCI Auth] Saved screenshot to lhci-login-failure.png for debugging."
+        )
       } catch {
         // ignore screenshot failure
       }

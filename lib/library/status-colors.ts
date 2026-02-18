@@ -1,7 +1,8 @@
 import type {
   OwnershipStatus,
   ReadingStatus,
-  TitleType} from "@/lib/types/database"
+  TitleType
+} from "@/lib/types/database"
 
 /** Badge color mapping per series title type. */
 export const SERIES_TYPE_COLORS: Record<TitleType, string> = {

@@ -1,5 +1,6 @@
-import type React from "react"
 import Link from "next/link"
+import type React from "react"
+
 import type { SeriesInsightData } from "@/lib/library/series-insights"
 
 /**

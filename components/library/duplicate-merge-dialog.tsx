@@ -1,6 +1,11 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
+import { toast } from "sonner"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -8,19 +13,15 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { useLibrary } from "@/lib/hooks/use-library"
-import {
-  useLibraryStore,
-  selectAllSeries,
-  selectAllUnassignedVolumes
-} from "@/lib/store/library-store"
 import { normalizeIsbn } from "@/lib/books/isbn"
+import { useLibrary } from "@/lib/hooks/use-library"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
-import { toast } from "sonner"
+import {
+  selectAllSeries,
+  selectAllUnassignedVolumes,
+  useLibraryStore
+} from "@/lib/store/library-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 type VolumeRef = {

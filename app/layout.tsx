@@ -1,16 +1,18 @@
+import "./globals.css"
+
 import type { Metadata } from "next"
 import {
-  Playfair_Display,
-  Lora,
   Crimson_Text,
-  Source_Serif_4,
-  Plus_Jakarta_Sans,
+  DM_Sans,
   Inter,
-  DM_Sans
+  Lora,
+  Playfair_Display,
+  Plus_Jakarta_Sans,
+  Source_Serif_4
 } from "next/font/google"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+
 import { SettingsApplier } from "@/components/settings-applier"
+import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 
 /** Playfair Display serif font for headings. @source */

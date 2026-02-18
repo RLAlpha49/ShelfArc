@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test"
+
 import {
   sanitizeHtml,
   sanitizeOptionalHtml,
-  sanitizePlainText,
-  sanitizeOptionalPlainText
+  sanitizeOptionalPlainText,
+  sanitizePlainText
 } from "@/lib/sanitize-html"
 
 describe("sanitizeHtml", () => {

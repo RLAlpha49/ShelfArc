@@ -1,19 +1,13 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { useSettingsStore } from "@/lib/store/settings-store"
+import { useState } from "react"
+
+import { logout } from "@/app/auth/actions"
+import { NotificationBell } from "@/components/notification-bell"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger
-} from "@/components/ui/sheet"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,9 +15,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { logout } from "@/app/auth/actions"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger
+} from "@/components/ui/sheet"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
-import { NotificationBell } from "@/components/notification-bell"
+import { cn } from "@/lib/utils"
 
 /** Props for the {@link SidebarNav} component. @source */
 interface SidebarNavProps {

@@ -5,13 +5,13 @@ import { SwipeableCard } from "@/components/library/swipeable-card"
 import { VolumeActionsMenu } from "@/components/library/volume-actions-menu"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { buildAmazonSearchUrl } from "@/lib/books/amazon-query"
 import {
   OwnershipBadge,
   ReadingStatusBadge
 } from "@/components/ui/status-badge"
-import { normalizeVolumeTitle } from "@/lib/normalize-title"
+import { buildAmazonSearchUrl } from "@/lib/books/amazon-query"
 import type { VolumeWithSeries } from "@/lib/hooks/use-library-filters"
+import { normalizeVolumeTitle } from "@/lib/normalize-title"
 
 export interface VolumeListItemProps {
   readonly item: VolumeWithSeries

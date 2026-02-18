@@ -1,4 +1,6 @@
 import { type NextRequest } from "next/server"
+
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import {
@@ -10,16 +12,15 @@ import {
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 import {
-  sanitizePlainText,
   sanitizeOptionalHtml,
-  sanitizeOptionalPlainText
+  sanitizeOptionalPlainText,
+  sanitizePlainText
 } from "@/lib/sanitize-html"
 import {
-  isValidTitleType,
+  isPositiveInteger,
   isValidSeriesStatus,
-  isPositiveInteger
+  isValidTitleType
 } from "@/lib/validation"
-import { recordActivityEvent } from "@/lib/activity/record-event"
 
 export const dynamic = "force-dynamic"
 

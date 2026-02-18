@@ -1,7 +1,9 @@
 import "server-only"
+
 import { createServerClient } from "@supabase/ssr"
-import type { Database } from "@/lib/types/database"
+
 import { logger } from "@/lib/logger"
+import type { Database } from "@/lib/types/database"
 
 /**
  * Options for creating an admin Supabase client that bypasses RLS.

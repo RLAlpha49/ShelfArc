@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+
 import type { ActivityEvent, ActivityEventType } from "@/lib/types/database"
 
 function formatRelativeTime(dateStr: string): string {

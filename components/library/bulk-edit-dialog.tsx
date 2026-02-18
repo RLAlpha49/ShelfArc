@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useCallback, useState } from "react"
+
 import { Button } from "@/components/ui/button"
+import {
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog"
 import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
 import {
   Select,
@@ -19,10 +20,10 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import type {
-  TitleType,
-  SeriesStatus,
   OwnershipStatus,
   ReadingStatus,
+  SeriesStatus,
+  TitleType,
   VolumeEdition,
   VolumeFormat
 } from "@/lib/types/database"

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+
 import { makeNextRequest, readJson } from "./test-utils"
 
 const getUserMock = mock(
@@ -7,8 +8,8 @@ const getUserMock = mock(
   })
 )
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const limitMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: [{ title: "Alpha" }, { title: "Beta" }, { title: "alpha" }],
     error: null

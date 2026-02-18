@@ -1,10 +1,10 @@
 "use client"
 
 import { useMemo } from "react"
-import { useSettingsStore } from "@/lib/store/settings-store"
+
+import { CoverImage } from "@/components/library/cover-image"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { CoverImage } from "@/components/library/cover-image"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { TypeBadge } from "@/components/ui/status-badge"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 /** Props for the {@link SeriesCard} component. @source */

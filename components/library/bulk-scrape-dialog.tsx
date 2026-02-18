@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -9,11 +11,10 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import {
   Tooltip,
   TooltipContent,
@@ -21,13 +22,13 @@ import {
   TooltipTrigger
 } from "@/components/ui/tooltip"
 import {
-  useBulkScrape,
   type BulkScrapeMode,
+  useBulkScrape,
   type VolumeJobStatus
 } from "@/lib/hooks/use-bulk-scrape"
+import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /** Props for the {@link BulkScrapeDialog} component. @source */

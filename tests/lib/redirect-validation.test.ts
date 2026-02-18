@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test"
+
 import { ALLOWED_REDIRECT_PREFIXES } from "@/lib/auth/constants"
 
 describe("ALLOWED_REDIRECT_PREFIXES", () => {

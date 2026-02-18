@@ -1,6 +1,14 @@
 "use client"
 
 import { useCallback, useMemo } from "react"
+
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import {
   DASHBOARD_WIDGETS,
@@ -8,13 +16,6 @@ import {
   type DashboardWidgetId,
   type DashboardWidgetMeta
 } from "@/lib/store/settings-store"
-import { Button } from "@/components/ui/button"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/popover"
-import { Checkbox } from "@/components/ui/checkbox"
 
 const COLUMN_LABELS: Record<DashboardWidgetColumn, string> = {
   full: "Full Width",

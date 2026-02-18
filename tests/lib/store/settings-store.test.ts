@@ -1,4 +1,5 @@
-import { describe, expect, it, beforeEach } from "bun:test"
+import { beforeEach, describe, expect, it } from "bun:test"
+
 import { useSettingsStore } from "@/lib/store/settings-store"
 
 /* ------------------------------------------------------------------ */

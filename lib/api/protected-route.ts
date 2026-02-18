@@ -1,12 +1,13 @@
-import type { NextRequest } from "next/server"
 import type { SupabaseClient, User } from "@supabase/supabase-js"
-import type { Database } from "@/lib/types/database"
-import { createUserClient } from "@/lib/supabase/server"
+import type { NextRequest } from "next/server"
+
 import { apiError } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
-import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { logger } from "@/lib/logger"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { createUserClient } from "@/lib/supabase/server"
+import type { Database } from "@/lib/types/database"
 
 export type RateLimitPreset = {
   maxHits: number

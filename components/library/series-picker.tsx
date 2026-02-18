@@ -1,6 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
+
+import { CoverImage } from "@/components/library/cover-image"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -8,13 +12,10 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { CoverImage } from "@/components/library/cover-image"
-import { cn } from "@/lib/utils"
 import { TypeBadge } from "@/components/ui/status-badge"
 import type { SeriesWithVolumes } from "@/lib/types/database"
+import { cn } from "@/lib/utils"
 
 /** Props for the {@link SeriesPicker} sub-dialog. @source */
 export interface SeriesPickerProps {

@@ -4,7 +4,8 @@ import {
   Calendar01Icon,
   Dollar01Icon,
   FavouriteIcon,
-  ShoppingBag01Icon} from "@hugeicons/core-free-icons"
+  ShoppingBag01Icon
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
@@ -21,7 +22,8 @@ import {
   computeWishlistStats,
   getCurrentlyReading,
   getRecentSeries,
-  getRecentVolumes} from "@/lib/library/analytics"
+  getRecentVolumes
+} from "@/lib/library/analytics"
 import { computeHealthScore } from "@/lib/library/health-score"
 import { createUserClient } from "@/lib/supabase/server"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"

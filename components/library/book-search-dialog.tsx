@@ -1,5 +1,6 @@
 "use client"
 
+import { useVirtualizer } from "@tanstack/react-virtual"
 import {
   useCallback,
   useDeferredValue,
@@ -8,27 +9,8 @@ import {
   useRef,
   useState
 } from "react"
-import { useVirtualizer } from "@tanstack/react-virtual"
-import {
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog"
-import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
+
+import { CoverImage } from "@/components/library/cover-image"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,25 +21,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import {
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { searchBooks } from "@/lib/api/endpoints"
+import { normalizeIsbn } from "@/lib/books/isbn"
 import {
   type BookSearchResult,
   type BookSearchSource
 } from "@/lib/books/search"
-import { searchBooks } from "@/lib/api/endpoints"
-import { normalizeIsbn } from "@/lib/books/isbn"
-import { CoverImage } from "@/components/library/cover-image"
-import { useSettingsStore } from "@/lib/store/settings-store"
-import {
-  useLibraryStore,
-  selectAllSeries,
-  selectAllUnassignedVolumes
-} from "@/lib/store/library-store"
 import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import {
-  findDuplicateCandidates,
   DUPLICATE_REASON_LABELS,
-  type DuplicateCandidate
+  type DuplicateCandidate,
+  findDuplicateCandidates
 } from "@/lib/library/duplicate-detection"
+import {
+  selectAllSeries,
+  selectAllUnassignedVolumes,
+  useLibraryStore
+} from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { OwnershipStatus } from "@/lib/types/database"
 
 /** Whether the search dialog is used to add a series or a volume. @source */

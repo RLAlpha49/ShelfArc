@@ -1,7 +1,9 @@
 import "server-only"
-import { createServerClient } from "@supabase/ssr"
+
 import type { SetAllCookies } from "@supabase/ssr"
+import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+
 import type { Database } from "@/lib/types/database"
 
 /** Reads the Supabase project URL from environment variables. @source */

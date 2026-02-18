@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio"
 import type { Element } from "domhandler"
+
 import { ApiError } from "@/lib/books/price/api-error"
 
 type DebugLog = (...args: Parameters<typeof console.debug>) => void

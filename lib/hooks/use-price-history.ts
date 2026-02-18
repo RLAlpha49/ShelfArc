@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import type { PriceHistory, PriceAlert } from "@/lib/types/database"
+
+import type { PriceAlert, PriceHistory } from "@/lib/types/database"
 
 /** Persist a price entry via the API (standalone, no hook needed). */
 export async function persistPriceEntry(

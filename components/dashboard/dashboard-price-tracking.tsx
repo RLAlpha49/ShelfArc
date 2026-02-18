@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+
 import type { PriceBreakdown } from "@/lib/library/analytics"
 
 interface DashboardPriceTrackingProps {

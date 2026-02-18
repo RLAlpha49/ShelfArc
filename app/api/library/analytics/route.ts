@@ -1,15 +1,16 @@
 import { type NextRequest } from "next/server"
-import { apiError, apiSuccess } from "@/lib/api-response"
-import { getCorrelationId } from "@/lib/correlation"
-import { logger } from "@/lib/logger"
+
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
+import { apiError, apiSuccess } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
 import {
   computeCollectionStats,
   computePriceBreakdown,
   computeWishlistStats
 } from "@/lib/library/analytics"
 import { computeHealthScore } from "@/lib/library/health-score"
+import { logger } from "@/lib/logger"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 export const dynamic = "force-dynamic"

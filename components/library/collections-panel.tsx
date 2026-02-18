@@ -1,16 +1,15 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { useCallback, useState } from "react"
+
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
-  DialogTitle,
-  DialogFooter
+  DialogTitle
 } from "@/components/ui/dialog"
 import {
   DropdownMenu,
@@ -18,10 +17,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
-  useCollectionsStore,
   COLLECTION_COLORS,
-  MAX_COLLECTIONS
+  MAX_COLLECTIONS,
+  useCollectionsStore
 } from "@/lib/store/collections-store"
 
 /** Collapsible panel displaying custom collections as filter chips. @source */
