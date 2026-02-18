@@ -1,19 +1,19 @@
 "use client"
 
+import { usePathname,useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useRef } from "react"
-import { useSearchParams, useRouter, usePathname } from "next/navigation"
-import { useLibraryStore } from "@/lib/store/library-store"
+
 import type {
+  CollectionView,
   SortField,
   SortOrder,
-  CollectionView,
   ViewMode
 } from "@/lib/store/library-store"
+import { useLibraryStore } from "@/lib/store/library-store"
 import type {
-  TitleType,
   OwnershipStatus,
-  ReadingStatus
-} from "@/lib/types/database"
+  ReadingStatus,
+  TitleType} from "@/lib/types/database"
 
 const VALID_TYPES = new Set(["all", "manga", "light_novel", "other"])
 const VALID_OWNERSHIP = new Set(["all", "owned", "wishlist"])
@@ -65,7 +65,8 @@ function applyUrlToStore(searchParams: URLSearchParams) {
     "sort",
     "order",
     "view",
-    "mode"
+    "mode",
+    "preset"
   ]
   if (!PARAM_KEYS.some((key) => searchParams.has(key))) return
 
@@ -125,6 +126,9 @@ function applyUrlToStore(searchParams: URLSearchParams) {
 
   const mode = getValidParam<ViewMode>(searchParams, "mode", VALID_VIEW_MODES)
   if (mode) store.setViewMode(mode)
+
+  const preset = searchParams.get("preset")
+  if (preset) store.applyFilterPreset(preset)
 }
 
 const URL_DEBOUNCE_MS = 150
@@ -152,6 +156,8 @@ function buildUrlFromState(
   if (state.collectionView !== DEFAULT_COLLECTION_VIEW)
     params.set("view", state.collectionView)
   if (state.viewMode !== DEFAULT_VIEW_MODE) params.set("mode", state.viewMode)
+  if (state.activeFilterPresetId)
+    params.set("preset", state.activeFilterPresetId)
 
   const search = params.toString()
   return search ? `${pathname}?${search}` : pathname
