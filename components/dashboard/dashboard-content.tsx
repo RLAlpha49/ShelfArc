@@ -14,6 +14,7 @@ import { RecommendationsCard } from "@/components/library/recommendations-card"
 import { CollectionHealthCard } from "@/components/dashboard/collection-health-card"
 import { RecentActivityCard } from "@/components/dashboard/recent-activity-card"
 import { DashboardLayoutCustomizer } from "@/components/dashboard/dashboard-layout-customizer"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { WidgetSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import type {
   CollectionStats,
@@ -775,7 +776,9 @@ export function DashboardContent({
           className="animate-fade-in-up"
           style={{ animationDelay: `${(i + 1) * 75}ms` }}
         >
-          {renderWidget(id)}
+          <ErrorBoundary>
+            {renderWidget(id)}
+          </ErrorBoundary>
         </div>
       ))}
 
@@ -792,7 +795,9 @@ export function DashboardContent({
                     animationDelay: `${(i + fullWidgets.length + 2) * 75}ms`
                   }}
                 >
-                  {renderWidget(id)}
+                  <ErrorBoundary>
+                    {renderWidget(id)}
+                  </ErrorBoundary>
                 </div>
               ))}
             </div>
@@ -807,7 +812,9 @@ export function DashboardContent({
                     animationDelay: `${(i + fullWidgets.length + leftWidgets.length + 2) * 75}ms`
                   }}
                 >
-                  {renderWidget(id)}
+                  <ErrorBoundary>
+                    {renderWidget(id)}
+                  </ErrorBoundary>
                 </div>
               ))}
             </div>

@@ -61,6 +61,8 @@ import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import { announce } from "@/components/live-announcer"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { toast } from "sonner"
 
 import {
@@ -148,6 +150,8 @@ export default function LibraryPage() {
     const completionRate = totalVolumes > 0 ? Math.round((read / totalVolumes) * 100) : 0
     return { totalVolumes, owned, wishlist, read, inProgress, completionRate }
   }, [series])
+
+  const libraryHeadingRef = useRef<HTMLHeadingElement>(null)
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [seriesDialogOpen, setSeriesDialogOpen] = useState(false)
@@ -609,6 +613,14 @@ export default function LibraryPage() {
   }, [selectedVolumeIds, volumeLookup, removeVolume])
 
   const performBulkDelete = useCallback(async () => {
+    const count = collectionView === "series"
+      ? selectedSeriesIds.size
+      : selectedVolumeIds.size
+    const suffix = count === 1 ? "" : "s"
+    const label = collectionView === "series"
+      ? "series"
+      : `book${suffix}`
+
     if (collectionView === "series") {
       await deleteSelectedSeries()
     } else {
@@ -617,11 +629,15 @@ export default function LibraryPage() {
 
     clearSelection()
     setBulkDeleteDialogOpen(false)
+    announce(`${count} ${label} deleted`, "assertive")
+    libraryHeadingRef.current?.focus()
   }, [
     collectionView,
     deleteSelectedSeries,
     deleteSelectedVolumes,
-    clearSelection
+    clearSelection,
+    selectedSeriesIds.size,
+    selectedVolumeIds.size
   ])
 
   const handleBulkDelete = useCallback(() => {
@@ -697,8 +713,10 @@ export default function LibraryPage() {
     try {
       await removeSeries(deletingSeries.id)
       toast.success("Series deleted successfully")
+      announce("Series deleted", "assertive")
       setDeletingSeries(null)
       setDeleteDialogOpen(false)
+      libraryHeadingRef.current?.focus()
     } catch {
       toast.error("Failed to delete series")
     }
@@ -735,8 +753,10 @@ export default function LibraryPage() {
     try {
       await removeVolume(deletingVolume.series_id ?? null, deletingVolume.id)
       toast.success("Book deleted successfully")
+      announce("Book deleted", "assertive")
       setDeletingVolume(null)
       setDeleteVolumeDialogOpen(false)
+      libraryHeadingRef.current?.focus()
     } catch {
       toast.error("Failed to delete book")
     }
@@ -1436,7 +1456,11 @@ export default function LibraryPage() {
           <span className="text-muted-foreground mb-3 block text-xs tracking-widest uppercase">
             Collection
           </span>
-          <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+          <h1
+            ref={libraryHeadingRef}
+            tabIndex={-1}
+            className="font-display text-3xl font-bold tracking-tight outline-none md:text-4xl"
+          >
             My{" "}
             <span className="text-gradient from-copper to-gold bg-linear-to-r">
               Library
@@ -1565,7 +1589,9 @@ export default function LibraryPage() {
       />
 
       <div className="my-8 border-t" />
-      <div>{renderContent()}</div>
+      <ErrorBoundary>
+        <div>{renderContent()}</div>
+      </ErrorBoundary>
 
       <Suspense fallback={null}>
         <BookSearchDialog

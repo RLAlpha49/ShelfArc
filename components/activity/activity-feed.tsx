@@ -42,7 +42,11 @@ export function ActivityFeed() {
     <div>
       {/* Filter */}
       <div className="mb-6 flex items-center gap-2">
+        <label htmlFor="activity-type-filter" className="sr-only">
+          Filter by event type
+        </label>
         <select
+          id="activity-type-filter"
           value={selectedType ?? ""}
           onChange={(e) =>
             setSelectedType((e.target.value as ActivityEventType) || undefined)

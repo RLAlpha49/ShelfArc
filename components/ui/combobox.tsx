@@ -58,6 +58,7 @@ function ComboboxClear({
       data-slot="combobox-clear"
       render={<InputGroupButton variant="ghost" size="icon-xs" />}
       className={cn(className)}
+      aria-label="Clear"
       {...props}
     >
       <HugeiconsIcon
@@ -310,6 +311,7 @@ function ComboboxChip({
           render={<Button variant="ghost" size="icon-xs" />}
           className="-ml-1 opacity-50 hover:opacity-100"
           data-slot="combobox-chip-remove"
+          aria-label="Remove"
         >
           <HugeiconsIcon
             icon={Cancel01Icon}

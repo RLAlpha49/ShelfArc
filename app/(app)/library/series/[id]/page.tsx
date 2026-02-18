@@ -40,6 +40,8 @@ import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { sanitizeHtml } from "@/lib/sanitize-html"
+import { announce } from "@/components/live-announcer"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -129,6 +131,7 @@ export default function SeriesDetailPage() {
     () => new Set()
   )
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const seriesHeadingRef = useRef<HTMLDivElement>(null)
   const isDeletingSeriesRef = useRef(false)
 
   const currentSeries =
@@ -275,6 +278,7 @@ export default function SeriesDetailPage() {
     try {
       await removeVolume(deletingVolume.series_id, deletingVolume.id)
       toast.success("Volume deleted successfully")
+      announce("Volume deleted", "assertive")
     } catch (err) {
       toast.error(`Failed to delete volume: ${getErrorMessage(err)}`)
     } finally {
@@ -289,6 +293,7 @@ export default function SeriesDetailPage() {
     try {
       await removeSeries(currentSeries.id)
       toast.success("Series deleted successfully")
+      announce("Series deleted", "assertive")
       router.push("/library")
       return true
     } catch (err) {
@@ -647,10 +652,13 @@ export default function SeriesDetailPage() {
   }, [currentSeries, selectedVolumeIds, removeVolume])
 
   const performBulkDelete = useCallback(async () => {
+    const count = selectedVolumeIds.size
     await deleteSelectedVolumes()
     clearSelection()
     setBulkDeleteDialogOpen(false)
-  }, [deleteSelectedVolumes, clearSelection])
+    announce(`${count} volume${count === 1 ? "" : "s"} deleted`, "assertive")
+    seriesHeadingRef.current?.focus()
+  }, [deleteSelectedVolumes, clearSelection, selectedVolumeIds.size])
 
   const handleBulkDelete = useCallback(() => {
     if (selectedCount === 0) return
@@ -774,7 +782,9 @@ export default function SeriesDetailPage() {
         ]}
       />
 
-      <SeriesHeaderSection
+      <div ref={seriesHeadingRef} tabIndex={-1} className="outline-none">
+        <ErrorBoundary>
+          <SeriesHeaderSection
         currentSeries={currentSeries}
         insights={insights}
         primaryIsbn={primaryIsbn}
@@ -785,10 +795,13 @@ export default function SeriesDetailPage() {
         onApplyAllOwnership={applyAllVolumesOwnership}
         onApplyAllReading={applyAllVolumesReadingStatus}
       />
+        </ErrorBoundary>
+      </div>
 
       <div className="my-10 border-t" />
 
-      <SeriesVolumesSection
+      <ErrorBoundary>
+        <SeriesVolumesSection
         currentSeries={currentSeries}
         selectedVolumeIds={selectedVolumeIds}
         selectedCount={selectedCount}
@@ -812,6 +825,7 @@ export default function SeriesDetailPage() {
         onSetRating={handleSetRating}
         onSelectVolume={toggleVolumeSelection}
       />
+      </ErrorBoundary>
 
       {/* Book Search Dialog */}
       <Suspense fallback={null}>

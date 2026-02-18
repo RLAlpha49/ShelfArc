@@ -19,6 +19,8 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { formatDate } from "@/lib/format-date"
 import { sanitizeHtml } from "@/lib/sanitize-html"
+import { announce } from "@/components/live-announcer"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -287,6 +289,7 @@ export default function VolumeDetailPage() {
     try {
       await removeVolume(currentVolume.series_id ?? null, currentVolume.id)
       toast.success("Volume deleted successfully")
+      announce("Volume deleted", "assertive")
       setDeleteDialogOpen(false)
       router.push("/library")
     } catch (error) {
@@ -589,12 +592,14 @@ export default function VolumeDetailPage() {
             )}
 
             {/* Price History */}
-            <div className="animate-fade-in-up stagger-5">
-              <PriceHistoryCard
-                volumeId={currentVolume.id}
-                currency={priceDisplayCurrency}
-              />
-            </div>
+            <ErrorBoundary>
+              <div className="animate-fade-in-up stagger-5">
+                <PriceHistoryCard
+                  volumeId={currentVolume.id}
+                  currency={priceDisplayCurrency}
+                />
+              </div>
+            </ErrorBoundary>
 
             {/* Notes */}
             {currentVolume.notes && (

@@ -305,6 +305,7 @@ export function LibraryToolbar({
 
             <Button
               onClick={onAddBook}
+              aria-label="Add Book"
               className="shrink-0 rounded-xl shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
             >
               <svg
@@ -326,6 +327,7 @@ export function LibraryToolbar({
             <Button
               variant="outline"
               onClick={onAddSeries}
+              aria-label="Add Series"
               className="shrink-0 rounded-xl shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
             >
               <svg
@@ -349,6 +351,7 @@ export function LibraryToolbar({
                 variant="ghost"
                 size="sm"
                 onClick={onFindDuplicates}
+                aria-label="Find Duplicates"
                 className="text-muted-foreground hover:text-foreground shrink-0 rounded-xl text-xs"
               >
                 <svg
