@@ -37,7 +37,12 @@ import {
 } from "@/lib/store/library-store"
 import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import type { Volume, VolumeInsert } from "@/lib/types/database"
+import type {
+  OwnershipStatus,
+  ReadingStatus,
+  Volume,
+  VolumeInsert
+} from "@/lib/types/database"
 
 /**
  * Converts a snake_case reading status to a capitalized label.
@@ -124,7 +129,7 @@ const VolumeStatsStrip = ({
       </div>
       <div className="text-muted-foreground text-[10px]">
         {volume.rating !== null && volume.rating !== undefined
-          ? `${"★".repeat(Math.round(volume.rating / 2))}${"☆".repeat(5 - Math.round(volume.rating / 2))}`
+          ? "rating"
           : "not rated"}
       </div>
     </div>
@@ -210,6 +215,7 @@ export default function VolumeDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [ctaLoading, setCtaLoading] = useState<"read" | "wishlist" | null>(null)
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
   )
@@ -284,6 +290,34 @@ export default function VolumeDetailPage() {
       setIsDeleting(false)
     }
   }
+
+  const handleToggleReadStatus = useCallback(async () => {
+    if (!currentVolume || ctaLoading) return
+    const nextStatus: ReadingStatus =
+      currentVolume.reading_status === "completed" ? "unread" : "completed"
+    setCtaLoading("read")
+    try {
+      await editVolume(currentVolume.series_id ?? null, currentVolume.id, {
+        reading_status: nextStatus
+      })
+    } finally {
+      setCtaLoading(null)
+    }
+  }, [currentVolume, ctaLoading, editVolume])
+
+  const handleToggleWishlist = useCallback(async () => {
+    if (!currentVolume || ctaLoading) return
+    const nextOwnership: OwnershipStatus =
+      currentVolume.ownership_status === "wishlist" ? "owned" : "wishlist"
+    setCtaLoading("wishlist")
+    try {
+      await editVolume(currentVolume.series_id ?? null, currentVolume.id, {
+        ownership_status: nextOwnership
+      })
+    } finally {
+      setCtaLoading(null)
+    }
+  }, [currentVolume, ctaLoading, editVolume])
 
   const openEditDialog = useCallback(() => {
     if (!currentVolume) return
@@ -533,6 +567,32 @@ export default function VolumeDetailPage() {
                 publishedLabel={publishedLabel}
                 purchaseDateLabel={purchaseDateLabel}
               />
+            </div>
+
+            {/* Inline CTAs */}
+            <div className="animate-fade-in-up stagger-2 flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleToggleReadStatus}
+                disabled={ctaLoading === "read"}
+                className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+              >
+                {currentVolume.reading_status === "completed"
+                  ? "Mark as Unread"
+                  : "Mark as Read"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleToggleWishlist}
+                disabled={ctaLoading === "wishlist"}
+                className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
+              >
+                {currentVolume.ownership_status === "wishlist"
+                  ? "Remove from Wishlist"
+                  : "Add to Wishlist"}
+              </Button>
             </div>
 
             {/* Details panel */}

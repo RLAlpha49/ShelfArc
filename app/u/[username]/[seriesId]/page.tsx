@@ -270,8 +270,8 @@ export default async function PublicSeriesPage({ params }: Props) {
                         )}
                       </div>
                       {vol.rating != null && (
-                        <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">
-                          {"★".repeat(Math.min(vol.rating, 5))}
+                        <p className="mt-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                          {vol.rating}/10
                         </p>
                       )}
                     </div>
