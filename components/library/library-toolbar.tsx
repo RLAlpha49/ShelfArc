@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/sheet"
 import { FilterPresetsControl } from "@/components/library/filter-presets-control"
 import { TagFilterControl } from "@/components/library/tag-filter-control"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, selectAllSeries } from "@/lib/store/library-store"
 import type { SortField } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
@@ -63,7 +63,8 @@ interface FilterControlsProps {
 }
 
 function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
-  const { filters, setFilters, resetFilters, series } = useLibraryStore()
+  const series = useLibraryStore(selectAllSeries)
+  const { filters, setFilters, resetFilters } = useLibraryStore()
 
   const availableTags = useMemo(() => {
     const tagSet = new Set<string>()
