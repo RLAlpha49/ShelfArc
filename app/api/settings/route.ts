@@ -100,12 +100,6 @@ export async function PATCH(request: NextRequest) {
 
     const incoming = body.settings
 
-    if (JSON.stringify(incoming).length > MAX_SETTINGS_SIZE) {
-      return apiError(400, "Settings payload exceeds 10 KB limit", {
-        correlationId
-      })
-    }
-
     // Fetch current settings for shallow merge
     const { data: existing, error: fetchError } = await supabase
       .from("profiles")
@@ -123,6 +117,12 @@ export async function PATCH(request: NextRequest) {
     const merged = {
       ...existing?.settings,
       ...incoming
+    }
+
+    if (JSON.stringify(merged).length > MAX_SETTINGS_SIZE) {
+      return apiError(400, "Settings payload exceeds 10 KB limit", {
+        correlationId
+      })
     }
 
     const { error: updateError } = await supabase
