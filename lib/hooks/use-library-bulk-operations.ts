@@ -4,6 +4,7 @@ import { useCallback } from "react"
 import { toast } from "sonner"
 
 import { announce } from "@/components/live-announcer"
+import { batchedAllSettled } from "@/lib/concurrency/limiter"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
@@ -63,8 +64,8 @@ export function useLibraryBulkOperations({
     async (nextType: TitleType) => {
       if (selectedSeriesIds.size === 0) return
       const targets = Array.from(selectedSeriesIds)
-      const results = await Promise.allSettled(
-        targets.map((id) => editSeries(id, { type: nextType }))
+      const results = await batchedAllSettled(
+        targets.map((id) => () => editSeries(id, { type: nextType }))
       )
       const { successCount, failureCount } = countResults(results)
       if (successCount > 0) {
@@ -92,11 +93,12 @@ export function useLibraryBulkOperations({
         }
       }
       if (targetVolumes.length === 0) return
-      const results = await Promise.allSettled(
-        targetVolumes.map((volume) =>
-          editVolume(volume.series_id ?? null, volume.id, {
-            ownership_status: status
-          })
+      const results = await batchedAllSettled(
+        targetVolumes.map(
+          (volume) => () =>
+            editVolume(volume.series_id ?? null, volume.id, {
+              ownership_status: status
+            })
         )
       )
       const { successCount, failureCount } = countResults(results)
@@ -125,16 +127,17 @@ export function useLibraryBulkOperations({
         }
       }
       if (targetVolumes.length === 0) return
-      const results = await Promise.allSettled(
-        targetVolumes.map((volume) =>
-          editVolume(volume.series_id ?? null, volume.id, {
-            reading_status: status,
-            ...(status === "completed" &&
-            volume.page_count &&
-            volume.page_count > 0
-              ? { current_page: volume.page_count }
-              : {})
-          })
+      const results = await batchedAllSettled(
+        targetVolumes.map(
+          (volume) => () =>
+            editVolume(volume.series_id ?? null, volume.id, {
+              reading_status: status,
+              ...(status === "completed" &&
+              volume.page_count &&
+              volume.page_count > 0
+                ? { current_page: volume.page_count }
+                : {})
+            })
         )
       )
       const { successCount, failureCount } = countResults(results)
@@ -158,11 +161,12 @@ export function useLibraryBulkOperations({
       const targets = Array.from(selectedVolumeIds)
         .map((id) => volumeLookup.get(id))
         .filter((volume): volume is Volume => Boolean(volume))
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(volume.series_id ?? null, volume.id, {
-            ownership_status: status
-          })
+      const results = await batchedAllSettled(
+        targets.map(
+          (volume) => () =>
+            editVolume(volume.series_id ?? null, volume.id, {
+              ownership_status: status
+            })
         )
       )
       const { successCount, failureCount } = countResults(results)
@@ -186,16 +190,17 @@ export function useLibraryBulkOperations({
       const targets = Array.from(selectedVolumeIds)
         .map((id) => volumeLookup.get(id))
         .filter((volume): volume is Volume => Boolean(volume))
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(volume.series_id ?? null, volume.id, {
-            reading_status: status,
-            ...(status === "completed" &&
-            volume.page_count &&
-            volume.page_count > 0
-              ? { current_page: volume.page_count }
-              : {})
-          })
+      const results = await batchedAllSettled(
+        targets.map(
+          (volume) => () =>
+            editVolume(volume.series_id ?? null, volume.id, {
+              reading_status: status,
+              ...(status === "completed" &&
+              volume.page_count &&
+              volume.page_count > 0
+                ? { current_page: volume.page_count }
+                : {})
+            })
         )
       )
       const { successCount, failureCount } = countResults(results)
@@ -216,8 +221,8 @@ export function useLibraryBulkOperations({
   const deleteSelectedSeries = useCallback(async () => {
     const targets = Array.from(selectedSeriesIds)
     if (targets.length === 0) return
-    const results = await Promise.allSettled(
-      targets.map((id) => removeSeries(id))
+    const results = await batchedAllSettled(
+      targets.map((id) => () => removeSeries(id))
     )
     const { successCount, failureCount } = countResults(results)
     if (successCount > 0) {
@@ -237,8 +242,10 @@ export function useLibraryBulkOperations({
       .map((id) => volumeLookup.get(id))
       .filter((volume): volume is Volume => Boolean(volume))
     if (targets.length === 0) return
-    const results = await Promise.allSettled(
-      targets.map((volume) => removeVolume(volume.series_id ?? null, volume.id))
+    const results = await batchedAllSettled(
+      targets.map(
+        (volume) => () => removeVolume(volume.series_id ?? null, volume.id)
+      )
     )
     const { successCount, failureCount } = countResults(results)
     if (successCount > 0) {

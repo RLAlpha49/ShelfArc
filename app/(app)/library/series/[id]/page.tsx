@@ -54,6 +54,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { type BookSearchResult } from "@/lib/books/search"
+import { batchedAllSettled } from "@/lib/concurrency/limiter"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useVolumeActions } from "@/lib/hooks/use-volume-actions"
 import {
@@ -441,8 +442,8 @@ export default function SeriesDetailPage() {
       .filter((volume): volume is Volume => Boolean(volume))
     if (targets.length === 0) return
 
-    const results = await Promise.allSettled(
-      targets.map((volume) => removeVolume(currentSeries.id, volume.id))
+    const results = await batchedAllSettled(
+      targets.map((volume) => () => removeVolume(currentSeries.id, volume.id))
     )
     const successCount = results.filter(
       (result) => result.status === "fulfilled"

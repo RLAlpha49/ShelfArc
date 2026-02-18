@@ -12,9 +12,11 @@ import { LibraryStatsBar } from "@/components/library/library-stats-bar"
 import { LibraryToolbar } from "@/components/library/library-toolbar"
 import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
 import { announce } from "@/components/live-announcer"
+import { SyncIndicator } from "@/components/ui/sync-indicator"
 import { AMAZON_BINDING_LABELS } from "@/lib/books/amazon-query"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import type { BookSearchResult } from "@/lib/books/search"
+import { batchedAllSettled } from "@/lib/concurrency/limiter"
 import { LibraryActionsProvider } from "@/lib/context/library-actions-context"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryBulkOperations } from "@/lib/hooks/use-library-bulk-operations"
@@ -49,6 +51,7 @@ export default function LibraryPage() {
     filteredVolumes,
     filteredUnassignedVolumes,
     isLoading,
+    seriesProgress,
     fetchSeries,
     createSeries,
     editSeries,
@@ -329,9 +332,10 @@ export default function LibraryPage() {
     async (targetSeriesId: string) => {
       if (selectedUnassignedVolumeIds.length === 0) return false
 
-      const results = await Promise.allSettled(
-        selectedUnassignedVolumeIds.map((volumeId) =>
-          editVolume(null, volumeId, { series_id: targetSeriesId })
+      const results = await batchedAllSettled(
+        selectedUnassignedVolumeIds.map(
+          (volumeId) => () =>
+            editVolume(null, volumeId, { series_id: targetSeriesId })
         )
       )
 
@@ -373,9 +377,10 @@ export default function LibraryPage() {
       )
 
       if (volumeIds.length > 0) {
-        const results = await Promise.allSettled(
-          volumeIds.map((volumeId) =>
-            editVolume(null, volumeId, { series_id: createdSeries.id })
+        const results = await batchedAllSettled(
+          volumeIds.map(
+            (volumeId) => () =>
+              editVolume(null, volumeId, { series_id: createdSeries.id })
           )
         )
         const successCount = results.filter(
@@ -544,8 +549,8 @@ export default function LibraryPage() {
     async (changes: Record<string, unknown>) => {
       if (collectionView === "series") {
         const targets = Array.from(selectedSeriesIds)
-        const results = await Promise.allSettled(
-          targets.map((id) => editSeries(id, changes))
+        const results = await batchedAllSettled(
+          targets.map((id) => () => editSeries(id, changes))
         )
         const successCount = results.filter(
           (r) => r.status === "fulfilled"
@@ -557,8 +562,10 @@ export default function LibraryPage() {
         const targets = Array.from(selectedVolumeIds)
           .map((id) => volumeLookup.get(id))
           .filter((v): v is Volume => Boolean(v))
-        const results = await Promise.allSettled(
-          targets.map((v) => editVolume(v.series_id ?? null, v.id, changes))
+        const results = await batchedAllSettled(
+          targets.map(
+            (v) => () => editVolume(v.series_id ?? null, v.id, changes)
+          )
         )
         const successCount = results.filter(
           (r) => r.status === "fulfilled"
@@ -914,6 +921,14 @@ export default function LibraryPage() {
       </div>
 
       {!isLoading && <LibraryStatsBar series={series} />}
+
+      {seriesProgress && (
+        <SyncIndicator
+          active
+          label={`Loading ${seriesProgress.loaded} of ${seriesProgress.total} series…`}
+          className="mb-2"
+        />
+      )}
 
       <CollectionsPanel />
 

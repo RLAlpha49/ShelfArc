@@ -3,6 +3,7 @@
 import { useCallback } from "react"
 import { toast } from "sonner"
 
+import { batchedAllSettled } from "@/lib/concurrency/limiter"
 import type {
   OwnershipStatus,
   ReadingStatus,
@@ -105,9 +106,12 @@ export function useVolumeActions({
         .map((id) => currentSeries.volumes.find((volume) => volume.id === id))
         .filter((volume): volume is Volume => Boolean(volume))
 
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(currentSeries.id, volume.id, { ownership_status: status })
+      const results = await batchedAllSettled(
+        targets.map(
+          (volume) => () =>
+            editVolume(currentSeries.id, volume.id, {
+              ownership_status: status
+            })
         )
       )
       const successCount = results.filter(
@@ -138,16 +142,17 @@ export function useVolumeActions({
         .map((id) => currentSeries.volumes.find((volume) => volume.id === id))
         .filter((volume): volume is Volume => Boolean(volume))
 
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(currentSeries.id, volume.id, {
-            reading_status: status,
-            ...(status === "completed" &&
-            volume.page_count &&
-            volume.page_count > 0
-              ? { current_page: volume.page_count }
-              : {})
-          })
+      const results = await batchedAllSettled(
+        targets.map(
+          (volume) => () =>
+            editVolume(currentSeries.id, volume.id, {
+              reading_status: status,
+              ...(status === "completed" &&
+              volume.page_count &&
+              volume.page_count > 0
+                ? { current_page: volume.page_count }
+                : {})
+            })
         )
       )
       const successCount = results.filter(
@@ -175,9 +180,12 @@ export function useVolumeActions({
       const targets = currentSeries.volumes
       if (targets.length === 0) return
 
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(currentSeries.id, volume.id, { ownership_status: status })
+      const results = await batchedAllSettled(
+        targets.map(
+          (volume) => () =>
+            editVolume(currentSeries.id, volume.id, {
+              ownership_status: status
+            })
         )
       )
       const successCount = results.filter(
@@ -205,16 +213,17 @@ export function useVolumeActions({
       const targets = currentSeries.volumes
       if (targets.length === 0) return
 
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(currentSeries.id, volume.id, {
-            reading_status: status,
-            ...(status === "completed" &&
-            volume.page_count &&
-            volume.page_count > 0
-              ? { current_page: volume.page_count }
-              : {})
-          })
+      const results = await batchedAllSettled(
+        targets.map(
+          (volume) => () =>
+            editVolume(currentSeries.id, volume.id, {
+              reading_status: status,
+              ...(status === "completed" &&
+              volume.page_count &&
+              volume.page_count > 0
+                ? { current_page: volume.page_count }
+                : {})
+            })
         )
       )
       const successCount = results.filter(

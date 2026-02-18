@@ -87,3 +87,44 @@ export class ConcurrencyLimiter {
     }
   }
 }
+
+/**
+ * Client-safe drop-in replacement for `Promise.allSettled` that limits the
+ * number of concurrent in-flight promises to `concurrency` (default 5).
+ *
+ * Unlike `ConcurrencyLimiter` (which is stateful and server-side), this is a
+ * stateless utility safe to call from React hooks or client-side code.
+ *
+ * @param tasks - Array of zero-arg async factories to execute.
+ * @param concurrency - Maximum simultaneous in-flight tasks (default 5).
+ * @returns Settled results in input order, matching `Promise.allSettled` shape.
+ * @source
+ */
+export async function batchedAllSettled<T>(
+  tasks: ReadonlyArray<() => Promise<T>>,
+  concurrency = 5
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length)
+  let nextIndex = 0
+
+  const worker = async () => {
+    while (nextIndex < tasks.length) {
+      const index = nextIndex++
+      const task = tasks[index]
+      if (!task) continue
+      try {
+        const value = await task()
+        results[index] = { status: "fulfilled", value }
+      } catch (error_) {
+        results[index] = { status: "rejected", reason: error_ }
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, tasks.length) },
+    worker
+  )
+  await Promise.all(workers)
+  return results
+}
