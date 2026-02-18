@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createUserClient } from "@/lib/supabase/server"
+
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
+import { logger } from "@/lib/logger"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { createUserClient } from "@/lib/supabase/server"
 import {
   isNonNegativeFinite,
   isValidAmazonUrl,
   isValidCurrencyCode
 } from "@/lib/validation"
-import { getCorrelationId } from "@/lib/correlation"
-import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -22,6 +24,16 @@ export async function GET(request: NextRequest) {
       data: { user }
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated", { correlationId })
+
+    const rl = await consumeDistributedRateLimit({
+      key: `history-read:${user.id}`,
+      maxHits: 60,
+      windowMs: 60_000,
+      cooldownMs: 30_000,
+      reason: "Rate limit price history reads"
+    })
+    if (rl && !rl.allowed)
+      return apiError(429, "Too many requests", { correlationId })
 
     const volumeId = request.nextUrl.searchParams.get("volumeId")
     if (!volumeId)
@@ -65,13 +77,12 @@ const resolveOptionalCurrency = (value: unknown): string | NextResponse => {
   return value.trim().toUpperCase()
 }
 
+const VALID_SOURCES = new Set(["amazon", "manual", "imported"])
+
 const resolveOptionalSource = (value: unknown): string | NextResponse => {
   if (value === undefined || value === null) return "amazon"
-  if (typeof value !== "string" || !value.trim() || value.trim().length > 50) {
-    return apiError(
-      400,
-      "source must be a non-empty string (max 50 characters)"
-    )
+  if (typeof value !== "string" || !VALID_SOURCES.has(value.trim())) {
+    return apiError(400, "source must be one of: amazon, manual, imported")
   }
   return value.trim()
 }
@@ -127,6 +138,16 @@ export async function POST(request: NextRequest) {
       data: { user }
     } = await supabase.auth.getUser()
     if (!user) return apiError(401, "Not authenticated", { correlationId })
+
+    const rl = await consumeDistributedRateLimit({
+      key: `history-write:${user.id}`,
+      maxHits: 60,
+      windowMs: 60_000,
+      cooldownMs: 30_000,
+      reason: "Rate limit price history writes"
+    })
+    if (rl && !rl.allowed)
+      return apiError(429, "Too many requests", { correlationId })
 
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
