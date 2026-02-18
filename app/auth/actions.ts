@@ -37,7 +37,7 @@ export async function login(formData: FormData) {
   const email = (formData.get("email") as string)?.trim()
   const password = formData.get("password") as string
 
-  if (!email?.includes("@")) {
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { error: "Valid email is required" }
   }
   if (!password) {
@@ -87,7 +87,7 @@ export async function signup(formData: FormData) {
   const password = formData.get("password") as string
   const rawUsername = formData.get("username") as string
 
-  if (!email?.includes("@")) {
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { error: "Valid email is required" }
   }
   const passwordError = validatePassword(password)
@@ -166,7 +166,7 @@ export async function signup(formData: FormData) {
 export async function forgotPassword(formData: FormData) {
   const email = (formData.get("email") as string)?.trim()
 
-  if (!email?.includes("@")) {
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { error: "Valid email is required" }
   }
 
@@ -186,12 +186,10 @@ export async function forgotPassword(formData: FormData) {
     return { error: "Too many requests. Please try again later." }
   }
 
-  const origin =
-    headerStore.get("origin") ||
-    headerStore.get("x-forwarded-proto") +
-      "://" +
-      headerStore.get("x-forwarded-host") ||
-    ""
+  const origin = process.env.NEXT_PUBLIC_APP_URL
+  if (!origin) {
+    return { error: "Server configuration error. Please contact support." }
+  }
 
   const supabase = await createUserClient()
   await supabase.auth.resetPasswordForEmail(email, {
