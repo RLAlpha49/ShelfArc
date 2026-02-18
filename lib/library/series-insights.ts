@@ -1,6 +1,6 @@
 import { formatDate } from "@/lib/format-date"
-import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 import type { DateFormat } from "@/lib/store/settings-store"
+import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /**
  * Extracts a human-readable message from an unknown error value.
@@ -202,7 +202,10 @@ export const buildSeriesInsights = (
       totalVolumes > 0 ? Math.round((a.ownedVolumes / totalVolumes) * 100) : 0,
     missingVolumes:
       series.total_volumes && series.total_volumes > 0
-        ? Math.max(series.total_volumes - a.ownedVolumes, 0)
+        ? Math.max(
+            series.total_volumes - (a.ownedVolumes + a.wishlistVolumes),
+            0
+          )
         : null,
     totalPages: a.totalPages,
     averageRating:
