@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+
 import type { BulkScrapeMode } from "@/lib/hooks/use-bulk-scrape"
 
 /** Available display (heading) font families. @source */
@@ -128,6 +129,11 @@ interface SettingsState {
   setHasCompletedOnboarding: (value: boolean) => void
   setDashboardLayout: (layout: DashboardLayout) => void
   resetDashboardLayout: () => void
+
+  // Server sync
+  lastSyncedAt: number | null
+  syncToServer: () => void
+  loadFromServer: () => Promise<void>
 }
 
 /** Maps display font keys to their CSS variable references loaded by next/font. @source */
@@ -160,9 +166,33 @@ function getDefaultEnableAnimations() {
 }
 
 /** Zustand store managing user preferences with localStorage persistence. @source */
+
+const SYNCABLE_KEYS = [
+  "showReadingProgress",
+  "showSeriesProgressBar",
+  "cardSize",
+  "confirmBeforeDelete",
+  "defaultOwnershipStatus",
+  "defaultSearchSource",
+  "defaultScrapeMode",
+  "autoPurchaseDate",
+  "sidebarCollapsed",
+  "enableAnimations",
+  "displayFont",
+  "bodyFont",
+  "dateFormat",
+  "highContrastMode",
+  "fontSizeScale",
+  "focusIndicators",
+  "hasCompletedOnboarding",
+  "dashboardLayout"
+] as const
+
+let syncTimer: ReturnType<typeof setTimeout> | null = null
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Hydration
       _hydrated: false,
 
@@ -221,7 +251,52 @@ export const useSettingsStore = create<SettingsState>()(
         set({ hasCompletedOnboarding: value }),
       setDashboardLayout: (layout) => set({ dashboardLayout: layout }),
       resetDashboardLayout: () =>
-        set({ dashboardLayout: DEFAULT_DASHBOARD_LAYOUT })
+        set({ dashboardLayout: DEFAULT_DASHBOARD_LAYOUT }),
+
+      // Server sync
+      lastSyncedAt: null,
+
+      syncToServer: () => {
+        if (syncTimer) clearTimeout(syncTimer)
+        syncTimer = setTimeout(() => {
+          const state = get()
+          const syncable: Record<string, unknown> = {}
+          for (const key of SYNCABLE_KEYS) {
+            syncable[key] = state[key]
+          }
+          fetch("/api/settings", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ settings: syncable })
+          }).catch(() => {
+            // Fire-and-forget — swallow network errors
+          })
+        }, 2_000)
+      },
+
+      loadFromServer: async () => {
+        try {
+          const res = await fetch("/api/settings")
+          if (!res.ok) return
+          const json = await res.json()
+          const server = json?.data?.settings
+          if (!server || typeof server !== "object") return
+          const patch: Record<string, unknown> = {}
+          for (const key of SYNCABLE_KEYS) {
+            if (key in server) {
+              patch[key] = server[key]
+            }
+          }
+          if (Object.keys(patch).length > 0) {
+            set({
+              ...patch,
+              lastSyncedAt: Date.now()
+            } as Partial<SettingsState>)
+          }
+        } catch {
+          // Gracefully ignore — don't block UI
+        }
+      }
     }),
     {
       name: "shelfarc-settings",
@@ -246,8 +321,23 @@ export const useSettingsStore = create<SettingsState>()(
         fontSizeScale: state.fontSizeScale,
         focusIndicators: state.focusIndicators,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
-        dashboardLayout: state.dashboardLayout
+        dashboardLayout: state.dashboardLayout,
+        lastSyncedAt: state.lastSyncedAt
       })
     }
   )
 )
+
+// Auto-sync to server when syncable keys change (skip initial hydration)
+let hasHydratedOnce = false
+useSettingsStore.subscribe((state, prev) => {
+  if (!state._hydrated) return
+  if (!hasHydratedOnce) {
+    hasHydratedOnce = true
+    return
+  }
+  const changed = SYNCABLE_KEYS.some((key) => state[key] !== prev[key])
+  if (changed) {
+    state.syncToServer()
+  }
+})

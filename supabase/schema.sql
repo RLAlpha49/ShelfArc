@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   email TEXT NOT NULL,
   username TEXT NOT NULL,
   avatar_url TEXT,
+  settings JSONB DEFAULT '{}' NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );

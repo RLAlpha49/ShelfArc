@@ -1,17 +1,18 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { SidebarNav } from "@/components/sidebar-nav"
-import { Header } from "@/components/header"
-import { CommandPalette } from "@/components/command-palette"
-import { OnboardingDialog } from "@/components/onboarding-dialog"
-import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
-import { LiveAnnouncer } from "@/components/live-announcer"
-import { cn } from "@/lib/utils"
-import { useLibraryStore } from "@/lib/store/library-store"
-import { useSettingsStore } from "@/lib/store/settings-store"
 import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+
+import { CommandPalette } from "@/components/command-palette"
+import { Header } from "@/components/header"
+import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
+import { LiveAnnouncer } from "@/components/live-announcer"
+import { OnboardingDialog } from "@/components/onboarding-dialog"
+import { SidebarNav } from "@/components/sidebar-nav"
+import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
+import { cn } from "@/lib/utils"
 
 /** Props for the {@link AppShell} layout wrapper. @source */
 interface AppShellProps {
@@ -96,6 +97,11 @@ export function AppShell({ children, user }: AppShellProps) {
       }
     })
     return unsub
+  }, [])
+
+  // Load settings from server on mount (non-blocking)
+  useEffect(() => {
+    useSettingsStore.getState().loadFromServer()
   }, [])
 
   const handleOnboardingOpenChange = useCallback(
