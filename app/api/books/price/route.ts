@@ -19,6 +19,7 @@ import {
 } from "@/lib/concurrency/limiter"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { createUserClient } from "@/lib/supabase/server"
 
 /** Forces dynamic (uncached) rendering for this route. @source */
 export const dynamic = "force-dynamic"
@@ -158,6 +159,14 @@ export async function GET(request: NextRequest) {
   const pipelineStart = performance.now()
 
   try {
+    const supabase = await createUserClient()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return apiError(401, "Authentication required")
+    }
+
     const globalCooldown = checkGlobalCooldown()
     if (globalCooldown) return globalCooldown
 
