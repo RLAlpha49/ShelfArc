@@ -3,6 +3,7 @@ import {
   sanitizeOptionalPlainText,
   sanitizePlainText
 } from "@/lib/sanitize-html"
+import type { Series, Volume, VolumeInsert } from "@/lib/types/database"
 import {
   isNonNegativeFinite,
   isNonNegativeInteger,
@@ -16,7 +17,6 @@ import {
   isValidVolumeEdition,
   isValidVolumeFormat
 } from "@/lib/validation"
-import type { Series, Volume, VolumeInsert } from "@/lib/types/database"
 
 /** Volume date fields eligible for normalization. @source */
 type VolumeDateFields = {
@@ -69,7 +69,7 @@ export const normalizeVolumeDates = <T extends VolumeDateFields>(data: T) => {
   return next
 }
 
-/** Type guard for valid volume ratings (0–10). @source */
+/** Type guard for valid volume ratings (0-10). @source */
 const isValidRating = (value: unknown): value is number =>
   typeof value === "number" &&
   Number.isInteger(value) &&
@@ -81,6 +81,23 @@ const coerceNullable = <T>(
   value: T | null | undefined,
   validator: (v: T) => boolean
 ): T | null => (value != null && validator(value) ? value : null)
+
+/** Sanitizes and validates an optional HTTPS URL, returning null if invalid. @source */
+const sanitizeOptionalHttpsUrl = (
+  value: string | null | undefined,
+  maxLen: number
+): string | null => {
+  const sanitized = sanitizeOptionalPlainText(value, maxLen)
+  return sanitized && isValidHttpsUrl(sanitized) ? sanitized : null
+}
+
+/** Sanitizes and validates an optional Amazon URL, returning null if invalid. @source */
+const sanitizeOptionalAmazonUrl = (
+  value: string | null | undefined
+): string | null => {
+  const sanitized = sanitizeOptionalPlainText(value, 2000)
+  return sanitized && isValidAmazonUrl(sanitized) ? sanitized : null
+}
 
 /**
  * Sanitizes text fields on a partial series update object.
@@ -120,7 +137,7 @@ const sanitizeSeriesTextFields = (
     sanitized.notes = sanitizeOptionalPlainText(data.notes, 5000)
   }
   if (Object.hasOwn(data, "cover_image_url")) {
-    sanitized.cover_image_url = sanitizeOptionalPlainText(
+    sanitized.cover_image_url = sanitizeOptionalHttpsUrl(
       data.cover_image_url,
       2000
     )
@@ -187,16 +204,13 @@ const sanitizeVolumeTextFields = (
     sanitized.format = isValidVolumeFormat(data.format) ? data.format : null
   }
   if (Object.hasOwn(data, "cover_image_url")) {
-    const sanitizedCover = sanitizeOptionalPlainText(data.cover_image_url, 2000)
-    sanitized.cover_image_url =
-      sanitizedCover && isValidHttpsUrl(sanitizedCover) ? sanitizedCover : null
+    sanitized.cover_image_url = sanitizeOptionalHttpsUrl(
+      data.cover_image_url,
+      2000
+    )
   }
   if (Object.hasOwn(data, "amazon_url")) {
-    const sanitizedAmazon = sanitizeOptionalPlainText(data.amazon_url, 2000)
-    sanitized.amazon_url =
-      sanitizedAmazon && isValidAmazonUrl(sanitizedAmazon)
-        ? sanitizedAmazon
-        : null
+    sanitized.amazon_url = sanitizeOptionalAmazonUrl(data.amazon_url)
   }
 }
 
