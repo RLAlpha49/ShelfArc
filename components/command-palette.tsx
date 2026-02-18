@@ -6,7 +6,8 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useState
+  useState,
+  useSyncExternalStore
 } from "react"
 
 import {
@@ -19,6 +20,7 @@ import {
   CommandList,
   CommandSeparator
 } from "@/components/ui/command"
+import { useLibraryFetch } from "@/lib/hooks/use-library-fetch"
 import {
   selectAllSeries,
   selectAllUnassignedVolumes,
@@ -40,6 +42,15 @@ function normalizeQuery(query: string): string {
     .replaceAll(/[^\p{L}\p{N}]+/gu, " ")
     .replaceAll(/\s+/g, " ")
     .trim()
+}
+
+function fuzzyMatch(query: string, text: string): boolean {
+  if (!query) return true
+  let qi = 0
+  for (let i = 0; i < text.length && qi < query.length; i++) {
+    if (text[i] === query[qi]) qi++
+  }
+  return qi === query.length
 }
 
 function volumeDisplayTitle(volumeNumber: number, title?: string | null) {
@@ -83,7 +94,7 @@ function collectSeriesJumpItems(
       `${s.title} ${s.author ?? ""} ${(s.tags ?? []).join(" ")}`
     )
 
-    if (!haystack.includes(normalizedQuery)) continue
+    if (!fuzzyMatch(normalizedQuery, haystack)) continue
 
     matches.push({
       kind: "series",
@@ -126,7 +137,7 @@ function collectVolumeJumpItemsFromSeries(
         `${displayTitle} ${v.isbn ?? ""} ${s.title} ${s.author ?? ""} ${v.volume_number}`
       )
 
-      if (!haystack.includes(normalizedQuery)) continue
+      if (!fuzzyMatch(normalizedQuery, haystack)) continue
 
       matches.push({
         kind: "volume",
@@ -160,7 +171,7 @@ function collectVolumeJumpItemsFromUnassigned(
     const haystack = normalizeQuery(
       `${displayTitle} ${v.isbn ?? ""} unassigned ${v.volume_number}`
     )
-    if (!haystack.includes(normalizedQuery)) continue
+    if (!fuzzyMatch(normalizedQuery, haystack)) continue
 
     matches.push({
       kind: "volume",
@@ -174,11 +185,10 @@ function collectVolumeJumpItemsFromUnassigned(
   return matches
 }
 
-const PLATFORM_MOD =
-  typeof navigator !== "undefined" &&
-  /mac|iphone|ipad/i.test(navigator.userAgent)
-    ? "⌘"
-    : "Ctrl+"
+const noopSubscribe = () => () => {}
+const getPlatformMod = () =>
+  /mac|iphone|ipad/i.test(navigator.userAgent) ? "⌘" : "Ctrl+"
+const getPlatformModServer = () => "Ctrl+"
 
 function highlightMatch(text: string, query: string) {
   if (!query || query.trim().length < 2) return text
@@ -314,7 +324,11 @@ const sectionIcons = {
 /** Global command palette (Ctrl/⌘+K) with navigation + library shortcuts. @source */
 export function CommandPalette() {
   const router = useRouter()
-  const mod = PLATFORM_MOD
+  const mod = useSyncExternalStore(
+    noopSubscribe,
+    getPlatformMod,
+    getPlatformModServer
+  )
 
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -330,6 +344,8 @@ export function CommandPalette() {
   const series = useLibraryStore(selectAllSeries)
   const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
   const recentEntries = useRecentlyVisitedStore((s) => s.entries)
+
+  const { fetchSeries, isLoading } = useLibraryFetch()
 
   const normalizedQuery = useMemo(() => normalizeQuery(query), [query])
   const searchEnabled = normalizedQuery.length >= 2
@@ -414,14 +430,18 @@ export function CommandPalette() {
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
-        if (!nextOpen) setQuery("")
+        if (!nextOpen) {
+          setQuery("")
+        } else if (!libraryLoaded && !isLoading) {
+          void fetchSeries()
+        }
       }}
       className="command-palette-glass ring-copper/10 max-w-xl"
       title="Command Palette"
       description="Search for a command to run…"
       showCloseButton={false}
     >
-      <Command className="rounded-2xl bg-transparent" shouldFilter>
+      <Command className="rounded-2xl bg-transparent" shouldFilter={false}>
         <CommandInput
           placeholder="Search commands, series, volumes…"
           value={query}
