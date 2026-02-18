@@ -95,12 +95,12 @@ export function VolumeCard({
         aria-pressed={showSelection ? selected : undefined}
       >
         {/* Cover Image */}
-        <div className="bg-muted relative aspect-2/3">
+        <div className="bg-muted relative aspect-2/3 overflow-hidden">
           <CoverImage
             isbn={volume.isbn}
             coverImageUrl={volume.cover_image_url}
             alt={`Volume ${volume.volume_number}`}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
             loading="lazy"
             decoding="async"
             fallback={
