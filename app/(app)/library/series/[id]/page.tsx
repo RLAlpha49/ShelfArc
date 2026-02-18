@@ -8,7 +8,8 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState} from "react"
+  useState
+} from "react"
 
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
@@ -54,25 +55,26 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { normalizeIsbn } from "@/lib/books/isbn"
 import { type BookSearchResult } from "@/lib/books/search"
 import { useLibrary } from "@/lib/hooks/use-library"
+import { useVolumeActions } from "@/lib/hooks/use-volume-actions"
 import {
   buildSeriesInsights,
   getErrorMessage
 } from "@/lib/library/series-insights"
 import {
-  applyRating,
   buildCurrencyFormatter,
   findPrimaryVolume,
-  toggleInSet} from "@/lib/library/volume-helpers"
+  toggleInSet
+} from "@/lib/library/volume-helpers"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
   OwnershipStatus,
-  ReadingStatus,
   SeriesInsert,
   SeriesWithVolumes,
   Volume,
-  VolumeInsert} from "@/lib/types/database"
+  VolumeInsert
+} from "@/lib/types/database"
 
 /**
  * Series detail page showing cover, metadata, volume grid, and editing controls.
@@ -190,6 +192,16 @@ export default function SeriesDetailPage() {
   const clearSelection = useCallback(() => {
     setSelectedVolumeIds(new Set())
   }, [])
+
+  const {
+    handleToggleRead,
+    handleToggleWishlist,
+    handleSetRating,
+    applyVolumeOwnershipStatus,
+    applyVolumeReadingStatus,
+    applyAllVolumesOwnership,
+    applyAllVolumesReadingStatus
+  } = useVolumeActions({ editVolume, currentSeries, selectedVolumeIds })
 
   useEffect(() => {
     clearSelection()
@@ -370,60 +382,6 @@ export default function SeriesDetailPage() {
     [addVolumesFromSearchResults, seriesId]
   )
 
-  const handleToggleRead = useCallback(
-    async (volume: Volume) => {
-      if (!volume.series_id) return
-      const nextStatus =
-        volume.reading_status === "completed" ? "unread" : "completed"
-      try {
-        await editVolume(volume.series_id, volume.id, {
-          reading_status: nextStatus,
-          ...(nextStatus === "completed" &&
-          volume.page_count &&
-          volume.page_count > 0
-            ? { current_page: volume.page_count }
-            : {})
-        })
-        toast.success(
-          nextStatus === "completed" ? "Marked as read" : "Marked as unread"
-        )
-      } catch (err) {
-        console.error(err)
-        toast.error(`Failed to update: ${getErrorMessage(err)}`)
-      }
-    },
-    [editVolume]
-  )
-
-  const handleToggleWishlist = useCallback(
-    async (volume: Volume) => {
-      if (!volume.series_id) return
-      const nextStatus =
-        volume.ownership_status === "wishlist" ? "owned" : "wishlist"
-
-      try {
-        await editVolume(volume.series_id, volume.id, {
-          ownership_status: nextStatus
-        })
-        toast.success(
-          nextStatus === "wishlist" ? "Moved to wishlist" : "Marked as owned"
-        )
-      } catch (err) {
-        console.error(err)
-        toast.error(`Failed to update: ${getErrorMessage(err)}`)
-      }
-    },
-    [editVolume]
-  )
-
-  const handleSetRating = useCallback(
-    async (volume: Volume, rating: number | null) => {
-      if (!volume.series_id) return
-      await applyRating(volume, rating, editVolume)
-    },
-    [editVolume]
-  )
-
   const openBulkScrapeForSeries = useCallback(() => {
     if (!currentSeries) return
     setBulkScrapeTarget(currentSeries)
@@ -475,146 +433,6 @@ export default function SeriesDetailPage() {
   const handleClearSelection = useCallback(() => {
     clearSelection()
   }, [clearSelection])
-
-  const applyVolumeOwnershipStatus = useCallback(
-    async (status: OwnershipStatus) => {
-      if (!currentSeries) return
-      if (selectedVolumeIds.size === 0) return
-
-      const targets = Array.from(selectedVolumeIds)
-        .map((id) => currentSeries.volumes.find((volume) => volume.id === id))
-        .filter((volume): volume is Volume => Boolean(volume))
-
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(currentSeries.id, volume.id, { ownership_status: status })
-        )
-      )
-      const successCount = results.filter(
-        (result) => result.status === "fulfilled"
-      ).length
-      const failureCount = results.length - successCount
-
-      if (successCount > 0) {
-        toast.success(
-          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status}`
-        )
-      }
-      if (failureCount > 0) {
-        toast.error(
-          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
-        )
-      }
-    },
-    [currentSeries, selectedVolumeIds, editVolume]
-  )
-
-  const applyVolumeReadingStatus = useCallback(
-    async (status: ReadingStatus) => {
-      if (!currentSeries) return
-      if (selectedVolumeIds.size === 0) return
-
-      const targets = Array.from(selectedVolumeIds)
-        .map((id) => currentSeries.volumes.find((volume) => volume.id === id))
-        .filter((volume): volume is Volume => Boolean(volume))
-
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(currentSeries.id, volume.id, {
-            reading_status: status,
-            ...(status === "completed" &&
-            volume.page_count &&
-            volume.page_count > 0
-              ? { current_page: volume.page_count }
-              : {})
-          })
-        )
-      )
-      const successCount = results.filter(
-        (result) => result.status === "fulfilled"
-      ).length
-      const failureCount = results.length - successCount
-
-      if (successCount > 0) {
-        toast.success(
-          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status.replace("_", " ")}`
-        )
-      }
-      if (failureCount > 0) {
-        toast.error(
-          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
-        )
-      }
-    },
-    [currentSeries, selectedVolumeIds, editVolume]
-  )
-
-  const applyAllVolumesOwnership = useCallback(
-    async (status: OwnershipStatus) => {
-      if (!currentSeries) return
-      const targets = currentSeries.volumes
-      if (targets.length === 0) return
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(currentSeries.id, volume.id, {
-            ownership_status: status
-          })
-        )
-      )
-      const successCount = results.filter(
-        (result) => result.status === "fulfilled"
-      ).length
-      const failureCount = results.length - successCount
-
-      if (successCount > 0) {
-        toast.success(
-          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status}`
-        )
-      }
-      if (failureCount > 0) {
-        toast.error(
-          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
-        )
-      }
-    },
-    [currentSeries, editVolume]
-  )
-
-  const applyAllVolumesReadingStatus = useCallback(
-    async (status: ReadingStatus) => {
-      if (!currentSeries) return
-      const targets = currentSeries.volumes
-      if (targets.length === 0) return
-      const results = await Promise.allSettled(
-        targets.map((volume) =>
-          editVolume(currentSeries.id, volume.id, {
-            reading_status: status,
-            ...(status === "completed" &&
-            volume.page_count &&
-            volume.page_count > 0
-              ? { current_page: volume.page_count }
-              : {})
-          })
-        )
-      )
-      const successCount = results.filter(
-        (result) => result.status === "fulfilled"
-      ).length
-      const failureCount = results.length - successCount
-
-      if (successCount > 0) {
-        toast.success(
-          `Updated ${successCount} volume${successCount === 1 ? "" : "s"} to ${status.replace("_", " ")}`
-        )
-      }
-      if (failureCount > 0) {
-        toast.error(
-          `${failureCount} volume update${failureCount === 1 ? "" : "s"} failed`
-        )
-      }
-    },
-    [currentSeries, editVolume]
-  )
 
   const deleteSelectedVolumes = useCallback(async () => {
     if (!currentSeries) return

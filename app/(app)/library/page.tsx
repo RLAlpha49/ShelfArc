@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useCallback, useEffect, useMemo, useRef,useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -19,6 +19,7 @@ import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryBulkOperations } from "@/lib/hooks/use-library-bulk-operations"
 import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh"
+import { useVolumeActions } from "@/lib/hooks/use-volume-actions"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import { getGridColumnCount, getGridGapPx } from "@/lib/library/grid-utils"
 import { useLibraryStore } from "@/lib/store/library-store"
@@ -26,7 +27,8 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
   OwnershipStatus,
   SeriesWithVolumes,
-  Volume} from "@/lib/types/database"
+  Volume
+} from "@/lib/types/database"
 
 /**
  * Main library page for browsing, filtering, and managing the user's series and volume collection.
@@ -619,68 +621,8 @@ export default function LibraryPage() {
     [selectedVolumeIds.size, toggleVolumeSelection, handleVolumeClick]
   )
 
-  const handleToggleRead = useCallback(
-    async (volume: Volume) => {
-      const nextStatus =
-        volume.reading_status === "completed" ? "unread" : "completed"
-      try {
-        await editVolume(volume.series_id ?? null, volume.id, {
-          reading_status: nextStatus,
-          ...(nextStatus === "completed" &&
-          volume.page_count &&
-          volume.page_count > 0
-            ? { current_page: volume.page_count }
-            : {})
-        })
-        toast.success(
-          nextStatus === "completed" ? "Marked as read" : "Marked as unread"
-        )
-      } catch {
-        toast.error("Failed to update reading status")
-      }
-    },
-    [editVolume]
-  )
-
-  const handleToggleWishlist = useCallback(
-    async (volume: Volume) => {
-      const nextStatus =
-        volume.ownership_status === "wishlist" ? "owned" : "wishlist"
-      try {
-        await editVolume(volume.series_id ?? null, volume.id, {
-          ownership_status: nextStatus
-        })
-        toast.success(
-          nextStatus === "wishlist" ? "Moved to wishlist" : "Marked as owned"
-        )
-      } catch {
-        toast.error("Failed to update ownership status")
-      }
-    },
-    [editVolume]
-  )
-
-  const handleSetRating = useCallback(
-    async (volume: Volume, rating: number | null) => {
-      if (
-        rating != null &&
-        (!Number.isFinite(rating) || rating < 0 || rating > 10)
-      ) {
-        toast.error("Rating must be between 0 and 10")
-        return
-      }
-
-      try {
-        await editVolume(volume.series_id ?? null, volume.id, {
-          rating
-        })
-        toast.success(rating == null ? "Rating cleared" : `Rated ${rating}/10`)
-      } catch {
-        toast.error("Failed to update rating")
-      }
-    },
-    [editVolume]
-  )
+  const { handleToggleRead, handleToggleWishlist, handleSetRating } =
+    useVolumeActions({ editVolume })
 
   const openSeriesScrapeDialog = useCallback(
     (seriesItem: SeriesWithVolumes) => {
