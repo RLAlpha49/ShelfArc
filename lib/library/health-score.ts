@@ -107,7 +107,12 @@ function computeFactors(
   const pricingScore = owned > 0 ? (pricedOwned / owned) * 20 : 10
   const metadataScore =
     total > 0
-      ? ((withCover / total + withIsbn / total + withDesc / total) / 3) * 20
+      ? // ISBNs and covers each weighted 40%, descriptions 20%:
+        // ISBNs matter most for deduplication; covers for visual library experience.
+        ((withIsbn / total) * 0.4 +
+          (withCover / total) * 0.4 +
+          (withDesc / total) * 0.2) *
+        20
       : 0
 
   const round1 = (n: number) => Math.round(n * 10) / 10
