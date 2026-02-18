@@ -1,6 +1,7 @@
 import "server-only"
 import { createServerClient } from "@supabase/ssr"
 import type { Database } from "@/lib/types/database"
+import { logger } from "@/lib/logger"
 
 /**
  * Options for creating an admin Supabase client that bypasses RLS.
@@ -9,6 +10,8 @@ import type { Database } from "@/lib/types/database"
  */
 export type AdminClientOptions = {
   reason: string
+  /** Optional caller identifier for audit logging. @source */
+  caller?: string
 }
 
 /** Reads the Supabase project URL from environment variables. @source */
@@ -48,6 +51,11 @@ export function createAdminClient(options: AdminClientOptions) {
   if (missingEnvVars) {
     throw new Error(`Missing ${missingEnvVars}`)
   }
+
+  logger.info("Admin client created", {
+    reason: options.reason,
+    caller: options.caller
+  })
 
   return createServerClient<Database, "public">(
     supabaseUrl as string,
