@@ -1,21 +1,29 @@
-import { Suspense } from "react"
+import {
+  ArrowRight01Icon,
+  BookOpen01Icon,
+  Calendar01Icon,
+  Dollar01Icon,
+  FavouriteIcon,
+  ShoppingBag01Icon} from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { createUserClient } from "@/lib/supabase/server"
+import { Suspense } from "react"
+
+import { DashboardContent } from "@/components/dashboard/dashboard-content"
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import {
   computeCollectionStats,
   computePriceBreakdown,
-  computeWishlistStats,
+  computeReleases,
   computeSuggestedBuys,
   computeSuggestionCounts,
-  computeReleases,
+  computeWishlistStats,
+  getCurrentlyReading,
   getRecentSeries,
-  getRecentVolumes,
-  getCurrentlyReading
-} from "@/lib/library/analytics"
+  getRecentVolumes} from "@/lib/library/analytics"
 import { computeHealthScore } from "@/lib/library/health-score"
-import { DashboardContent } from "@/components/dashboard/dashboard-content"
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
+import { createUserClient } from "@/lib/supabase/server"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
 /**
@@ -57,86 +65,47 @@ export default async function DashboardPage() {
             href: "/dashboard/recent",
             label: "Recently Added",
             icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-              </svg>
+              <HugeiconsIcon
+                icon={BookOpen01Icon}
+                size={16}
+                strokeWidth={1.5}
+              />
             )
           },
           {
             href: "/dashboard/recommendations",
             label: "Recommendations",
             icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                <line x1="3" x2="21" y1="6" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
+              <HugeiconsIcon
+                icon={ShoppingBag01Icon}
+                size={16}
+                strokeWidth={1.5}
+              />
             )
           },
           {
             href: "/dashboard/tracked",
             label: "Price Tracking",
             icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
+              <HugeiconsIcon icon={Dollar01Icon} size={16} strokeWidth={1.5} />
             )
           },
           {
             href: "/dashboard/wishlist",
             label: "Wishlist",
             icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-              </svg>
+              <HugeiconsIcon icon={FavouriteIcon} size={16} strokeWidth={1.5} />
             )
           },
           {
             href: "/dashboard/releases",
             label: "Releases",
             icon: (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4"
-              >
-                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                <line x1="16" x2="16" y1="2" y2="6" />
-                <line x1="8" x2="8" y1="2" y2="6" />
-                <line x1="3" x2="21" y1="10" y2="10" />
-              </svg>
+              <HugeiconsIcon
+                icon={Calendar01Icon}
+                size={16}
+                strokeWidth={1.5}
+              />
             )
           }
         ].map((item) => (
@@ -149,16 +118,12 @@ export default async function DashboardPage() {
             <span className="text-muted-foreground group-hover:text-foreground transition-colors">
               {item.label}
             </span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="text-muted-foreground/50 group-hover:text-primary h-3.5 w-3.5 transition-all group-hover:translate-x-0.5"
-            >
-              <polyline points="9,18 15,12 9,6" />
-            </svg>
+            <HugeiconsIcon
+              icon={ArrowRight01Icon}
+              size={14}
+              strokeWidth={2}
+              className="text-muted-foreground/50 group-hover:text-primary transition-all group-hover:translate-x-0.5"
+            />
           </Link>
         ))}
       </nav>
