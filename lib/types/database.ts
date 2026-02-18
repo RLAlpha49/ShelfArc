@@ -55,9 +55,6 @@ export type ActivityEventType =
   | "price_alert_triggered"
   | "import_completed"
   | "scrape_completed"
-  | "automation_executed"
-  | "api_token_created"
-  | "api_token_revoked"
 
 /** Supabase database schema definition for the public schema. @source */
 export interface Database {

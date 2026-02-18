@@ -235,68 +235,6 @@ const eventConfigs: Record<ActivityEventType, EventConfig> = {
       return `${n} volume${n === 1 ? "" : "s"} updated`
     },
     entityHref: () => null
-  },
-  automation_executed: {
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-4 w-4"
-      >
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-      </svg>
-    ),
-    label: "Automation executed",
-    getDetail: (m) => (m.ruleName as string) || "",
-    entityHref: () => null
-  },
-  api_token_created: {
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-4 w-4"
-      >
-        <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
-        <path d="m21 2-9.6 9.6" />
-        <circle cx="7.5" cy="15.5" r="5.5" />
-      </svg>
-    ),
-    label: "API token created",
-    getDetail: (m) => (m.tokenName as string) || "",
-    entityHref: () => null
-  },
-  api_token_revoked: {
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-4 w-4"
-      >
-        <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
-        <path d="m21 2-9.6 9.6" />
-        <circle cx="7.5" cy="15.5" r="5.5" />
-        <line x1="2" y1="2" x2="22" y2="22" />
-      </svg>
-    ),
-    label: "API token revoked",
-    getDetail: (m) => (m.tokenName as string) || "",
-    entityHref: () => null
   }
 }
 

@@ -19,6 +19,59 @@ export type FontSizeScale = "default" | "large" | "x-large"
 /** Focus indicator visibility mode. @source */
 export type FocusIndicators = "default" | "enhanced"
 
+/** Dashboard widget identifier. @source */
+export type DashboardWidgetId =
+  | "stats"
+  | "currently-reading"
+  | "recently-added"
+  | "recommendations"
+  | "breakdown"
+  | "health"
+  | "activity"
+  | "progress"
+  | "price-tracking"
+  | "wishlist"
+  | "releases"
+  | "price-alerts"
+
+/** Column assignment for a dashboard widget. @source */
+export type DashboardWidgetColumn = "full" | "left" | "right"
+
+/** Dashboard widget metadata. @source */
+export interface DashboardWidgetMeta {
+  readonly id: DashboardWidgetId
+  readonly label: string
+  readonly column: DashboardWidgetColumn
+}
+
+/** Dashboard layout preferences. @source */
+export interface DashboardLayout {
+  readonly order: DashboardWidgetId[]
+  readonly hidden: DashboardWidgetId[]
+}
+
+/** All dashboard widgets with their column assignments. @source */
+export const DASHBOARD_WIDGETS: readonly DashboardWidgetMeta[] = [
+  { id: "stats", label: "Stats", column: "full" },
+  { id: "currently-reading", label: "Currently Reading", column: "left" },
+  { id: "recently-added", label: "Recently Added", column: "left" },
+  { id: "recommendations", label: "What to Buy Next", column: "left" },
+  { id: "breakdown", label: "Breakdown", column: "right" },
+  { id: "health", label: "Collection Health", column: "right" },
+  { id: "activity", label: "Recent Activity", column: "right" },
+  { id: "progress", label: "Progress", column: "right" },
+  { id: "price-tracking", label: "Price Tracking", column: "right" },
+  { id: "wishlist", label: "Wishlist", column: "right" },
+  { id: "releases", label: "Upcoming Releases", column: "right" },
+  { id: "price-alerts", label: "Price Alerts", column: "right" }
+]
+
+/** Default dashboard layout with all widgets visible in the default order. @source */
+export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
+  order: DASHBOARD_WIDGETS.map((w) => w.id),
+  hidden: []
+}
+
 /** Combined settings state and actions for the settings Zustand store. @source */
 interface SettingsState {
   // Hydration
@@ -49,6 +102,9 @@ interface SettingsState {
   fontSizeScale: FontSizeScale
   focusIndicators: FocusIndicators
 
+  // Dashboard layout
+  dashboardLayout: DashboardLayout
+
   // Onboarding
   hasCompletedOnboarding: boolean
 
@@ -70,6 +126,8 @@ interface SettingsState {
   setFontSizeScale: (value: FontSizeScale) => void
   setFocusIndicators: (value: FocusIndicators) => void
   setHasCompletedOnboarding: (value: boolean) => void
+  setDashboardLayout: (layout: DashboardLayout) => void
+  resetDashboardLayout: () => void
 }
 
 /** Maps display font keys to their CSS variable references loaded by next/font. @source */
@@ -134,6 +192,9 @@ export const useSettingsStore = create<SettingsState>()(
       fontSizeScale: "default",
       focusIndicators: "default",
 
+      // Dashboard layout
+      dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
+
       // Onboarding
       hasCompletedOnboarding: false,
 
@@ -157,7 +218,10 @@ export const useSettingsStore = create<SettingsState>()(
       setFontSizeScale: (value) => set({ fontSizeScale: value }),
       setFocusIndicators: (value) => set({ focusIndicators: value }),
       setHasCompletedOnboarding: (value) =>
-        set({ hasCompletedOnboarding: value })
+        set({ hasCompletedOnboarding: value }),
+      setDashboardLayout: (layout) => set({ dashboardLayout: layout }),
+      resetDashboardLayout: () =>
+        set({ dashboardLayout: DEFAULT_DASHBOARD_LAYOUT })
     }),
     {
       name: "shelfarc-settings",
@@ -181,7 +245,8 @@ export const useSettingsStore = create<SettingsState>()(
         highContrastMode: state.highContrastMode,
         fontSizeScale: state.fontSizeScale,
         focusIndicators: state.focusIndicators,
-        hasCompletedOnboarding: state.hasCompletedOnboarding
+        hasCompletedOnboarding: state.hasCompletedOnboarding,
+        dashboardLayout: state.dashboardLayout
       })
     }
   )

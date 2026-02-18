@@ -19,9 +19,6 @@ const VALID_EVENT_TYPES = new Set<ActivityEventType>([
   "price_alert_triggered",
   "import_completed",
   "scrape_completed",
-  "automation_executed",
-  "api_token_created",
-  "api_token_revoked"
 ])
 
 export async function GET(request: NextRequest) {

@@ -16,10 +16,7 @@ const eventTypeOptions: { value: ActivityEventType; label: string }[] = [
   { value: "series_deleted", label: "Series Deleted" },
   { value: "price_alert_triggered", label: "Price Alert" },
   { value: "import_completed", label: "Import" },
-  { value: "scrape_completed", label: "Scrape" },
-  { value: "automation_executed", label: "Automation" },
-  { value: "api_token_created", label: "Token Created" },
-  { value: "api_token_revoked", label: "Token Revoked" }
+  { value: "scrape_completed", label: "Scrape" }
 ]
 
 export function ActivityFeed() {
