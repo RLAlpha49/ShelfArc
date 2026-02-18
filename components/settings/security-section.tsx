@@ -6,8 +6,32 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import { validatePassword } from "@/lib/auth/validate-password"
 import { createClient } from "@/lib/supabase/client"
+
+interface SessionInfo {
+  id: string
+  created_at: string
+  last_active_at: string | null
+  is_current: boolean
+}
+
+function formatSessionDate(iso: string | null | undefined): string {
+  if (!iso) return "Unknown"
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return "Unknown"
+  const diffSeconds = Math.round((Date.now() - date.getTime()) / 1000)
+  if (diffSeconds < 60) return "just now"
+  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`
+  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`
+  if (diffSeconds < 604800) return `${Math.floor(diffSeconds / 86400)}d ago`
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  })
+}
 
 export function SecuritySection() {
   const supabase = createClient()
@@ -22,6 +46,11 @@ export function SecuritySection() {
   const [mfaVerifyCode, setMfaVerifyCode] = useState("")
   const [mfaEnabled, setMfaEnabled] = useState(false)
   const [mfaUnenrolling, setMfaUnenrolling] = useState(false)
+  const [sessions, setSessions] = useState<SessionInfo[]>([])
+  const [sessionsLoading, setSessionsLoading] = useState(true)
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(
+    null
+  )
 
   useEffect(() => {
     async function checkMfaStatus() {
@@ -31,6 +60,23 @@ export function SecuritySection() {
     }
     void checkMfaStatus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const res = await fetch("/api/account/sessions")
+        if (res.ok) {
+          const data = (await res.json()) as SessionInfo[]
+          setSessions(data)
+        }
+      } catch {
+        // ignore — sessions list is best-effort
+      } finally {
+        setSessionsLoading(false)
+      }
+    }
+    void loadSessions()
   }, [])
 
   const handleChangePassword = async () => {
@@ -158,9 +204,30 @@ export function SecuritySection() {
         toast.error(error.message)
         return
       }
+      setSessions((prev) => prev.filter((s) => s.is_current))
       toast.success("Other sessions signed out")
     } catch {
       toast.error("Failed to sign out other sessions")
+    }
+  }
+
+  const handleRevokeSession = async (sessionId: string) => {
+    setRevokingSessionId(sessionId)
+    try {
+      const res = await fetch(`/api/account/sessions/${sessionId}`, {
+        method: "DELETE"
+      })
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string }
+        toast.error(json.error ?? "Failed to revoke session")
+        return
+      }
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+      toast.success("Session revoked")
+    } catch {
+      toast.error("Failed to revoke session")
+    } finally {
+      setRevokingSessionId(null)
     }
   }
 
@@ -363,17 +430,78 @@ export function SecuritySection() {
         {/* Active Sessions */}
         <div className="bg-muted/30 rounded-2xl border p-5">
           <h3 className="font-display mb-2 text-base font-semibold">
-            Sessions
+            Active Sessions
           </h3>
           <p className="text-muted-foreground mb-4 text-sm">
-            Sign out other sessions for added security.
+            Manage your active sessions. Revoke any session you don&apos;t
+            recognise.
           </p>
+
+          {sessionsLoading && (
+            <div className="mb-4 space-y-2">
+              <Skeleton className="h-14 rounded-xl" />
+              <Skeleton className="h-14 rounded-xl" />
+            </div>
+          )}
+          {!sessionsLoading && sessions.length === 0 && (
+            <p className="text-muted-foreground mb-4 text-sm">
+              No active sessions found.
+            </p>
+          )}
+          {!sessionsLoading && sessions.length > 0 && (
+            <ul className="mb-4 space-y-2">
+              {sessions.map((session) => (
+                <li
+                  key={session.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground font-mono text-xs">
+                        {session.id.slice(-8).toUpperCase()}
+                      </span>
+                      {session.is_current && (
+                        <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
+                          Current
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-muted-foreground mt-0.5 text-xs">
+                      Started {formatSessionDate(session.created_at)}
+                      {session.last_active_at &&
+                        session.last_active_at !== session.created_at && (
+                          <>
+                            {" "}
+                            &middot; Active{" "}
+                            {formatSessionDate(session.last_active_at)}
+                          </>
+                        )}
+                    </p>
+                  </div>
+                  {!session.is_current && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void handleRevokeSession(session.id)}
+                      disabled={revokingSessionId === session.id}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 rounded-lg"
+                    >
+                      {revokingSessionId === session.id
+                        ? "Revoking…"
+                        : "Revoke"}
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
           <Button
             variant="outline"
             onClick={handleSignOutOtherSessions}
             className="rounded-xl"
           >
-            Sign out other sessions
+            Sign out all other sessions
           </Button>
         </div>
       </div>
