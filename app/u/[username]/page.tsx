@@ -5,6 +5,9 @@ import { notFound } from "next/navigation"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 
+import type { PublicSeries } from "./series-grid"
+import { SeriesGrid } from "./series-grid"
+
 export const dynamic = "force-dynamic"
 
 type Props = {
@@ -17,36 +20,6 @@ export async function generateMetadata({ params }: Props) {
     title: `${username}'s Collection — ShelfArc`,
     description: `View ${username}'s manga and light novel collection on ShelfArc`
   }
-}
-
-type PublicSeries = {
-  id: string
-  title: string
-  original_title: string | null
-  author: string | null
-  artist: string | null
-  publisher: string | null
-  cover_image_url: string | null
-  type: string
-  total_volumes: number | null
-  status: string | null
-  tags: string[]
-  created_at: string
-  volumeCount: number
-}
-
-const TYPE_LABELS: Record<string, string> = {
-  manga: "Manga",
-  light_novel: "Light Novel",
-  other: "Other"
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  ongoing: "Ongoing",
-  completed: "Completed",
-  hiatus: "Hiatus",
-  cancelled: "Cancelled",
-  upcoming: "Upcoming"
 }
 
 export default async function PublicProfilePage({ params }: Props) {
@@ -180,61 +153,7 @@ export default async function PublicProfilePage({ params }: Props) {
             <h2 className="mb-6 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
               Collection
             </h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {seriesList.map((series) => {
-                const coverUrl = resolveImageUrl(series.cover_image_url)
-                return (
-                  <a
-                    key={series.id}
-                    href={`/u/${encodeURIComponent(displayName)}/${series.id}`}
-                    className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-shadow hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
-                  >
-                    {/* Cover */}
-                    <div className="aspect-2/3 w-full overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-                      {coverUrl ? (
-                        <img
-                          src={coverUrl}
-                          alt={series.title}
-                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center">
-                          <span className="text-xs text-neutral-400">
-                            No Cover
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="p-3">
-                      <p className="line-clamp-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                        {series.title}
-                      </p>
-                      {series.author && (
-                        <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">
-                          {series.author}
-                        </p>
-                      )}
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
-                          {TYPE_LABELS[series.type] ?? series.type}
-                        </span>
-                        {series.status && (
-                          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
-                            {STATUS_LABELS[series.status] ?? series.status}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-neutral-500">
-                          {series.volumeCount}{" "}
-                          {series.volumeCount === 1 ? "vol" : "vols"}
-                        </span>
-                      </div>
-                    </div>
-                  </a>
-                )
-              })}
-            </div>
+            <SeriesGrid seriesList={seriesList} displayName={displayName} />
           </>
         )}
       </main>
