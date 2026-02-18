@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useRef } from "react"
+import { useCallback, useRef, useState } from "react"
+
 import { fetchLibrary } from "@/lib/api/endpoints"
 import type {
   FetchLibrarySeriesResponse,
@@ -26,6 +27,7 @@ export function useLibraryFetch() {
     sortField,
     sortOrder
   } = useLibraryStore()
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   // Fetch all series with volumes (stale-while-revalidate)
   const fetchSeries = useCallback(async () => {
@@ -135,6 +137,11 @@ export function useLibraryFetch() {
       }
     } catch (error) {
       console.error("Error fetching series:", error)
+      if (isLatestRun()) {
+        setFetchError(
+          error instanceof Error ? error.message : "Failed to load library"
+        )
+      }
     } finally {
       if (isLatestRun()) {
         setIsLoading(false)
@@ -149,5 +156,5 @@ export function useLibraryFetch() {
     sortOrder
   ])
 
-  return { fetchSeries, isLoading }
+  return { fetchSeries, isLoading, error: fetchError }
 }
