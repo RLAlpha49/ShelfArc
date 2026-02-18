@@ -1,8 +1,16 @@
+import bundleAnalyzer from "@next/bundle-analyzer"
 import type { NextConfig } from "next"
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true"
+})
 
 /** Next.js configuration with allowed remote image domains for Google Books and Open Library covers. @source */
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    webVitalsAttribution: ["CLS", "LCP"]
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "books.google.com" },
@@ -52,4 +60,4 @@ const nextConfig: NextConfig = {
   }
 }
 
-export default nextConfig
+export default withBundleAnalyzer(nextConfig)
