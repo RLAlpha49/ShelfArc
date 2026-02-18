@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 /** Routes that always require authentication. @source */
-const PROTECTED_ROUTES = ["/dashboard", "/library", "/settings"] as const
+const PROTECTED_ROUTES = ["/dashboard", "/library", "/settings", "/activity"] as const
 
 /** Authentication pages where logged-in users should be redirected away. @source */
 const AUTH_ROUTES = ["/login", "/signup"] as const
@@ -95,6 +95,18 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"
     url.searchParams.set("redirect", pathname)
+    return NextResponse.redirect(url)
+  }
+
+  // Redirect unverified users to the verification page
+  if (
+    isProtectedRoute &&
+    user &&
+    !user.email_confirmed_at &&
+    pathname !== "/verify-email"
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = "/verify-email"
     return NextResponse.redirect(url)
   }
 
