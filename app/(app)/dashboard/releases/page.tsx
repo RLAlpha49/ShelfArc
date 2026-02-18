@@ -29,6 +29,7 @@ function ReleaseRow({ item }: { readonly item: ReleaseItem }) {
           alt={item.volumeTitle}
           className="h-12 w-8 shrink-0 rounded object-cover"
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="bg-muted flex h-12 w-8 shrink-0 items-center justify-center rounded">

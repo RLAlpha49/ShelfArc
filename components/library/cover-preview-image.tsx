@@ -18,8 +18,16 @@ interface CoverPreviewImageProps extends Omit<
  * @source
  */
 export function CoverPreviewImage(props: Readonly<CoverPreviewImageProps>) {
-  const { wrapperClassName, className, alt, onLoad, onError, ...imgProps } =
-    props
+  const {
+    wrapperClassName,
+    className,
+    alt,
+    onLoad,
+    onError,
+    loading = "lazy",
+    decoding = "async",
+    ...imgProps
+  } = props
   const [isLoading, setIsLoading] = useState(true)
 
   const handleLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
@@ -43,6 +51,8 @@ export function CoverPreviewImage(props: Readonly<CoverPreviewImageProps>) {
       <img
         {...imgProps}
         alt={alt}
+        loading={loading}
+        decoding={decoding}
         className={cn(
           "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
           isLoading ? "opacity-0" : "opacity-100",

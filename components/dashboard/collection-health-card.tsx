@@ -54,7 +54,7 @@ export function CollectionHealthCard({
               cy="50"
               r="42"
               fill="none"
-              className="stroke-primary/10"
+              className="stroke-primary/10 dark:stroke-primary/20"
               strokeWidth="8"
             />
             <circle
@@ -91,7 +91,7 @@ export function CollectionHealthCard({
                 {factor.score}/{factor.maxScore}
               </span>
             </div>
-            <div className="bg-primary/8 mt-1 h-1.5 overflow-hidden rounded-full">
+            <div className="bg-primary/8 dark:bg-primary/15 mt-1 h-1.5 overflow-hidden rounded-full">
               <div
                 className="bg-primary h-full rounded-full transition-all duration-700"
                 style={{
@@ -105,7 +105,7 @@ export function CollectionHealthCard({
 
       {/* Suggestions */}
       {health.suggestions.length > 0 && (
-        <div className="mt-5 space-y-2 border-t pt-4">
+        <div className="border-border mt-5 space-y-2 border-t pt-4">
           {health.suggestions.map((tip) => (
             <div key={tip} className="flex gap-2 text-xs">
               <svg

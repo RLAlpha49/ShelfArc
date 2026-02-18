@@ -28,8 +28,8 @@ export function CoverImage({
   fallbackCoverImageUrl,
   alt,
   className,
-  loading,
-  decoding,
+  loading = "lazy",
+  decoding = "async",
   fetchPriority,
   fallback
 }: CoverImageProps) {

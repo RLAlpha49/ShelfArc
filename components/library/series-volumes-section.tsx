@@ -169,6 +169,7 @@ export function SeriesVolumesSection({
             label: "Add Volume",
             onClick: onOpenAdd
           }}
+          tip="Search by title or ISBN to find and add volumes"
         />
       ) : (
         <div className="animate-fade-in-up">

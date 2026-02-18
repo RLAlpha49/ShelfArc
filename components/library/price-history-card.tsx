@@ -274,7 +274,7 @@ export function PriceHistoryCard({
 
       {/* Sparkline with annotations */}
       {sparkPrices.length >= 2 && stats ? (
-        <div className="bg-primary/5 relative overflow-hidden rounded-lg">
+        <div className="bg-primary/5 dark:bg-primary/10 relative overflow-hidden rounded-lg">
           {/* Stat labels */}
           <div className="text-muted-foreground pointer-events-none absolute top-1 right-2 flex gap-3 text-[9px]">
             <span>
@@ -342,7 +342,8 @@ export function PriceHistoryCard({
               x2={svgW - pad}
               y1={priceToY(stats.avg, stats.min, stats.max, svgH, pad)}
               y2={priceToY(stats.avg, stats.min, stats.max, svgH, pad)}
-              stroke="oklch(0.6 0.14 45)"
+              className="text-copper"
+              stroke="currentColor"
               strokeWidth="0.8"
               strokeDasharray="4 3"
               opacity="0.5"
@@ -354,7 +355,8 @@ export function PriceHistoryCard({
               x2={svgW - pad}
               y1={priceToY(stats.min, stats.min, stats.max, svgH, pad)}
               y2={priceToY(stats.min, stats.min, stats.max, svgH, pad)}
-              stroke="oklch(0.55 0.1 250)"
+              className="text-muted-foreground"
+              stroke="currentColor"
               strokeWidth="0.5"
               strokeDasharray="2 4"
               opacity="0.35"
@@ -366,7 +368,8 @@ export function PriceHistoryCard({
               x2={svgW - pad}
               y1={priceToY(stats.max, stats.min, stats.max, svgH, pad)}
               y2={priceToY(stats.max, stats.min, stats.max, svgH, pad)}
-              stroke="oklch(0.55 0.1 250)"
+              className="text-muted-foreground"
+              stroke="currentColor"
               strokeWidth="0.5"
               strokeDasharray="2 4"
               opacity="0.35"
@@ -393,7 +396,8 @@ export function PriceHistoryCard({
                     svgH,
                     pad
                   )}
-                  stroke="oklch(0.7 0.12 65)"
+                  className="text-gold"
+                  stroke="currentColor"
                   strokeWidth="1"
                   strokeDasharray="3 2"
                   opacity="0.7"
@@ -410,7 +414,8 @@ export function PriceHistoryCard({
             <polyline
               points={buildSparklinePath(sparkPrices, svgW, svgH)}
               fill="none"
-              stroke="oklch(0.6 0.14 45)"
+              className="text-copper"
+              stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -418,7 +423,7 @@ export function PriceHistoryCard({
           </svg>
         </div>
       ) : (
-        <div className="text-muted-foreground bg-primary/5 flex h-20 items-center justify-center rounded-lg text-xs">
+        <div className="text-muted-foreground bg-primary/5 dark:bg-primary/10 flex h-20 items-center justify-center rounded-lg text-xs">
           Not enough data for trend
         </div>
       )}
