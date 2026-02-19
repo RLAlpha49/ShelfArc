@@ -64,6 +64,6 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   // Suppress Sentry CLI output during builds
   silent: !process.env.CI,
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true
+  // Auth token for source map uploads (set SENTRY_AUTH_TOKEN in env)
+  authToken: process.env.SENTRY_AUTH_TOKEN
 })
