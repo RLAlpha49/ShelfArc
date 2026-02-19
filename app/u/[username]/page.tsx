@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { ShareButton } from "@/components/ui/share-button"
+import { getPublicProfileUrl } from "@/lib/share-url"
 // eslint-disable-next-line no-restricted-imports -- Admin client required: public page needs RLS bypass for unauthenticated visitors
 import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
@@ -98,6 +100,7 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const resolvedAvatar = resolveImageUrl(profile.avatar_url)
   const displayName = profile.username ?? username
+  const shareUrl = getPublicProfileUrl(displayName)
   const memberSince = new Date(profile.created_at).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric"
@@ -125,9 +128,12 @@ export default async function PublicProfilePage({ params }: Props) {
             </div>
 
             <div className="text-center sm:text-left">
-              <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                {displayName}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                  {displayName}
+                </h1>
+                <ShareButton url={shareUrl} label="Share" />
+              </div>
               {profile.public_bio && (
                 <p className="mt-2 max-w-lg text-neutral-600 dark:text-neutral-400">
                   {profile.public_bio}

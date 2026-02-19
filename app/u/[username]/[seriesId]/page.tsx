@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { ShareButton } from "@/components/ui/share-button"
+import { getPublicSeriesUrl } from "@/lib/share-url"
 // eslint-disable-next-line no-restricted-imports -- Admin client required: public page needs RLS bypass for unauthenticated visitors
 import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
@@ -96,6 +98,7 @@ export default async function PublicSeriesPage({ params }: Props) {
 
   const displayName = profile.username ?? username
   const seriesCover = resolveImageUrl(series.cover_image_url)
+  const shareUrl = getPublicSeriesUrl(displayName, seriesId)
 
   return (
     <div className="min-h-screen bg-linear-to-b from-neutral-50 to-white dark:from-neutral-950 dark:to-neutral-900">
@@ -128,9 +131,16 @@ export default async function PublicSeriesPage({ params }: Props) {
 
             {/* Details */}
             <div className="flex-1">
-              <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                {series.title}
-              </h1>
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                  {series.title}
+                </h1>
+                <ShareButton
+                  url={shareUrl}
+                  label="Share"
+                  className="shrink-0"
+                />
+              </div>
               {series.original_title && (
                 <p className="mt-1 text-sm text-neutral-500">
                   {series.original_title}
