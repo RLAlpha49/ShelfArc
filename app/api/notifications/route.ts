@@ -150,6 +150,26 @@ export async function POST(request: NextRequest) {
       return apiError(400, validated.error, { correlationId })
     }
 
+    // Check user preferences before inserting
+    const PREF_KEY_MAP: Partial<Record<string, string>> = {
+      import_complete: "notifyOnImportComplete",
+      scrape_complete: "notifyOnScrapeComplete",
+      price_alert: "notifyOnPriceAlert",
+      release_reminder: "releaseReminders"
+    }
+    const prefKey = PREF_KEY_MAP[validated.type]
+    if (prefKey !== undefined) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("settings")
+        .eq("id", user.id)
+        .single()
+      const settings = profileData?.settings ?? {}
+      if (settings[prefKey] === false) {
+        return apiSuccess({ skipped: true }, { correlationId })
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .from("notifications")

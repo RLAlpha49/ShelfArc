@@ -5,7 +5,16 @@ import { Switch } from "@/components/ui/switch"
 import { useSettingsStore } from "@/lib/store/settings-store"
 
 export function NotificationsSection() {
-  const { releaseReminders, setReleaseReminders } = useSettingsStore()
+  const {
+    releaseReminders,
+    setReleaseReminders,
+    notifyOnImportComplete,
+    setNotifyOnImportComplete,
+    notifyOnScrapeComplete,
+    setNotifyOnScrapeComplete,
+    notifyOnPriceAlert,
+    setNotifyOnPriceAlert
+  } = useSettingsStore()
 
   return (
     <section
@@ -40,6 +49,63 @@ export function NotificationsSection() {
       </div>
 
       <div className="grid gap-4">
+        {/* Activity Notifications */}
+        <div className="bg-muted/30 rounded-2xl border p-5">
+          <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+            Activity Notifications
+          </p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="notify-import-complete" className="font-medium">
+                  Import complete
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Receive a notification when a library import finishes.
+                </p>
+              </div>
+              <Switch
+                id="notify-import-complete"
+                checked={notifyOnImportComplete}
+                onCheckedChange={setNotifyOnImportComplete}
+              />
+            </div>
+            <div className="border-border/50 border-t" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="notify-scrape-complete" className="font-medium">
+                  Bulk scrape complete
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Receive a notification when a bulk metadata scrape finishes.
+                </p>
+              </div>
+              <Switch
+                id="notify-scrape-complete"
+                checked={notifyOnScrapeComplete}
+                onCheckedChange={setNotifyOnScrapeComplete}
+              />
+            </div>
+            <div className="border-border/50 border-t" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="notify-price-alert" className="font-medium">
+                  Price alerts
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Receive a notification when a tracked book drops below your
+                  target price.
+                </p>
+              </div>
+              <Switch
+                id="notify-price-alert"
+                checked={notifyOnPriceAlert}
+                onCheckedChange={setNotifyOnPriceAlert}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Release Reminders */}
         <div className="bg-muted/30 rounded-2xl border p-5">
           <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">

@@ -111,6 +111,9 @@ interface SettingsState {
 
   // Notifications
   releaseReminders: boolean
+  notifyOnImportComplete: boolean
+  notifyOnScrapeComplete: boolean
+  notifyOnPriceAlert: boolean
 
   // Dashboard layout
   dashboardLayout: DashboardLayout
@@ -137,6 +140,9 @@ interface SettingsState {
   setFocusIndicators: (value: FocusIndicators) => void
   setAutomatedPriceChecks: (value: boolean) => void
   setReleaseReminders: (value: boolean) => void
+  setNotifyOnImportComplete: (value: boolean) => void
+  setNotifyOnScrapeComplete: (value: boolean) => void
+  setNotifyOnPriceAlert: (value: boolean) => void
   setHasCompletedOnboarding: (value: boolean) => void
   setDashboardLayout: (layout: DashboardLayout) => void
   resetDashboardLayout: () => void
@@ -197,6 +203,9 @@ const SYNCABLE_KEYS = [
   "focusIndicators",
   "automatedPriceChecks",
   "releaseReminders",
+  "notifyOnImportComplete",
+  "notifyOnScrapeComplete",
+  "notifyOnPriceAlert",
   "hasCompletedOnboarding",
   "dashboardLayout"
 ] as const
@@ -240,6 +249,9 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Notifications
       releaseReminders: true,
+      notifyOnImportComplete: true,
+      notifyOnScrapeComplete: true,
+      notifyOnPriceAlert: true,
 
       // Dashboard layout
       dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
@@ -268,6 +280,11 @@ export const useSettingsStore = create<SettingsState>()(
       setFocusIndicators: (value) => set({ focusIndicators: value }),
       setAutomatedPriceChecks: (value) => set({ automatedPriceChecks: value }),
       setReleaseReminders: (value) => set({ releaseReminders: value }),
+      setNotifyOnImportComplete: (value) =>
+        set({ notifyOnImportComplete: value }),
+      setNotifyOnScrapeComplete: (value) =>
+        set({ notifyOnScrapeComplete: value }),
+      setNotifyOnPriceAlert: (value) => set({ notifyOnPriceAlert: value }),
       setHasCompletedOnboarding: (value) =>
         set({ hasCompletedOnboarding: value }),
       setDashboardLayout: (layout) => set({ dashboardLayout: layout }),
@@ -343,6 +360,9 @@ export const useSettingsStore = create<SettingsState>()(
         focusIndicators: state.focusIndicators,
         automatedPriceChecks: state.automatedPriceChecks,
         releaseReminders: state.releaseReminders,
+        notifyOnImportComplete: state.notifyOnImportComplete,
+        notifyOnScrapeComplete: state.notifyOnScrapeComplete,
+        notifyOnPriceAlert: state.notifyOnPriceAlert,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         dashboardLayout: state.dashboardLayout,
         lastSyncedAt: state.lastSyncedAt
