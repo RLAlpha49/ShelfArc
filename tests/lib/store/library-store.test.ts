@@ -63,6 +63,7 @@ function makeVolume(overrides: Partial<Volume> = {}): Volume {
     notes: null,
     started_at: null,
     finished_at: null,
+    release_reminder: false,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides
