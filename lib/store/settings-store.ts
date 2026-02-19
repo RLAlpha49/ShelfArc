@@ -33,6 +33,8 @@ export type DashboardWidgetId =
   | "wishlist"
   | "releases"
   | "price-alerts"
+  | "spending-chart"
+  | "tag-analytics"
 
 /** Column assignment for a dashboard widget. @source */
 export type DashboardWidgetColumn = "full" | "left" | "right"
@@ -63,7 +65,9 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetMeta[] = [
   { id: "price-tracking", label: "Price Tracking", column: "right" },
   { id: "wishlist", label: "Wishlist", column: "right" },
   { id: "releases", label: "Upcoming Releases", column: "right" },
-  { id: "price-alerts", label: "Price Alerts", column: "right" }
+  { id: "price-alerts", label: "Price Alerts", column: "right" },
+  { id: "spending-chart", label: "Spending Over Time", column: "left" },
+  { id: "tag-analytics", label: "Tag Breakdown", column: "left" }
 ]
 
 /** Default dashboard layout with all widgets visible in the default order. @source */

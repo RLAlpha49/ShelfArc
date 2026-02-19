@@ -17,8 +17,10 @@ import type {
   CollectionStats,
   PriceBreakdown,
   ReleaseItem,
+  SpendingDataPoint,
   SuggestedBuy,
   SuggestionCounts,
+  TagBreakdown,
   WishlistStats
 } from "@/lib/library/analytics"
 import type { HealthScore } from "@/lib/library/health-score"
@@ -41,6 +43,12 @@ const LazyPriceAlerts = lazy(() =>
   import("@/components/library/price-alerts-dashboard-card").then((m) => ({
     default: m.PriceAlertsDashboardCard
   }))
+)
+const LazySpendingChart = lazy(
+  () => import("@/components/dashboard/dashboard-spending-chart")
+)
+const LazyTagAnalytics = lazy(
+  () => import("@/components/dashboard/dashboard-tag-analytics")
 )
 
 // ── Widget prop interfaces ────────────────────────────────────────────────
@@ -98,6 +106,16 @@ interface WishlistWidgetProps {
 interface ReleasesWidgetProps {
   readonly upcomingReleases: readonly ReleaseItem[]
   readonly dateFormat: DateFormat
+}
+
+interface SpendingChartWidgetProps {
+  readonly spendingTimeSeries: readonly SpendingDataPoint[]
+  readonly priceFormatter: PriceFormatter
+}
+
+interface TagAnalyticsWidgetProps {
+  readonly tagBreakdown: readonly TagBreakdown[]
+  readonly priceFormatter: PriceFormatter
 }
 
 // ── Standalone widget components ─────────────────────────────────────────
@@ -855,6 +873,52 @@ function PriceAlertsWidget() {
   )
 }
 
+function SpendingChartWidget({
+  spendingTimeSeries,
+  priceFormatter
+}: SpendingChartWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Spending Over Time
+        </h2>
+        <p className="text-muted-foreground text-xs">Monthly purchase spend</p>
+      </div>
+      <Suspense fallback={<WidgetSkeleton />}>
+        <LazySpendingChart
+          data={spendingTimeSeries as SpendingDataPoint[]}
+          priceFormatter={priceFormatter}
+        />
+      </Suspense>
+    </div>
+  )
+}
+
+function TagAnalyticsWidget({
+  tagBreakdown,
+  priceFormatter
+}: TagAnalyticsWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Tag Breakdown
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          Collection analytics by tag
+        </p>
+      </div>
+      <Suspense fallback={<WidgetSkeleton />}>
+        <LazyTagAnalytics
+          breakdown={tagBreakdown as TagBreakdown[]}
+          priceFormatter={priceFormatter}
+        />
+      </Suspense>
+    </div>
+  )
+}
+
 function ActivityWidget() {
   return <RecentActivityCard />
 }
@@ -873,6 +937,8 @@ export interface DashboardContentProps {
   readonly suggestionCounts: SuggestionCounts
   readonly upcomingReleases: readonly ReleaseItem[]
   readonly series: readonly SeriesWithVolumes[]
+  readonly spendingTimeSeries: readonly SpendingDataPoint[]
+  readonly tagBreakdown: readonly TagBreakdown[]
 }
 
 /**
@@ -892,7 +958,9 @@ export function DashboardContent({
   suggestedNextBuys,
   suggestionCounts,
   upcomingReleases,
-  series
+  series,
+  spendingTimeSeries,
+  tagBreakdown
 }: DashboardContentProps) {
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
@@ -960,7 +1028,19 @@ export function DashboardContent({
         dateFormat={dateFormat}
       />
     ),
-    "price-alerts": <PriceAlertsWidget />
+    "price-alerts": <PriceAlertsWidget />,
+    "spending-chart": (
+      <SpendingChartWidget
+        spendingTimeSeries={spendingTimeSeries}
+        priceFormatter={priceFormatter}
+      />
+    ),
+    "tag-analytics": (
+      <TagAnalyticsWidget
+        tagBreakdown={tagBreakdown}
+        priceFormatter={priceFormatter}
+      />
+    )
   }
 
   return (

@@ -17,8 +17,10 @@ import {
   computeCollectionStats,
   computePriceBreakdown,
   computeReleases,
+  computeSpendingTimeSeries,
   computeSuggestedBuys,
   computeSuggestionCounts,
+  computeTagBreakdown,
   computeWishlistStats,
   getCurrentlyReading,
   getRecentSeries,
@@ -185,6 +187,8 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
   const suggestionCounts = computeSuggestionCounts(allSuggestions)
   const { upcoming } = computeReleases(series)
   const upcomingReleases = upcoming.flatMap((g) => g.items).slice(0, 5)
+  const spendingTimeSeries = computeSpendingTimeSeries(series)
+  const tagBreakdown = computeTagBreakdown(series)
 
   return (
     <DashboardContent
@@ -199,6 +203,8 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
       suggestionCounts={suggestionCounts}
       upcomingReleases={upcomingReleases}
       series={series}
+      spendingTimeSeries={spendingTimeSeries}
+      tagBreakdown={tagBreakdown}
     />
   )
 }

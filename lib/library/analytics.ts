@@ -538,6 +538,143 @@ export function getCurrentlyReading(
   return result
 }
 
+// ── Spending over time ─────────────────────────────────────────────────
+
+export interface SpendingDataPoint {
+  /** Sortable key, e.g. "2025-03" */
+  yearMonth: string
+  /** Display label, e.g. "Mar 2025" */
+  label: string
+  /** Total purchase price for all owned volumes bought that month */
+  total: number
+}
+
+const spendingMonthFormatter = new Intl.DateTimeFormat(undefined, {
+  year: "numeric",
+  month: "short"
+})
+
+function accumulateVolumeSpending(
+  map: Map<string, SpendingDataPoint>,
+  v: Volume
+): void {
+  const price = v.purchase_price ?? 0
+  if (price <= 0 || !v.purchase_date) return
+  const d = new Date(v.purchase_date)
+  if (Number.isNaN(d.getTime())) return
+  const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+  const existing = map.get(ym)
+  if (existing) {
+    existing.total += price
+  } else {
+    map.set(ym, {
+      yearMonth: ym,
+      label: spendingMonthFormatter.format(d),
+      total: price
+    })
+  }
+}
+
+/**
+ * Aggregates owned-volume purchase prices by month.
+ * Only volumes with both `purchase_date` and `purchase_price > 0` are counted.
+ * Returns data points sorted ascending by date.
+ */
+export function computeSpendingTimeSeries(
+  series: SeriesWithVolumes[]
+): SpendingDataPoint[] {
+  const map = new Map<string, SpendingDataPoint>()
+  for (const s of series) {
+    for (const v of s.volumes) {
+      if (v.ownership_status === "owned") accumulateVolumeSpending(map, v)
+    }
+  }
+  return [...map.values()].sort((a, b) =>
+    a.yearMonth.localeCompare(b.yearMonth)
+  )
+}
+
+// ── Per-tag analytics ──────────────────────────────────────────────────
+
+export interface TagBreakdown {
+  tag: string
+  volumeCount: number
+  ownedCount: number
+  totalSpent: number
+  /** Rounded to one decimal; 0 when no ratings exist */
+  avgRating: number
+}
+
+interface TagAccumulator {
+  volumeCount: number
+  ownedCount: number
+  totalSpent: number
+  ratingSum: number
+  ratingCount: number
+}
+
+function getOrCreateTagEntry(
+  map: Map<string, TagAccumulator>,
+  tag: string
+): TagAccumulator {
+  let entry = map.get(tag)
+  if (!entry) {
+    entry = {
+      volumeCount: 0,
+      ownedCount: 0,
+      totalSpent: 0,
+      ratingSum: 0,
+      ratingCount: 0
+    }
+    map.set(tag, entry)
+  }
+  return entry
+}
+
+function accumulateTagVolume(entry: TagAccumulator, v: Volume): void {
+  entry.volumeCount++
+  if (v.ownership_status === "owned") {
+    entry.ownedCount++
+    entry.totalSpent += v.purchase_price ?? 0
+  }
+  if (v.rating != null) {
+    entry.ratingSum += v.rating
+    entry.ratingCount++
+  }
+}
+
+/**
+ * Computes per-tag analytics by iterating series and their volumes.
+ * Tags live on the series level (`series.tags: string[]`).
+ * Returns entries sorted descending by ownedCount, then by tag name.
+ */
+export function computeTagBreakdown(
+  series: SeriesWithVolumes[]
+): TagBreakdown[] {
+  const map = new Map<string, TagAccumulator>()
+
+  for (const s of series) {
+    if (!s.tags || s.tags.length === 0) continue
+    for (const tag of s.tags) {
+      const entry = getOrCreateTagEntry(map, tag)
+      for (const v of s.volumes) accumulateTagVolume(entry, v)
+    }
+  }
+
+  return [...map.entries()]
+    .map(([tag, e]) => ({
+      tag,
+      volumeCount: e.volumeCount,
+      ownedCount: e.ownedCount,
+      totalSpent: e.totalSpent,
+      avgRating:
+        e.ratingCount > 0
+          ? Math.round((e.ratingSum / e.ratingCount) * 10) / 10
+          : 0
+    }))
+    .sort((a, b) => b.ownedCount - a.ownedCount || a.tag.localeCompare(b.tag))
+}
+
 export function computeReleases(
   series: SeriesWithVolumes[],
   referenceDate?: Date
