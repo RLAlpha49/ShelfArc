@@ -19,7 +19,6 @@ export type SearchSource = "google_books" | "open_library"
 export type FontSizeScale = "default" | "large" | "x-large"
 /** Focus indicator visibility mode. @source */
 export type FocusIndicators = "default" | "enhanced"
-
 /** Dashboard widget identifier. @source */
 export type DashboardWidgetId =
   | "stats"
@@ -103,6 +102,12 @@ interface SettingsState {
   fontSizeScale: FontSizeScale
   focusIndicators: FocusIndicators
 
+  // Automation
+  automatedPriceChecks: boolean
+
+  // Notifications
+  releaseReminders: boolean
+
   // Dashboard layout
   dashboardLayout: DashboardLayout
 
@@ -126,6 +131,8 @@ interface SettingsState {
   setHighContrastMode: (value: boolean) => void
   setFontSizeScale: (value: FontSizeScale) => void
   setFocusIndicators: (value: FocusIndicators) => void
+  setAutomatedPriceChecks: (value: boolean) => void
+  setReleaseReminders: (value: boolean) => void
   setHasCompletedOnboarding: (value: boolean) => void
   setDashboardLayout: (layout: DashboardLayout) => void
   resetDashboardLayout: () => void
@@ -184,6 +191,8 @@ const SYNCABLE_KEYS = [
   "highContrastMode",
   "fontSizeScale",
   "focusIndicators",
+  "automatedPriceChecks",
+  "releaseReminders",
   "hasCompletedOnboarding",
   "dashboardLayout"
 ] as const
@@ -222,6 +231,12 @@ export const useSettingsStore = create<SettingsState>()(
       fontSizeScale: "default",
       focusIndicators: "default",
 
+      // Automation
+      automatedPriceChecks: true,
+
+      // Notifications
+      releaseReminders: true,
+
       // Dashboard layout
       dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
 
@@ -247,6 +262,8 @@ export const useSettingsStore = create<SettingsState>()(
       setHighContrastMode: (value) => set({ highContrastMode: value }),
       setFontSizeScale: (value) => set({ fontSizeScale: value }),
       setFocusIndicators: (value) => set({ focusIndicators: value }),
+      setAutomatedPriceChecks: (value) => set({ automatedPriceChecks: value }),
+      setReleaseReminders: (value) => set({ releaseReminders: value }),
       setHasCompletedOnboarding: (value) =>
         set({ hasCompletedOnboarding: value }),
       setDashboardLayout: (layout) => set({ dashboardLayout: layout }),
@@ -320,6 +337,8 @@ export const useSettingsStore = create<SettingsState>()(
         highContrastMode: state.highContrastMode,
         fontSizeScale: state.fontSizeScale,
         focusIndicators: state.focusIndicators,
+        automatedPriceChecks: state.automatedPriceChecks,
+        releaseReminders: state.releaseReminders,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         dashboardLayout: state.dashboardLayout,
         lastSyncedAt: state.lastSyncedAt

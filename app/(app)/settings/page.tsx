@@ -6,6 +6,7 @@ import { AccessibilitySection } from "@/components/settings/accessibility-sectio
 import { AppearanceSection } from "@/components/settings/appearance-section"
 import { DangerZoneSection } from "@/components/settings/danger-zone-section"
 import { DataSection } from "@/components/settings/data-section"
+import { NotificationsSection } from "@/components/settings/notifications-section"
 import { PreferencesSection } from "@/components/settings/preferences-section"
 import { PricingSection } from "@/components/settings/pricing-section"
 import { ProfileSection } from "@/components/settings/profile-section"
@@ -21,6 +22,7 @@ const settingsNav = [
   { id: "appearance", label: "Appearance" },
   { id: "accessibility", label: "Accessibility" },
   { id: "pricing", label: "Pricing" },
+  { id: "notifications", label: "Notifications" },
   { id: "security", label: "Security" },
   { id: "data", label: "Data" },
   { id: "danger-zone", label: "Danger Zone" }
@@ -217,6 +219,12 @@ export default function SettingsPage() {
                           <path d="M7 7h.01" />
                         </>
                       )}
+                      {section.id === "notifications" && (
+                        <>
+                          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                        </>
+                      )}
                       {section.id === "security" && (
                         <>
                           <rect
@@ -264,6 +272,8 @@ export default function SettingsPage() {
           <AccessibilitySection />
 
           <PricingSection />
+
+          <NotificationsSection />
 
           <SecuritySection />
 

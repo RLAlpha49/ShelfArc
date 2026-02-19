@@ -243,6 +243,7 @@ CREATE TABLE IF NOT EXISTS volumes (
   finished_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  release_reminder BOOLEAN DEFAULT FALSE NOT NULL,
   
   UNIQUE(series_id, volume_number, edition)
 );
@@ -263,6 +264,10 @@ CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volum
 CREATE INDEX IF NOT EXISTS idx_volumes_user_updated ON volumes(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_purchase_date ON volumes(user_id, purchase_date DESC);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_publish_date ON volumes(user_id, publish_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder
+  ON volumes(user_id, publish_date)
+  WHERE publish_date IS NOT NULL AND release_reminder = TRUE;
 
 -- Tags table (user-defined tags)
 CREATE TABLE IF NOT EXISTS tags (
@@ -367,6 +372,7 @@ BEGIN
       'import_complete',
       'scrape_complete',
       'price_alert',
+      'release_reminder',
       'info'
     );
   END IF;

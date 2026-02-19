@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -12,12 +13,42 @@ import {
   type MonthGroup,
   type ReleaseItem
 } from "@/lib/library/analytics"
+import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 
 type FormatFilter = "all" | "light_novel" | "manga"
 
 function ReleaseRow({ item }: { readonly item: ReleaseItem }) {
   const dateFormat = useSettingsStore((s) => s.dateFormat)
+  const updateVolume = useLibraryStore((s) => s.updateVolume)
+  const [notifyPending, setNotifyPending] = useState(false)
+  const [localReminder, setLocalReminder] = useState(item.releaseReminder)
+
+  async function handleNotifyToggle(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (notifyPending) return
+    const next = !localReminder
+    setLocalReminder(next)
+    setNotifyPending(true)
+    try {
+      const res = await fetch(`/api/library/volumes/${item.volumeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ release_reminder: next })
+      })
+      if (!res.ok) throw new Error("Failed to update")
+      updateVolume(item.seriesId, item.volumeId, { release_reminder: next })
+      toast.success(
+        next ? "Release reminder enabled" : "Release reminder disabled"
+      )
+    } catch {
+      setLocalReminder(!next)
+      toast.error("Failed to update release reminder")
+    } finally {
+      setNotifyPending(false)
+    }
+  }
 
   return (
     <Link
@@ -76,6 +107,33 @@ function ReleaseRow({ item }: { readonly item: ReleaseItem }) {
           <Badge variant="secondary" className="bg-gold/10 text-gold">
             Wishlist
           </Badge>
+        )}
+        {item.isWishlisted && (
+          <button
+            type="button"
+            onClick={handleNotifyToggle}
+            disabled={notifyPending}
+            title={
+              localReminder
+                ? "Disable release reminder"
+                : "Enable release reminder"
+            }
+            className={`hover:text-primary ml-1 flex h-6 w-6 items-center justify-center rounded transition-colors ${
+              localReminder ? "text-primary" : "text-muted-foreground/40"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill={localReminder ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth="2"
+              className="h-3.5 w-3.5"
+            >
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            </svg>
+          </button>
         )}
       </div>
       <svg

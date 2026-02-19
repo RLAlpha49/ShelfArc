@@ -90,6 +90,7 @@ export interface ReleaseItem {
   isOwned: boolean
   isWishlisted: boolean
   coverUrl: string | null
+  releaseReminder: boolean
 }
 
 export interface MonthGroup {
@@ -574,7 +575,8 @@ export function computeReleases(
         publishDate: d,
         isOwned: v.ownership_status === "owned",
         isWishlisted: v.ownership_status === "wishlist",
-        coverUrl: v.cover_image_url
+        coverUrl: v.cover_image_url,
+        releaseReminder: v.release_reminder ?? false
       })
     }
   }

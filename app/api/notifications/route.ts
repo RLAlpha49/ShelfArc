@@ -16,6 +16,7 @@ const VALID_NOTIFICATION_TYPES = new Set<NotificationType>([
   "import_complete",
   "scrape_complete",
   "price_alert",
+  "release_reminder",
   "info"
 ])
 
