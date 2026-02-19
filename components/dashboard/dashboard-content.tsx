@@ -26,7 +26,8 @@ import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import {
   DASHBOARD_WIDGETS,
-  type DashboardWidgetId
+  type DashboardWidgetId,
+  type DateFormat
 } from "@/lib/store/settings-store"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
@@ -59,7 +60,7 @@ interface RecentlyAddedWidgetProps {
   readonly recentSeries: readonly SeriesWithVolumes[]
   readonly recentVolumes: readonly AugmentedVolume[]
   readonly priceFormatter: PriceFormatter
-  readonly dateFormat: string
+  readonly dateFormat: DateFormat
 }
 
 interface RecommendationsWidgetProps {
@@ -96,7 +97,7 @@ interface WishlistWidgetProps {
 
 interface ReleasesWidgetProps {
   readonly upcomingReleases: readonly ReleaseItem[]
-  readonly dateFormat: string
+  readonly dateFormat: DateFormat
 }
 
 // ── Standalone widget components ─────────────────────────────────────────
