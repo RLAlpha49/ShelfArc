@@ -10,6 +10,22 @@ import { SeriesGrid } from "./series-grid"
 
 export const dynamic = "force-dynamic"
 
+type VolumeRow = { series_id: string | null; reading_status: string | null }
+
+function buildVolumeStats(rows: VolumeRow[]) {
+  const countBySeries = new Map<string, number>()
+  let completedCount = 0
+  for (const row of rows) {
+    if (!row.series_id) continue
+    countBySeries.set(
+      row.series_id,
+      (countBySeries.get(row.series_id) ?? 0) + 1
+    )
+    if (row.reading_status === "completed") completedCount++
+  }
+  return { countBySeries, completedCount }
+}
+
 type Props = {
   readonly params: Promise<{ username: string }>
 }
@@ -50,23 +66,22 @@ export default async function PublicProfilePage({ params }: Props) {
     .order("title", { ascending: true })
 
   const seriesList: PublicSeries[] = []
+  let totalCompletedVolumes = 0
 
   if (seriesData && seriesData.length > 0) {
     const seriesIds = seriesData.map((s) => s.id)
 
     // Single aggregated query instead of N+1 per-series count queries
+    // Exclude wishlist volumes from public counts
     const { data: volumeRows } = await admin
       .from("volumes")
-      .select("series_id")
+      .select("series_id, reading_status")
       .eq("user_id", profile.id)
       .in("series_id", seriesIds)
+      .eq("ownership_status", "owned")
 
-    const countBySeries = new Map<string, number>()
-    for (const row of volumeRows ?? []) {
-      if (!row.series_id) continue
-      const prev = countBySeries.get(row.series_id) ?? 0
-      countBySeries.set(row.series_id, prev + 1)
-    }
+    const { countBySeries, completedCount } = buildVolumeStats(volumeRows ?? [])
+    totalCompletedVolumes = completedCount
 
     for (const s of seriesData) {
       seriesList.push({ ...s, volumeCount: countBySeries.get(s.id) ?? 0 })
@@ -76,6 +91,10 @@ export default async function PublicProfilePage({ params }: Props) {
   // Calculate stats
   const totalSeries = seriesList.length
   const totalVolumes = seriesList.reduce((sum, s) => sum + s.volumeCount, 0)
+  const readingCompletionPct =
+    totalVolumes > 0
+      ? Math.round((totalCompletedVolumes / totalVolumes) * 100)
+      : 0
 
   const resolvedAvatar = resolveImageUrl(profile.avatar_url)
   const displayName = profile.username ?? username
@@ -136,6 +155,12 @@ export default async function PublicProfilePage({ params }: Props) {
                 <p className="text-sm text-neutral-500">
                   {totalVolumes === 1 ? "Volume" : "Volumes"}
                 </p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                  {readingCompletionPct}%
+                </p>
+                <p className="text-sm text-neutral-500">Read</p>
               </div>
             </div>
           )}

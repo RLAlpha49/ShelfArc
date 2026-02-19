@@ -84,13 +84,14 @@ export default async function PublicSeriesPage({ params }: Props) {
     notFound()
   }
 
-  // Fetch volumes — only safe columns
+  // Fetch volumes — only safe columns, excluding wishlist items
   const { data: volumes } = await admin
     .from("volumes")
     .select(
       "id, volume_number, title, isbn, cover_image_url, edition, format, page_count, publish_date, reading_status, rating, description"
     )
     .eq("series_id", series.id)
+    .neq("ownership_status", "wishlist")
     .order("volume_number", { ascending: true })
 
   const displayName = profile.username ?? username
