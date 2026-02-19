@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 
+import { ApiError } from "../../lib/books/price/api-error"
 import { makeNextRequest, readJson } from "./test-utils"
 
 // Prevent "server-only" guard from throwing in the test environment
@@ -9,6 +10,53 @@ type RateLimitModule = {
   isRateLimited: ReturnType<typeof mock>
   getCooldownRemaining: ReturnType<typeof mock>
   recordFailure: ReturnType<typeof mock>
+}
+
+type AmazonPriceMocks = {
+  createAmazonSearchContext: ReturnType<typeof mock>
+  fetchAmazonHtml: ReturnType<typeof mock>
+  parseAmazonResult: ReturnType<typeof mock>
+}
+
+// Default search context returned by the mock unless overridden.
+const makeDefaultContext = () => ({
+  domain: "amazon.com",
+  host: "www.amazon.com",
+  title: "My Book",
+  expectedTitle: "My Book",
+  requiredTitle: "My Book",
+  format: "",
+  bindingLabel: "Paperback",
+  bindingLabels: ["Paperback"],
+  fallbackToKindle: false,
+  volumeNumber: null,
+  volumeTitle: "",
+  volumeSubtitle: "",
+  searchUrl: "https://www.amazon.com/s?k=My+Book+Paperback"
+})
+
+// Re-registers the amazon-price mocks for each test so that module-level
+// mocks from other test files (e.g. library-volumes-batch-scrape) cannot
+// contaminate this file when Bun collects all modules before running tests.
+const registerAmazonPriceMocks = (overrides?: Partial<AmazonPriceMocks>) => {
+  const local: AmazonPriceMocks = {
+    createAmazonSearchContext: mock(() => makeDefaultContext()),
+    fetchAmazonHtml: mock(async () => "<html></html>"),
+    parseAmazonResult: mock(() => ({
+      resultTitle: "My Book",
+      matchScore: 1,
+      priceText: null,
+      priceValue: null,
+      currency: null,
+      priceBinding: null,
+      priceError: null,
+      productUrl: null,
+      imageUrl: null
+    })),
+    ...overrides
+  }
+  mock.module("@/lib/books/price/amazon-price", () => local)
+  return local
 }
 
 // Helper to register fresh rate-limit mocks for a test
@@ -79,6 +127,11 @@ describe("GET /api/books/price", () => {
   it("returns 400 when title is missing", async () => {
     registerRateLimitMocks()
     registerDistributedRateLimitMocks()
+    registerAmazonPriceMocks({
+      createAmazonSearchContext: mock(() => {
+        throw new ApiError(400, "Missing title")
+      })
+    })
 
     const { GET } = await loadRoute()
 
@@ -97,6 +150,7 @@ describe("GET /api/books/price", () => {
       getCooldownRemaining: mock(() => 120_000)
     })
     registerDistributedRateLimitMocks()
+    registerAmazonPriceMocks()
 
     const { GET } = await loadRoute()
 
@@ -113,8 +167,9 @@ describe("GET /api/books/price", () => {
   it("returns parsed Amazon result payload", async () => {
     registerRateLimitMocks()
     registerDistributedRateLimitMocks()
-
-    const html = `
+    registerAmazonPriceMocks({
+      fetchAmazonHtml: mock(
+        async () => `
       <div id="search">
         <div data-component-type="s-search-result" data-asin="B123">
           <h2>
@@ -130,9 +185,19 @@ describe("GET /api/books/price", () => {
         </div>
       </div>
     `
-
-    const fetchMock = mock(async () => new Response(html, { status: 200 }))
-    globalThis.fetch = fetchMock as unknown as typeof fetch
+      ),
+      parseAmazonResult: mock(() => ({
+        resultTitle: "My Book",
+        matchScore: 1,
+        priceText: "$12.34",
+        priceValue: 12.34,
+        currency: "USD",
+        priceBinding: "Paperback",
+        priceError: null,
+        productUrl: "https://www.amazon.com/dp/B123",
+        imageUrl: "https://m.media-amazon.com/images/I/abc.jpg"
+      }))
+    })
 
     const { GET } = await loadRoute()
     const response = await GET(
