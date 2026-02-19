@@ -123,8 +123,8 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run unit tests with coverage
-        run: bun test --coverage
+      - name: Run unit tests with coverage (sequential to avoid flaky concurrent module mocks)
+        run: bun test --coverage --max-concurrency=1
 
   # e2e-chromium:
   #   name: E2E Chromium

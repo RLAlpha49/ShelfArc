@@ -1,11 +1,15 @@
-import { afterEach, describe, expect, it, mock } from "bun:test"
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 
 import { makeNextRequest } from "./test-utils"
 
 const loadRoute = async () =>
   await import("../../app/api/covers/open-library/route")
 
-const originalFetch = globalThis.fetch
+let originalFetch: typeof globalThis.fetch
+
+beforeEach(() => {
+  originalFetch = globalThis.fetch
+})
 
 afterEach(() => {
   globalThis.fetch = originalFetch

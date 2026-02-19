@@ -1,13 +1,19 @@
-import { afterEach, describe, expect, it, mock } from "bun:test"
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 
 import { makeNextRequest, readJson } from "./test-utils"
 
 const loadRoute = async () =>
   await import("../../app/api/books/volume/[volumeId]/route")
 
-const originalFetch = globalThis.fetch
-const originalKeys = process.env.GOOGLE_BOOKS_API_KEYS
-const originalKey = process.env.GOOGLE_BOOKS_API_KEY
+let originalFetch: typeof globalThis.fetch
+let originalKeys: string | undefined
+let originalKey: string | undefined
+
+beforeEach(() => {
+  originalFetch = globalThis.fetch
+  originalKeys = process.env.GOOGLE_BOOKS_API_KEYS
+  originalKey = process.env.GOOGLE_BOOKS_API_KEY
+})
 
 afterEach(() => {
   globalThis.fetch = originalFetch

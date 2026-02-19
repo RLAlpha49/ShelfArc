@@ -11,19 +11,29 @@ type RateLimitModule = {
   recordFailure: ReturnType<typeof mock>
 }
 
-const rateLimitMocks: RateLimitModule = {
-  isRateLimited: mock(() => false),
-  getCooldownRemaining: mock(() => 0),
-  recordFailure: mock(() => undefined)
+// Helper to register fresh rate-limit mocks for a test
+const registerRateLimitMocks = (overrides?: Partial<RateLimitModule>) => {
+  const local = {
+    isRateLimited: mock(() => false),
+    getCooldownRemaining: mock(() => 0),
+    recordFailure: mock(() => undefined),
+    ...overrides
+  } as RateLimitModule
+  mock.module("@/lib/rate-limit", () => local)
+  return local
 }
 
-mock.module("@/lib/rate-limit", () => rateLimitMocks)
-
-const distributedRateLimitMocks = {
-  consumeDistributedRateLimit: mock(async () => null)
+// Helper to register fresh distributed rate-limit mock
+const registerDistributedRateLimitMocks = (
+  override?: Partial<{ consumeDistributedRateLimit: ReturnType<typeof mock> }>
+) => {
+  const local = {
+    consumeDistributedRateLimit: mock(async () => null),
+    ...override
+  }
+  mock.module("@/lib/rate-limit-distributed", () => local)
+  return local
 }
-
-mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 
 // Build a chainable Supabase query stub that returns no cached rows
 const makeQueryChain = () => ({
@@ -49,21 +59,14 @@ mock.module("@/lib/supabase/server", () => ({ createUserClient }))
 
 const loadRoute = async () => await import("../../app/api/books/price/route")
 
-const originalFetch = globalThis.fetch
+let originalFetch: typeof globalThis.fetch
 
 describe("GET /api/books/price", () => {
   beforeEach(() => {
-    rateLimitMocks.isRateLimited.mockClear()
-    rateLimitMocks.getCooldownRemaining.mockClear()
-    rateLimitMocks.recordFailure.mockClear()
-    rateLimitMocks.isRateLimited.mockReturnValue(false)
-    rateLimitMocks.getCooldownRemaining.mockReturnValue(0)
+    // capture current global.fetch per-test to avoid cross-test leakage when run concurrently
+    originalFetch = globalThis.fetch
 
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
-    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(
-      null
-    )
-
+    // user/supabase mocks
     getUserMock.mockClear()
     getUserMock.mockResolvedValue({ data: { user: { id: "user-1" } } })
     createUserClient.mockClear()
@@ -74,6 +77,9 @@ describe("GET /api/books/price", () => {
   })
 
   it("returns 400 when title is missing", async () => {
+    registerRateLimitMocks()
+    registerDistributedRateLimitMocks()
+
     const { GET } = await loadRoute()
 
     const response = await GET(
@@ -86,8 +92,11 @@ describe("GET /api/books/price", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    rateLimitMocks.isRateLimited.mockReturnValue(true)
-    rateLimitMocks.getCooldownRemaining.mockReturnValue(120_000)
+    registerRateLimitMocks({
+      isRateLimited: mock(() => true),
+      getCooldownRemaining: mock(() => 120_000)
+    })
+    registerDistributedRateLimitMocks()
 
     const { GET } = await loadRoute()
 
@@ -102,6 +111,9 @@ describe("GET /api/books/price", () => {
   })
 
   it("returns parsed Amazon result payload", async () => {
+    registerRateLimitMocks()
+    registerDistributedRateLimitMocks()
+
     const html = `
       <div id="search">
         <div data-component-type="s-search-result" data-asin="B123">

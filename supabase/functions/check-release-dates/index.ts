@@ -117,6 +117,15 @@ const checkAuthorization = (
   if (!requiredSecret) return null
   const provided = request.headers.get("x-evaluation-secret") ?? ""
   if (provided !== requiredSecret) {
+    console.warn(
+      JSON.stringify({
+        event: "unauthorized-eval-secret",
+        path: new URL(request.url).pathname,
+        userAgent: request.headers.get("user-agent") ?? null,
+        headerPresent: provided.length > 0
+      })
+    )
+
     return jsonResponse(401, { error: "Unauthorized." })
   }
   return null

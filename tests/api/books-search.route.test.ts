@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from "bun:test"
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 
 import { makeNextRequest, readJson } from "./test-utils"
 
@@ -22,9 +22,16 @@ mock.module("@/lib/rate-limit-distributed", () => ({
 
 const loadRoute = async () => await import("../../app/api/books/search/route")
 
-const originalFetch = globalThis.fetch
-const originalKeys = process.env.GOOGLE_BOOKS_API_KEYS
-const originalKey = process.env.GOOGLE_BOOKS_API_KEY
+let originalFetch: typeof globalThis.fetch
+let originalKeys: string | undefined
+let originalKey: string | undefined
+
+beforeEach(() => {
+  // capture per-test to avoid leaking state when tests run concurrently
+  originalFetch = globalThis.fetch
+  originalKeys = process.env.GOOGLE_BOOKS_API_KEYS
+  originalKey = process.env.GOOGLE_BOOKS_API_KEY
+})
 
 afterEach(() => {
   globalThis.fetch = originalFetch
