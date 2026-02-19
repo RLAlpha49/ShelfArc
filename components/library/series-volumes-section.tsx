@@ -41,7 +41,8 @@ export function SeriesVolumesSection({
   onToggleRead,
   onToggleWishlist,
   onSetRating,
-  onSelectVolume
+  onSelectVolume,
+  onMarkAllAboveAsRead
 }: {
   readonly currentSeries: SeriesWithVolumes
   readonly selectedVolumeIds: Set<string>
@@ -65,6 +66,7 @@ export function SeriesVolumesSection({
   readonly onToggleWishlist: (volume: Volume) => void
   readonly onSetRating: (volume: Volume, rating: number | null) => void
   readonly onSelectVolume: (volumeId: string) => void
+  readonly onMarkAllAboveAsRead: (volume: Volume) => void
 }) {
   const windowWidth = useWindowWidth()
   const columnCount = useMemo(() => {
@@ -194,6 +196,7 @@ export function SeriesVolumesSection({
                   onToggleRead={() => onToggleRead(volume)}
                   onToggleWishlist={() => onToggleWishlist(volume)}
                   onSetRating={(rating) => onSetRating(volume, rating)}
+                  onMarkAllAboveAsRead={() => onMarkAllAboveAsRead(volume)}
                   selected={selectedVolumeIds.has(volume.id)}
                   onSelect={() => onSelectVolume(volume.id)}
                 />
@@ -213,6 +216,7 @@ export function SeriesVolumesSection({
                   onToggleRead={() => onToggleRead(volume)}
                   onToggleWishlist={() => onToggleWishlist(volume)}
                   onSetRating={(rating) => onSetRating(volume, rating)}
+                  onMarkAllAboveAsRead={() => onMarkAllAboveAsRead(volume)}
                   selected={selectedVolumeIds.has(volume.id)}
                   onSelect={() => onSelectVolume(volume.id)}
                 />

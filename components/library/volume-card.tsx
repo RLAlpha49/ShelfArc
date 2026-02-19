@@ -34,6 +34,7 @@ interface VolumeCardProps {
   readonly onToggleWishlist?: () => void
   readonly onSetRating?: (rating: number | null) => void
   readonly onScrapePrice?: () => void
+  readonly onMarkAllAboveAsRead?: () => void
   readonly selected?: boolean
   readonly onSelect?: () => void
 }
@@ -53,6 +54,7 @@ export function VolumeCard({
   onToggleWishlist,
   onSetRating,
   onScrapePrice,
+  onMarkAllAboveAsRead,
   selected = false,
   onSelect
 }: VolumeCardProps) {
@@ -365,7 +367,28 @@ export function VolumeCard({
               </DropdownMenuSub>
             )}
 
-            {(onToggleWishlist || onSetRating) && <DropdownMenuSeparator />}
+            {onMarkAllAboveAsRead && (
+              <DropdownMenuItem onClick={() => onMarkAllAboveAsRead()}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-2 h-4 w-4"
+                >
+                  <path d="M18 6 7 17l-5-5" />
+                  <path d="m22 10-7.5 7.5L13 16" />
+                </svg>
+                Mark this and all previous as Read
+              </DropdownMenuItem>
+            )}
+
+            {(onToggleWishlist || onSetRating || onMarkAllAboveAsRead) && (
+              <DropdownMenuSeparator />
+            )}
 
             <DropdownMenuItem onClick={() => onEdit()}>
               <svg

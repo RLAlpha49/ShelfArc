@@ -98,6 +98,7 @@ export default function SeriesDetailPage() {
     removeVolume,
     addVolumeFromSearchResult,
     addVolumesFromSearchResults,
+    batchUpdateVolumes,
     isLoading
   } = useLibrary()
   const { selectedSeries, setSelectedSeries, deleteSeriesVolumes } =
@@ -126,6 +127,10 @@ export default function SeriesDetailPage() {
     () => new Set()
   )
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [markAllAboveTarget, setMarkAllAboveTarget] = useState<Volume | null>(
+    null
+  )
+  const [markAllAboveDialogOpen, setMarkAllAboveDialogOpen] = useState(false)
   const seriesHeadingRef = useRef<HTMLDivElement>(null)
   const isDeletingSeriesRef = useRef(false)
 
@@ -480,6 +485,60 @@ export default function SeriesDetailPage() {
     setBulkDeleteDialogOpen(true)
   }, [selectedCount, confirmBeforeDelete, performBulkDelete])
 
+  const doMarkAllAboveAsRead = useCallback(
+    async (targetVolume: Volume) => {
+      if (!currentSeries) return
+      const sorted = currentSeries.volumes.toSorted(
+        (a, b) => a.volume_number - b.volume_number
+      )
+      const targets = sorted.filter(
+        (v) =>
+          v.volume_number <= targetVolume.volume_number &&
+          v.reading_status !== "completed"
+      )
+      try {
+        await batchUpdateVolumes(
+          targets.map((v) => v.id),
+          { reading_status: "completed" }
+        )
+        toast.success(
+          `Marked ${targets.length} volume${targets.length === 1 ? "" : "s"} as read`
+        )
+      } catch {
+        toast.error("Failed to mark volumes as read")
+      } finally {
+        setMarkAllAboveDialogOpen(false)
+        setMarkAllAboveTarget(null)
+      }
+    },
+    [currentSeries, batchUpdateVolumes]
+  )
+
+  const handleMarkAllAboveAsRead = useCallback(
+    (volume: Volume) => {
+      if (!currentSeries) return
+      const sorted = currentSeries.volumes.toSorted(
+        (a, b) => a.volume_number - b.volume_number
+      )
+      const targets = sorted.filter(
+        (v) =>
+          v.volume_number <= volume.volume_number &&
+          v.reading_status !== "completed"
+      )
+      if (targets.length === 0) {
+        toast.info("All volumes up to this one are already marked as read")
+        return
+      }
+      setMarkAllAboveTarget(volume)
+      if (targets.length > 5) {
+        setMarkAllAboveDialogOpen(true)
+      } else {
+        void doMarkAllAboveAsRead(volume)
+      }
+    },
+    [currentSeries, doMarkAllAboveAsRead]
+  )
+
   const handleEditSelected = useCallback(() => {
     if (!currentSeries) return
     if (selectedVolumeIds.size !== 1) return
@@ -637,6 +696,7 @@ export default function SeriesDetailPage() {
           onToggleWishlist={handleToggleWishlist}
           onSetRating={handleSetRating}
           onSelectVolume={toggleVolumeSelection}
+          onMarkAllAboveAsRead={handleMarkAllAboveAsRead}
         />
       </ErrorBoundary>
 
@@ -755,6 +815,41 @@ export default function SeriesDetailPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={markAllAboveDialogOpen}
+        onOpenChange={setMarkAllAboveDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Volumes as Read</AlertDialogTitle>
+            <AlertDialogDescription>
+              {markAllAboveTarget && currentSeries
+                ? (() => {
+                    const count = currentSeries.volumes.filter(
+                      (v) =>
+                        v.volume_number <= markAllAboveTarget.volume_number &&
+                        v.reading_status !== "completed"
+                    ).length
+                    return `This will mark ${count} volume${count === 1 ? "" : "s"} (up to Volume ${markAllAboveTarget.volume_number}) as read. This action cannot be undone.`
+                  })()
+                : "This will mark multiple volumes as read."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (markAllAboveTarget) {
+                  void doMarkAllAboveAsRead(markAllAboveTarget)
+                }
+              }}
+            >
+              Mark as Read
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
