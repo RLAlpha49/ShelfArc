@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +33,8 @@ interface GoodreadsEntry {
   dateRead: string | null
   dateAdded: string | null
   shelf: string
+  pageCount: number | null
+  notes: string | null
 }
 
 type GoodreadsImportPhase = "idle" | "parsed" | "importing" | "complete"
@@ -51,6 +53,19 @@ function mapGoodreadsShelf(shelf: string): ReadingStatus {
 }
 
 /* ─── CSV Parsing ───────────────────────────────────────── */
+
+/**
+ * Parses a Goodreads date string (YYYY/MM/DD) into an ISO date string (YYYY-MM-DD).
+ * @source
+ */
+function parseGoodreadsDate(raw: string | null): string | null {
+  if (!raw) return null
+  const trimmed = raw.trim()
+  const slashMatch = new RegExp(/^(\d{4})\/(\d{2})\/(\d{2})$/).exec(trimmed)
+  if (slashMatch) return `${slashMatch[1]}-${slashMatch[2]}-${slashMatch[3]}`
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+  return null
+}
 
 function cleanIsbn(raw: string): string | null {
   // Goodreads wraps ISBNs in ="..." format
@@ -100,6 +115,11 @@ function parseGoodreadsCsvRow(
   const shelf = get("Exclusive Shelf") || get("Bookshelves") || "to-read"
   const dateRead = get("Date Read") || null
   const dateAdded = get("Date Added") || null
+  const pageCountRaw = Number.parseInt(get("Number of Pages"), 10)
+  const pageCount =
+    Number.isFinite(pageCountRaw) && pageCountRaw > 0 ? pageCountRaw : null
+  const reviewRaw = get("My Review")?.trim()
+  const notes = reviewRaw ? sanitizePlainText(reviewRaw, 5000) : null
 
   return {
     title: sanitizePlainText(title, 500),
@@ -110,7 +130,9 @@ function parseGoodreadsCsvRow(
     status: mapGoodreadsShelf(shelf),
     dateRead,
     dateAdded,
-    shelf
+    shelf,
+    pageCount,
+    notes
   }
 }
 
@@ -157,8 +179,14 @@ const STATUS_LABELS: Record<ReadingStatus, string> = {
 /* ─── Component ─────────────────────────────────────────── */
 
 export function GoodreadsImport() {
-  const { createSeries, createVolume, addBookFromSearchResult, fetchSeries } =
-    useLibrary()
+  const {
+    createSeries,
+    createVolume,
+    addBookFromSearchResult,
+    fetchSeries,
+    series,
+    unassignedVolumes
+  } = useLibrary()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [phase, setPhase] = useState<GoodreadsImportPhase>("idle")
@@ -167,12 +195,13 @@ export function GoodreadsImport() {
   const [progress, setProgress] = useState({ current: 0, total: 0 })
   const [importStats, setImportStats] = useState({
     added: 0,
-    notFound: 0,
+    skipped: 0,
     errors: 0
   })
   const [ownershipStatus, setOwnershipStatus] =
     useState<OwnershipStatus>("owned")
   const [searchCovers, setSearchCovers] = useState(true)
+  const [skipDuplicates, setSkipDuplicates] = useState(true)
 
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,22 +235,44 @@ export function GoodreadsImport() {
     []
   )
 
+  const existingIsbnSet = useMemo(() => {
+    const allVolumes = [
+      ...series.flatMap((s) => s.volumes),
+      ...unassignedVolumes
+    ]
+    return new Set(allVolumes.map((v) => v.isbn).filter(Boolean) as string[])
+  }, [series, unassignedVolumes])
+
+  const duplicateCount = useMemo(() => {
+    if (!skipDuplicates) return 0
+    return entries.filter(
+      (e) =>
+        (e.isbn13 ?? e.isbn) && existingIsbnSet.has(e.isbn13 ?? e.isbn ?? "")
+    ).length
+  }, [entries, existingIsbnSet, skipDuplicates])
+
   const createDirectEntry = useCallback(
     async (entry: GoodreadsEntry) => {
-      const series = await createSeries({
+      const newSeries = await createSeries({
         title: entry.title,
         author: entry.author || null,
         type: "other",
         tags: []
       })
 
-      await createVolume(series.id, {
+      const finishedAt =
+        entry.status === "completed" ? parseGoodreadsDate(entry.dateRead) : null
+
+      await createVolume(newSeries.id, {
         volume_number: 1,
         title: entry.title,
         isbn: entry.isbn13 ?? entry.isbn ?? null,
         ownership_status: ownershipStatus,
         reading_status: entry.status,
-        rating: entry.rating
+        rating: entry.rating,
+        page_count: entry.pageCount,
+        notes: entry.notes,
+        finished_at: finishedAt
       })
     },
     [createSeries, createVolume, ownershipStatus]
@@ -262,41 +313,65 @@ export function GoodreadsImport() {
     setPhase("importing")
     setProgress({ current: 0, total: entries.length })
     let added = 0
+    let skipped = 0
     let errors = 0
 
     for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]
+
+      // Skip if duplicate detection is on and ISBN already exists
+      if (
+        skipDuplicates &&
+        (entry.isbn13 ?? entry.isbn) &&
+        existingIsbnSet.has(entry.isbn13 ?? entry.isbn ?? "")
+      ) {
+        skipped++
+        setProgress({ current: i + 1, total: entries.length })
+        setImportStats({ added, skipped, errors })
+        continue
+      }
+
       try {
-        await importEntryWithSearch(entries[i])
+        await importEntryWithSearch(entry)
         added++
       } catch {
         errors++
       }
 
       setProgress({ current: i + 1, total: entries.length })
-      setImportStats({ added, notFound: 0, errors })
+      setImportStats({ added, skipped, errors })
     }
 
     setPhase("complete")
     await fetchSeries()
-    const failSuffix = errors > 0 ? `, ${errors} failed` : ""
-    toast.success(`Import complete: ${added} books added${failSuffix}`)
-  }, [entries, importEntryWithSearch, fetchSeries])
+    const parts = [`${added} books added`]
+    if (skipped > 0) parts.push(`${skipped} skipped`)
+    if (errors > 0) parts.push(`${errors} failed`)
+    toast.success(`Import complete: ${parts.join(", ")}`)
+  }, [
+    entries,
+    importEntryWithSearch,
+    fetchSeries,
+    skipDuplicates,
+    existingIsbnSet
+  ])
 
   const reset = useCallback(() => {
     setPhase("idle")
     setEntries([])
     setFileName(null)
     setProgress({ current: 0, total: 0 })
-    setImportStats({ added: 0, notFound: 0, errors: 0 })
+    setImportStats({ added: 0, skipped: 0, errors: 0 })
   }, [])
 
   if (phase === "idle") {
     return (
       <div className="space-y-6">
         <p className="text-muted-foreground text-sm">
-          Import your library from Goodreads. Go to &quot;My Books&quot; on
-          Goodreads, click &quot;Import and export&quot; in the left sidebar,
-          then click &quot;Export Library&quot; to get a CSV file.
+          Upload your Goodreads library export CSV. On Goodreads, go to{" "}
+          <strong>My Books</strong> → <strong>Import and export</strong> (left
+          sidebar) → <strong>Export Library</strong>. The file includes your
+          ratings, read dates, shelf assignments, and review notes.
         </p>
 
         <div className="space-y-3">
@@ -356,6 +431,12 @@ export function GoodreadsImport() {
             </span>{" "}
             books ({withIsbn} with ISBN, {withoutIsbn} without)
           </p>
+          {duplicateCount > 0 && (
+            <p className="text-muted-foreground mt-1 text-xs">
+              {duplicateCount} book{duplicateCount === 1 ? "" : "s"} already in
+              your library
+            </p>
+          )}
         </div>
 
         <div className="bg-muted/30 rounded-xl border p-4">
@@ -432,6 +513,22 @@ export function GoodreadsImport() {
             <span className="text-muted-foreground text-xs">(slower)</span>
           </div>
 
+          {withIsbn > 0 && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="skip-duplicates"
+                checked={skipDuplicates}
+                onCheckedChange={(v) => setSkipDuplicates(Boolean(v))}
+              />
+              <Label
+                htmlFor="skip-duplicates"
+                className="cursor-pointer text-sm font-medium"
+              >
+                Skip books already in your library
+              </Label>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <Button variant="outline" className="rounded-xl" onClick={reset}>
               Cancel
@@ -466,8 +563,8 @@ export function GoodreadsImport() {
               {importStats.added} imported
             </span>
           )}
-          {importStats.notFound > 0 && (
-            <span>{importStats.notFound} not found</span>
+          {importStats.skipped > 0 && (
+            <span>{importStats.skipped} skipped</span>
           )}
           {importStats.errors > 0 && (
             <span className="text-red-600 dark:text-red-400">
@@ -511,6 +608,9 @@ export function GoodreadsImport() {
                 <span className="text-green-600 dark:text-green-400">
                   ✓ {importStats.added} imported
                 </span>
+              )}
+              {importStats.skipped > 0 && (
+                <span>↷ {importStats.skipped} skipped</span>
               )}
               {importStats.errors > 0 && (
                 <span className="text-red-600 dark:text-red-400">
