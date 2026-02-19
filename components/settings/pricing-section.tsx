@@ -38,7 +38,8 @@ const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
 ]
 
 const priceSourceOptions: Array<{ value: PriceSource; label: string }> = [
-  { value: "amazon", label: "Amazon" }
+  { value: "amazon", label: "Amazon" },
+  { value: "bookwalker", label: "BookWalker Global" }
 ]
 
 const isValidOption = <T extends string>(
@@ -168,29 +169,38 @@ export function PricingSection() {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="amazon-domain">Amazon domain</Label>
-              <Select
-                value={amazonDomain}
-                onValueChange={(value) =>
-                  setAmazonDomain(value as AmazonDomain)
-                }
-              >
-                <SelectTrigger id="amazon-domain">
-                  <SelectValue placeholder="Select a domain" />
-                </SelectTrigger>
-                <SelectContent>
-                  {amazonDomainOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">
-                Amazon marketplace region.
+            {priceSource === "amazon" && (
+              <div className="space-y-2">
+                <Label htmlFor="amazon-domain">Amazon domain</Label>
+                <Select
+                  value={amazonDomain}
+                  onValueChange={(value) =>
+                    setAmazonDomain(value as AmazonDomain)
+                  }
+                >
+                  <SelectTrigger id="amazon-domain">
+                    <SelectValue placeholder="Select a domain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {amazonDomainOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">
+                  Amazon marketplace region.
+                </p>
+              </div>
+            )}
+
+            {priceSource === "bookwalker" && (
+              <p className="text-muted-foreground self-end pb-1 text-sm sm:col-span-2">
+                BookWalker Global pricing (global.bookwalker.jp) is used for
+                digital manga and light novels. Prices are shown in USD.
               </p>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="display-currency">Display currency</Label>
@@ -219,61 +229,70 @@ export function PricingSection() {
         </div>
 
         {/* Amazon Options */}
-        <div className="bg-muted/30 rounded-2xl border p-5">
-          <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
-            Amazon Options
-          </p>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <Label htmlFor="amazon-prefer-kindle" className="font-medium">
-                  Prefer Kindle pricing
-                </Label>
-                <p className="text-muted-foreground text-sm">
-                  Use Kindle as the primary Amazon price lookup.
-                </p>
+        {priceSource === "amazon" && (
+          <div className="bg-muted/30 rounded-2xl border p-5">
+            <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+              Amazon Options
+            </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="amazon-prefer-kindle" className="font-medium">
+                    Prefer Kindle pricing
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Use Kindle as the primary Amazon price lookup.
+                  </p>
+                </div>
+                <Switch
+                  id="amazon-prefer-kindle"
+                  checked={amazonPreferKindle}
+                  onCheckedChange={setAmazonPreferKindle}
+                />
               </div>
-              <Switch
-                id="amazon-prefer-kindle"
-                checked={amazonPreferKindle}
-                onCheckedChange={setAmazonPreferKindle}
-              />
-            </div>
-            <div className="border-border/40 border-t" />
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <Label htmlFor="amazon-fallback-kindle" className="font-medium">
-                  Fallback to Kindle pricing
-                </Label>
-                <p className="text-muted-foreground text-sm">
-                  If Paperback pricing is missing, try the Kindle price instead.
-                </p>
+              <div className="border-border/40 border-t" />
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label
+                    htmlFor="amazon-fallback-kindle"
+                    className="font-medium"
+                  >
+                    Fallback to Kindle pricing
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    If Paperback pricing is missing, try the Kindle price
+                    instead.
+                  </p>
+                </div>
+                <Switch
+                  id="amazon-fallback-kindle"
+                  checked={amazonFallbackToKindle}
+                  onCheckedChange={setAmazonFallbackToKindle}
+                  disabled={amazonPreferKindle}
+                />
               </div>
-              <Switch
-                id="amazon-fallback-kindle"
-                checked={amazonFallbackToKindle}
-                onCheckedChange={setAmazonFallbackToKindle}
-                disabled={amazonPreferKindle}
-              />
-            </div>
-            <div className="border-border/40 border-t" />
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <Label htmlFor="show-amazon-disclaimer" className="font-medium">
-                  Show Amazon data disclaimer
-                </Label>
-                <p className="text-muted-foreground text-sm">
-                  Display the disclaimer after fetching prices or images.
-                </p>
+              <div className="border-border/40 border-t" />
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label
+                    htmlFor="show-amazon-disclaimer"
+                    className="font-medium"
+                  >
+                    Show Amazon data disclaimer
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    Display the disclaimer after fetching prices or images.
+                  </p>
+                </div>
+                <Switch
+                  id="show-amazon-disclaimer"
+                  checked={showAmazonDisclaimer}
+                  onCheckedChange={setShowAmazonDisclaimer}
+                />
               </div>
-              <Switch
-                id="show-amazon-disclaimer"
-                checked={showAmazonDisclaimer}
-                onCheckedChange={setShowAmazonDisclaimer}
-              />
             </div>
           </div>
-        </div>
+        )}
 
         {/* Automated Price Checks */}
         <div className="bg-muted/30 rounded-2xl border p-5">

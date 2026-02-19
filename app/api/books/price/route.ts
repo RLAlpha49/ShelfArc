@@ -10,6 +10,11 @@ import {
 } from "@/lib/books/price/amazon-price"
 import { ApiError } from "@/lib/books/price/api-error"
 import {
+  createBookWalkerSearchContext,
+  fetchBookWalkerHtml,
+  parseBookWalkerResult
+} from "@/lib/books/price/bookwalker-price"
+import {
   ConcurrencyLimiter,
   ConcurrencyLimitError
 } from "@/lib/concurrency/limiter"
@@ -52,6 +57,13 @@ const REQUEST_LIMIT_CONFIG = {
 const amazonLimiter = new ConcurrencyLimiter({
   concurrency: 1,
   maxQueue: 30,
+  retryAfterMs: 1200
+})
+
+/** Limits concurrent BookWalker scrapes per instance. @source */
+const bookwalkerLimiter = new ConcurrencyLimiter({
+  concurrency: 2,
+  maxQueue: 20,
   retryAfterMs: 1200
 })
 
@@ -126,7 +138,7 @@ const enforceRequestRateLimit = async (requestLimitKey: string) => {
     maxHits: REQUEST_LIMIT_CONFIG.maxFailures,
     windowMs: REQUEST_LIMIT_CONFIG.failureWindowMs,
     cooldownMs: REQUEST_LIMIT_CONFIG.cooldownMs,
-    reason: "Rate limit Amazon price scraping"
+    reason: "Rate limit price scraping"
   })
 
   if (distributed) {
@@ -170,9 +182,236 @@ async function fetchCachedPrice(
   return data && data.length > 0 ? data[0] : null
 }
 
+type PipelineLog = ReturnType<typeof logger.withCorrelationId>
+type SupabaseClient = Awaited<ReturnType<typeof createUserClient>>
+
 /**
- * Amazon price-lookup endpoint: scrapes search results, scores them, and returns the best match with price/image data.
- * @param request - Incoming request with `title`, `domain`, `volume`, `format`, `binding`, and option flags.
+ * Executes the BookWalker scrape-and-parse pipeline.
+ * @source
+ */
+async function handleBookWalkerRequest(
+  supabase: SupabaseClient,
+  request: NextRequest,
+  log: PipelineLog,
+  correlationId: string,
+  pipelineStart: number,
+  includePrice: boolean
+) {
+  const searchParams = request.nextUrl.searchParams
+  const bwContext = createBookWalkerSearchContext(searchParams)
+
+  const volumeId = searchParams.get("volumeId")
+  if (volumeId && includePrice) {
+    const cached = await fetchCachedPrice(supabase, volumeId)
+    if (cached) {
+      log.info("Returning cached price from price_history (BookWalker)", {
+        volumeId,
+        scraped_at: cached.scraped_at
+      })
+      return apiSuccess(
+        {
+          data: {
+            source: "bookwalker",
+            searchUrl: bwContext.searchUrl,
+            expectedTitle: bwContext.title,
+            matchScore: 0,
+            result: {
+              title: null,
+              priceText: null,
+              priceValue: Number(cached.price),
+              currency: cached.currency,
+              priceError: null,
+              url: cached.product_url ?? null,
+              imageUrl: null
+            }
+          }
+        },
+        { correlationId }
+      )
+    }
+  }
+
+  const identity = resolveClientIdentity(request)
+  const rateLimited = await enforceRequestRateLimit(
+    `bookwalker-request:${identity}`
+  )
+  if (rateLimited) return rateLimited
+
+  return bookwalkerLimiter.run(async () => {
+    let pipelineTimer: ReturnType<typeof setTimeout> | undefined
+    const pipelineAbort = new AbortController()
+    const timeout = new Promise<never>((_, reject) => {
+      pipelineTimer = setTimeout(() => {
+        pipelineAbort.abort()
+        reject(new Error("Price pipeline timed out"))
+      }, PIPELINE_TIMEOUT_MS)
+    })
+
+    try {
+      const result = await Promise.race([
+        (async () => {
+          const html = await fetchBookWalkerHtml(bwContext.searchUrl)
+          if (pipelineAbort.signal.aborted) {
+            throw new Error("Price pipeline timed out")
+          }
+          return parseBookWalkerResult(html, bwContext)
+        })(),
+        timeout
+      ])
+
+      const pipelineMs = Math.round(performance.now() - pipelineStart)
+      log.info("BookWalker price pipeline completed", {
+        pipelineMs,
+        matchScore: result.matchScore
+      })
+
+      return apiSuccess(
+        {
+          data: {
+            source: "bookwalker",
+            searchUrl: bwContext.searchUrl,
+            expectedTitle: bwContext.title,
+            matchScore: result.matchScore,
+            result: {
+              title: result.resultTitle,
+              priceText: result.priceText,
+              priceValue: result.priceValue,
+              currency: result.currency,
+              priceError: result.priceText ? null : "Price not found",
+              url: result.productUrl,
+              imageUrl: null
+            }
+          }
+        },
+        { correlationId }
+      )
+    } finally {
+      clearTimeout(pipelineTimer)
+    }
+  })
+}
+
+/**
+ * Executes the Amazon scrape-and-parse pipeline.
+ * @source
+ */
+async function handleAmazonRequest(
+  supabase: SupabaseClient,
+  request: NextRequest,
+  log: PipelineLog,
+  correlationId: string,
+  pipelineStart: number,
+  includePrice: boolean,
+  includeImage: boolean
+) {
+  const cooldown = checkGlobalCooldown()
+  if (cooldown) return cooldown
+
+  const context = createAmazonSearchContext(request.nextUrl.searchParams)
+
+  // Return cached price from price_history when available (within the last hour)
+  // to avoid repeat Amazon scrapes for the same volume.
+  // Image URLs are not cached, so bypass cache when the caller needs an image.
+  const volumeId = request.nextUrl.searchParams.get("volumeId")
+  if (volumeId && includePrice && !includeImage) {
+    const cached = await fetchCachedPrice(supabase, volumeId)
+    if (cached) {
+      log.info("Returning cached price from price_history", {
+        volumeId,
+        scraped_at: cached.scraped_at
+      })
+      return apiSuccess(
+        {
+          data: {
+            searchUrl: context.searchUrl,
+            domain: context.domain,
+            expectedTitle: context.expectedTitle,
+            matchScore: 0,
+            binding: context.bindingLabel,
+            result: {
+              priceValue: Number(cached.price),
+              currency: cached.currency,
+              priceText: null,
+              url: cached.product_url ?? null,
+              imageUrl: null
+            }
+          }
+        },
+        { correlationId }
+      )
+    }
+  }
+
+  const identity = resolveClientIdentity(request)
+  const rateLimited = await enforceRequestRateLimit(
+    `amazon-request:${identity}`
+  )
+  if (rateLimited) return rateLimited
+
+  return amazonLimiter.run(async () => {
+    let pipelineTimer: ReturnType<typeof setTimeout> | undefined
+    const pipelineAbort = new AbortController()
+    const timeout = new Promise<never>((_, reject) => {
+      pipelineTimer = setTimeout(() => {
+        pipelineAbort.abort()
+        reject(new Error("Price pipeline timed out"))
+      }, PIPELINE_TIMEOUT_MS)
+    })
+
+    try {
+      const result = await Promise.race([
+        (async () => {
+          const html = await fetchAmazonHtml(context.searchUrl)
+          if (pipelineAbort.signal.aborted) {
+            throw new Error("Price pipeline timed out")
+          }
+          return parseAmazonResult(html, context, {
+            includePrice,
+            includeImage
+          })
+        })(),
+        timeout
+      ])
+
+      const pipelineMs = Math.round(performance.now() - pipelineStart)
+      log.info("Price pipeline completed", {
+        pipelineMs,
+        domain: context.domain,
+        matchScore: result.matchScore
+      })
+
+      return apiSuccess(
+        {
+          data: {
+            searchUrl: context.searchUrl,
+            domain: context.domain,
+            expectedTitle: context.expectedTitle,
+            matchScore: result.matchScore,
+            binding: context.bindingLabel,
+            result: {
+              title: result.resultTitle,
+              priceText: result.priceText,
+              priceValue: result.priceValue,
+              currency: result.currency,
+              priceBinding: result.priceBinding,
+              priceError: result.priceError,
+              url: result.productUrl,
+              imageUrl: result.imageUrl
+            }
+          }
+        },
+        { correlationId }
+      )
+    } finally {
+      clearTimeout(pipelineTimer)
+    }
+  })
+}
+
+/**
+ * Price-lookup endpoint: scrapes search results and returns the best match.
+ * Supports `source=amazon` (default) and `source=bookwalker`.
+ * @param request - Incoming request with `title`, `volume`, `source`, and option flags.
  * @returns JSON with the matched result, price data, and search metadata.
  * @source
  */
@@ -190,117 +429,32 @@ export async function GET(request: NextRequest) {
       return apiError(401, "Authentication required")
     }
 
-    const globalCooldown = checkGlobalCooldown()
-    if (globalCooldown) return globalCooldown
-
+    const source = request.nextUrl.searchParams.get("source") ?? "amazon"
     const includeImage =
       request.nextUrl.searchParams.get("includeImage") === "true"
     const includePrice =
       request.nextUrl.searchParams.get("includePrice") !== "false"
 
-    const context = createAmazonSearchContext(request.nextUrl.searchParams)
-
-    // Return cached price from price_history when available (within the last hour)
-    // to avoid repeat Amazon scrapes for the same volume.
-    // Image URLs are not cached, so bypass cache when the caller needs an image.
-    const volumeId = request.nextUrl.searchParams.get("volumeId")
-    if (volumeId && includePrice && !includeImage) {
-      const cached = await fetchCachedPrice(supabase, volumeId)
-      if (cached) {
-        log.info("Returning cached price from price_history", {
-          volumeId,
-          scraped_at: cached.scraped_at
-        })
-        return apiSuccess(
-          {
-            data: {
-              searchUrl: context.searchUrl,
-              domain: context.domain,
-              expectedTitle: context.expectedTitle,
-              matchScore: 0,
-              binding: context.bindingLabel,
-              result: {
-                priceValue: Number(cached.price),
-                currency: cached.currency,
-                priceText: null,
-                url: cached.product_url ?? null,
-                imageUrl: null
-              }
-            }
-          },
-          { correlationId }
-        )
-      }
+    if (source === "bookwalker") {
+      return await handleBookWalkerRequest(
+        supabase,
+        request,
+        log,
+        correlationId,
+        pipelineStart,
+        includePrice
+      )
     }
 
-    const identity = resolveClientIdentity(request)
-    const requestLimitKey = `amazon-request:${identity}`
-
-    const requestLimited = await enforceRequestRateLimit(requestLimitKey)
-    if (requestLimited) return requestLimited
-
-    return await amazonLimiter.run(async () => {
-      let pipelineTimeout: ReturnType<typeof setTimeout> | undefined
-      const pipelineAbort = new AbortController()
-
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        pipelineTimeout = setTimeout(() => {
-          pipelineAbort.abort()
-          reject(new Error("Price pipeline timed out"))
-        }, PIPELINE_TIMEOUT_MS)
-      })
-
-      try {
-        const result = await Promise.race([
-          (async () => {
-            const html = await fetchAmazonHtml(context.searchUrl)
-
-            if (pipelineAbort.signal.aborted) {
-              throw new Error("Price pipeline timed out")
-            }
-
-            const parsed = parseAmazonResult(html, context, {
-              includePrice,
-              includeImage
-            })
-            return parsed
-          })(),
-          timeoutPromise
-        ])
-
-        const pipelineMs = Math.round(performance.now() - pipelineStart)
-        log.info("Price pipeline completed", {
-          pipelineMs,
-          domain: context.domain,
-          matchScore: result.matchScore
-        })
-
-        return apiSuccess(
-          {
-            data: {
-              searchUrl: context.searchUrl,
-              domain: context.domain,
-              expectedTitle: context.expectedTitle,
-              matchScore: result.matchScore,
-              binding: context.bindingLabel,
-              result: {
-                title: result.resultTitle,
-                priceText: result.priceText,
-                priceValue: result.priceValue,
-                currency: result.currency,
-                priceBinding: result.priceBinding,
-                priceError: result.priceError,
-                url: result.productUrl,
-                imageUrl: result.imageUrl
-              }
-            }
-          },
-          { correlationId }
-        )
-      } finally {
-        clearTimeout(pipelineTimeout)
-      }
-    })
+    return await handleAmazonRequest(
+      supabase,
+      request,
+      log,
+      correlationId,
+      pipelineStart,
+      includePrice,
+      includeImage
+    )
   } catch (error) {
     const pipelineMs = Math.round(performance.now() - pipelineStart)
 
@@ -331,10 +485,10 @@ export async function GET(request: NextRequest) {
       return jsonError(error)
     }
 
-    log.error("Amazon price lookup failed", {
+    log.error("Price lookup failed", {
       pipelineMs,
       error: error instanceof Error ? error.message : String(error)
     })
-    return apiError(500, "Amazon price lookup failed")
+    return apiError(500, "Price lookup failed")
   }
 }

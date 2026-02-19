@@ -28,7 +28,7 @@ export type ViewMode = "grid" | "list"
 /** Top-level collection grouping. @source */
 export type CollectionView = "series" | "volumes"
 /** Supported external price source. @source */
-export type PriceSource = "amazon"
+export type PriceSource = "amazon" | "bookwalker"
 /** Supported ISO currency codes. @source */
 export type CurrencyCode = "USD" | "GBP" | "EUR" | "CAD" | "JPY"
 /** Navigation layout mode. @source */
@@ -694,8 +694,7 @@ function memoizeSelector<TState, TResult>(
   return (state: TState): TResult => {
     const deps = getDeps(state)
     if (
-      lastDeps !== undefined &&
-      deps.length === lastDeps.length &&
+      deps.length === lastDeps?.length &&
       deps.every((d, i) => d === lastDeps![i])
     ) {
       return lastResult
