@@ -79,6 +79,7 @@ interface BookSearchDialogProps {
   readonly onAddManual: () => void
   readonly context: SearchContext
   readonly existingIsbns?: readonly string[]
+  readonly initialQuery?: string
 }
 
 /** Dialog title and description per search context. @source */
@@ -148,7 +149,8 @@ export function BookSearchDialog({
   onSelectResults,
   onAddManual,
   context,
-  existingIsbns = []
+  existingIsbns = [],
+  initialQuery = ""
 }: BookSearchDialogProps) {
   const defaultOwnershipStatus = useSettingsStore(
     (s) => s.defaultOwnershipStatus
@@ -157,8 +159,8 @@ export function BookSearchDialog({
   const librarySeries = useLibraryStore(selectAllSeries)
   const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
 
-  const [query, setQuery] = useState("")
-  const [debouncedQuery, setDebouncedQuery] = useState("")
+  const [query, setQuery] = useState(initialQuery)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
   const [results, setResults] = useState<BookSearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -187,6 +189,13 @@ export function BookSearchDialog({
 
   const manualLabel =
     context === "volume" ? "Add volume manually" : "Add book manually"
+
+  useEffect(() => {
+    if (open && initialQuery) {
+      setQuery(initialQuery)
+      setDebouncedQuery(initialQuery)
+    }
+  }, [open, initialQuery])
 
   useEffect(() => {
     if (!open) {

@@ -120,6 +120,7 @@ export default function SeriesDetailPage() {
   const [bulkScrapeDialogOpen, setBulkScrapeDialogOpen] = useState(false)
   const [bulkScrapeTarget, setBulkScrapeTarget] =
     useState<SeriesWithVolumes | null>(null)
+  const [gapSearchQuery, setGapSearchQuery] = useState<string>("")
   const [isDeletingSeries, setIsDeletingSeries] = useState(false)
   const [isDeletingVolume, setIsDeletingVolume] = useState(false)
   const [deletingVolume, setDeletingVolume] = useState<Volume | null>(null)
@@ -402,6 +403,15 @@ export default function SeriesDetailPage() {
         volumes: [volume]
       })
       setBulkScrapeDialogOpen(true)
+    },
+    [currentSeries]
+  )
+  const handleGapCardClick = useCallback(
+    (volumeNumber: number) => {
+      if (!currentSeries) return
+      const query = `${currentSeries.title} Volume ${volumeNumber}`
+      setGapSearchQuery(query)
+      setSearchDialogOpen(true)
     },
     [currentSeries]
   )
@@ -695,6 +705,7 @@ export default function SeriesDetailPage() {
           onToggleRead={handleToggleRead}
           onToggleWishlist={handleToggleWishlist}
           onSetRating={handleSetRating}
+          onGapCardClick={handleGapCardClick}
           onSelectVolume={toggleVolumeSelection}
           onMarkAllAboveAsRead={handleMarkAllAboveAsRead}
         />
@@ -704,10 +715,14 @@ export default function SeriesDetailPage() {
       <Suspense fallback={null}>
         <BookSearchDialog
           open={searchDialogOpen}
-          onOpenChange={setSearchDialogOpen}
+          onOpenChange={(open) => {
+            setSearchDialogOpen(open)
+            if (!open) setGapSearchQuery("")
+          }}
           onSelectResult={handleSearchSelect}
           onSelectResults={handleSearchSelectMany}
           onAddManual={openManualDialog}
+          initialQuery={gapSearchQuery}
           context="volume"
           existingIsbns={existingIsbns}
         />
