@@ -1,4 +1,4 @@
-import DOMPurify from "isomorphic-dompurify"
+import sanitizeHtmlLib from "sanitize-html"
 
 /** HTML tags permitted through the sanitizer. @source */
 const ALLOWED_TAGS = [
@@ -23,14 +23,16 @@ const ALLOWED_ATTR = ["href", "title"] as const
 
 /**
  * Sanitizes an HTML string, keeping only safe tags and attributes.
+ * Uses `sanitize-html` which is deterministic in both Node and browser builds.
  * @param value - The raw HTML string.
  * @returns The sanitized HTML string.
  * @source
  */
 export const sanitizeHtml = (value: string) =>
-  DOMPurify.sanitize(value, {
-    ALLOWED_TAGS: [...ALLOWED_TAGS],
-    ALLOWED_ATTR: [...ALLOWED_ATTR]
+  sanitizeHtmlLib(value, {
+    allowedTags: [...ALLOWED_TAGS],
+    allowedAttributes: { "*": [...ALLOWED_ATTR] }
+    // keep default allowed schemes (no `javascript:`)
   })
 
 /**
@@ -56,9 +58,9 @@ export const sanitizePlainText = (
   value: string,
   maxLength?: number
 ): string => {
-  const stripped = DOMPurify.sanitize(value, {
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: []
+  const stripped = sanitizeHtmlLib(value, {
+    allowedTags: [],
+    allowedAttributes: {}
   }).trim()
   if (maxLength !== undefined && stripped.length > maxLength) {
     return stripped.slice(0, maxLength)
