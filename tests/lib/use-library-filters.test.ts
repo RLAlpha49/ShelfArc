@@ -387,6 +387,7 @@ function makeVolume(overrides: Partial<Volume> = {}): Volume {
     notes: null,
     started_at: null,
     finished_at: null,
+    release_reminder: false,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides
@@ -476,12 +477,12 @@ describe("compareStrings", () => {
   })
 
   it("treats undefined as empty string", () => {
-    expect(compareStrings(undefined, undefined)).toBe(0)
+    expect(compareStrings(undefined, undefined)).toBe(0) //NOSONAR
     expect(compareStrings(undefined, "z")).toBeLessThan(0)
   })
 
   it("treats null and undefined as equivalent", () => {
-    expect(compareStrings(null, undefined)).toBe(0)
+    expect(compareStrings(null, undefined)).toBe(0) //NOSONAR
     expect(compareStrings(undefined, null)).toBe(0)
   })
 })
