@@ -22,6 +22,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
 import type { BookSearchSource } from "@/lib/books/search"
 import type {
+  ShelfArcConflictStrategy,
+  ShelfArcCsvRow,
+  ShelfArcImportStats
+} from "@/lib/csv/parse-shelfarc-csv"
+import { parseShelfArcCsv } from "@/lib/csv/parse-shelfarc-csv"
+import type {
   CsvImportPhase,
   CsvImportStats,
   CsvParseMeta,
@@ -32,7 +38,11 @@ import { useCsvImport } from "@/lib/csv/use-csv-import"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLiveAnnouncer } from "@/lib/hooks/use-live-announcer"
 import { useSettingsStore } from "@/lib/store/settings-store"
-import type { OwnershipStatus } from "@/lib/types/database"
+import type {
+  OwnershipStatus,
+  SeriesWithVolumes,
+  Volume
+} from "@/lib/types/database"
 
 /* ─── Constants ─────────────────────────────────────────── */
 
@@ -301,6 +311,271 @@ function ImportItemRow({
   )
 }
 
+/* ─── ShelfArc import helpers ───────────────────────────── */
+
+/**
+ * Builds a map of ISBN → { volumeId, seriesId } from existing library data.
+ * @source
+ */
+function buildVolumeInfoMap(
+  seriesList: SeriesWithVolumes[],
+  unassigned: Volume[]
+): Map<string, { volumeId: string; seriesId: string | null }> {
+  const map = new Map<string, { volumeId: string; seriesId: string | null }>()
+  for (const s of seriesList) {
+    for (const v of s.volumes) {
+      if (v.isbn) map.set(v.isbn, { volumeId: v.id, seriesId: s.id })
+    }
+  }
+  for (const v of unassigned) {
+    if (v.isbn) map.set(v.isbn, { volumeId: v.id, seriesId: null })
+  }
+  return map
+}
+
+/**
+ * Builds an initial series-key → series-id map from existing library data.
+ * @source
+ */
+function buildSeriesKeyMap(
+  seriesList: SeriesWithVolumes[]
+): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const s of seriesList) {
+    map.set(`${s.title.toLowerCase()}|${s.type}`, s.id)
+  }
+  return map
+}
+
+/* ─── ShelfArc phases ───────────────────────────────────── */
+
+/**
+ * Parsed-phase UI for ShelfArc full-metadata CSV exports.
+ * Shows detected series/volume counts and conflict resolution options.
+ * @source
+ */
+function ShelfArcParsedPhase({
+  rows,
+  fileName,
+  conflictCount,
+  conflictStrategy,
+  onConflictStrategyChange,
+  onReset,
+  onStartImport
+}: Readonly<{
+  rows: ShelfArcCsvRow[]
+  fileName: string | null
+  conflictCount: number
+  conflictStrategy: ShelfArcConflictStrategy
+  onConflictStrategyChange: (s: ShelfArcConflictStrategy) => void
+  onReset: () => void
+  onStartImport: () => void
+}>) {
+  const uniqueSeriesCount = useMemo(() => {
+    const seen = new Set<string>()
+    for (const row of rows) {
+      seen.add(`${row.seriesTitle.toLowerCase()}|${row.seriesType}`)
+    }
+    return seen.size
+  }, [rows])
+
+  return (
+    <div className="animate-fade-in-up space-y-6">
+      {/* File summary card */}
+      <div className="glass-card rounded-2xl p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📄</span>
+            <span className="text-sm font-medium">{fileName}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onReset}
+            className="text-muted-foreground text-xs"
+          >
+            Change file
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold"
+            style={{ background: "var(--copper)", color: "white" }}
+          >
+            ShelfArc Export Detected
+          </span>
+        </div>
+
+        <p className="mt-3 text-sm">
+          Found{" "}
+          <span className="text-foreground font-semibold">{rows.length}</span>{" "}
+          volume{rows.length === 1 ? "" : "s"} across{" "}
+          <span className="text-foreground font-semibold">
+            {uniqueSeriesCount}
+          </span>{" "}
+          unique series
+        </p>
+      </div>
+
+      {/* Conflict resolution */}
+      {conflictCount > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <p className="mb-3 text-sm font-medium text-amber-700 dark:text-amber-400">
+            ⚠ {conflictCount} volume{conflictCount === 1 ? "" : "s"} already
+            exist in your library
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onConflictStrategyChange("skip")}
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+                conflictStrategy === "skip"
+                  ? "border-copper bg-copper/10 text-foreground"
+                  : "border-border text-muted-foreground hover:border-copper/40"
+              }`}
+            >
+              Skip Existing
+            </button>
+            <button
+              type="button"
+              onClick={() => onConflictStrategyChange("overwrite")}
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+                conflictStrategy === "overwrite"
+                  ? "border-copper bg-copper/10 text-foreground"
+                  : "border-border text-muted-foreground hover:border-copper/40"
+              }`}
+            >
+              Overwrite Existing
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <Button variant="outline" className="rounded-xl" onClick={onReset}>
+          Cancel
+        </Button>
+        <Button className="rounded-xl px-6" onClick={onStartImport}>
+          Import {rows.length} Volume{rows.length === 1 ? "" : "s"}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Importing/complete-phase UI for ShelfArc full-metadata imports.
+ * Shows progress, per-category stats, and a completion card.
+ * @source
+ */
+function ShelfArcActivePhase({
+  progress,
+  stats,
+  isComplete,
+  onReset
+}: Readonly<{
+  progress: { current: number; total: number }
+  stats: ShelfArcImportStats
+  isComplete: boolean
+  onReset: () => void
+}>) {
+  return (
+    <div className="animate-fade-in space-y-5">
+      {/* Sticky header */}
+      <div
+        className="glass-card sticky top-0 z-10 space-y-3 rounded-2xl p-5"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <div>
+          <h3 className="font-display text-base font-semibold">
+            {isComplete ? "Import Complete" : "Importing…"}
+          </h3>
+          <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <span className="tabular-nums">
+              {progress.current}/{progress.total} processed
+            </span>
+            {stats.created > 0 && (
+              <span className="text-green-600 dark:text-green-400">
+                {stats.created} created
+              </span>
+            )}
+            {stats.updated > 0 && (
+              <span className="text-blue-600 dark:text-blue-400">
+                {stats.updated} updated
+              </span>
+            )}
+            {stats.skipped > 0 && (
+              <span className="text-muted-foreground">
+                {stats.skipped} skipped
+              </span>
+            )}
+            {stats.failed > 0 && (
+              <span className="text-red-600 dark:text-red-400">
+                {stats.failed} failed
+              </span>
+            )}
+          </div>
+        </div>
+
+        <ProgressBar processed={progress.current} total={progress.total} />
+      </div>
+
+      {/* Completion card */}
+      {isComplete && (
+        <div className="animate-fade-in-up flex flex-col items-center gap-4 pt-4 text-center">
+          <div className="glass-card w-full max-w-md rounded-2xl p-6">
+            <div className="from-copper/20 to-gold/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br shadow-[0_0_30px_var(--warm-glow)]">
+              <span className="text-3xl">
+                {stats.created > 0 || stats.updated > 0 ? "🎉" : "📋"}
+              </span>
+            </div>
+
+            <p className="font-display text-lg font-semibold">
+              {(() => {
+                const total = stats.created + stats.updated
+                if (total === 0) return "No volumes were imported"
+                const suffix = total === 1 ? "" : "s"
+                return `${total} volume${suffix} imported!`
+              })()}
+            </p>
+
+            <div className="text-muted-foreground mt-2 flex flex-wrap justify-center gap-4 text-sm">
+              {stats.created > 0 && (
+                <span className="text-green-600 dark:text-green-400">
+                  ✓ {stats.created} created
+                </span>
+              )}
+              {stats.updated > 0 && (
+                <span className="text-blue-600 dark:text-blue-400">
+                  ↺ {stats.updated} updated
+                </span>
+              )}
+              {stats.skipped > 0 && <span>↷ {stats.skipped} skipped</span>}
+              {stats.failed > 0 && (
+                <span className="text-red-600 dark:text-red-400">
+                  ⚠ {stats.failed} failed
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" className="rounded-xl" onClick={onReset}>
+              Import More
+            </Button>
+            <Link href="/library">
+              <Button className="rounded-xl px-6">Go to Library</Button>
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Phase: Idle ───────────────────────────────────────── */
 
 /**
@@ -323,8 +598,8 @@ function IdlePhase({
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground text-sm">
-        Import books by providing a file with ISBN numbers. ShelfArc will look
-        up each ISBN and add matching books to your library.
+        Upload a CSV to import books. ShelfArc export files are fully supported
+        and restore all metadata. ISBN-only CSVs are also accepted.
       </p>
       <button
         type="button"
@@ -380,6 +655,7 @@ function IdlePhase({
           Columns named <code className="text-foreground">ISBN</code>,{" "}
           <code className="text-foreground">ISBN-10</code>, or{" "}
           <code className="text-foreground">ISBN-13</code> are auto-detected.
+          ShelfArc export files are identified automatically.
         </p>
       </button>
     </div>
@@ -862,6 +1138,9 @@ export function CsvImport() {
   )
   const {
     addBooksFromSearchResults,
+    createSeries,
+    createVolume,
+    editVolume,
     fetchSeries,
     series,
     unassignedVolumes,
@@ -910,6 +1189,25 @@ export function CsvImport() {
     defaultOwnershipStatus
   )
   const [isDragging, setIsDragging] = useState(false)
+  const [shelfArcRows, setShelfArcRows] = useState<ShelfArcCsvRow[] | null>(
+    null
+  )
+  const [shelfArcFileName, setShelfArcFileName] = useState<string | null>(null)
+  const [shelfArcPhase, setShelfArcPhase] = useState<
+    "parsed" | "importing" | "complete" | null
+  >(null)
+  const [shelfArcConflictStrategy, setShelfArcConflictStrategy] =
+    useState<ShelfArcConflictStrategy>("skip")
+  const [shelfArcProgress, setShelfArcProgress] = useState({
+    current: 0,
+    total: 0
+  })
+  const [shelfArcStats, setShelfArcStats] = useState<ShelfArcImportStats>({
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    failed: 0
+  })
   const [savedProgress, setSavedProgress] = useState<{
     items: IsbnImportItem[]
     fileName: string | null
@@ -949,6 +1247,15 @@ export function CsvImport() {
   const activeIndex = items.findIndex((item) =>
     ACTIVE_STATUSES.has(item.status)
   )
+
+  const shelfArcConflictCount = useMemo(() => {
+    if (!shelfArcRows) return 0
+    let count = 0
+    for (const row of shelfArcRows) {
+      if (row.isbn && existingIsbns.has(row.isbn)) count++
+    }
+    return count
+  }, [shelfArcRows, existingIsbns])
 
   // ── SessionStorage: persist during import ──
   useEffect(() => {
@@ -1045,17 +1352,29 @@ export function CsvImport() {
   }, [phase, stats.added, fetchSeries])
 
   const handleFileChange = useCallback(
-    (file: File | undefined) => {
+    async (file: File | undefined) => {
       if (!file) return
       const ext = file.name.toLowerCase()
       const isValid =
         ext.endsWith(".csv") || ext.endsWith(".tsv") || ext.endsWith(".txt")
-      if (isValid) {
-        void parseFile(file)
-      } else {
+      if (!isValid) {
         const fileExt = file.name.split(".").pop() ?? "unknown"
         toast.error(`Expected a .csv, .tsv, or .txt file, got .${fileExt}`)
+        return
       }
+
+      // Try ShelfArc full-metadata format first
+      const text = await file.text()
+      const shelfArcResult = parseShelfArcCsv(text)
+      if (shelfArcResult.length > 0) {
+        setShelfArcRows(shelfArcResult)
+        setShelfArcFileName(file.name)
+        setShelfArcPhase("parsed")
+        return
+      }
+
+      // Fall back to ISBN-based import
+      void parseFile(file)
     },
     [parseFile]
   )
@@ -1064,7 +1383,7 @@ export function CsvImport() {
     (e: React.DragEvent) => {
       e.preventDefault()
       setIsDragging(false)
-      handleFileChange(e.dataTransfer.files[0])
+      void handleFileChange(e.dataTransfer.files[0])
     },
     [handleFileChange]
   )
@@ -1077,10 +1396,180 @@ export function CsvImport() {
     })
   }, [source, ownershipStatus, addBooksFromSearchResults, startImport])
 
+  const handleShelfArcReset = useCallback(() => {
+    setShelfArcRows(null)
+    setShelfArcFileName(null)
+    setShelfArcPhase(null)
+    setShelfArcStats({ created: 0, updated: 0, skipped: 0, failed: 0 })
+    setShelfArcProgress({ current: 0, total: 0 })
+    setShelfArcConflictStrategy("skip")
+  }, [])
+
+  /**
+   * Processes a single ShelfArc CSV row: finds/creates the parent series,
+   * then creates or overwrites the volume. Mutates seriesKeyToId in place.
+   */
+  const processShelfArcRow = useCallback(
+    async (
+      row: ShelfArcCsvRow,
+      existingIsbnToVolumeInfo: Map<
+        string,
+        { volumeId: string; seriesId: string | null }
+      >,
+      seriesKeyToId: Map<string, string>,
+      conflictStrategy: ShelfArcConflictStrategy
+    ): Promise<"created" | "updated" | "skipped"> => {
+      const existingVolumeInfo = row.isbn
+        ? existingIsbnToVolumeInfo.get(row.isbn)
+        : undefined
+      const isConflict = Boolean(existingVolumeInfo)
+
+      if (isConflict && conflictStrategy === "skip") return "skipped"
+
+      // Find or create the parent series
+      const seriesKey = `${row.seriesTitle.toLowerCase()}|${row.seriesType}`
+      let targetSeriesId = seriesKeyToId.get(seriesKey)
+      if (!targetSeriesId) {
+        const newSeries = await createSeries({
+          title: row.seriesTitle,
+          author: row.author || null,
+          publisher: row.publisher || null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          type: row.seriesType as any,
+          tags: []
+        })
+        targetSeriesId = newSeries.id
+        seriesKeyToId.set(seriesKey, targetSeriesId)
+      }
+
+      const volumeData = {
+        volume_number: row.volumeNumber,
+        title: row.volumeTitle ?? null,
+        description: row.volumeDescription ?? null,
+        isbn: row.isbn,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        edition: row.edition as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        format: row.format as any,
+        ownership_status: row.ownershipStatus,
+        reading_status: row.readingStatus,
+        page_count: row.pageCount,
+        rating: row.rating,
+        publish_date: row.publishDate,
+        purchase_date: row.purchaseDate,
+        purchase_price: row.purchasePrice,
+        notes: row.notes
+      }
+
+      if (
+        isConflict &&
+        existingVolumeInfo &&
+        conflictStrategy === "overwrite"
+      ) {
+        await editVolume(
+          existingVolumeInfo.seriesId,
+          existingVolumeInfo.volumeId,
+          volumeData
+        )
+        return "updated"
+      }
+
+      await createVolume(targetSeriesId, volumeData)
+      return "created"
+    },
+    [createSeries, createVolume, editVolume]
+  )
+
+  const handleShelfArcImport = useCallback(async () => {
+    if (!shelfArcRows?.length) return
+
+    setShelfArcPhase("importing")
+    setShelfArcProgress({ current: 0, total: shelfArcRows.length })
+
+    const runningStats: ShelfArcImportStats = {
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      failed: 0
+    }
+
+    const existingIsbnToVolumeInfo = buildVolumeInfoMap(
+      series,
+      unassignedVolumes
+    )
+    const seriesKeyToId = buildSeriesKeyMap(series)
+
+    for (let i = 0; i < shelfArcRows.length; i++) {
+      const row = shelfArcRows[i]
+      try {
+        const outcome = await processShelfArcRow(
+          row,
+          existingIsbnToVolumeInfo,
+          seriesKeyToId,
+          shelfArcConflictStrategy
+        )
+        runningStats[outcome]++
+      } catch (err) {
+        console.error("ShelfArc import row failed", row, err)
+        runningStats.failed++
+      }
+      setShelfArcProgress({ current: i + 1, total: shelfArcRows.length })
+      setShelfArcStats({ ...runningStats })
+    }
+
+    setShelfArcPhase("complete")
+    await fetchSeries()
+
+    const statEntries: Array<[number, string]> = [
+      [runningStats.created, "created"],
+      [runningStats.updated, "updated"],
+      [runningStats.skipped, "skipped"],
+      [runningStats.failed, "failed"]
+    ]
+    const parts = statEntries
+      .filter(([n]) => n > 0)
+      .map(([n, label]) => `${n} ${label}`)
+    toast.success(`Import complete: ${parts.join(", ")}`)
+  }, [
+    shelfArcRows,
+    shelfArcConflictStrategy,
+    processShelfArcRow,
+    fetchSeries,
+    series,
+    unassignedVolumes
+  ])
+
   const handleReset = useCallback(() => {
     sessionStorage.removeItem(IMPORT_STORAGE_KEY)
     reset()
   }, [reset])
+
+  // ShelfArc full-metadata import phases
+  if (shelfArcPhase === "parsed" && shelfArcRows) {
+    return (
+      <ShelfArcParsedPhase
+        rows={shelfArcRows}
+        fileName={shelfArcFileName}
+        conflictCount={shelfArcConflictCount}
+        conflictStrategy={shelfArcConflictStrategy}
+        onConflictStrategyChange={setShelfArcConflictStrategy}
+        onReset={handleShelfArcReset}
+        onStartImport={() => {
+          void handleShelfArcImport()
+        }}
+      />
+    )
+  }
+  if (shelfArcPhase === "importing" || shelfArcPhase === "complete") {
+    return (
+      <ShelfArcActivePhase
+        progress={shelfArcProgress}
+        stats={shelfArcStats}
+        isComplete={shelfArcPhase === "complete"}
+        onReset={handleShelfArcReset}
+      />
+    )
+  }
 
   if (savedProgress && phase === "idle") {
     return (
