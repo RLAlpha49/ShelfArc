@@ -114,12 +114,25 @@ export async function GET(request: NextRequest) {
   }
 
   const normalized = normalizeIsbn(isbnRaw)
+
+  if (!/^[0-9X]{10,13}$/.test(normalized)) {
+    return apiError(400, "Invalid ISBN")
+  }
+
   const size = VALID_SIZES.has(sizeRaw.toUpperCase())
     ? (sizeRaw.toUpperCase() as "S" | "M" | "L")
     : "L"
 
-  const url = `${OPEN_LIBRARY_BASE}/${normalized}-${size}.jpg?default=false`
-  const result = await fetchCover(url, log)
+  const base = new URL(OPEN_LIBRARY_BASE)
+  const upstream = new URL(`${normalized}-${size}.jpg?default=false`, base)
+  if (upstream.origin !== base.origin || upstream.protocol !== "https:") {
+    log.error("Rejected invalid upstream cover URL", {
+      url: upstream.toString()
+    })
+    return apiError(400, "Invalid cover request")
+  }
+
+  const result = await fetchCover(upstream.toString(), log)
 
   if (!("headers" in result)) {
     return new Response(null, { status: result.status })
