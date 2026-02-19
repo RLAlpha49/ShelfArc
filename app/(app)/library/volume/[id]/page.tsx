@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDate } from "@/lib/format-date"
 import { useLibrary } from "@/lib/hooks/use-library"
@@ -216,6 +217,8 @@ export default function VolumeDetailPage() {
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [ctaLoading, setCtaLoading] = useState<"read" | "wishlist" | null>(null)
+  const [progressInput, setProgressInput] = useState<string>("")
+  const [isSavingProgress, setIsSavingProgress] = useState(false)
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
   )
@@ -240,6 +243,24 @@ export default function VolumeDetailPage() {
   const currentVolume = volumeEntry?.volume ?? null
   const currentSeries = volumeEntry?.series ?? null
 
+  const siblingVolumes = useMemo(() => {
+    if (!currentSeries) return []
+    return currentSeries.volumes.toSorted(
+      (a, b) => a.volume_number - b.volume_number
+    )
+  }, [currentSeries])
+
+  const siblingIndex = useMemo(
+    () => siblingVolumes.findIndex((v) => v.id === volumeId),
+    [siblingVolumes, volumeId]
+  )
+
+  const prevVolume = siblingIndex > 0 ? siblingVolumes[siblingIndex - 1] : null
+  const nextVolume =
+    siblingIndex >= 0 && siblingIndex < siblingVolumes.length - 1
+      ? siblingVolumes[siblingIndex + 1]
+      : null
+
   const recordVisit = useRecentlyVisitedStore((s) => s.recordVisit)
   useEffect(() => {
     if (currentVolume) {
@@ -253,6 +274,14 @@ export default function VolumeDetailPage() {
     // Only record when the volume id changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentVolume?.id, recordVisit])
+
+  useEffect(() => {
+    setProgressInput(
+      currentVolume?.current_page == null
+        ? ""
+        : String(currentVolume.current_page)
+    )
+  }, [currentVolume?.current_page])
 
   const handleEditVolume = async (
     data: Omit<VolumeInsert, "user_id" | "series_id">
@@ -325,6 +354,32 @@ export default function VolumeDetailPage() {
     setVolumeDialogOpen(true)
     setSelectedSeriesId(currentVolume.series_id ?? null)
   }, [currentVolume])
+
+  const handleSaveProgress = useCallback(async () => {
+    if (!currentVolume) return
+    const parsed = Number.parseInt(progressInput, 10)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toast.error("Enter a valid page number")
+      return
+    }
+    if (currentVolume.page_count != null && parsed > currentVolume.page_count) {
+      toast.error(
+        `Page number cannot exceed total pages (${currentVolume.page_count})`
+      )
+      return
+    }
+    setIsSavingProgress(true)
+    try {
+      await editVolume(currentVolume.series_id ?? null, currentVolume.id, {
+        current_page: parsed
+      })
+      toast.success("Progress updated")
+    } catch {
+      toast.error("Failed to update progress")
+    } finally {
+      setIsSavingProgress(false)
+    }
+  }, [currentVolume, progressInput, editVolume])
 
   const priceFormatter = useMemo(() => {
     const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
@@ -475,6 +530,72 @@ export default function VolumeDetailPage() {
         ]}
       />
 
+      {currentSeries && siblingVolumes.length > 1 && (
+        <nav
+          aria-label="Volume navigation"
+          className="mb-4 flex items-center gap-2"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!prevVolume}
+            onClick={() =>
+              prevVolume && router.push(`/library/volume/${prevVolume.id}`)
+            }
+            aria-label={
+              prevVolume
+                ? `Go to Volume ${prevVolume.volume_number}`
+                : "Already at first volume"
+            }
+            className="rounded-xl"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-1.5 h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+            {prevVolume ? `Vol. ${prevVolume.volume_number}` : "First Volume"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!nextVolume}
+            onClick={() =>
+              nextVolume && router.push(`/library/volume/${nextVolume.id}`)
+            }
+            aria-label={
+              nextVolume
+                ? `Go to Volume ${nextVolume.volume_number}`
+                : "Already at last volume"
+            }
+            className="rounded-xl"
+          >
+            {nextVolume ? `Vol. ${nextVolume.volume_number}` : "Last Volume"}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="ml-1.5 h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </Button>
+        </nav>
+      )}
+
       {/* Series-style header + content */}
       <div className="relative mb-10">
         <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-[radial-gradient(ellipse_at_30%_50%,var(--warm-glow-strong),transparent_70%)]" />
@@ -593,6 +714,49 @@ export default function VolumeDetailPage() {
                   ? "Remove from Wishlist"
                   : "Add to Wishlist"}
               </Button>
+            </div>
+
+            {/* Inline Reading Progress */}
+            <div className="animate-fade-in-up stagger-3 glass-card rounded-2xl p-5">
+              <span className="text-muted-foreground text-xs tracking-widest uppercase">
+                Reading Progress
+              </span>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <label
+                  htmlFor="volume-current-page"
+                  className="text-sm font-medium"
+                >
+                  Page
+                </label>
+                <Input
+                  id="volume-current-page"
+                  type="number"
+                  min={0}
+                  max={currentVolume.page_count ?? undefined}
+                  value={progressInput}
+                  onChange={(e) => setProgressInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleSaveProgress()
+                  }}
+                  className="w-24 rounded-xl"
+                  aria-label="Current page number"
+                />
+                <span className="text-muted-foreground text-sm">
+                  / {currentVolume.page_count ?? "?"}
+                </span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void handleSaveProgress()}
+                  disabled={
+                    isSavingProgress ||
+                    progressInput === String(currentVolume.current_page ?? "")
+                  }
+                  className="rounded-xl"
+                >
+                  {isSavingProgress ? "Saving…" : "Save"}
+                </Button>
+              </div>
             </div>
 
             {/* Details panel */}
