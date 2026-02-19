@@ -182,7 +182,10 @@ export type AmazonPriceParseResult = {
 const getFullSizeImageUrl = (thumbnailUrl: string): string | null => {
   try {
     const url = new URL(thumbnailUrl)
-    if (!url.hostname.includes("media-amazon.com")) return null
+    const host = url.hostname.toLowerCase()
+    if (!(host === "media-amazon.com" || host.endsWith(".media-amazon.com"))) {
+      return null
+    }
     // Pattern: /images/I/<id>._AC_UY218_.jpg -> /images/I/<id>.jpg
     const cleaned = url.pathname.replace(/\._[^.]+(\.[a-z0-9]+)$/i, "$1")
     return `${url.origin}${cleaned}`
