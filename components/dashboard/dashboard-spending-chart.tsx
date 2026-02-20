@@ -31,6 +31,42 @@ const PAD_SIDE = 8
 const MAX_BAR_FILL = 0.8
 const ROTATE_AT = 9
 
+function getChartLabel(
+  isVelocity: boolean,
+  view: "monthly" | "cumulative"
+): string {
+  if (isVelocity) return "Monthly completed volumes"
+  if (view === "cumulative") return "Total invested"
+  return "Monthly spending"
+}
+
+function computeMonthlyBars(filtered: SpendingDataPoint[], svgWidth: number) {
+  if (filtered.length === 0) return []
+  const maxVal = Math.max(...filtered.map((d) => d.total), 0)
+  const innerW = svgWidth - PAD_SIDE * 2
+  const innerH = CHART_H - PAD_TOP - PAD_BOTTOM
+  const slotW = innerW / filtered.length
+  const barW = Math.min(slotW * 0.65, 40)
+  const maxBarH = innerH * MAX_BAR_FILL
+  const rotate = filtered.length > ROTATE_AT
+
+  return filtered.map((d, i) => {
+    const barH = maxVal > 0 ? (d.total / maxVal) * maxBarH : 0
+    const cx = PAD_SIDE + i * slotW + slotW / 2
+    return {
+      d,
+      x: cx - barW / 2,
+      y: d.total > 0 ? PAD_TOP + innerH - barH : PAD_TOP + innerH - 2,
+      w: barW,
+      h: d.total > 0 ? barH : 2,
+      cx,
+      labelY: CHART_H - PAD_BOTTOM + 14,
+      abbr: d.label.split(" ")[0],
+      rotate
+    }
+  })
+}
+
 export default function DashboardSpendingChart({
   data,
   priceFormatter,
@@ -43,6 +79,7 @@ export default function DashboardSpendingChart({
   const gradientId = `spend-grad-${uid.replaceAll(":", "")}`
 
   const [range, setRange] = useState<TimeRange>("1Y")
+  const [view, setView] = useState<"monthly" | "cumulative">("monthly")
   const [tooltip, setTooltip] = useState<TooltipState>({
     x: 0,
     y: 0,
@@ -70,6 +107,62 @@ export default function DashboardSpendingChart({
     return data
   }, [data, range])
 
+  // Cumulative (prefix-sum) version of filtered data
+  const cumulativeFiltered = useMemo(() => {
+    const result: typeof filtered = []
+    let acc = 0
+    for (const d of filtered) {
+      acc = acc + d.total
+      result.push({ ...d, total: acc })
+    }
+    return result
+  }, [filtered])
+
+  // Area SVG path for cumulative mode
+  const areaPath = useMemo(() => {
+    if (cumulativeFiltered.length === 0) return ""
+    const innerW = svgWidth - PAD_SIDE * 2
+    const innerH = CHART_H - PAD_TOP - PAD_BOTTOM
+    const slotW = innerW / cumulativeFiltered.length
+    const maxVal = cumulativeFiltered.at(-1)?.total ?? 0
+    if (maxVal === 0) return ""
+    const maxBarH = innerH * MAX_BAR_FILL
+    const baseline = PAD_TOP + innerH
+
+    const pts = cumulativeFiltered.map((d, i) => {
+      const cx = PAD_SIDE + i * slotW + slotW / 2
+      const y = baseline - (d.total / maxVal) * maxBarH
+      return { cx, y, d }
+    })
+
+    const first = pts[0]
+    const last = pts.at(-1)!
+    const lineCoords = pts.map((p) => `${p.cx},${p.y}`).join(" L ")
+    return `M ${first.cx},${baseline} L ${lineCoords} L ${last.cx},${baseline} Z`
+  }, [cumulativeFiltered, svgWidth])
+
+  // Hover slots for cumulative mode (same data as pts but per-slot)
+  const cumulativeSlots = useMemo(() => {
+    if (cumulativeFiltered.length === 0) return []
+    const innerW = svgWidth - PAD_SIDE * 2
+    const innerH = CHART_H - PAD_TOP - PAD_BOTTOM
+    const slotW = innerW / cumulativeFiltered.length
+    const maxVal = cumulativeFiltered.at(-1)?.total ?? 1
+    const maxBarH = innerH * MAX_BAR_FILL
+    const baseline = PAD_TOP + innerH
+    const rotate = cumulativeFiltered.length > ROTATE_AT
+    return cumulativeFiltered.map((d, i) => ({
+      d,
+      slotX: PAD_SIDE + i * slotW,
+      slotW,
+      cx: PAD_SIDE + i * slotW + slotW / 2,
+      y: baseline - (d.total / maxVal) * maxBarH,
+      labelY: CHART_H - PAD_BOTTOM + 14,
+      abbr: d.label.split(" ")[0],
+      rotate
+    }))
+  }, [cumulativeFiltered, svgWidth])
+
   const stats = useMemo(() => {
     if (filtered.length === 0) return null
     const firstPoint = filtered[0]
@@ -84,32 +177,10 @@ export default function DashboardSpendingChart({
     return { total, peak, avg }
   }, [filtered])
 
-  const chartBars = useMemo(() => {
-    if (filtered.length === 0) return []
-    const maxVal = Math.max(...filtered.map((d) => d.total), 0)
-    const innerW = svgWidth - PAD_SIDE * 2
-    const innerH = CHART_H - PAD_TOP - PAD_BOTTOM
-    const slotW = innerW / filtered.length
-    const barW = Math.min(slotW * 0.65, 40)
-    const maxBarH = innerH * MAX_BAR_FILL
-    const rotate = filtered.length > ROTATE_AT
-
-    return filtered.map((d, i) => {
-      const barH = maxVal > 0 ? (d.total / maxVal) * maxBarH : 0
-      const cx = PAD_SIDE + i * slotW + slotW / 2
-      return {
-        d,
-        x: cx - barW / 2,
-        y: d.total > 0 ? PAD_TOP + innerH - barH : PAD_TOP + innerH - 2,
-        w: barW,
-        h: d.total > 0 ? barH : 2,
-        cx,
-        labelY: CHART_H - PAD_BOTTOM + 14,
-        abbr: d.label.split(" ")[0],
-        rotate
-      }
-    })
-  }, [filtered, svgWidth])
+  const chartBars = useMemo(
+    () => computeMonthlyBars(filtered, svgWidth),
+    [filtered, svgWidth]
+  )
 
   const gridLines = useMemo(() => {
     const innerH = CHART_H - PAD_TOP - PAD_BOTTOM
@@ -174,26 +245,49 @@ export default function DashboardSpendingChart({
     )
   }
 
+  const chartLabel = getChartLabel(isVelocity, view)
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-          {isVelocity ? "Monthly completed volumes" : "Monthly spending"}
+          {chartLabel}
         </span>
-        <div className="flex gap-1">
-          {(["6M", "1Y", "All"] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={
-                range === r
-                  ? "bg-primary/10 text-primary rounded-md px-2.5 py-1 text-xs font-medium"
-                  : "text-muted-foreground hover:text-foreground rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-              }
-            >
-              {r}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {!isVelocity && (
+            <div className="flex gap-0.5">
+              {(["monthly", "cumulative"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  className={
+                    view === v
+                      ? "bg-primary/10 text-primary rounded-md px-2 py-1 text-[10px] font-medium"
+                      : "text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-[10px] font-medium transition-colors"
+                  }
+                >
+                  {v === "monthly" ? "Monthly" : "Cumulative"}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1">
+            {(["6M", "1Y", "All"] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRange(r)}
+                className={
+                  range === r
+                    ? "bg-primary/10 text-primary rounded-md px-2.5 py-1 text-xs font-medium"
+                    : "text-muted-foreground hover:text-foreground rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                }
+              >
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -228,43 +322,111 @@ export default function DashboardSpendingChart({
             />
           ))}
 
-          {chartBars.map((bar) => (
-            <g key={bar.d.yearMonth}>
-              <title>
-                {`${bar.d.label}: ` +
-                  (isVelocity
-                    ? `${bar.d.total} volumes`
-                    : priceFormatter.format(bar.d.total))}
-              </title>
-              <rect
-                x={bar.x}
-                y={bar.y}
-                width={bar.w}
-                height={bar.h}
-                rx={3}
-                fill={bar.d.total > 0 ? `url(#${gradientId})` : "currentColor"}
-                fillOpacity={bar.d.total > 0 ? 1 : 0.1}
-                className="cursor-pointer transition-opacity hover:opacity-75"
-                onMouseEnter={(e) => onBarEnter(e, bar.d.label, bar.d.total)}
-                onMouseMove={onBarMove}
-              />
-              <text
-                x={bar.cx}
-                y={bar.labelY}
-                textAnchor={bar.rotate ? "end" : "middle"}
-                fontSize={9}
-                fill="currentColor"
-                fillOpacity={0.4}
-                transform={
-                  bar.rotate
-                    ? `rotate(-45, ${bar.cx}, ${bar.labelY})`
-                    : undefined
-                }
-              >
-                {bar.abbr}
-              </text>
-            </g>
-          ))}
+          {view === "cumulative" ? (
+            // ── Cumulative area chart ─────────────────────────────────
+            <>
+              {areaPath && (
+                <path
+                  d={areaPath}
+                  fill={`url(#${gradientId})`}
+                  fillOpacity={0.25}
+                />
+              )}
+              {cumulativeSlots.map((slot) => (
+                <g key={slot.d.yearMonth}>
+                  <title>
+                    {`${slot.d.label}: `}
+                    {isVelocity
+                      ? `${slot.d.total} volumes`
+                      : priceFormatter.format(slot.d.total)}
+                    {" (cumulative)"}
+                  </title>
+                  {/* Invisible hover rect spanning full slot width */}
+                  <rect
+                    x={slot.slotX}
+                    y={PAD_TOP}
+                    width={slot.slotW}
+                    height={CHART_H - PAD_TOP - PAD_BOTTOM}
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={(e) =>
+                      onBarEnter(e, slot.d.label, slot.d.total)
+                    }
+                    onMouseMove={onBarMove}
+                  />
+                  {/* Point dot */}
+                  {slot.d.total > 0 && (
+                    <circle
+                      cx={slot.cx}
+                      cy={slot.y}
+                      r={3}
+                      fill={`url(#${gradientId})`}
+                    />
+                  )}
+                  <text
+                    x={slot.cx}
+                    y={slot.labelY}
+                    textAnchor={slot.rotate ? "end" : "middle"}
+                    fontSize={9}
+                    fill="currentColor"
+                    fillOpacity={0.4}
+                    transform={
+                      slot.rotate
+                        ? `rotate(-45, ${slot.cx}, ${slot.labelY})`
+                        : undefined
+                    }
+                  >
+                    {slot.abbr}
+                  </text>
+                </g>
+              ))}
+            </>
+          ) : (
+            // ── Monthly bar chart ─────────────────────────────────────
+            <>
+              {chartBars.map((bar) => (
+                <g key={bar.d.yearMonth}>
+                  <title>
+                    {`${bar.d.label}: ` +
+                      (isVelocity
+                        ? `${bar.d.total} volumes`
+                        : priceFormatter.format(bar.d.total))}
+                  </title>
+                  <rect
+                    x={bar.x}
+                    y={bar.y}
+                    width={bar.w}
+                    height={bar.h}
+                    rx={3}
+                    fill={
+                      bar.d.total > 0 ? `url(#${gradientId})` : "currentColor"
+                    }
+                    fillOpacity={bar.d.total > 0 ? 1 : 0.1}
+                    className="cursor-pointer transition-opacity hover:opacity-75"
+                    onMouseEnter={(e) =>
+                      onBarEnter(e, bar.d.label, bar.d.total)
+                    }
+                    onMouseMove={onBarMove}
+                  />
+                  <text
+                    x={bar.cx}
+                    y={bar.labelY}
+                    textAnchor={bar.rotate ? "end" : "middle"}
+                    fontSize={9}
+                    fill="currentColor"
+                    fillOpacity={0.4}
+                    transform={
+                      bar.rotate
+                        ? `rotate(-45, ${bar.cx}, ${bar.labelY})`
+                        : undefined
+                    }
+                  >
+                    {bar.abbr}
+                  </text>
+                </g>
+              ))}
+            </>
+          )}
         </svg>
 
         {tooltip.visible && (
