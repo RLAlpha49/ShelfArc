@@ -5,7 +5,10 @@ import { ShareButton } from "@/components/ui/share-button"
 import { getPublicProfileUrl } from "@/lib/share-url"
 // eslint-disable-next-line no-restricted-imports -- Admin client required: public page needs RLS bypass for unauthenticated visitors
 import { createAdminClient } from "@/lib/supabase/admin"
-import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
+import {
+  extractStoragePath,
+  resolveImageUrl
+} from "@/lib/uploads/resolve-image-url"
 
 import type { PublicSeries } from "./series-grid"
 import { SeriesGrid } from "./series-grid"
@@ -98,7 +101,21 @@ export default async function PublicProfilePage({ params }: Props) {
       ? Math.round((totalCompletedVolumes / totalVolumes) * 100)
       : 0
 
-  const resolvedAvatar = resolveImageUrl(profile.avatar_url)
+  // For public profiles, use a short-lived signed URL so unauthenticated visitors
+  // can see the avatar without accessing the authenticated storage proxy.
+  let resolvedAvatar: string | undefined
+  if (profile.avatar_url) {
+    const storagePath = extractStoragePath(profile.avatar_url)
+    if (storagePath) {
+      const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "media"
+      const { data: signedData } = await admin.storage
+        .from(bucket)
+        .createSignedUrl(storagePath, 86_400) // 24-hour signed URL
+      resolvedAvatar = signedData?.signedUrl ?? undefined
+    } else {
+      resolvedAvatar = resolveImageUrl(profile.avatar_url)
+    }
+  }
   const displayName = profile.username ?? username
   const shareUrl = getPublicProfileUrl(displayName)
   const memberSince = new Date(profile.created_at).toLocaleDateString("en-US", {
