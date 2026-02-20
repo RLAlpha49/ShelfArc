@@ -23,6 +23,8 @@ export interface SuggestedBuy {
   volumeNumber: number
   isGap: boolean
   isWishlisted: boolean
+  /** ID of the existing wishlist volume entry, if one exists. Null for untracked volumes. */
+  wishlistVolumeId: string | null
   estimatedPrice: number | null
   score: number
   isReading: boolean
@@ -476,6 +478,7 @@ export function computeSuggestedBuys(
       volumeNumber,
       isGap,
       isWishlisted: wishlistMap.has(volumeNumber),
+      wishlistVolumeId: wishlistVol?.id ?? null,
       estimatedPrice: wishlistVol?.purchase_price ?? null,
       score: computeScore(
         isGap,
@@ -861,4 +864,37 @@ export function computeReleases(
   const past = allGroups.filter((g) => g.yearMonth < currentYearMonth).reverse()
 
   return { upcoming, past }
+}
+
+// ── Rating distribution ────────────────────────────────────────────────
+
+export interface RatingDistributionPoint {
+  /** Integer rating 0–10 */
+  rating: number
+  count: number
+}
+
+/**
+ * Computes distribution of volume ratings across integer buckets 0–10.
+ * Non-null ratings are rounded to the nearest integer before bucketing.
+ * Returns the distribution array and the count of unrated volumes.
+ */
+export function computeRatingDistribution(series: SeriesWithVolumes[]): {
+  distribution: RatingDistributionPoint[]
+  unratedCount: number
+} {
+  const buckets = new Array<number>(11).fill(0)
+  let unratedCount = 0
+  for (const s of series) {
+    for (const v of s.volumes) {
+      if (v.rating == null) {
+        unratedCount++
+      } else {
+        const idx = Math.max(0, Math.min(10, Math.round(v.rating)))
+        buckets[idx]++
+      }
+    }
+  }
+  const distribution = buckets.map((count, rating) => ({ rating, count }))
+  return { distribution, unratedCount }
 }
