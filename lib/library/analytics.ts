@@ -29,6 +29,8 @@ export interface SuggestedBuy {
   score: number
   isReading: boolean
   category: SuggestionCategory
+  /** Cover image URL from an owned volume in the same series, for display. */
+  coverImageUrl: string | null
 }
 
 /** Per-category counts for a list of suggestions. */
@@ -471,6 +473,9 @@ export function computeSuggestedBuys(
     } else {
       category = "continue"
     }
+    const coverImageUrl =
+      s.volumes.find((v) => v.ownership_status === "owned" && v.cover_image_url)
+        ?.cover_image_url ?? null
     return {
       seriesId: s.id,
       seriesTitle: s.title,
@@ -487,7 +492,8 @@ export function computeSuggestedBuys(
         !!wishlistVol?.purchase_price
       ),
       isReading,
-      category
+      category,
+      coverImageUrl
     }
   }
 

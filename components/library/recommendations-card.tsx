@@ -5,6 +5,7 @@ import { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import type { SuggestedBuy, SuggestionCategory } from "@/lib/library/analytics"
+import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 
 const CATEGORY_CONFIG: Record<
   SuggestionCategory,
@@ -42,6 +43,7 @@ export function RecommendationsCard({
   currencyFormatter
 }: RecommendationsCardProps) {
   const cat = CATEGORY_CONFIG[suggestion.category]
+  const coverUrl = resolveImageUrl(suggestion.coverImageUrl ?? "")
   const [isWishlisted, setIsWishlisted] = useState(suggestion.isWishlisted)
   const [wishlistVolumeId, setWishlistVolumeId] = useState(
     suggestion.wishlistVolumeId
@@ -97,7 +99,17 @@ export function RecommendationsCard({
         href={`/library/series/${suggestion.seriesId}`}
         className="block p-4 pr-10"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {coverUrl && (
+            <img
+              src={coverUrl}
+              alt=""
+              aria-hidden
+              width={36}
+              height={54}
+              className="h-13.5 w-9 shrink-0 rounded-sm object-cover"
+            />
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
