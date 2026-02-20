@@ -28,6 +28,14 @@ export const dynamic = "force-dynamic"
 const VALID_MODES = ["price", "image", "both"] as const
 type ScrapeMode = (typeof VALID_MODES)[number]
 
+const VALID_BINDINGS = [
+  "Paperback",
+  "Hardcover",
+  "Kindle Edition",
+  "Kindle"
+] as const
+type ValidBinding = (typeof VALID_BINDINGS)[number]
+
 interface JobResult {
   volumeId: string
   status: "done" | "failed" | "skipped"
@@ -107,10 +115,13 @@ function validateBody(
           : "amazon.com"
       return AMAZON_DOMAINS.has(raw) ? raw : "amazon.com"
     })(),
-    binding:
-      typeof body.binding === "string" && body.binding.trim()
-        ? body.binding.trim()
-        : "Paperback",
+    binding: (() => {
+      const rawBinding =
+        typeof body.binding === "string" ? body.binding.trim() : ""
+      return (VALID_BINDINGS as readonly string[]).includes(rawBinding)
+        ? (rawBinding as ValidBinding)
+        : "Paperback"
+    })(),
     includePrice: scrapeMode === "price" || scrapeMode === "both",
     includeImage: scrapeMode === "image" || scrapeMode === "both"
   }
