@@ -6,6 +6,18 @@ import { makeNextRequest, readJson } from "./test-utils"
 // Prevent "server-only" guard from throwing in the test environment
 mock.module("server-only", () => ({}))
 
+// Prevent cheerio (used by bookwalker-price) from loading in the test
+// environment, where node:stream 'finished' may not be available.
+mock.module("@/lib/books/price/bookwalker-price", () => ({
+  createBookWalkerSearchContext: mock(() => {
+    throw new Error("BookWalker not under test")
+  }),
+  fetchBookWalkerHtml: mock(async () => ""),
+  parseBookWalkerResult: mock(() => {
+    throw new Error("BookWalker not under test")
+  })
+}))
+
 type RateLimitModule = {
   isRateLimited: ReturnType<typeof mock>
   getCooldownRemaining: ReturnType<typeof mock>
