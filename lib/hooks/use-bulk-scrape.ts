@@ -218,8 +218,15 @@ function finalize(setter: StateSetter): BulkScrapeSummary {
  * @returns A human-readable cooldown message.
  * @source
  */
-function buildCooldownMessage(): string {
-  // cooldownMs and error are not part of FetchPriceResponse, so always return generic message
+function buildCooldownMessage(data?: Record<string, unknown>): string {
+  const ms = data?.cooldownMs ?? data?.retryAfterMs
+  if (typeof ms === "number" && ms > 0) {
+    const totalSeconds = Math.ceil(ms / 1000)
+    const m = Math.floor(totalSeconds / 60)
+    const s = totalSeconds % 60
+    const timeStr = m > 0 ? `${m}m ${s}s` : `${s}s`
+    return `Amazon is rate-limited. Try again in ${timeStr}.`
+  }
   return "Amazon blocked the request. Try again later."
 }
 
@@ -244,7 +251,7 @@ function handleRateLimit(
   cancelRemaining(i + 1, setter)
   setter((prev) => ({
     ...prev,
-    cooldownMessage: buildCooldownMessage()
+    cooldownMessage: buildCooldownMessage(data)
   }))
 }
 
@@ -324,6 +331,7 @@ interface JobContext {
     data: Partial<Volume>
   ) => Promise<void>
   setter: StateSetter
+  priceSource: string
 }
 
 /**
@@ -366,8 +374,6 @@ export function useBulkScrape(
 
   const start = useCallback(
     async (mode: BulkScrapeMode, skipExisting: boolean) => {
-      if (priceSource !== "amazon") return
-
       const sortedVolumes = [...series.volumes].sort(
         (a, b) => a.volume_number - b.volume_number
       )
@@ -417,7 +423,8 @@ export function useBulkScrape(
           includeImage,
           controller,
           editVolume,
-          setter: setState
+          setter: setState,
+          priceSource
         }
 
         const outcome = await processJob(i, ctx)
@@ -496,7 +503,8 @@ function buildJobParams(i: number, ctx: JobContext): FetchPriceParams | null {
     fallbackToKindle,
     includePrice,
     includeImage,
-    setter
+    setter,
+    priceSource
   } = ctx
   const result = buildFetchPriceParams({
     seriesTitle: jobs[i].seriesTitle ?? series.title,
@@ -507,7 +515,8 @@ function buildJobParams(i: number, ctx: JobContext): FetchPriceParams | null {
     domain: amazonDomain,
     fallbackToKindle,
     includePrice: includePrice || undefined,
-    includeImage: includeImage || undefined
+    includeImage: includeImage || undefined,
+    source: priceSource
   })
   if ("error" in result) {
     updateJob(i, { status: "failed", errorMessage: result.error }, setter)
@@ -615,7 +624,12 @@ async function handleSuccess(
 
   if (priceResult != null) {
     try {
-      await persistPriceEntry(jobs[i].volumeId, priceResult, "USD", "amazon")
+      await persistPriceEntry(
+        jobs[i].volumeId,
+        priceResult,
+        "USD",
+        ctx.priceSource
+      )
       const triggered = await checkPriceAlert(jobs[i].volumeId, priceResult)
       if (triggered) {
         toast.info(
