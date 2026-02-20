@@ -247,34 +247,47 @@ export default function ExportPage() {
 
         seriesRows.push(
           [
-            "Title",
-            "Type",
-            "Author",
-            "Artist",
-            "Publisher",
-            "Description",
-            "Total Volumes",
-            "Tags",
-            "Notes",
-            "Created At",
-            "Updated At"
+            "id",
+            "title",
+            "original_title",
+            "description",
+            "notes",
+            "author",
+            "artist",
+            "publisher",
+            "cover_image_url",
+            "amazon_url",
+            "type",
+            "total_volumes",
+            "status",
+            "tags",
+            "is_public",
+            "created_at",
+            "updated_at"
           ]
             .map((h) => csvEscape(h))
             .join(",")
         )
 
         for (const s of payload.series) {
+          const sr = s as Record<string, unknown>
           seriesRows.push(
             [
+              sr.id ?? "",
               s.title,
-              s.type,
+              s.original_title || "",
+              s.description || "",
+              s.notes || "",
               s.author || "",
               s.artist || "",
               s.publisher || "",
-              s.description || "",
+              s.cover_image_url || "",
+              sr.amazon_url ?? "",
+              s.type,
               s.total_volumes?.toString() || "",
+              s.status || "",
               (s.tags ?? []).join("; "),
-              s.notes || "",
+              sr.is_public == null ? "" : String(sr.is_public),
               s.created_at || "",
               s.updated_at || ""
             ]
