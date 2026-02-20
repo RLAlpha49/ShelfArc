@@ -108,7 +108,7 @@ export function VirtualizedWindowGrid<TItem>({
   readonly estimateRowSize: () => number
   readonly overscan?: number
   readonly getItemKey: (item: TItem) => string
-  readonly renderItem: (item: TItem) => ReactNode
+  readonly renderItem: (item: TItem, index: number) => ReactNode
   readonly className?: string
 }) {
   const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -174,8 +174,13 @@ export function VirtualizedWindowGrid<TItem>({
                   paddingBottom: gapPx
                 }}
               >
-                {rowItems.map((item) => (
-                  <Fragment key={getItemKey(item)}>{renderItem(item)}</Fragment>
+                {rowItems.map((item, colIndex) => (
+                  <Fragment key={getItemKey(item)}>
+                    {renderItem(
+                      item,
+                      virtualRow.index * columnCount + colIndex
+                    )}
+                  </Fragment>
                 ))}
               </div>
             </div>
