@@ -114,7 +114,6 @@ describe("library-store", () => {
       expect(s.sortField).toBe("title")
       expect(s.sortOrder).toBe("asc")
       expect(s.isLoading).toBe(false)
-      expect(s.navigationMode).toBe("sidebar")
     })
 
     it("has default filter state", () => {
@@ -647,11 +646,6 @@ describe("library-store", () => {
       expect(useLibraryStore.getState().showAmazonDisclaimer).toBe(false)
     })
 
-    it("setNavigationMode", () => {
-      useLibraryStore.getState().setNavigationMode("header")
-      expect(useLibraryStore.getState().navigationMode).toBe("header")
-    })
-
     it("setIsLoading", () => {
       useLibraryStore.getState().setIsLoading(true)
       expect(useLibraryStore.getState().isLoading).toBe(true)
@@ -750,7 +744,6 @@ describe("library-store", () => {
       expect(initial.viewMode).toBe("grid")
       expect(initial.sortField).toBe("title")
       expect(initial.sortOrder).toBe("asc")
-      expect(initial.navigationMode).toBe("sidebar")
       expect(initial.priceSource).toBe("amazon")
       expect(initial.amazonDomain).toBe("amazon.com")
       expect(initial.priceDisplayCurrency).toBe("USD")

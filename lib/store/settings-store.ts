@@ -3,6 +3,9 @@ import { persist } from "zustand/middleware"
 
 import type { BulkScrapeMode } from "@/lib/hooks/use-bulk-scrape"
 
+/** Navigation layout mode. @source */
+export type NavigationMode = "sidebar" | "header"
+
 /** Available display (heading) font families. @source */
 export type DisplayFont = "playfair" | "lora" | "crimson-text" | "source-serif"
 /** Available body text font families. @source */
@@ -121,6 +124,9 @@ interface SettingsState {
   // Onboarding
   hasCompletedOnboarding: boolean
 
+  // Navigation
+  navigationMode: NavigationMode
+
   // Actions
   setShowReadingProgress: (value: boolean) => void
   setShowSeriesProgressBar: (value: boolean) => void
@@ -144,6 +150,7 @@ interface SettingsState {
   setNotifyOnScrapeComplete: (value: boolean) => void
   setNotifyOnPriceAlert: (value: boolean) => void
   setHasCompletedOnboarding: (value: boolean) => void
+  setNavigationMode: (value: NavigationMode) => void
   setDashboardLayout: (layout: DashboardLayout) => void
   resetDashboardLayout: () => void
 
@@ -207,6 +214,7 @@ const SYNCABLE_KEYS = [
   "notifyOnScrapeComplete",
   "notifyOnPriceAlert",
   "hasCompletedOnboarding",
+  "navigationMode",
   "dashboardLayout"
 ] as const
 
@@ -259,6 +267,9 @@ export const useSettingsStore = create<SettingsState>()(
       // Onboarding
       hasCompletedOnboarding: false,
 
+      // Navigation
+      navigationMode: "sidebar" as NavigationMode,
+
       // Actions
       setShowReadingProgress: (value) => set({ showReadingProgress: value }),
       setShowSeriesProgressBar: (value) =>
@@ -287,6 +298,7 @@ export const useSettingsStore = create<SettingsState>()(
       setNotifyOnPriceAlert: (value) => set({ notifyOnPriceAlert: value }),
       setHasCompletedOnboarding: (value) =>
         set({ hasCompletedOnboarding: value }),
+      setNavigationMode: (value) => set({ navigationMode: value }),
       setDashboardLayout: (layout) => set({ dashboardLayout: layout }),
       resetDashboardLayout: () =>
         set({ dashboardLayout: DEFAULT_DASHBOARD_LAYOUT }),
@@ -364,6 +376,7 @@ export const useSettingsStore = create<SettingsState>()(
         notifyOnScrapeComplete: state.notifyOnScrapeComplete,
         notifyOnPriceAlert: state.notifyOnPriceAlert,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
+        navigationMode: state.navigationMode,
         dashboardLayout: state.dashboardLayout,
         lastSyncedAt: state.lastSyncedAt
       })

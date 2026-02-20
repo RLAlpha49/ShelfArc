@@ -31,8 +31,6 @@ export type CollectionView = "series" | "volumes"
 export type PriceSource = "amazon" | "bookwalker"
 /** Supported ISO currency codes. @source */
 export type CurrencyCode = "USD" | "GBP" | "EUR" | "CAD" | "JPY"
-/** Navigation layout mode. @source */
-export type NavigationMode = "sidebar" | "header"
 /** Default currency code used throughout the app. @source */
 export const DEFAULT_CURRENCY_CODE: CurrencyCode = "USD"
 /** Supported Amazon regional domains. @source */
@@ -147,7 +145,6 @@ interface LibraryState {
   amazonFallbackToKindle: boolean
   priceDisplayCurrency: CurrencyCode
   showAmazonDisclaimer: boolean
-  navigationMode: NavigationMode
   isLoading: boolean
   lastFetchedAt: number | null
 
@@ -199,7 +196,6 @@ interface LibraryState {
   setAmazonFallbackToKindle: (value: boolean) => void
   setPriceDisplayCurrency: (value: CurrencyCode) => void
   setShowAmazonDisclaimer: (value: boolean) => void
-  setNavigationMode: (value: NavigationMode) => void
   setIsLoading: (loading: boolean) => void
   setLastFetchedAt: (ts: number | null) => void
 }
@@ -267,7 +263,6 @@ export const useLibraryStore = create<LibraryState>()(
       amazonFallbackToKindle: false,
       priceDisplayCurrency: "USD",
       showAmazonDisclaimer: true,
-      navigationMode: "sidebar",
       isLoading: false,
       lastFetchedAt: null,
 
@@ -612,7 +607,6 @@ export const useLibraryStore = create<LibraryState>()(
         set({ amazonFallbackToKindle: value }),
       setPriceDisplayCurrency: (value) => set({ priceDisplayCurrency: value }),
       setShowAmazonDisclaimer: (value) => set({ showAmazonDisclaimer: value }),
-      setNavigationMode: (value) => set({ navigationMode: value }),
       setIsLoading: (loading) => set({ isLoading: loading }),
       setLastFetchedAt: (ts) => set({ lastFetchedAt: ts })
     }),
@@ -637,8 +631,7 @@ export const useLibraryStore = create<LibraryState>()(
         amazonPreferKindle: state.amazonPreferKindle,
         amazonFallbackToKindle: state.amazonFallbackToKindle,
         priceDisplayCurrency: state.priceDisplayCurrency,
-        showAmazonDisclaimer: state.showAmazonDisclaimer,
-        navigationMode: state.navigationMode
+        showAmazonDisclaimer: state.showAmazonDisclaimer
       })
     }
   )

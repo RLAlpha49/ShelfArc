@@ -27,6 +27,7 @@ import {
   useLibraryStore
 } from "@/lib/store/library-store"
 import { useRecentlyVisitedStore } from "@/lib/store/recently-visited-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -335,11 +336,11 @@ export function CommandPalette() {
 
   const collectionView = useLibraryStore((s) => s.collectionView)
   const viewMode = useLibraryStore((s) => s.viewMode)
-  const navigationMode = useLibraryStore((s) => s.navigationMode)
+  const navigationMode = useSettingsStore((s) => s.navigationMode)
 
   const setCollectionView = useLibraryStore((s) => s.setCollectionView)
   const setViewMode = useLibraryStore((s) => s.setViewMode)
-  const setNavigationMode = useLibraryStore((s) => s.setNavigationMode)
+  const setNavigationMode = useSettingsStore((s) => s.setNavigationMode)
 
   const series = useLibraryStore(selectAllSeries)
   const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)

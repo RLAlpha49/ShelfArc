@@ -50,6 +50,10 @@ describe("settings-store", () => {
       expect(typeof s.enableAnimations).toBe("boolean")
     })
 
+    it("navigation defaults", () => {
+      expect(useSettingsStore.getState().navigationMode).toBe("sidebar")
+    })
+
     it("onboarding defaults", () => {
       expect(useSettingsStore.getState().hasCompletedOnboarding).toBe(false)
     })
@@ -123,6 +127,13 @@ describe("settings-store", () => {
     it("setSidebarCollapsed", () => {
       useSettingsStore.getState().setSidebarCollapsed(true)
       expect(useSettingsStore.getState().sidebarCollapsed).toBe(true)
+    })
+
+    it("setNavigationMode", () => {
+      useSettingsStore.getState().setNavigationMode("header")
+      expect(useSettingsStore.getState().navigationMode).toBe("header")
+      useSettingsStore.getState().setNavigationMode("sidebar")
+      expect(useSettingsStore.getState().navigationMode).toBe("sidebar")
     })
   })
 

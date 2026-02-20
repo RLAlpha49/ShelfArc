@@ -95,7 +95,7 @@ export function AppShell({ children, user }: AppShellProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { setTheme, resolvedTheme } = useTheme()
-  const navigationMode = useLibraryStore((state) => state.navigationMode)
+  const navigationMode = useSettingsStore((s) => s.navigationMode)
   const sidebarCollapsed = useSettingsStore((s) => s.sidebarCollapsed)
   const setSidebarCollapsed = useSettingsStore((s) => s.setSidebarCollapsed)
   const _hydrated = useSettingsStore((s) => s._hydrated)

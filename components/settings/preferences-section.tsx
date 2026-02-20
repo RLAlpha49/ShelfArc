@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import type { BulkScrapeMode } from "@/lib/hooks/use-bulk-scrape"
-import type { NavigationMode } from "@/lib/store/library-store"
 import { useLibraryStore } from "@/lib/store/library-store"
 import type {
   CardSize,
   DefaultOwnershipStatus,
+  NavigationMode,
   SearchSource
 } from "@/lib/store/settings-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -61,12 +61,7 @@ const isValidOption = <T extends string>(
   options.some((option) => option.value === value)
 
 export function PreferencesSection() {
-  const {
-    deleteSeriesVolumes,
-    setDeleteSeriesVolumes,
-    navigationMode,
-    setNavigationMode
-  } = useLibraryStore()
+  const { deleteSeriesVolumes, setDeleteSeriesVolumes } = useLibraryStore()
   const {
     showReadingProgress,
     setShowReadingProgress,
@@ -86,6 +81,8 @@ export function PreferencesSection() {
     setSidebarCollapsed,
     autoPurchaseDate,
     setAutoPurchaseDate,
+    navigationMode,
+    setNavigationMode,
     setHasCompletedOnboarding
   } = useSettingsStore()
 
