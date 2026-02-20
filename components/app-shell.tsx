@@ -105,6 +105,9 @@ export function AppShell({ children, user }: AppShellProps) {
   const setHasCompletedOnboarding = useSettingsStore(
     (s) => s.setHasCompletedOnboarding
   )
+  const hasExistingLibrary = useLibraryStore(
+    (s) => Object.keys(s.seriesById).length > 0
+  )
 
   // Safety net: ensure _hydrated is set even if onRehydrateStorage callback
   // did not fire (e.g. storage unavailable during SSR).
@@ -278,6 +281,7 @@ export function AppShell({ children, user }: AppShellProps) {
         <OnboardingDialog
           open={_hydrated && !hasCompletedOnboarding}
           onOpenChange={handleOnboardingOpenChange}
+          hasExistingLibrary={hasExistingLibrary}
         />
         <Header user={user} />
         <main id="main" tabIndex={-1} className={mainClassName}>
@@ -306,6 +310,7 @@ export function AppShell({ children, user }: AppShellProps) {
       <OnboardingDialog
         open={_hydrated && !hasCompletedOnboarding}
         onOpenChange={handleOnboardingOpenChange}
+        hasExistingLibrary={hasExistingLibrary}
       />
       <SidebarNav
         user={user}

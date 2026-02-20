@@ -16,10 +16,13 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 interface OnboardingDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
+  /** When true the user already has series — adapts the flow to skip basic library-building steps. */
+  readonly hasExistingLibrary?: boolean
 }
 
 const STEPS = [
   {
+    id: "welcome",
     title: "Welcome to ShelfArc",
     description:
       "Your personal manga & light novel collection tracker. Let\u2019s take a quick tour of the key features.",
@@ -41,6 +44,7 @@ const STEPS = [
     )
   },
   {
+    id: "build",
     title: "Build Your Library",
     description:
       "Add books one by one or import your existing collection. Search by title, ISBN, or add manually.",
@@ -61,6 +65,7 @@ const STEPS = [
     )
   },
   {
+    id: "organize",
     title: "Organize with Series",
     description:
       "Group your volumes into series, add tags, and use filters to find anything instantly.",
@@ -83,6 +88,7 @@ const STEPS = [
     )
   },
   {
+    id: "track",
     title: "Track Your Progress",
     description:
       "See reading stats, price tracking, collection health, and personalized recommendations on your dashboard.",
@@ -103,6 +109,7 @@ const STEPS = [
     )
   },
   {
+    id: "customize",
     title: "Make It Yours",
     description:
       "Adjust themes, fonts, navigation layout, and more in Settings. ShelfArc adapts to your style.",
@@ -124,14 +131,49 @@ const STEPS = [
   }
 ] as const
 
+/**
+ * Replacement step shown to users who already have an existing library.
+ * Directs them to advanced features rather than basic book-adding instructions.
+ */
+const DISCOVER_STEP = {
+  id: "discover",
+  title: "Discover New Features",
+  description:
+    "You already have a great library! Explore advanced features: price tracking, automations, collection health, and more.",
+  icon: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-10 w-10"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+      <path d="M11 8v6" />
+      <path d="M8 11h6" />
+    </svg>
+  )
+} as const
+
 export function OnboardingDialog({
   open,
-  onOpenChange
+  onOpenChange,
+  hasExistingLibrary = false
 }: OnboardingDialogProps) {
   const [step, setStep] = useState(0)
   const setHasCompletedOnboarding = useSettingsStore(
     (s) => s.setHasCompletedOnboarding
   )
+
+  // Compute the active step list: for users with books, replace the
+  // "Build Your Library" step with a "Discover New Features" step.
+  const activeSteps = hasExistingLibrary
+    ? STEPS.map((s) => (s.id === "build" ? DISCOVER_STEP : s))
+    : STEPS
 
   const finish = useCallback(() => {
     setHasCompletedOnboarding(true)
@@ -139,8 +181,8 @@ export function OnboardingDialog({
     setStep(0)
   }, [setHasCompletedOnboarding, onOpenChange])
 
-  const current = STEPS[step]
-  const isLast = step === STEPS.length - 1
+  const current = activeSteps[step]
+  const isLast = step === activeSteps.length - 1
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -168,13 +210,12 @@ export function OnboardingDialog({
 
         {/* Progress dots */}
         <div
-          role="group"
           className="flex items-center justify-center gap-1.5 py-3"
-          aria-label={`Step ${step + 1} of ${STEPS.length}`}
+          aria-label={`Step ${step + 1} of ${activeSteps.length}`}
         >
-          {STEPS.map((s, i) => (
+          {activeSteps.map((s, i) => (
             <span
-              key={s.title}
+              key={s.id}
               className={`h-1.5 rounded-full transition-all duration-300 ${
                 i === step ? "bg-primary w-6" : "bg-muted-foreground/25 w-1.5"
               }`}
