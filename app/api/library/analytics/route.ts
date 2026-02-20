@@ -77,7 +77,10 @@ export async function GET(request: NextRequest) {
       { correlationId }
     )
 
-    response.headers.set("Cache-Control", "private, max-age=300")
+    response.headers.set(
+      "Cache-Control",
+      "private, max-age=300, stale-while-revalidate=60"
+    )
 
     return response
   } catch (error) {
