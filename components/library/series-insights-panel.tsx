@@ -62,10 +62,10 @@ export function SeriesInsightsPanel({
           </div>
           <div>
             <div className="text-foreground text-lg font-semibold">
-              {insights.missingVolumes ?? "—"}
+              {insights.gapVolumes ?? "—"}
             </div>
             <div className="text-muted-foreground text-xs tracking-widest uppercase">
-              Missing
+              Gap volumes
             </div>
           </div>
           <div>

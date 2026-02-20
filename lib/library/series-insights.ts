@@ -88,7 +88,7 @@ export type SeriesInsightData = {
   readVolumes: number
   totalVolumes: number
   collectionPercent: number
-  missingVolumes: number | null
+  gapVolumes: number | null
   totalPages: number
   averageRating: number | null
   latestVolume: Volume | null
@@ -200,7 +200,7 @@ export const buildSeriesInsights = (
     totalVolumes,
     collectionPercent:
       totalVolumes > 0 ? Math.round((a.ownedVolumes / totalVolumes) * 100) : 0,
-    missingVolumes:
+    gapVolumes:
       series.total_volumes && series.total_volumes > 0
         ? Math.max(
             series.total_volumes - (a.ownedVolumes + a.wishlistVolumes),
