@@ -212,6 +212,8 @@ export function VolumeActionsMenu({
                   No rating
                 </DropdownMenuRadioItem>
                 <DropdownMenuSeparator />
+                <DropdownMenuRadioItem value="0">0</DropdownMenuRadioItem>
+                <DropdownMenuSeparator />
                 {Array.from({ length: 10 }, (_, index) => {
                   const value = String(index + 1)
                   return (

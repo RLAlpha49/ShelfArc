@@ -358,7 +358,8 @@ export function VolumeDialog({
         pageCount > 0
           ? { current_page: pageCount }
           : {}),
-        rating: formData.rating ? Number.parseInt(formData.rating) : null,
+        rating:
+          formData.rating === "" ? null : Number.parseInt(formData.rating),
         notes: formData.notes || null,
         publish_date: formData.publish_date || null,
         purchase_date: formData.purchase_date || null,
@@ -897,12 +898,13 @@ export function VolumeDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="rating">Rating (1-10)</Label>
+                  <Label htmlFor="rating">Rating (0–10)</Label>
                   <Input
                     id="rating"
                     type="number"
-                    min={1}
+                    min={0}
                     max={10}
+                    step={1}
                     value={formData.rating}
                     onChange={(e) => updateField("rating", e.target.value)}
                   />
