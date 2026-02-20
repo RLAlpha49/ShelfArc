@@ -348,6 +348,7 @@ CREATE TABLE IF NOT EXISTS price_alerts (
   currency TEXT NOT NULL DEFAULT 'USD',
   enabled BOOLEAN DEFAULT true NOT NULL,
   triggered_at TIMESTAMPTZ,
+  snoozed_until TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   UNIQUE(volume_id, user_id)

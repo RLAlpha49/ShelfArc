@@ -412,7 +412,7 @@ describe("PATCH /api/books/price/alerts", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("id is required")
+    expect(body.error).toBe("id must be a valid UUID")
   })
 
   it("returns 400 for malformed JSON", async () => {
@@ -435,7 +435,7 @@ describe("PATCH /api/books/price/alerts", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "PATCH",
-        body: JSON.stringify({ id: "alert-1" }),
+        body: JSON.stringify({ id: "00000000-0000-0000-0000-000000000001" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -457,7 +457,7 @@ describe("PATCH /api/books/price/alerts", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "PATCH",
-        body: JSON.stringify({ id: "alert-1" }),
+        body: JSON.stringify({ id: "00000000-0000-0000-0000-000000000001" }),
         headers: { "Content-Type": "application/json" }
       })
     )

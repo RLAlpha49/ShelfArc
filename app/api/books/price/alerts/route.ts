@@ -7,7 +7,11 @@ import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createUserClient } from "@/lib/supabase/server"
-import { isNonNegativeFinite, isValidCurrencyCode } from "@/lib/validation"
+import {
+  isNonNegativeFinite,
+  isValidCurrencyCode,
+  isValidUUID
+} from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -154,6 +158,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const ALLOWED_SNOOZE_DAYS = [7, 30] as const
+type AllowedSnoozeDays = (typeof ALLOWED_SNOOZE_DAYS)[number]
+
+function computeSnoozedUntil(
+  snoozeDays: unknown
+): { ok: true; value: string | null } | { ok: false } {
+  const isClear = snoozeDays === 0 || snoozeDays === null
+  if (isClear) return { ok: true, value: null }
+  if (!ALLOWED_SNOOZE_DAYS.includes(snoozeDays as AllowedSnoozeDays)) {
+    return { ok: false }
+  }
+  const date = new Date()
+  date.setDate(date.getDate() + (snoozeDays as number))
+  return { ok: true, value: date.toISOString() }
+}
+
 export async function PATCH(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
@@ -182,10 +202,33 @@ export async function PATCH(request: NextRequest) {
     if (body instanceof NextResponse) return body
 
     const { id } = body
-    if (typeof id !== "string" || !id.trim()) {
-      return apiError(400, "id is required", { correlationId })
+    if (!isValidUUID(id)) {
+      return apiError(400, "id must be a valid UUID", { correlationId })
     }
 
+    // Snooze mode: snooze_days key present in body
+    if ("snooze_days" in body) {
+      const result = computeSnoozedUntil(body.snooze_days)
+      if (!result.ok) {
+        return apiError(400, "snooze_days must be 7, 30, 0, or null", {
+          correlationId
+        })
+      }
+
+      const { data, error } = await supabase
+        .from("price_alerts")
+        .update({ snoozed_until: result.value })
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .select()
+        .single()
+
+      if (error)
+        return apiError(500, "Failed to snooze price alert", { correlationId })
+      return apiSuccess({ data }, { correlationId })
+    }
+
+    // Trigger mode (existing behaviour)
     const { data, error } = await supabase
       .from("price_alerts")
       .update({
@@ -214,10 +257,10 @@ export async function PATCH(request: NextRequest) {
 
     return apiSuccess({ data }, { correlationId })
   } catch (error) {
-    log.error("Price alert trigger failed", {
+    log.error("Price alert patch failed", {
       error: error instanceof Error ? error.message : String(error)
     })
-    return apiError(500, "Failed to trigger price alert")
+    return apiError(500, "Failed to update price alert")
   }
 }
 

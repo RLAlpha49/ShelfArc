@@ -224,12 +224,14 @@ async function fetchActiveAlerts(
   adminSupabase: ReturnType<typeof createAdminClient>,
   targetUserId: string | null
 ): Promise<{ data: AlertWithVolume[] | null; error: string | null }> {
+  const now = new Date().toISOString()
   const base = adminSupabase
     .from("price_alerts")
     .select(
       "id, volume_id, user_id, target_price, currency, enabled, triggered_at, volumes!inner(id, series_id, volume_number, title, format, series:series(title, type))"
     )
     .eq("enabled", true)
+    .or(`snoozed_until.is.null,snoozed_until.lt.${now}`)
     .order("created_at", { ascending: true })
 
   const query = targetUserId

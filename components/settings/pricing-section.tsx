@@ -1,9 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
-import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -13,6 +21,8 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { fetchPriceAlerts } from "@/lib/api/endpoints"
+import { formatDate } from "@/lib/format-date"
 import type {
   AmazonDomain,
   CurrencyCode,
@@ -20,6 +30,7 @@ import type {
 } from "@/lib/store/library-store"
 import { useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import type { PriceAlert } from "@/lib/types/database"
 
 const amazonDomainOptions: Array<{ value: AmazonDomain; label: string }> = [
   { value: "amazon.com", label: "amazon.com (US)" },
@@ -66,9 +77,70 @@ export function PricingSection() {
     setShowAmazonDisclaimer
   } = useLibraryStore()
 
-  const { automatedPriceChecks, setAutomatedPriceChecks } = useSettingsStore()
+  const { automatedPriceChecks, setAutomatedPriceChecks, dateFormat } =
+    useSettingsStore()
 
   const [isCheckingNow, setIsCheckingNow] = useState(false)
+  const [alerts, setAlerts] = useState<PriceAlert[]>([])
+  const [snoozingId, setSnoozingId] = useState<string | null>(null)
+
+  const priceFormatter = useMemo(() => {
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: priceDisplayCurrency
+      })
+    } catch {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD"
+      })
+    }
+  }, [priceDisplayCurrency])
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const { data } = await fetchPriceAlerts()
+      setAlerts(data ?? [])
+    } catch {
+      // Non-critical — silently ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    void fetchAlerts()
+  }, [fetchAlerts])
+
+  const handleSnooze = useCallback(
+    async (alertId: string, snoozeDays: 7 | 30 | 0) => {
+      setSnoozingId(alertId)
+      try {
+        const res = await fetch("/api/books/price/alerts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: alertId, snooze_days: snoozeDays })
+        })
+        if (!res.ok) {
+          toast.error("Failed to update snooze. Please try again.")
+          return
+        }
+        const json = (await res.json()) as { data?: PriceAlert }
+        setAlerts((prev) =>
+          prev.map((a) => (a.id === alertId ? (json.data ?? a) : a))
+        )
+        if (snoozeDays === 0) {
+          toast.success("Snooze removed.")
+        } else {
+          toast.success(`Alert snoozed for ${snoozeDays} days.`)
+        }
+      } catch {
+        toast.error("Could not update snooze. Please try again.")
+      } finally {
+        setSnoozingId(null)
+      }
+    },
+    []
+  )
 
   const handleCheckNow = async () => {
     setIsCheckingNow(true)
@@ -330,6 +402,79 @@ export function PricingSection() {
             </div>
           </div>
         </div>
+
+        {/* Active Alerts */}
+        {alerts.some((a) => a.enabled) && (
+          <div className="bg-muted/30 rounded-2xl border p-5">
+            <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+              Active Alerts
+            </p>
+            <div className="divide-border divide-y overflow-hidden rounded-xl border">
+              {alerts
+                .filter((a) => a.enabled)
+                .map((alert) => {
+                  const isSnoozed =
+                    alert.snoozed_until !== null &&
+                    new Date(alert.snoozed_until) > new Date()
+                  return (
+                    <div
+                      key={alert.id}
+                      className="bg-card flex items-center justify-between gap-3 p-4"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold">
+                            Target: {priceFormatter.format(alert.target_price)}{" "}
+                            {alert.currency}
+                          </span>
+                          {isSnoozed && (
+                            <Badge variant="secondary">
+                              Snoozed until{" "}
+                              {formatDate(alert.snoozed_until, dateFormat)}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className={buttonVariants({
+                            variant: "outline",
+                            size: "sm"
+                          })}
+                          disabled={snoozingId === alert.id}
+                        >
+                          {snoozingId === alert.id ? "Saving…" : "Snooze"}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onSelect={() => void handleSnooze(alert.id, 7)}
+                          >
+                            Snooze 7 days
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => void handleSnooze(alert.id, 30)}
+                          >
+                            Snooze 30 days
+                          </DropdownMenuItem>
+                          {isSnoozed && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onSelect={() => void handleSnooze(alert.id, 0)}
+                              >
+                                Remove snooze
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )

@@ -356,6 +356,7 @@ export interface Database {
           currency: string
           enabled: boolean
           triggered_at: string | null
+          snoozed_until: string | null
           created_at: string
           updated_at: string
         }
@@ -367,6 +368,7 @@ export interface Database {
           currency?: string
           enabled?: boolean
           triggered_at?: string | null
+          snoozed_until?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -378,6 +380,7 @@ export interface Database {
           currency?: string
           enabled?: boolean
           triggered_at?: string | null
+          snoozed_until?: string | null
           created_at?: string
           updated_at?: string
         }
