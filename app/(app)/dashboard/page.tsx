@@ -16,6 +16,7 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import {
   computeCollectionStats,
   computePriceBreakdown,
+  computeRatingDistribution,
   computeReadingVelocity,
   computeReleases,
   computeSpendingTimeSeries,
@@ -191,6 +192,8 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
   const spendingTimeSeries = computeSpendingTimeSeries(series)
   const velocityTimeSeries = computeReadingVelocity(series)
   const tagBreakdown = computeTagBreakdown(series)
+  const { distribution: ratingDistribution, unratedCount: ratingUnratedCount } =
+    computeRatingDistribution(series)
 
   return (
     <DashboardContent
@@ -208,6 +211,8 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
       spendingTimeSeries={spendingTimeSeries}
       velocityTimeSeries={velocityTimeSeries}
       tagBreakdown={tagBreakdown}
+      ratingDistribution={ratingDistribution}
+      ratingUnratedCount={ratingUnratedCount}
       isEmpty={series.length === 0}
     />
   )
