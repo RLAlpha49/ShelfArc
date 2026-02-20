@@ -66,11 +66,11 @@
 -- -----------------------------------------------------------------------------
 -- Extensions
 -- -----------------------------------------------------------------------------
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Enable trigram extension for fuzzy search
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- -----------------------------------------------------------------------------
 -- Custom types
@@ -98,8 +98,14 @@ END $$;
 
 DO $$
 BEGIN
-  IF to_regtype('public.title_type') IS NULL THEN
-    CREATE TYPE public.title_type AS ENUM ('light_novel', 'manga', 'other');
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type') THEN
+    CREATE TYPE notification_type AS ENUM (
+      'import_complete',
+      'scrape_complete',
+      'price_alert',
+      'release_reminder',
+      'info'
+    );
   END IF;
 END $$;
 
@@ -121,6 +127,13 @@ DO $$
 BEGIN
   IF to_regtype('public.series_status') IS NULL THEN
     CREATE TYPE public.series_status AS ENUM ('ongoing', 'completed', 'hiatus', 'cancelled', 'announced');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regtype('public.title_type') IS NULL THEN
+    CREATE TYPE public.title_type AS ENUM ('light_novel', 'manga', 'other');
   END IF;
 END $$;
 
@@ -209,12 +222,12 @@ CREATE TABLE IF NOT EXISTS series (
 );
 
 -- Series indexes
-CREATE INDEX IF NOT EXISTS idx_series_tags ON series USING GIN(tags);
-CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
-CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
-CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_series_title_trgm ON series USING gin (title gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_series_author_trgm ON series USING gin (author gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_series_tags ON series USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_series_title_trgm ON series USING gin (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
+CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
 
 -- Volumes table (individual books/volumes)
 CREATE TABLE IF NOT EXISTS volumes (
@@ -249,25 +262,23 @@ CREATE TABLE IF NOT EXISTS volumes (
 );
 
 -- Volumes indexes
+CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder
+  ON volumes(user_id, publish_date)
+  WHERE publish_date IS NOT NULL AND release_reminder = TRUE;
 CREATE INDEX IF NOT EXISTS idx_volumes_series_id ON volumes(series_id);
+CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_id ON volumes(user_id);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_isbn ON volumes(user_id, isbn);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_ownership ON volumes(user_id, ownership_status);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_publish_date ON volumes(user_id, publish_date DESC);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_purchase_date ON volumes(user_id, purchase_date DESC);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_reading ON volumes(user_id, reading_status);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_series ON volumes(user_id, series_id);
+CREATE INDEX IF NOT EXISTS idx_volumes_user_updated ON volumes(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_volumes_volume_number ON public.volumes USING btree (volume_number);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_volumes_unique_null_edition
   ON volumes(series_id, volume_number)
   WHERE edition IS NULL;
-
-CREATE INDEX IF NOT EXISTS idx_volumes_user_ownership ON volumes(user_id, ownership_status);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_reading ON volumes(user_id, reading_status);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_series ON volumes(user_id, series_id);
-CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_updated ON volumes(user_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_purchase_date ON volumes(user_id, purchase_date DESC);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_publish_date ON volumes(user_id, publish_date DESC);
-
-CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder
-  ON volumes(user_id, publish_date)
-  WHERE publish_date IS NOT NULL AND release_reminder = TRUE;
 
 -- Tags table (user-defined tags)
 CREATE TABLE IF NOT EXISTS tags (
@@ -321,12 +332,12 @@ CREATE TABLE IF NOT EXISTS price_history (
   scraped_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_price_history_volume_id ON price_history(volume_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_user_id ON price_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_price_history_volume_scraped
-  ON price_history(volume_id, scraped_at DESC);
 CREATE INDEX IF NOT EXISTS idx_price_history_user_scraped
   ON price_history(user_id, scraped_at DESC);
+CREATE INDEX IF NOT EXISTS idx_price_history_volume_id ON price_history(volume_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_volume_scraped
+  ON price_history(volume_id, scraped_at DESC);
 
 -- Price alerts table
 CREATE TABLE IF NOT EXISTS price_alerts (
@@ -343,8 +354,8 @@ CREATE TABLE IF NOT EXISTS price_alerts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_price_alerts_user_enabled ON price_alerts(user_id, enabled);
-CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id);
 CREATE INDEX IF NOT EXISTS idx_price_alerts_user_id ON price_alerts(user_id);
+CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id);
 
 -- Activity events table (append-only timeline)
 CREATE TABLE IF NOT EXISTS activity_events (
@@ -357,26 +368,13 @@ CREATE TABLE IF NOT EXISTS activity_events (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_activity_events_entity
+  ON activity_events(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_activity_events_user_created
   ON activity_events(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_activity_events_user_event_type
   ON activity_events(user_id, event_type);
-CREATE INDEX IF NOT EXISTS idx_activity_events_entity
-  ON activity_events(entity_type, entity_id);
 
--- Notification type enum
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type') THEN
-    CREATE TYPE notification_type AS ENUM (
-      'import_complete',
-      'scrape_complete',
-      'price_alert',
-      'release_reminder',
-      'info'
-    );
-  END IF;
-END $$;
 
 -- Notifications table (server-synced user notifications)
 CREATE TABLE IF NOT EXISTS notifications (
@@ -394,6 +392,30 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_created
   ON notifications(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON notifications(user_id) WHERE NOT read;
+
+-- Collections (persisted user/system shelves)
+CREATE TABLE IF NOT EXISTS collections (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT NOT NULL DEFAULT '#4682b4',
+  is_system BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS collection_volumes (
+  collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  volume_id UUID NOT NULL REFERENCES volumes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  added_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  PRIMARY KEY (collection_id, volume_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_collections_user_id ON collections(user_id);
+CREATE INDEX IF NOT EXISTS idx_collection_volumes_collection ON collection_volumes(collection_id);
+CREATE INDEX IF NOT EXISTS idx_collection_volumes_user ON collection_volumes(user_id);
+CREATE INDEX IF NOT EXISTS idx_collection_volumes_volume ON collection_volumes(volume_id);
 
 -- -----------------------------------------------------------------------------
 -- Row Level Security (enable + policies grouped per-table)
@@ -716,9 +738,131 @@ BEGIN
   END IF;
 END $$;
 
+ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'collections'
+      AND policyname = 'Users can view their own collections'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own collections" ON public.collections FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'collections'
+      AND policyname = 'Users can insert their own collections'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own collections" ON public.collections FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'collections'
+      AND policyname = 'Users can update their own collections'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can update their own collections" ON public.collections FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'collections'
+      AND policyname = 'Users can delete their own collections'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can delete their own collections" ON public.collections FOR DELETE USING ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+ALTER TABLE collection_volumes ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'collection_volumes'
+      AND policyname = 'Users can view their own collection_volumes'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own collection_volumes" ON public.collection_volumes FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'collection_volumes'
+      AND policyname = 'Users can insert their own collection_volumes'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own collection_volumes" ON public.collection_volumes FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'collection_volumes'
+      AND policyname = 'Users can delete their own collection_volumes'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can delete their own collection_volumes" ON public.collection_volumes FOR DELETE USING ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
 -- -----------------------------------------------------------------------------
 -- Functions
 -- -----------------------------------------------------------------------------
+
+-- Cleanup helper to prevent unbounded growth of activity_events
+-- Schedule this (daily/hourly) using pg_cron or a scheduled Supabase task.
+CREATE OR REPLACE FUNCTION public.activity_events_cleanup(p_max_age_days integer DEFAULT 90)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v_now timestamptz := clock_timestamp();
+  v_cutoff timestamptz := v_now - make_interval(days => GREATEST(p_max_age_days, 1));
+  v_deleted integer;
+BEGIN
+  DELETE FROM public.activity_events
+  WHERE created_at < v_cutoff;
+
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.activity_events_cleanup(integer)
+  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.activity_events_cleanup(integer)
+  TO service_role;
+
+-- Helper function to list all public tables for backups
+CREATE OR REPLACE FUNCTION public.backup_list_tables()
+RETURNS SETOF text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+  SELECT tablename::text
+  FROM pg_catalog.pg_tables
+  WHERE schemaname = 'public'
+    AND tablename NOT LIKE 'pg_%'
+    AND tablename NOT LIKE 'sql_%'
+  ORDER BY tablename;
+$$;
+
+REVOKE ALL ON FUNCTION public.backup_list_tables() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.backup_list_tables() TO service_role;
 
 -- Function to automatically create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -753,50 +897,30 @@ BEGIN
 END;
 $$;
 
--- Function to sync profile email when auth.users email changes
-CREATE OR REPLACE FUNCTION public.sync_profile_email()
-RETURNS TRIGGER
+-- Cleanup helper to prevent unbounded growth of notifications
+CREATE OR REPLACE FUNCTION public.notifications_cleanup(p_max_age_days integer DEFAULT 90)
+RETURNS integer
 LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-BEGIN
-  IF OLD.email IS DISTINCT FROM NEW.email THEN
-    UPDATE public.profiles SET email = NEW.email WHERE id = NEW.id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
--- Function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SET search_path = ''
-AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$;
-
--- Helper function to list all public tables for backups
-CREATE OR REPLACE FUNCTION public.backup_list_tables()
-RETURNS SETOF text
-LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public, pg_catalog
 AS $$
-  SELECT tablename::text
-  FROM pg_catalog.pg_tables
-  WHERE schemaname = 'public'
-    AND tablename NOT LIKE 'pg_%'
-    AND tablename NOT LIKE 'sql_%'
-  ORDER BY tablename;
+DECLARE
+  v_now timestamptz := clock_timestamp();
+  v_cutoff timestamptz := v_now - make_interval(days => GREATEST(p_max_age_days, 1));
+  v_deleted integer;
+BEGIN
+  DELETE FROM public.notifications
+  WHERE created_at < v_cutoff;
+
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
 $$;
 
-REVOKE ALL ON FUNCTION public.backup_list_tables() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.backup_list_tables() TO service_role;
+REVOKE ALL ON FUNCTION public.notifications_cleanup(integer)
+  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.notifications_cleanup(integer)
+  TO service_role;
 
 -- Atomic distributed rate-limit consume helper
 CREATE OR REPLACE FUNCTION public.rate_limit_consume(
@@ -936,62 +1060,37 @@ REVOKE ALL ON FUNCTION public.rate_limit_cleanup(integer)
 GRANT EXECUTE ON FUNCTION public.rate_limit_cleanup(integer)
   TO service_role;
 
--- Cleanup helper to prevent unbounded growth of activity_events
--- Schedule this (daily/hourly) using pg_cron or a scheduled Supabase task.
-CREATE OR REPLACE FUNCTION public.activity_events_cleanup(p_max_age_days integer DEFAULT 90)
-RETURNS integer
+-- Function to sync profile email when auth.users email changes
+CREATE OR REPLACE FUNCTION public.sync_profile_email()
+RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = ''
 AS $$
-DECLARE
-  v_now timestamptz := clock_timestamp();
-  v_cutoff timestamptz := v_now - make_interval(days => GREATEST(p_max_age_days, 1));
-  v_deleted integer;
 BEGIN
-  DELETE FROM public.activity_events
-  WHERE created_at < v_cutoff;
-
-  GET DIAGNOSTICS v_deleted = ROW_COUNT;
-  RETURN v_deleted;
+  IF OLD.email IS DISTINCT FROM NEW.email THEN
+    UPDATE public.profiles SET email = NEW.email WHERE id = NEW.id;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.activity_events_cleanup(integer)
-  FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.activity_events_cleanup(integer)
-  TO service_role;
-
--- Cleanup helper to prevent unbounded growth of notifications
-CREATE OR REPLACE FUNCTION public.notifications_cleanup(p_max_age_days integer DEFAULT 90)
-RETURNS integer
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER
 LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = ''
 AS $$
-DECLARE
-  v_now timestamptz := clock_timestamp();
-  v_cutoff timestamptz := v_now - make_interval(days => GREATEST(p_max_age_days, 1));
-  v_deleted integer;
 BEGIN
-  DELETE FROM public.notifications
-  WHERE created_at < v_cutoff;
-
-  GET DIAGNOSTICS v_deleted = ROW_COUNT;
-  RETURN v_deleted;
+  NEW.updated_at = NOW();
+  RETURN NEW;
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.notifications_cleanup(integer)
-  FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.notifications_cleanup(integer)
-  TO service_role;
 
 -- -----------------------------------------------------------------------------
 -- Triggers (created after functions exist)
 -- -----------------------------------------------------------------------------
 
--- Trigger to call function on new user signup
 DO $$
 BEGIN
   IF to_regclass('auth.users') IS NOT NULL
@@ -1008,7 +1107,6 @@ BEGIN
   END IF;
 END $$;
 
--- Trigger to sync email on auth.users update
 DO $$
 BEGIN
   IF to_regclass('auth.users') IS NOT NULL
@@ -1025,50 +1123,6 @@ BEGIN
   END IF;
 END $$;
 
--- Triggers for updated_at on row updates
-DO $$
-BEGIN
-  IF to_regclass('public.profiles') IS NOT NULL
-     AND NOT EXISTS (
-       SELECT 1
-       FROM pg_trigger
-       WHERE tgname = 'update_profiles_updated_at'
-         AND tgrelid = to_regclass('public.profiles')
-         AND NOT tgisinternal
-     ) THEN
-    CREATE TRIGGER update_profiles_updated_at
-      BEFORE UPDATE ON public.profiles
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  END IF;
-
-  IF to_regclass('public.series') IS NOT NULL
-     AND NOT EXISTS (
-       SELECT 1
-       FROM pg_trigger
-       WHERE tgname = 'update_series_updated_at'
-         AND tgrelid = to_regclass('public.series')
-         AND NOT tgisinternal
-     ) THEN
-    CREATE TRIGGER update_series_updated_at
-      BEFORE UPDATE ON public.series
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  END IF;
-
-  IF to_regclass('public.volumes') IS NOT NULL
-     AND NOT EXISTS (
-       SELECT 1
-       FROM pg_trigger
-       WHERE tgname = 'update_volumes_updated_at'
-         AND tgrelid = to_regclass('public.volumes')
-         AND NOT tgisinternal
-     ) THEN
-    CREATE TRIGGER update_volumes_updated_at
-      BEFORE UPDATE ON public.volumes
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  END IF;
-END $$;
-
--- Trigger for price_alerts updated_at
 DO $$
 BEGIN
   IF to_regclass('public.price_alerts') IS NOT NULL
@@ -1084,3 +1138,53 @@ BEGIN
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   END IF;
 END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.profiles') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM pg_trigger
+       WHERE tgname = 'update_profiles_updated_at'
+         AND tgrelid = to_regclass('public.profiles')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER update_profiles_updated_at
+      BEFORE UPDATE ON public.profiles
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.series') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM pg_trigger
+       WHERE tgname = 'update_series_updated_at'
+         AND tgrelid = to_regclass('public.series')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER update_series_updated_at
+      BEFORE UPDATE ON public.series
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.volumes') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM pg_trigger
+       WHERE tgname = 'update_volumes_updated_at'
+         AND tgrelid = to_regclass('public.volumes')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER update_volumes_updated_at
+      BEFORE UPDATE ON public.volumes
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
+
+

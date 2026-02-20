@@ -26,13 +26,74 @@ import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh"
 import { useVolumeActions } from "@/lib/hooks/use-volume-actions"
 import { useWindowWidth } from "@/lib/hooks/use-window-width"
 import { getGridColumnCount, getGridGapPx } from "@/lib/library/grid-utils"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useCollectionsStore } from "@/lib/store/collections-store"
+import { CollectionView, useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
   OwnershipStatus,
   SeriesWithVolumes,
   Volume
 } from "@/lib/types/database"
+
+/** Build scrape targets from current selection. Pure helper, extracted to reduce component complexity. */
+function buildScrapeTargets(
+  collectionView: CollectionView,
+  filteredSeries: SeriesWithVolumes[],
+  selectedSeriesIds: Set<string>,
+  series: SeriesWithVolumes[],
+  selectedVolumeIds: Set<string>
+): SeriesWithVolumes[] {
+  if (collectionView === "series") {
+    return filteredSeries.filter((s) => selectedSeriesIds.has(s.id))
+  }
+  const seriesMap = new Map<string, SeriesWithVolumes>()
+  for (const s of series) {
+    const selectedVols = s.volumes.filter((v) => selectedVolumeIds.has(v.id))
+    if (selectedVols.length > 0) {
+      seriesMap.set(s.id, { ...s, volumes: selectedVols })
+    }
+  }
+  return Array.from(seriesMap.values())
+}
+
+/** Toast results of a batch volume-attach operation. */
+function toastVolumeAttachResults(successCount: number, failureCount: number) {
+  if (successCount > 0) {
+    toast.success(
+      `Added ${successCount} volume${successCount === 1 ? "" : "s"} to the series`
+    )
+  }
+  if (failureCount > 0) {
+    toast.error(
+      `${failureCount} volume${failureCount === 1 ? "" : "s"} failed to attach`
+    )
+  }
+}
+
+/** Toast results of an assign-to-series batch operation. */
+function toastAssignResults(successCount: number, failureCount: number) {
+  if (successCount > 0) {
+    toast.success(
+      `Assigned ${successCount} book${successCount === 1 ? "" : "s"} to series`
+    )
+  }
+  if (failureCount > 0) {
+    toast.error(
+      `${failureCount} assignment${failureCount === 1 ? "" : "s"} failed`
+    )
+  }
+}
+
+/** Toast success and/or failure counts for a generic batch operation. */
+function toastBatchOp(
+  successCount: number,
+  failureCount: number,
+  successMsg: string,
+  failMsg: string
+) {
+  if (successCount > 0) toast.success(successMsg)
+  if (failureCount > 0) toast.error(failMsg)
+}
 
 /**
  * Main library page for browsing, filtering, and managing the user's series and volume collection.
@@ -44,6 +105,11 @@ export default function LibraryPage() {
   const searchParams = useSearchParams()
   useLibraryUrlSync()
   const consumedAddParamRef = useRef<string | null>(null)
+
+  const hydrateCollections = useCollectionsStore((s) => s.hydrate)
+  useEffect(() => {
+    void hydrateCollections()
+  }, [hydrateCollections])
   const {
     series,
     unassignedVolumes,
@@ -286,31 +352,18 @@ export default function LibraryPage() {
   })
 
   const handleBulkScrapeSelected = useCallback(() => {
-    let targets: SeriesWithVolumes[]
-    if (collectionView === "series") {
-      targets = filteredSeries.filter((s) => selectedSeriesIds.has(s.id))
-    } else {
-      const seriesMap = new Map<string, SeriesWithVolumes>()
-      for (const s of series) {
-        const selectedVols = s.volumes.filter((v) =>
-          selectedVolumeIds.has(v.id)
-        )
-        if (selectedVols.length > 0) {
-          seriesMap.set(s.id, { ...s, volumes: selectedVols })
-        }
-      }
-      targets = Array.from(seriesMap.values())
-    }
+    const targets = buildScrapeTargets(
+      collectionView,
+      filteredSeries,
+      selectedSeriesIds,
+      series,
+      selectedVolumeIds
+    )
     if (targets.length === 0) return
-
     if (targets.length === 1) {
       setScrapeTarget(targets[0])
       return
     }
-
-    // Combine all volumes into a single synthetic series, tagging each
-    // volume with its real series title so the scrape hook uses the
-    // correct Amazon search query per volume.
     const allVolumes = targets.flatMap((s) =>
       s.volumes.map((v) => ({ ...v, _seriesTitle: s.title }))
     )
@@ -343,17 +396,7 @@ export default function LibraryPage() {
         (result) => result.status === "fulfilled"
       ).length
       const failureCount = results.length - successCount
-
-      if (successCount > 0) {
-        toast.success(
-          `Assigned ${successCount} book${successCount === 1 ? "" : "s"} to series`
-        )
-      }
-      if (failureCount > 0) {
-        toast.error(
-          `${failureCount} assignment${failureCount === 1 ? "" : "s"} failed`
-        )
-      }
+      toastAssignResults(successCount, failureCount)
 
       if (successCount > 0) {
         clearSelection()
@@ -387,17 +430,7 @@ export default function LibraryPage() {
           (result) => result.status === "fulfilled"
         ).length
         const failureCount = results.length - successCount
-
-        if (successCount > 0) {
-          toast.success(
-            `Added ${successCount} volume${successCount === 1 ? "" : "s"} to the series`
-          )
-        }
-        if (failureCount > 0) {
-          toast.error(
-            `${failureCount} volume${failureCount === 1 ? "" : "s"} failed to attach`
-          )
-        }
+        toastVolumeAttachResults(successCount, failureCount)
       }
 
       if (pendingSeriesSelection) {
@@ -556,8 +589,12 @@ export default function LibraryPage() {
           (r) => r.status === "fulfilled"
         ).length
         const failureCount = results.length - successCount
-        if (successCount > 0) toast.success(`Updated ${successCount} series`)
-        if (failureCount > 0) toast.error(`${failureCount} updates failed`)
+        toastBatchOp(
+          successCount,
+          failureCount,
+          `Updated ${successCount} series`,
+          `${failureCount} updates failed`
+        )
       } else {
         const targets = Array.from(selectedVolumeIds)
           .map((id) => volumeLookup.get(id))
@@ -571,11 +608,12 @@ export default function LibraryPage() {
           (r) => r.status === "fulfilled"
         ).length
         const failureCount = results.length - successCount
-        if (successCount > 0)
-          toast.success(
-            `Updated ${successCount} volume${successCount === 1 ? "" : "s"}`
-          )
-        if (failureCount > 0) toast.error(`${failureCount} updates failed`)
+        toastBatchOp(
+          successCount,
+          failureCount,
+          `Updated ${successCount} volume${successCount === 1 ? "" : "s"}`,
+          `${failureCount} updates failed`
+        )
       }
       clearSelection()
     },
@@ -814,17 +852,12 @@ export default function LibraryPage() {
         results,
         options
       )
-
-      if (successCount > 0) {
-        toast.success(
-          `${successCount} book${successCount === 1 ? "" : "s"} added`
-        )
-      }
-      if (failureCount > 0) {
-        toast.error(
-          `${failureCount} book${failureCount === 1 ? "" : "s"} failed to add`
-        )
-      }
+      toastBatchOp(
+        successCount,
+        failureCount,
+        `${successCount} book${successCount === 1 ? "" : "s"} added`,
+        `${failureCount} book${failureCount === 1 ? "" : "s"} failed to add`
+      )
     },
     [addBooksFromSearchResults]
   )

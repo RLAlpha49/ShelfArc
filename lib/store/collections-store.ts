@@ -70,6 +70,7 @@ interface CollectionsState {
 
   // Actions
   ensureDefaults: () => void
+  hydrate: () => Promise<void>
   addCollection: (name: string, color?: string) => string | null
   renameCollection: (id: string, name: string) => void
   deleteCollection: (id: string) => void
@@ -106,6 +107,46 @@ export const useCollectionsStore = create<CollectionsState>()(
         set({ collections: merged, initialized: true })
       },
 
+      hydrate: async () => {
+        try {
+          const res = await fetch("/api/library/collections")
+          if (!res.ok) return
+          const json = (await res.json()) as {
+            data: {
+              collections: Array<{
+                id: string
+                name: string
+                color: string
+                isSystem: boolean
+                createdAt: string
+                sortOrder: number
+                volumeIds: string[]
+              }>
+            }
+          }
+          const remote = json.data.collections
+          if (!Array.isArray(remote)) return
+
+          set((prev) => {
+            const remoteIds = new Set(remote.map((c) => c.id))
+            const merged = [
+              ...remote.map((c) => ({
+                id: c.id,
+                name: c.name,
+                color: c.color,
+                isSystem: c.isSystem,
+                createdAt: c.createdAt,
+                volumeIds: c.volumeIds
+              })),
+              ...prev.collections.filter((c) => !remoteIds.has(c.id))
+            ]
+            return { collections: merged, initialized: true }
+          })
+        } catch {
+          // silent — localStorage remains the fallback
+        }
+      },
+
       addCollection: (rawName, color) => {
         const name = rawName.trim()
         if (!name) return null
@@ -131,6 +172,20 @@ export const useCollectionsStore = create<CollectionsState>()(
         set((prev) => ({
           collections: [...prev.collections, newCollection]
         }))
+
+        void fetch("/api/library/collections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: newCollection.id,
+            name: newCollection.name,
+            color: newCollection.color,
+            isSystem: false,
+            createdAt: newCollection.createdAt,
+            sortOrder: 0
+          })
+        }).catch(() => undefined)
+
         return id
       },
 
@@ -143,6 +198,12 @@ export const useCollectionsStore = create<CollectionsState>()(
             c.id === id ? { ...c, name } : c
           )
         }))
+
+        void fetch(`/api/library/collections/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name })
+        }).catch(() => undefined)
       },
 
       deleteCollection: (id) => {
@@ -155,6 +216,10 @@ export const useCollectionsStore = create<CollectionsState>()(
           activeCollectionId:
             prev.activeCollectionId === id ? null : prev.activeCollectionId
         }))
+
+        void fetch(`/api/library/collections/${id}`, {
+          method: "DELETE"
+        }).catch(() => undefined)
       },
 
       setCollectionColor: (id, color) => {
@@ -163,6 +228,12 @@ export const useCollectionsStore = create<CollectionsState>()(
             c.id === id ? { ...c, color } : c
           )
         }))
+
+        void fetch(`/api/library/collections/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ color })
+        }).catch(() => undefined)
       },
 
       addVolumesToCollection: (collectionId, volumeIds) => {
@@ -174,6 +245,12 @@ export const useCollectionsStore = create<CollectionsState>()(
             return { ...c, volumeIds: Array.from(idSet) }
           })
         }))
+
+        void fetch(`/api/library/collections/${collectionId}/volumes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ volumeIds })
+        }).catch(() => undefined)
       },
 
       removeVolumesFromCollection: (collectionId, volumeIds) => {
@@ -187,6 +264,12 @@ export const useCollectionsStore = create<CollectionsState>()(
             }
           })
         }))
+
+        void fetch(`/api/library/collections/${collectionId}/volumes`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ volumeIds })
+        }).catch(() => undefined)
       },
 
       setActiveCollection: (id) => set({ activeCollectionId: id }),

@@ -473,6 +473,83 @@ export interface Database {
           }
         ]
       }
+      collections: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          color: string
+          is_system: boolean
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id: string
+          user_id: string
+          name: string
+          color?: string
+          is_system?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          color?: string
+          is_system?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      collection_volumes: {
+        Row: {
+          collection_id: string
+          volume_id: string
+          user_id: string
+          added_at: string
+        }
+        Insert: {
+          collection_id: string
+          volume_id: string
+          user_id: string
+          added_at?: string
+        }
+        Update: {
+          collection_id?: string
+          volume_id?: string
+          user_id?: string
+          added_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_volumes_collection_id_fkey"
+            columns: ["collection_id"]
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_volumes_volume_id_fkey"
+            columns: ["volume_id"]
+            referencedRelation: "volumes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_volumes_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
