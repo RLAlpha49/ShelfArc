@@ -25,6 +25,7 @@ export interface VolumeGridItemProps {
   readonly bindingLabel: string
   readonly selected?: boolean
   readonly onSelect?: () => void
+  readonly priority?: boolean
 }
 
 /**
@@ -42,7 +43,8 @@ export function VolumeGridItem({
   amazonDomain,
   bindingLabel,
   selected = false,
-  onSelect
+  onSelect,
+  priority = false
 }: VolumeGridItemProps) {
   const volumeLabel = `Volume ${item.volume.volume_number}`
   const volumeDescriptor = item.volume.title
@@ -95,7 +97,8 @@ export function VolumeGridItem({
               fallbackCoverImageUrl={item.series.cover_image_url}
               alt={coverAlt}
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-              loading="lazy"
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : undefined}
               decoding="async"
               fallback={
                 <div className="flex h-full items-center justify-center">

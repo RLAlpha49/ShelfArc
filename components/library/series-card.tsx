@@ -25,6 +25,7 @@ interface SeriesCardProps {
   readonly onBulkScrape?: () => void
   readonly selected?: boolean
   readonly onSelect?: () => void
+  readonly priority?: boolean
 }
 
 /**
@@ -39,7 +40,8 @@ export function SeriesCard({
   onClick,
   onBulkScrape,
   selected = false,
-  onSelect
+  onSelect,
+  priority = false
 }: SeriesCardProps) {
   const { ownedVolumes, readVolumes, primaryIsbn } = useMemo(
     () =>
@@ -92,7 +94,8 @@ export function SeriesCard({
             coverImageUrl={series.cover_image_url}
             alt={series.title}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
             decoding="async"
             fallback={
               <div className="from-primary/5 to-copper/5 flex h-full items-center justify-center bg-linear-to-br">

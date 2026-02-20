@@ -240,9 +240,10 @@ export function SeriesVolumesSection({
               gapPx={16}
               estimateRowSize={() => 380}
               getItemKey={(volume) => volume.id}
-              renderItem={(volume) => (
+              renderItem={(volume, index) => (
                 <VolumeCard
                   volume={volume}
+                  priority={index < 8}
                   seriesTitle={currentSeries.title}
                   onClick={() => onVolumeClick(volume.id)}
                   onScrapePrice={() => onScrapeVolume(volume)}
@@ -273,6 +274,7 @@ export function SeriesVolumesSection({
                 const volumeMap = new Map(
                   sortedVolumes.map((v) => [v.volume_number, v])
                 )
+                let volIndex = 0
                 for (let n = minNum; n <= maxNum; n++) {
                   const vol = volumeMap.get(n)
                   if (vol) {
@@ -280,6 +282,7 @@ export function SeriesVolumesSection({
                       <VolumeCard
                         key={vol.id}
                         volume={vol}
+                        priority={volIndex < 8}
                         seriesTitle={currentSeries.title}
                         onClick={() => onVolumeClick(vol.id)}
                         onScrapePrice={() => onScrapeVolume(vol)}
@@ -293,6 +296,7 @@ export function SeriesVolumesSection({
                         onSelect={() => onSelectVolume(vol.id)}
                       />
                     )
+                    volIndex++
                   } else if (gapSet.has(n)) {
                     items.push(
                       <button

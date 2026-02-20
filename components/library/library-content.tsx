@@ -153,9 +153,10 @@ function UnassignedSection({
           gapPx={gridGapPx}
           estimateRowSize={() => estimateGridRowSize(cardSize)}
           getItemKey={(volume) => volume.id}
-          renderItem={(volume) => (
+          renderItem={(volume, index) => (
             <VolumeCard
               volume={volume}
+              priority={index < 8}
               onClick={() => onVolumeItemClick(volume.id)}
               onEdit={() => onEditVolume(volume)}
               onDelete={() => onDeleteVolume(volume)}
@@ -170,10 +171,11 @@ function UnassignedSection({
         />
       ) : (
         <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
-          {filteredUnassignedVolumes.map((volume) => (
+          {filteredUnassignedVolumes.map((volume, index) => (
             <VolumeCard
               key={volume.id}
               volume={volume}
+              priority={index < 8}
               onClick={() => onVolumeItemClick(volume.id)}
               onEdit={() => onEditVolume(volume)}
               onDelete={() => onDeleteVolume(volume)}
@@ -256,9 +258,10 @@ function VolumesView({
                 gapPx={gridGapPx}
                 estimateRowSize={() => estimateGridRowSize(cardSize)}
                 getItemKey={(item) => item.volume.id}
-                renderItem={(item) => (
+                renderItem={(item, index) => (
                   <VolumeGridItem
                     item={item}
+                    priority={index < 8}
                     onClick={() => onVolumeItemClick(item.volume.id)}
                     onEdit={() => onEditVolume(item.volume)}
                     onDelete={() => onDeleteVolume(item.volume)}
@@ -277,10 +280,11 @@ function VolumesView({
               />
             ) : (
               <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
-                {filteredVolumes.map((item) => (
+                {filteredVolumes.map((item, index) => (
                   <VolumeGridItem
                     key={item.volume.id}
                     item={item}
+                    priority={index < 8}
                     onClick={() => onVolumeItemClick(item.volume.id)}
                     onEdit={() => onEditVolume(item.volume)}
                     onDelete={() => onDeleteVolume(item.volume)}
@@ -420,9 +424,10 @@ function SeriesView({
                 gapPx={gridGapPx}
                 estimateRowSize={() => estimateGridRowSize(cardSize)}
                 getItemKey={(series) => series.id}
-                renderItem={(series) => (
+                renderItem={(series, index) => (
                   <SeriesCard
                     series={series}
+                    priority={index < 8}
                     onEdit={() => onEditSeries(series)}
                     onDelete={() => onDeleteSeries(series)}
                     onBulkScrape={() => onSeriesScrape(series)}
@@ -434,10 +439,11 @@ function SeriesView({
               />
             ) : (
               <div className={`grid-stagger ${getGridClasses(cardSize)}`}>
-                {filteredSeries.map((series) => (
+                {filteredSeries.map((series, index) => (
                   <SeriesCard
                     key={series.id}
                     series={series}
+                    priority={index < 8}
                     onEdit={() => onEditSeries(series)}
                     onDelete={() => onDeleteSeries(series)}
                     onBulkScrape={() => onSeriesScrape(series)}
