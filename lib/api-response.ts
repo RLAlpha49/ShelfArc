@@ -85,9 +85,13 @@ export const apiError = (
     ...(correlationId ? { correlationId } : {})
   }
 
-  const headers: HeadersInit = correlationId
+  const headers: Record<string, string> = correlationId
     ? { "x-correlation-id": correlationId }
     : {}
+
+  if (status === 429 && typeof extra.retryAfterMs === "number") {
+    headers["Retry-After"] = String(Math.ceil(extra.retryAfterMs / 1000))
+  }
 
   return NextResponse.json(body, { status, headers })
 }
