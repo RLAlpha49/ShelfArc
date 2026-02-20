@@ -47,6 +47,10 @@ export interface CollectionStats {
   completeSets: number
   totalPages: number
   readPages: number
+  /** Owned volumes with purchase_price > 0 but no purchase_date (excluded from spending chart). */
+  undatedPricedVolumes: number
+  /** Total spent by undatedPricedVolumes (difference between "Invested" tile and chart total). */
+  undatedPricedSpent: number
   /** 30-day rolling additions. */
   recentDelta: {
     series: number
@@ -119,41 +123,44 @@ interface VolumeTally {
   priced: number
   totalPages: number
   readPages: number
+  undatedPriced: number
+  undatedPricedSpent: number
+}
+
+function accumulateOwnedVolume(v: Volume, tally: VolumeTally): void {
+  tally.owned++
+  const price = v.purchase_price ?? 0
+  tally.spent += price
+  if (price <= 0) return
+  tally.priced++
+  if (v.purchase_date) return
+  tally.undatedPriced++
+  tally.undatedPricedSpent += price
 }
 
 /** Tallies volume-level counters in a single pass. O(V) total. */
 function tallyVolumes(volumes: Volume[]): VolumeTally {
-  let owned = 0
-  let wishlist = 0
-  let read = 0
-  let reading = 0
-  let spent = 0
-  let priced = 0
-  let totalPages = 0
-  let readPages = 0
+  const tally: VolumeTally = {
+    owned: 0,
+    wishlist: 0,
+    read: 0,
+    reading: 0,
+    spent: 0,
+    priced: 0,
+    totalPages: 0,
+    readPages: 0,
+    undatedPriced: 0,
+    undatedPricedSpent: 0
+  }
   for (const v of volumes) {
-    if (v.ownership_status === "owned") {
-      owned++
-      const price = v.purchase_price ?? 0
-      spent += price
-      if (price > 0) priced++
-    }
-    if (v.ownership_status === "wishlist") wishlist++
-    if (v.reading_status === "completed") read++
-    if (v.reading_status === "reading") reading++
-    totalPages += v.page_count ?? 0
-    if (v.reading_status === "completed") readPages += v.page_count ?? 0
+    if (v.ownership_status === "owned") accumulateOwnedVolume(v, tally)
+    if (v.ownership_status === "wishlist") tally.wishlist++
+    if (v.reading_status === "completed") tally.read++
+    if (v.reading_status === "reading") tally.reading++
+    tally.totalPages += v.page_count ?? 0
+    if (v.reading_status === "completed") tally.readPages += v.page_count ?? 0
   }
-  return {
-    owned,
-    wishlist,
-    read,
-    reading,
-    spent,
-    priced,
-    totalPages,
-    readPages
-  }
+  return tally
 }
 
 interface DeltaTally {
@@ -199,6 +206,8 @@ export function computeCollectionStats(
   let completeSets = 0
   let totalPages = 0
   let readPages = 0
+  let undatedPricedVolumes = 0
+  let undatedPricedSpent = 0
   let deltaSeriesCount = 0
   let deltaVolumes = 0
   let deltaReadVolumes = 0
@@ -225,6 +234,8 @@ export function computeCollectionStats(
     pricedVolumes += t.priced
     totalPages += t.totalPages
     readPages += t.readPages
+    undatedPricedVolumes += t.undatedPriced
+    undatedPricedSpent += t.undatedPricedSpent
 
     const d = tallyDelta(vols, cutoffIso)
     deltaVolumes += d.volumes
@@ -255,6 +266,8 @@ export function computeCollectionStats(
     completeSets,
     totalPages,
     readPages,
+    undatedPricedVolumes,
+    undatedPricedSpent,
     recentDelta: {
       series: deltaSeriesCount,
       volumes: deltaVolumes,
@@ -712,6 +725,8 @@ export interface TagBreakdown {
   totalSpent: number
   /** Rounded to one decimal; 0 when no ratings exist */
   avgRating: number
+  /** Number of distinct series carrying this tag */
+  seriesCount: number
 }
 
 interface TagAccumulator {
@@ -720,6 +735,7 @@ interface TagAccumulator {
   totalSpent: number
   ratingSum: number
   ratingCount: number
+  seriesIds: Set<string>
 }
 
 function getOrCreateTagEntry(
@@ -733,7 +749,8 @@ function getOrCreateTagEntry(
       ownedCount: 0,
       totalSpent: 0,
       ratingSum: 0,
-      ratingCount: 0
+      ratingCount: 0,
+      seriesIds: new Set<string>()
     }
     map.set(tag, entry)
   }
@@ -766,6 +783,7 @@ export function computeTagBreakdown(
     if (!s.tags || s.tags.length === 0) continue
     for (const tag of s.tags) {
       const entry = getOrCreateTagEntry(map, tag)
+      entry.seriesIds.add(s.id)
       for (const v of s.volumes) accumulateTagVolume(entry, v)
     }
   }
@@ -779,7 +797,8 @@ export function computeTagBreakdown(
       avgRating:
         e.ratingCount > 0
           ? Math.round((e.ratingSum / e.ratingCount) * 10) / 10
-          : 0
+          : 0,
+      seriesCount: e.seriesIds.size
     }))
     .sort((a, b) => b.ownedCount - a.ownedCount || a.tag.localeCompare(b.tag))
 }

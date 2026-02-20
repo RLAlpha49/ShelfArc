@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 
 import type { TagBreakdown } from "@/lib/library/analytics"
 
-type SortField = "owned" | "volumes" | "spent" | "rating"
+type SortField = "owned" | "volumes" | "series" | "spent" | "rating"
 
 interface DashboardTagAnalyticsProps {
   readonly breakdown: TagBreakdown[]
@@ -15,6 +15,7 @@ const INITIAL_LIMIT = 6
 
 const COLS: { field: SortField; label: string }[] = [
   { field: "volumes", label: "Volumes" },
+  { field: "series", label: "Series" },
   { field: "owned", label: "Owned" },
   { field: "spent", label: "Spent" },
   { field: "rating", label: "Rating" }
@@ -37,6 +38,7 @@ export default function DashboardTagAnalytics({
     () =>
       [...breakdown].sort((a, b) => {
         if (sortField === "volumes") return b.volumeCount - a.volumeCount
+        if (sortField === "series") return b.seriesCount - a.seriesCount
         if (sortField === "spent") return b.totalSpent - a.totalSpent
         if (sortField === "rating") return b.avgRating - a.avgRating
         return b.ownedCount - a.ownedCount
@@ -132,6 +134,9 @@ export default function DashboardTagAnalytics({
                   </td>
                   <td className="text-muted-foreground py-2 text-right tabular-nums">
                     {item.volumeCount}
+                  </td>
+                  <td className="text-muted-foreground py-2 text-right tabular-nums">
+                    {item.seriesCount}
                   </td>
                   <td className="py-2">
                     <div className="flex items-center justify-end">

@@ -8,6 +8,10 @@ interface DashboardSpendingChartProps {
   readonly data: SpendingDataPoint[]
   readonly priceFormatter: Intl.NumberFormat
   readonly mode?: "spending" | "velocity"
+  /** Owned volumes with a price but no purchase date — excluded from this chart but counted in "Invested" */
+  readonly undatedCount?: number
+  /** Total spent by undated volumes */
+  readonly undatedSpent?: number
 }
 
 type TimeRange = "6M" | "1Y" | "All"
@@ -30,7 +34,9 @@ const ROTATE_AT = 9
 export default function DashboardSpendingChart({
   data,
   priceFormatter,
-  mode = "spending"
+  mode = "spending",
+  undatedCount,
+  undatedSpent
 }: DashboardSpendingChartProps) {
   const isVelocity = mode === "velocity"
   const uid = useId()
@@ -317,6 +323,16 @@ export default function DashboardSpendingChart({
             </div>
           </div>
         </div>
+      )}
+
+      {!isVelocity && undatedCount != null && undatedCount > 0 && (
+        <p className="text-muted-foreground mt-1 text-xs">
+          Based on volumes with recorded purchase dates.{" "}
+          {undatedCount === 1
+            ? `1 volume with a price but no date (${priceFormatter.format(undatedSpent ?? 0)}) is`
+            : `${undatedCount} volumes with a price but no date (${priceFormatter.format(undatedSpent ?? 0)}) are`}{" "}
+          counted in &ldquo;Invested&rdquo; but not shown here.
+        </p>
       )}
     </div>
   )

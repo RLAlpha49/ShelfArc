@@ -3,6 +3,17 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { ActivityEventItem } from "@/components/activity/activity-event-item"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -69,6 +80,8 @@ export function ActivityFeed() {
     ActivityEventType | undefined
   >(undefined)
   const [dateRange, setDateRange] = useState<DateRangeKey>("all")
+  const [isClearing, setIsClearing] = useState(false)
+  const [clearCooldown, setClearCooldown] = useState(false)
 
   useEffect(() => {
     const afterDate = getAfterDate(dateRange)
@@ -77,6 +90,28 @@ export function ActivityFeed() {
       ...(afterDate ? { afterDate } : {})
     })
   }, [fetchEvents, selectedType, dateRange])
+
+  const refetchCurrent = () => {
+    const afterDate = getAfterDate(dateRange)
+    fetchEvents(1, 20, {
+      ...(selectedType ? { eventType: selectedType } : {}),
+      ...(afterDate ? { afterDate } : {})
+    })
+  }
+
+  const handleClearHistory = async () => {
+    setIsClearing(true)
+    try {
+      const res = await fetch("/api/activity", { method: "DELETE" })
+      if (res.ok) {
+        setClearCooldown(true)
+        refetchCurrent()
+        setTimeout(() => setClearCooldown(false), 60_000)
+      }
+    } finally {
+      setIsClearing(false)
+    }
+  }
 
   const groups = useMemo(() => {
     if (events.length === 0) return []
@@ -170,6 +205,36 @@ export function ActivityFeed() {
             </Button>
           ))}
         </fieldset>
+
+        {pagination.total > 0 && (
+          <AlertDialog>
+            <AlertDialogTrigger
+              className="text-destructive border-input hover:bg-accent h-8 rounded-md border bg-transparent px-2.5 text-xs font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 sm:ml-auto"
+              disabled={clearCooldown || isClearing}
+            >
+              {clearCooldown ? "Cleared" : "Clear History"}
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear activity history?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This cannot be undone. This will permanently delete all{" "}
+                  {pagination.total} activity event
+                  {pagination.total === 1 ? "" : "s"} from your history.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleClearHistory}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {isClearing ? "Clearing…" : "Delete all"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       {/* Error state */}

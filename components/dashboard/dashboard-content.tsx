@@ -111,6 +111,8 @@ interface ReleasesWidgetProps {
 interface SpendingChartWidgetProps {
   readonly spendingTimeSeries: readonly SpendingDataPoint[]
   readonly priceFormatter: PriceFormatter
+  readonly undatedPricedVolumes: number
+  readonly undatedPricedSpent: number
 }
 
 interface ReadingVelocityChartWidgetProps {
@@ -943,7 +945,9 @@ function PriceAlertsWidget() {
 
 function SpendingChartWidget({
   spendingTimeSeries,
-  priceFormatter
+  priceFormatter,
+  undatedPricedVolumes,
+  undatedPricedSpent
 }: SpendingChartWidgetProps) {
   return (
     <div>
@@ -957,6 +961,8 @@ function SpendingChartWidget({
         <LazySpendingChart
           data={spendingTimeSeries as SpendingDataPoint[]}
           priceFormatter={priceFormatter}
+          undatedCount={undatedPricedVolumes}
+          undatedSpent={undatedPricedSpent}
         />
       </Suspense>
     </div>
@@ -1395,6 +1401,8 @@ export function DashboardContent({
       <SpendingChartWidget
         spendingTimeSeries={spendingTimeSeries}
         priceFormatter={priceFormatter}
+        undatedPricedVolumes={stats.undatedPricedVolumes}
+        undatedPricedSpent={stats.undatedPricedSpent}
       />
     ),
     "reading-velocity": (

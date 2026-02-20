@@ -1,18 +1,23 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 import { ActivityEventItem } from "@/components/activity/activity-event-item"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useActivityFeed } from "@/lib/hooks/use-activity-feed"
 
+type EventLimit = 5 | 10 | 15
+
+const LIMIT_OPTIONS: EventLimit[] = [5, 10, 15]
+
 export function RecentActivityCard() {
   const { events, isLoading, fetchEvents } = useActivityFeed()
+  const [limit, setLimit] = useState<EventLimit>(5)
 
   useEffect(() => {
-    fetchEvents(1, 5)
-  }, [fetchEvents])
+    fetchEvents(1, limit)
+  }, [fetchEvents, limit])
 
   return (
     <div className="glass-card rounded-xl p-6">
@@ -38,14 +43,28 @@ export function RecentActivityCard() {
             Recent Activity
           </h2>
         </div>
-        {events.length > 0 && (
-          <Link
-            href="/activity"
-            className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+        <div className="flex items-center gap-2">
+          <select
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value) as EventLimit)}
+            aria-label="Number of events to show"
+            className="text-muted-foreground bg-transparent text-xs focus:outline-none"
           >
-            View all
-          </Link>
-        )}
+            {LIMIT_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n} events
+              </option>
+            ))}
+          </select>
+          {events.length > 0 && (
+            <Link
+              href="/activity"
+              className="text-primary hover:text-primary/80 text-xs font-medium transition-colors"
+            >
+              View all
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Loading */}
