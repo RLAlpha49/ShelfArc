@@ -111,6 +111,7 @@ export function PriceHistoryCard({
   const [alertInput, setAlertInput] = useState("")
   const [alertPending, setAlertPending] = useState(false)
   const [timeRange, setTimeRange] = useState<TimeRange>("all")
+  const [showAllHistory, setShowAllHistory] = useState(false)
 
   useEffect(() => {
     fetchHistory()
@@ -173,7 +174,10 @@ export function PriceHistoryCard({
     return { min, max, avg }
   }, [sparkPrices])
 
-  const recentEntries = filteredHistory.slice(0, 5)
+  const PAGE_SIZE = 5
+  const recentEntries = filteredHistory.slice(0, PAGE_SIZE)
+  const displayedEntries = showAllHistory ? filteredHistory : recentEntries
+  const hasMore = filteredHistory.length > PAGE_SIZE
   const svgW = 240
   const svgH = 80
 
@@ -494,34 +498,49 @@ export function PriceHistoryCard({
       </div>
 
       {/* Recent History */}
-      {recentEntries.length > 0 && (
+      {filteredHistory.length > 0 && (
         <div className="space-y-1">
           <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
             Recent
           </span>
-          <ul className="divide-border divide-y">
-            {recentEntries.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex items-center justify-between py-1.5 text-xs"
-              >
-                <span className="text-muted-foreground">
-                  {formatDate(entry.scraped_at, dateFormat)}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground max-w-20 truncate text-[10px]">
-                    {entry.source}
+          <div
+            className={showAllHistory ? "max-h-60 overflow-y-auto" : undefined}
+          >
+            <ul className="divide-border divide-y">
+              {displayedEntries.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between py-1.5 text-xs"
+                >
+                  <span className="text-muted-foreground">
+                    {formatDate(entry.scraped_at, dateFormat)}
                   </span>
-                  <span className="font-medium tabular-nums">
-                    {entry.price.toLocaleString(undefined, {
-                      style: "currency",
-                      currency: entry.currency
-                    })}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground max-w-20 truncate text-[10px]">
+                      {entry.source}
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {entry.price.toLocaleString(undefined, {
+                        style: "currency",
+                        currency: entry.currency
+                      })}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setShowAllHistory((v) => !v)}
+              className="text-muted-foreground hover:text-foreground mt-1 w-full text-center text-[11px] transition-colors"
+            >
+              {showAllHistory
+                ? "Show less"
+                : `Show all (${filteredHistory.length})`}
+            </button>
+          )}
         </div>
       )}
     </div>
