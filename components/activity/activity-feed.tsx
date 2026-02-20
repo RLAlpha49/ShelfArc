@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { ActivityEventItem } from "@/components/activity/activity-event-item"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,45 @@ export function ActivityFeed() {
   useEffect(() => {
     fetchEvents(1, 20, selectedType ? { eventType: selectedType } : undefined)
   }, [fetchEvents, selectedType])
+
+  const groups = useMemo(() => {
+    if (events.length === 0) return []
+    const now = new Date()
+    const todayKey = now.toDateString()
+    const yesterdayDate = new Date(now)
+    yesterdayDate.setDate(now.getDate() - 1)
+    const yesterdayKey = yesterdayDate.toDateString()
+
+    function getLabel(dateKey: string, createdAt: string): string {
+      if (dateKey === todayKey) return "Today"
+      if (dateKey === yesterdayKey) return "Yesterday"
+      return new Date(createdAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      })
+    }
+
+    const result: {
+      dateKey: string
+      label: string
+      eventIds: typeof events
+    }[] = []
+    for (const event of events) {
+      const dateKey = new Date(event.created_at).toDateString()
+      const last = result.at(-1)
+      if (last?.dateKey === dateKey) {
+        last.eventIds.push(event)
+      } else {
+        result.push({
+          dateKey,
+          label: getLabel(dateKey, event.created_at),
+          eventIds: [event]
+        })
+      }
+    }
+    return result
+  }, [events])
 
   const handleLoadMore = () => {
     fetchEvents(
@@ -128,10 +167,21 @@ export function ActivityFeed() {
       )}
 
       {/* Event list */}
-      {events.length > 0 && (
-        <div className="divide-border divide-y">
-          {events.map((event) => (
-            <ActivityEventItem key={event.id} event={event} />
+      {groups.length > 0 && (
+        <div>
+          {groups.map((group) => (
+            <div key={group.dateKey}>
+              <div className="bg-background/80 sticky top-0 z-10 mx-0 px-2 py-1.5 backdrop-blur-sm">
+                <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                  {group.label}
+                </span>
+              </div>
+              <div className="divide-border divide-y">
+                {group.eventIds.map((event) => (
+                  <ActivityEventItem key={event.id} event={event} />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
