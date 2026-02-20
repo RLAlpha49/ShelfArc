@@ -1,13 +1,23 @@
 "use client"
 
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import type { ReleaseReminderDays } from "@/lib/store/settings-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
 
 export function NotificationsSection() {
   const {
     releaseReminders,
     setReleaseReminders,
+    releaseReminderDays,
+    setReleaseReminderDays,
     notifyOnImportComplete,
     setNotifyOnImportComplete,
     notifyOnScrapeComplete,
@@ -121,9 +131,8 @@ export function NotificationsSection() {
                 </Label>
                 <p className="text-muted-foreground text-sm">
                   Receive an in-app notification when a wishlisted volume you
-                  opted in to is releasing within 7 days. Enable{" "}
-                  <em>Notify me</em> on individual volumes in the Releases
-                  calendar.
+                  opted in to is releasing soon. Enable <em>Notify me</em> on
+                  individual volumes in the Releases calendar.
                 </p>
               </div>
               <Switch
@@ -132,6 +141,37 @@ export function NotificationsSection() {
                 onCheckedChange={setReleaseReminders}
               />
             </div>
+            {releaseReminders && (
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label
+                    htmlFor="release-reminder-days"
+                    className="font-medium"
+                  >
+                    Lead time
+                  </Label>
+                  <p className="text-muted-foreground text-sm">
+                    How many days before release to send the reminder.
+                  </p>
+                </div>
+                <Select
+                  value={String(releaseReminderDays)}
+                  onValueChange={(v) =>
+                    setReleaseReminderDays(Number(v) as ReleaseReminderDays)
+                  }
+                >
+                  <SelectTrigger id="release-reminder-days" className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3">3 days</SelectItem>
+                    <SelectItem value="7">7 days</SelectItem>
+                    <SelectItem value="14">14 days</SelectItem>
+                    <SelectItem value="30">30 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
 

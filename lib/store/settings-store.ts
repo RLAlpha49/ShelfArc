@@ -22,6 +22,10 @@ export type SearchSource = "google_books" | "open_library"
 export type FontSizeScale = "default" | "large" | "x-large"
 /** Focus indicator visibility mode. @source */
 export type FocusIndicators = "default" | "enhanced"
+/** Release reminder lead time in days. @source */
+export type ReleaseReminderDays = 3 | 7 | 14 | 30
+/** Settings server-sync status for the status badge. @source */
+export type SyncStatus = "idle" | "saved" | "failed"
 /** Dashboard widget identifier. @source */
 export type DashboardWidgetId =
   | "stats"
@@ -120,6 +124,7 @@ interface SettingsState {
 
   // Notifications
   releaseReminders: boolean
+  releaseReminderDays: ReleaseReminderDays
   notifyOnImportComplete: boolean
   notifyOnScrapeComplete: boolean
   notifyOnPriceAlert: boolean
@@ -156,6 +161,7 @@ interface SettingsState {
   setFocusIndicators: (value: FocusIndicators) => void
   setAutomatedPriceChecks: (value: boolean) => void
   setReleaseReminders: (value: boolean) => void
+  setReleaseReminderDays: (value: ReleaseReminderDays) => void
   setNotifyOnImportComplete: (value: boolean) => void
   setNotifyOnScrapeComplete: (value: boolean) => void
   setNotifyOnPriceAlert: (value: boolean) => void
@@ -168,6 +174,7 @@ interface SettingsState {
 
   // Server sync
   lastSyncedAt: number | null
+  syncStatus: SyncStatus
   syncToServer: () => void
   loadFromServer: () => Promise<void>
 }
@@ -222,6 +229,7 @@ const SYNCABLE_KEYS = [
   "focusIndicators",
   "automatedPriceChecks",
   "releaseReminders",
+  "releaseReminderDays",
   "notifyOnImportComplete",
   "notifyOnScrapeComplete",
   "notifyOnPriceAlert",
@@ -271,6 +279,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Notifications
       releaseReminders: true,
+      releaseReminderDays: 7 as ReleaseReminderDays,
       notifyOnImportComplete: true,
       notifyOnScrapeComplete: true,
       notifyOnPriceAlert: true,
@@ -364,6 +373,10 @@ export const useSettingsStore = create<SettingsState>()(
         set({ releaseReminders: value })
         get().syncToServer()
       },
+      setReleaseReminderDays: (value) => {
+        set({ releaseReminderDays: value })
+        get().syncToServer()
+      },
       setNotifyOnImportComplete: (value) => {
         set({ notifyOnImportComplete: value })
         get().syncToServer()
@@ -403,6 +416,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Server sync
       lastSyncedAt: null,
+      syncStatus: "idle" as SyncStatus,
 
       syncToServer: () => {
         if (syncTimer) clearTimeout(syncTimer)
@@ -421,11 +435,16 @@ export const useSettingsStore = create<SettingsState>()(
           })
             .then((res) => {
               if (res.ok) {
-                useSettingsStore.setState({ lastSyncedAt: syncTime })
+                useSettingsStore.setState({
+                  lastSyncedAt: syncTime,
+                  syncStatus: "saved"
+                })
+              } else {
+                useSettingsStore.setState({ syncStatus: "failed" })
               }
             })
             .catch(() => {
-              // Swallow network errors
+              useSettingsStore.setState({ syncStatus: "failed" })
             })
         }, 2_000)
       },
@@ -493,6 +512,7 @@ export const useSettingsStore = create<SettingsState>()(
         focusIndicators: state.focusIndicators,
         automatedPriceChecks: state.automatedPriceChecks,
         releaseReminders: state.releaseReminders,
+        releaseReminderDays: state.releaseReminderDays,
         notifyOnImportComplete: state.notifyOnImportComplete,
         notifyOnScrapeComplete: state.notifyOnScrapeComplete,
         notifyOnPriceAlert: state.notifyOnPriceAlert,
