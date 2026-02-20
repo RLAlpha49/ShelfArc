@@ -91,7 +91,9 @@ const defaultFormData = {
   purchase_price: "",
   edition: "",
   format: "",
-  amazon_url: ""
+  amazon_url: "",
+  started_at: "",
+  finished_at: ""
 }
 
 /**
@@ -121,6 +123,11 @@ const isValidReadingStatus = (
 
 /** Maximum upload size for cover images (5 MB). @source */
 const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
+
+/** Converts an ISO timestamp or date string to an HTML date input value (YYYY-MM-DD). @source */
+function isoToDateInput(value: string | null | undefined): string {
+  return value ? value.split("T")[0] : ""
+}
 
 /** Tracks the active Amazon async operation in {@link VolumeDialog}. @source */
 type FetchState = "idle" | "price" | "image" | "all"
@@ -294,7 +301,9 @@ export function VolumeDialog({
         purchase_price: volume.purchase_price?.toString() || "",
         edition: volume.edition || "",
         format: volume.format || "",
-        amazon_url: volume.amazon_url || ""
+        amazon_url: volume.amazon_url || "",
+        started_at: isoToDateInput(volume.started_at),
+        finished_at: isoToDateInput(volume.finished_at)
       })
     } else {
       setFormData({
@@ -368,7 +377,9 @@ export function VolumeDialog({
           : null,
         edition: (formData.edition || null) as VolumeEdition | null,
         format: (formData.format || null) as VolumeFormat | null,
-        amazon_url: formData.amazon_url || null
+        amazon_url: formData.amazon_url || null,
+        started_at: formData.started_at || null,
+        finished_at: formData.finished_at || null
       })
       onOpenChange(false)
     } finally {
@@ -880,7 +891,19 @@ export function VolumeDialog({
                     <Select
                       value={formData.reading_status}
                       onValueChange={(value) => {
-                        if (value) updateField("reading_status", value)
+                        if (!value) return
+                        const today = new Date().toISOString().split("T")[0]
+                        const updates: Partial<typeof formData> = {
+                          reading_status: value as ReadingStatus
+                        }
+                        if (value === "reading" && !formData.started_at) {
+                          updates.started_at = today
+                        }
+                        if (value === "completed") {
+                          if (!formData.finished_at) updates.finished_at = today
+                          if (!formData.started_at) updates.started_at = today
+                        }
+                        setFormData((prev) => ({ ...prev, ...updates }))
                       }}
                     >
                       <SelectTrigger id="reading_status">
@@ -908,6 +931,31 @@ export function VolumeDialog({
                     value={formData.rating}
                     onChange={(e) => updateField("rating", e.target.value)}
                   />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="started_at">Started Reading</Label>
+                    <Input
+                      id="started_at"
+                      type="date"
+                      value={formData.started_at}
+                      onChange={(e) =>
+                        updateField("started_at", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="finished_at">Finished Reading</Label>
+                    <Input
+                      id="finished_at"
+                      type="date"
+                      value={formData.finished_at}
+                      onChange={(e) =>
+                        updateField("finished_at", e.target.value)
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             </TabsContent>
