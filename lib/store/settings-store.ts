@@ -22,6 +22,17 @@ export type SearchSource = "google_books" | "open_library"
 export type FontSizeScale = "default" | "large" | "x-large"
 /** Focus indicator visibility mode. @source */
 export type FocusIndicators = "default" | "enhanced"
+/** Default library sort field for the library page. @source */
+export type DefaultSortBy =
+  | "title"
+  | "created_at"
+  | "updated_at"
+  | "author"
+  | "rating"
+  | "volume_count"
+  | "price"
+  | "started_at"
+  | "finished_at"
 /** Release reminder lead time in days. @source */
 export type ReleaseReminderDays = 3 | 7 | 14 | 30
 /** Settings server-sync status for the status badge. @source */
@@ -45,6 +56,7 @@ export type DashboardWidgetId =
   | "reading-velocity"
   | "backlog"
   | "reading-goal"
+  | "rating-distribution"
 
 /** Column assignment for a dashboard widget. @source */
 export type DashboardWidgetColumn = "full" | "left" | "right"
@@ -60,6 +72,8 @@ export interface DashboardWidgetMeta {
 export interface DashboardLayout {
   readonly order: DashboardWidgetId[]
   readonly hidden: DashboardWidgetId[]
+  /** Per-widget column overrides. Unset means use the widget's default column. */
+  readonly columns?: Partial<Record<DashboardWidgetId, DashboardWidgetColumn>>
 }
 
 /** All dashboard widgets with their column assignments. @source */
@@ -80,7 +94,8 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetMeta[] = [
   { id: "reading-velocity", label: "Reading Velocity", column: "left" },
   { id: "tag-analytics", label: "Tag Breakdown", column: "left" },
   { id: "backlog", label: "Reading Backlog", column: "right" },
-  { id: "reading-goal", label: "Reading Goal", column: "right" }
+  { id: "reading-goal", label: "Reading Goal", column: "right" },
+  { id: "rating-distribution", label: "Rating Distribution", column: "right" }
 ]
 
 /** Default dashboard layout with all widgets visible in the default order. @source */
@@ -136,6 +151,10 @@ interface SettingsState {
   // Reading goal
   readingGoal: number | undefined
 
+  // Library sort defaults
+  defaultSortBy: DefaultSortBy
+  defaultSortDir: "asc" | "desc"
+
   // Onboarding
   hasCompletedOnboarding: boolean
 
@@ -166,6 +185,8 @@ interface SettingsState {
   setNotifyOnScrapeComplete: (value: boolean) => void
   setNotifyOnPriceAlert: (value: boolean) => void
   setEmailNotifications: (value: boolean) => void
+  setDefaultSortBy: (value: DefaultSortBy) => void
+  setDefaultSortDir: (value: "asc" | "desc") => void
   setHasCompletedOnboarding: (value: boolean) => void
   setNavigationMode: (value: NavigationMode) => void
   setDashboardLayout: (layout: DashboardLayout) => void
@@ -234,6 +255,8 @@ const SYNCABLE_KEYS = [
   "notifyOnScrapeComplete",
   "notifyOnPriceAlert",
   "emailNotifications",
+  "defaultSortBy",
+  "defaultSortDir",
   "hasCompletedOnboarding",
   "navigationMode",
   "dashboardLayout",
@@ -290,6 +313,10 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Reading goal
       readingGoal: undefined,
+
+      // Library sort defaults
+      defaultSortBy: "title" as DefaultSortBy,
+      defaultSortDir: "asc" as "asc" | "desc",
 
       // Onboarding
       hasCompletedOnboarding: false,
@@ -391,6 +418,14 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setEmailNotifications: (value) => {
         set({ emailNotifications: value })
+        get().syncToServer()
+      },
+      setDefaultSortBy: (value) => {
+        set({ defaultSortBy: value })
+        get().syncToServer()
+      },
+      setDefaultSortDir: (value) => {
+        set({ defaultSortDir: value })
         get().syncToServer()
       },
       setHasCompletedOnboarding: (value) => {
@@ -517,6 +552,8 @@ export const useSettingsStore = create<SettingsState>()(
         notifyOnScrapeComplete: state.notifyOnScrapeComplete,
         notifyOnPriceAlert: state.notifyOnPriceAlert,
         emailNotifications: state.emailNotifications,
+        defaultSortBy: state.defaultSortBy,
+        defaultSortDir: state.defaultSortDir,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         navigationMode: state.navigationMode,
         dashboardLayout: state.dashboardLayout,

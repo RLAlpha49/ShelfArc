@@ -16,6 +16,7 @@ import type {
   AugmentedVolume,
   CollectionStats,
   PriceBreakdown,
+  RatingDistributionPoint,
   ReleaseItem,
   SpendingDataPoint,
   SuggestedBuy,
@@ -49,6 +50,9 @@ const LazySpendingChart = lazy(
 )
 const LazyTagAnalytics = lazy(
   () => import("@/components/dashboard/dashboard-tag-analytics")
+)
+const LazyRatingDistribution = lazy(
+  () => import("@/components/dashboard/dashboard-rating-distribution")
 )
 
 // ── Widget prop interfaces ────────────────────────────────────────────────
@@ -123,6 +127,11 @@ interface ReadingVelocityChartWidgetProps {
 interface TagAnalyticsWidgetProps {
   readonly tagBreakdown: readonly TagBreakdown[]
   readonly priceFormatter: PriceFormatter
+}
+
+interface RatingDistributionWidgetProps {
+  readonly distribution: readonly RatingDistributionPoint[]
+  readonly unratedCount: number
 }
 
 // ── Standalone widget components ─────────────────────────────────────────
@@ -1018,6 +1027,30 @@ function TagAnalyticsWidget({
   )
 }
 
+function RatingDistributionWidget({
+  distribution,
+  unratedCount
+}: RatingDistributionWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Rating Distribution
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          How you&apos;ve rated your volumes
+        </p>
+      </div>
+      <Suspense fallback={<WidgetSkeleton />}>
+        <LazyRatingDistribution
+          distribution={distribution as RatingDistributionPoint[]}
+          unratedCount={unratedCount}
+        />
+      </Suspense>
+    </div>
+  )
+}
+
 function ActivityWidget() {
   return <RecentActivityCard />
 }
@@ -1302,6 +1335,8 @@ export interface DashboardContentProps {
   readonly spendingTimeSeries: readonly SpendingDataPoint[]
   readonly velocityTimeSeries: readonly SpendingDataPoint[]
   readonly tagBreakdown: readonly TagBreakdown[]
+  readonly ratingDistribution: readonly RatingDistributionPoint[]
+  readonly ratingUnratedCount: number
   readonly isEmpty?: boolean
 }
 
@@ -1326,6 +1361,8 @@ export function DashboardContent({
   spendingTimeSeries,
   velocityTimeSeries,
   tagBreakdown,
+  ratingDistribution,
+  ratingUnratedCount,
   isEmpty = false
 }: DashboardContentProps) {
   const priceDisplayCurrency = useLibraryStore(
@@ -1339,7 +1376,7 @@ export function DashboardContent({
 
   const isVisible = (id: DashboardWidgetId) => !layout.hidden.includes(id)
   const widgetColumn = (id: DashboardWidgetId) =>
-    DASHBOARD_WIDGETS.find((w) => w.id === id)?.column
+    layout.columns?.[id] ?? DASHBOARD_WIDGETS.find((w) => w.id === id)?.column
 
   const fullWidgets = layout.order.filter(
     (id) => widgetColumn(id) === "full" && isVisible(id)
@@ -1415,6 +1452,12 @@ export function DashboardContent({
       <TagAnalyticsWidget
         tagBreakdown={tagBreakdown}
         priceFormatter={priceFormatter}
+      />
+    ),
+    "rating-distribution": (
+      <RatingDistributionWidget
+        distribution={ratingDistribution}
+        unratedCount={ratingUnratedCount}
       />
     ),
     backlog: <BacklogWidget stats={stats} />,

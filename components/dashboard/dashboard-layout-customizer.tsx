@@ -23,6 +23,12 @@ const COLUMN_LABELS: Record<DashboardWidgetColumn, string> = {
   right: "Right Column"
 }
 
+const COLUMN_ABBR: Record<DashboardWidgetColumn, string> = {
+  full: "F",
+  left: "L",
+  right: "R"
+}
+
 export function DashboardLayoutCustomizer() {
   const layout = useSettingsStore((s) => s.dashboardLayout)
   const setLayout = useSettingsStore((s) => s.setDashboardLayout)
@@ -40,10 +46,11 @@ export function DashboardLayoutCustomizer() {
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
     })
     for (const w of ordered) {
-      groups[w.column].push(w)
+      const effectiveColumn = layout.columns?.[w.id] ?? w.column
+      groups[effectiveColumn].push(w)
     }
     return groups
-  }, [layout.order])
+  }, [layout.order, layout.columns])
 
   const toggleVisibility = useCallback(
     (id: DashboardWidgetId) => {
@@ -55,14 +62,33 @@ export function DashboardLayoutCustomizer() {
     [layout, setLayout]
   )
 
+  const setColumnOverride = useCallback(
+    (id: DashboardWidgetId, column: DashboardWidgetColumn) => {
+      const current =
+        layout.columns?.[id] ??
+        DASHBOARD_WIDGETS.find((w) => w.id === id)?.column
+      const newColumns = { ...layout.columns }
+      if (current === column) {
+        delete newColumns[id]
+      } else {
+        newColumns[id] = column
+      }
+      setLayout({ ...layout, columns: newColumns })
+    },
+    [layout, setLayout]
+  )
+
   const moveWidget = useCallback(
     (id: DashboardWidgetId, direction: "up" | "down") => {
       const widget = DASHBOARD_WIDGETS.find((w) => w.id === id)
       if (!widget) return
+      const effectiveCol = layout.columns?.[id] ?? widget.column
 
       const sameColumn = layout.order.filter((wId) => {
         const meta = DASHBOARD_WIDGETS.find((w) => w.id === wId)
-        return meta?.column === widget.column
+        return meta
+          ? (layout.columns?.[wId] ?? meta.column) === effectiveCol
+          : false
       })
 
       const idx = sameColumn.indexOf(id)
@@ -152,7 +178,30 @@ export function DashboardLayoutCustomizer() {
                         >
                           {widget.label}
                         </label>
-                        <div className="flex shrink-0 gap-0.5">
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          {(["left", "right", "full"] as const).map((col) => {
+                            const isActive =
+                              (layout.columns?.[widget.id] ?? widget.column) ===
+                              col
+                            return (
+                              <button
+                                key={col}
+                                type="button"
+                                onClick={() =>
+                                  setColumnOverride(widget.id, col)
+                                }
+                                className={
+                                  isActive
+                                    ? "bg-primary/10 text-primary rounded px-1 py-0.5 text-[9px] font-semibold"
+                                    : "text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-[9px] font-medium transition-colors"
+                                }
+                                aria-label={`Set ${widget.label} to ${col} column`}
+                                aria-pressed={isActive}
+                              >
+                                {COLUMN_ABBR[col]}
+                              </button>
+                            )
+                          })}
                           <button
                             type="button"
                             onClick={() => moveWidget(widget.id, "up")}
