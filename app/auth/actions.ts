@@ -82,6 +82,15 @@ export async function login(formData: FormData) {
     return { error: error.message }
   }
 
+  // Check if the session needs to be elevated to AAL2 (MFA required)
+  const { data: aalData } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aalData?.currentLevel === "aal1" && aalData.nextLevel === "aal2") {
+    // Redirect to MFA challenge — session is valid but needs second factor
+    const destination = getSafeRedirect(formData.get("redirectTo"))
+    redirect(`/mfa-challenge?redirectTo=${encodeURIComponent(destination)}`)
+  }
+
   const destination = getSafeRedirect(formData.get("redirectTo"))
   revalidatePath("/", "layout")
   redirect(destination)
