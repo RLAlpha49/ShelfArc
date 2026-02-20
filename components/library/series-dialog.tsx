@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
+import { selectAllSeries, useLibraryStore } from "@/lib/store/library-store"
 import type {
   SeriesInsert,
   SeriesStatus,
@@ -69,7 +70,7 @@ const defaultFormData = {
   type: "manga" as TitleType,
   total_volumes: "",
   status: "",
-  tags: "",
+  tags: [] as string[],
   is_public: false
 }
 
@@ -91,7 +92,7 @@ const buildSeriesFormData = (series?: SeriesWithVolumes | null) => ({
   type: series?.type ?? "manga",
   total_volumes: series?.total_volumes ? String(series.total_volumes) : "",
   status: series?.status ?? "",
-  tags: series?.tags?.join(", ") ?? "",
+  tags: series?.tags ?? [],
   is_public: series?.is_public ?? false
 })
 
@@ -116,7 +117,7 @@ const areSeriesFormDataEqual = (left: SeriesFormData, right: SeriesFormData) =>
   left.type === right.type &&
   left.total_volumes === right.total_volumes &&
   left.status === right.status &&
-  left.tags === right.tags &&
+  left.tags.join(",") === right.tags.join(",") &&
   left.is_public === right.is_public
 
 /**
@@ -141,6 +142,9 @@ export function SeriesDialog({
   const previewUrlRef = useRef<string | null>(null)
   const [formData, setFormData] = useState(() => buildSeriesFormData(series))
   const [activeTab, setActiveTab] = useState("general")
+  const [tagInput, setTagInput] = useState("")
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false)
+  const tagInputRef = useRef<HTMLInputElement | null>(null)
   const seriesIdRef = useRef<string | null>(series?.id ?? null)
   const seriesSnapshotRef = useRef(buildSeriesFormData(series))
   const basisSeedRef = useRef<
@@ -152,6 +156,46 @@ export function SeriesDialog({
   })
   const wasOpenRef = useRef(false)
   const isEditing = Boolean(series)
+
+  const allSeries = useLibraryStore(selectAllSeries)
+  const allLibraryTags = useMemo(() => {
+    const tagSet = new Set<string>()
+    for (const s of allSeries) {
+      for (const t of s.tags ?? []) tagSet.add(t)
+    }
+    return [...tagSet].sort((a, b) => a.localeCompare(b))
+  }, [allSeries])
+
+  const tagSuggestions = useMemo(() => {
+    if (!tagInput.trim()) return []
+    const lower = tagInput.toLowerCase()
+    return allLibraryTags.filter(
+      (t) => t.toLowerCase().includes(lower) && !formData.tags.includes(t)
+    )
+  }, [allLibraryTags, tagInput, formData.tags])
+
+  const handleAddTag = (tag: string) => {
+    const trimmed = tag.trim()
+    if (!trimmed || formData.tags.includes(trimmed)) return
+    setFormData({ ...formData, tags: [...formData.tags, trimmed] })
+    setTagInput("")
+    setShowTagSuggestions(false)
+  }
+
+  const handleRemoveTag = (tag: string) => {
+    setFormData({ ...formData, tags: formData.tags.filter((t) => t !== tag) })
+  }
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+      e.preventDefault()
+      handleAddTag(tagInput)
+    } else if (e.key === "Backspace" && !tagInput && formData.tags.length > 0) {
+      handleRemoveTag(formData.tags.at(-1) ?? "")
+    } else if (e.key === "Escape") {
+      setShowTagSuggestions(false)
+    }
+  }
 
   const availableVolumes = useMemo(() => {
     if (!unassignedVolumes || unassignedVolumes.length === 0) return []
@@ -327,11 +371,6 @@ export function SeriesDialog({
 
     try {
       const tagsArray = formData.tags
-        ? formData.tags
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter(Boolean)
-        : []
 
       const selectedVolumeIds = basisVolumeId ? [basisVolumeId] : []
 
@@ -830,18 +869,62 @@ export function SeriesDialog({
             <TabsContent value="notes-tags" keepMounted>
               <div className="space-y-5 pt-3">
                 <div className="space-y-2">
-                  <Label htmlFor="tags">Tags</Label>
-                  <Input
-                    id="tags"
-                    value={formData.tags}
-                    onChange={(e) =>
-                      setFormData({ ...formData, tags: e.target.value })
-                    }
-                    placeholder="Enter tags separated by commas"
-                  />
+                  <Label htmlFor="tag-input">Tags</Label>
+                  <div className="border-input bg-background focus-within:ring-ring flex min-h-10 flex-wrap gap-1.5 rounded-md border px-3 py-2 text-sm focus-within:ring-1">
+                    {formData.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="bg-secondary text-secondary-foreground inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          aria-label={`Remove ${tag}`}
+                          onClick={() => handleRemoveTag(tag)}
+                          className="text-secondary-foreground/60 hover:text-secondary-foreground ml-0.5 leading-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      id="tag-input"
+                      ref={tagInputRef}
+                      value={tagInput}
+                      onChange={(e) => {
+                        setTagInput(e.target.value)
+                        setShowTagSuggestions(true)
+                      }}
+                      onKeyDown={handleTagKeyDown}
+                      onFocus={() => setShowTagSuggestions(true)}
+                      onBlur={() =>
+                        setTimeout(() => setShowTagSuggestions(false), 150)
+                      }
+                      placeholder={
+                        formData.tags.length === 0 ? "Add tags..." : ""
+                      }
+                      className="placeholder:text-muted-foreground min-w-16 flex-1 bg-transparent text-sm outline-none"
+                    />
+                  </div>
+                  {showTagSuggestions && tagSuggestions.length > 0 && (
+                    <div className="border-border bg-popover text-popover-foreground z-10 rounded-md border py-1 shadow-md">
+                      {tagSuggestions.slice(0, 8).map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          className="hover:bg-accent w-full px-3 py-1.5 text-left text-sm"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            handleAddTag(tag)
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-muted-foreground text-xs">
-                    Separate multiple tags with commas (e.g., fantasy, isekai,
-                    romance)
+                    Press Enter or comma to add. Backspace to remove last tag.
                   </p>
                 </div>
 
