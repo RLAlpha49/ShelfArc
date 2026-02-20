@@ -60,6 +60,19 @@ export async function login(formData: FormData) {
     return { error: "Too many login attempts. Please try again later." }
   }
 
+  // Secondary per-email rate limit — prevents XFF-rotation bypass (defense-in-depth).
+  const emailRateLimitResult = await consumeDistributedRateLimit({
+    key: `login:email:${email.toLowerCase()}`,
+    maxHits: 10,
+    windowMs: 5 * 60_000,
+    cooldownMs: 30 * 60_000,
+    reason: "Login email rate limit"
+  })
+
+  if (emailRateLimitResult && !emailRateLimitResult.allowed) {
+    return { error: "Too many login attempts. Please try again later." }
+  }
+
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password
@@ -116,6 +129,19 @@ export async function signup(formData: FormData) {
   })
 
   if (rateLimitResult && !rateLimitResult.allowed) {
+    return { error: "Too many signup attempts. Please try again later." }
+  }
+
+  // Secondary per-email rate limit — prevents XFF-rotation bypass.
+  const emailRateLimitResult = await consumeDistributedRateLimit({
+    key: `signup:email:${email.toLowerCase()}`,
+    maxHits: 5,
+    windowMs: 10 * 60_000,
+    cooldownMs: 60 * 60_000,
+    reason: "Signup email rate limit"
+  })
+
+  if (emailRateLimitResult && !emailRateLimitResult.allowed) {
     return { error: "Too many signup attempts. Please try again later." }
   }
 
@@ -183,6 +209,19 @@ export async function forgotPassword(formData: FormData) {
   })
 
   if (rateLimitResult && !rateLimitResult.allowed) {
+    return { error: "Too many requests. Please try again later." }
+  }
+
+  // Secondary per-email rate limit — prevents XFF-rotation bypass.
+  const emailRateLimitResult = await consumeDistributedRateLimit({
+    key: `forgot-password:email:${email.toLowerCase()}`,
+    maxHits: 5,
+    windowMs: 10 * 60_000,
+    cooldownMs: 60 * 60_000,
+    reason: "Forgot password email rate limit"
+  })
+
+  if (emailRateLimitResult && !emailRateLimitResult.allowed) {
     return { error: "Too many requests. Please try again later." }
   }
 
