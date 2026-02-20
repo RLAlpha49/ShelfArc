@@ -42,7 +42,8 @@ const createAdminClient = mock(() => ({
 
 const rateLimitMocks = {
   isRateLimited: mock(() => false),
-  recordFailure: mock(() => undefined)
+  recordFailure: mock(() => undefined),
+  getCooldownRemaining: mock(() => 0)
 }
 
 const distributedRateLimitMocks = {
