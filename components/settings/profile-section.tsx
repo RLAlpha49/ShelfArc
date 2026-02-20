@@ -74,6 +74,8 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
   const [newEmail, setNewEmail] = useState("")
   const [emailChangePending, setEmailChangePending] = useState(false)
   const [emailChangeSuccess, setEmailChangeSuccess] = useState(false)
+  const [cropFile, setCropFile] = useState<File | null>(null)
+  const [cropObjectUrl, setCropObjectUrl] = useState<string | null>(null)
 
   // Sync local state when profile prop arrives (initial fetch resolves)
   useEffect(() => {
@@ -94,6 +96,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
       }
     }
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (cropObjectUrl) URL.revokeObjectURL(cropObjectUrl)
+    }
+  }, [cropObjectUrl])
 
   const resolvedAvatarUrl = resolveImageUrl(avatarUrl)
   const avatarPreview = avatarPreviewUrl || resolvedAvatarUrl
@@ -287,6 +295,51 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
     } finally {
       setIsUploadingAvatar(false)
     }
+  }
+
+  const handleCropAndUpload = async () => {
+    if (!cropFile || !cropObjectUrl) return
+    let blob: Blob
+    try {
+      const bitmap = await createImageBitmap(cropFile)
+      const { width: iw, height: ih } = bitmap
+      const cropSize = Math.min(iw, ih)
+      const canvas = document.createElement("canvas")
+      canvas.width = 512
+      canvas.height = 512
+      const ctx = canvas.getContext("2d")
+      if (!ctx) throw new Error("Canvas context unavailable")
+      ctx.drawImage(
+        bitmap,
+        (iw - cropSize) / 2,
+        (ih - cropSize) / 2,
+        cropSize,
+        cropSize,
+        0,
+        0,
+        512,
+        512
+      )
+      blob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error("Canvas export failed"))),
+          "image/jpeg",
+          0.9
+        )
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Crop failed"
+      toast.error(message)
+      return
+    }
+    setCropObjectUrl(null)
+    setCropFile(null)
+    const croppedFile = new File(
+      [blob],
+      cropFile.name.replace(/\.[^.]+$/, ".jpg"),
+      { type: "image/jpeg" }
+    )
+    await handleAvatarFileChange(croppedFile)
   }
 
   return (
@@ -513,7 +566,13 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (file) {
-                    void handleAvatarFileChange(file)
+                    if (file.size <= 0 || file.size > MAX_AVATAR_BYTES) {
+                      toast.error("Avatar must be smaller than 2MB")
+                      e.currentTarget.value = ""
+                      return
+                    }
+                    setCropObjectUrl(URL.createObjectURL(file))
+                    setCropFile(file)
                   }
                   e.currentTarget.value = ""
                 }}
@@ -594,6 +653,52 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
           {isSaving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
+
+      {/* Avatar crop modal */}
+      {cropFile && cropObjectUrl && (
+        <dialog
+          open
+          className="bg-background/80 fixed inset-0 z-50 m-0 flex h-full w-full max-w-none items-center justify-center border-none p-0 backdrop-blur-sm"
+          aria-label="Crop avatar"
+        >
+          <div className="bg-background ring-border/60 w-full max-w-sm rounded-2xl border p-6 shadow-xl ring-1">
+            <h2 className="mb-1 text-center text-lg font-semibold">
+              Crop Avatar
+            </h2>
+            <p className="text-muted-foreground mb-4 text-center text-xs">
+              Your image will be center-cropped to a 1:1 square and resized to
+              512\u00d7512.
+            </p>
+            <div className="flex justify-center">
+              <img
+                src={cropObjectUrl}
+                alt="Crop preview"
+                style={{ width: 200, height: 200, objectFit: "cover" }}
+                className="ring-primary rounded-full ring-4"
+              />
+            </div>
+            <div className="mt-5 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => {
+                  setCropFile(null)
+                  setCropObjectUrl(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl"
+                onClick={() => void handleCropAndUpload()}
+                disabled={isUploadingAvatar}
+              >
+                {isUploadingAvatar ? "Uploading\u2026" : "Crop & Upload"}
+              </Button>
+            </div>
+          </div>
+        </dialog>
+      )}
     </section>
   )
 }
