@@ -17,7 +17,7 @@ At any point, use the `ask_questions` tool (see dedicated section below) to clar
 
 ## Subagents — Be proactive ⚡
 
-- **Important**: When possible run subagents in **parallel**. Do not wait for one subagent to finish before starting another unless they depend on each other.
+- **Important**: Whenever possible, **ALWAYS** run subagents in **parallel**. Do not wait for one subagent to finish before starting another unless they depend on each other.
 - Use `runSubagent` proactively for bounded, self-contained tasks (research, refactor, triage, automation, complex edits) and prefer specialized agents to execute Plan items.
 - Always include: **goal**, **constraints**, and **context** when invoking any subagent.
 - **Important**: Be **VERY** thorough when providing context to subagents. The more context you provide, the better the subagent's output will be.
