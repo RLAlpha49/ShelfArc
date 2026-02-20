@@ -57,8 +57,10 @@ export async function GET(request: NextRequest) {
       ? extractSessionId(currentSession.access_token)
       : null
 
-    // createAdminClient validates env vars and provides audit logging;
-    // throws if NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY are missing.
+    // The GoTrue /admin/users/:id/sessions endpoint is not exposed in the
+    // Supabase JS SDK so a raw fetch is required. createAdminClient is called
+    // here as the sole env-var extraction and validation point; it will throw
+    // if NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY are missing.
     createAdminClient({
       reason: "List user sessions",
       caller: "GET /api/account/sessions"
