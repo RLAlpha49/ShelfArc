@@ -460,6 +460,72 @@ export function useBulkScrape(
     abortRef.current?.abort()
   }, [])
 
+  const retry = useCallback(
+    async (mode: BulkScrapeMode) => {
+      const failedJobs = state.jobs.filter((j) => j.status === "failed")
+      if (failedJobs.length === 0) return
+
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      // Reset failed jobs back to pending
+      setState((prev) => {
+        const nextJobs = prev.jobs.map((j) =>
+          j.status === "failed" ? { ...j, status: "pending" as const } : j
+        )
+        return {
+          ...prev,
+          jobs: nextJobs,
+          isRunning: true,
+          summary: buildSummary(nextJobs),
+          cooldownExpiresAt: null
+        }
+      })
+
+      const includePrice = mode === "price" || mode === "both"
+      const includeImage = mode === "image" || mode === "both"
+      const fallbackToKindle = !amazonPreferKindle && amazonFallbackToKindle
+
+      // Re-fetch the current jobs from state, operating on indices of failed ones
+      const jobsCopy = [...state.jobs]
+      for (let i = 0; i < jobsCopy.length; i++) {
+        if (jobsCopy[i].status !== "failed") continue
+        if (controller.signal.aborted) break
+
+        setState((prev) => ({ ...prev, currentIndex: i }))
+        updateJob(i, { status: "scraping" }, setState)
+
+        const ctx: JobContext = {
+          jobs: jobsCopy,
+          series,
+          amazonDomain,
+          preferKindle: amazonPreferKindle,
+          fallbackToKindle,
+          includePrice,
+          includeImage,
+          controller,
+          editVolume,
+          setter: setState,
+          priceSource
+        }
+
+        const outcome = await processJob(i, ctx)
+        if (outcome === "halt" || outcome === "abort") break
+      }
+
+      finalize(setState)
+    },
+    [
+      state.jobs,
+      series,
+      priceSource,
+      amazonDomain,
+      amazonPreferKindle,
+      amazonFallbackToKindle,
+      editVolume
+    ]
+  )
+
   const reset = useCallback(() => {
     if (state.isRunning) return
     setState({
@@ -471,7 +537,7 @@ export function useBulkScrape(
     })
   }, [state.isRunning])
 
-  return { ...state, start, cancel, reset }
+  return { ...state, start, cancel, retry, reset }
 }
 
 /**
@@ -517,6 +583,38 @@ function buildJobParams(i: number, ctx: JobContext): FetchPriceParams | null {
  * @returns `"ok"` to continue, `"halt"` on rate-limit, or `"abort"` on cancellation.
  * @source
  */
+/**
+ * Handles an `ApiClientError` during a job fetch.
+ * @returns `"halt"` on rate-limit, `"ok"` otherwise.
+ * @source
+ */
+async function handleApiClientError(
+  i: number,
+  error: ApiClientError,
+  isLast: boolean,
+  ctx: JobContext
+): Promise<"ok" | "halt"> {
+  const { controller, setter } = ctx
+  const details = (error.details ?? {}) as Record<string, unknown>
+  if (error.status === 429) {
+    handleRateLimit(i, details, setter)
+    return "halt"
+  }
+  updateJob(
+    i,
+    {
+      status: "failed",
+      errorMessage:
+        typeof details.error === "string"
+          ? details.error
+          : `HTTP ${error.status}`
+    },
+    setter
+  )
+  await interRequestDelay(controller.signal, isLast)
+  return "ok"
+}
+
 async function processJob(
   i: number,
   ctx: JobContext
@@ -532,35 +630,12 @@ async function processJob(
     return await handleSuccess(i, data, isLast, ctx)
   } catch (error) {
     if (error instanceof ApiClientError) {
-      const details = (error.details ?? {}) as Record<string, unknown>
-
-      // 429 → halt
-      if (error.status === 429) {
-        handleRateLimit(i, details, setter)
-        return "halt"
-      }
-
-      // Other HTTP errors — non-fatal
-      updateJob(
-        i,
-        {
-          status: "failed",
-          errorMessage:
-            typeof details.error === "string"
-              ? details.error
-              : `HTTP ${error.status}`
-        },
-        setter
-      )
-      await interRequestDelay(controller.signal, isLast)
-      return "ok"
+      return handleApiClientError(i, error, isLast, ctx)
     }
-
     if (error instanceof DOMException && error.name === "AbortError") {
       updateJob(i, { status: "cancelled", errorMessage: "Cancelled" }, setter)
       return "abort"
     }
-
     updateJob(
       i,
       {

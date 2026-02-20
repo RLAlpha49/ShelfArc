@@ -238,8 +238,16 @@ export function BulkScrapeDialog({
     return seriesIds.size > 1
   }, [series.volumes])
 
-  const { jobs, isRunning, summary, cooldownExpiresAt, start, cancel, reset } =
-    useBulkScrape(series, editVolume)
+  const {
+    jobs,
+    isRunning,
+    summary,
+    cooldownExpiresAt,
+    start,
+    cancel,
+    retry,
+    reset
+  } = useBulkScrape(series, editVolume)
 
   const [now, setNow] = useState(() => Date.now())
 
@@ -352,6 +360,10 @@ export function BulkScrapeDialog({
 
   const handleStart = () => {
     void start(mode, skipExisting)
+  }
+
+  const handleRetry = () => {
+    void retry(mode)
   }
 
   const handleCancel = () => {
@@ -805,6 +817,30 @@ export function BulkScrapeDialog({
                   ", "}
                 {summary.skipped > 0 && `${summary.skipped} skipped`}
               </div>
+              {summary.failed > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl"
+                  onClick={handleRetry}
+                  disabled={cooldownRemaining !== null && cooldownRemaining > 0}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-1.5 h-4 w-4"
+                  >
+                    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                    <path d="M21 3v5h-5" />
+                  </svg>
+                  Retry {summary.failed} failed
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
