@@ -14,6 +14,13 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
   Tooltip,
@@ -217,6 +224,8 @@ export function BulkScrapeDialog({
   const defaultScrapeMode = useSettingsStore((s) => s.defaultScrapeMode)
   const [mode, setMode] = useState<BulkScrapeMode>(defaultScrapeMode)
   const [skipExisting, setSkipExisting] = useState(false)
+  const priceSource = useLibraryStore((s) => s.priceSource)
+  const setPriceSource = useLibraryStore((s) => s.setPriceSource)
   const showAmazonDisclaimer = useLibraryStore((s) => s.showAmazonDisclaimer)
   const setShowAmazonDisclaimer = useLibraryStore(
     (s) => s.setShowAmazonDisclaimer
@@ -418,6 +427,33 @@ export function BulkScrapeDialog({
                   Options
                 </legend>
                 <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor="source-select"
+                      className="cursor-pointer text-sm font-medium"
+                    >
+                      Data Source
+                    </Label>
+                    <p className="text-muted-foreground text-xs">
+                      Where to fetch prices from
+                    </p>
+                  </div>
+                  <Select
+                    value={priceSource}
+                    onValueChange={(v) =>
+                      setPriceSource(v as "amazon" | "bookwalker")
+                    }
+                  >
+                    <SelectTrigger id="source-select" className="w-35">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="amazon">Amazon</SelectItem>
+                      <SelectItem value="bookwalker">BookWalker</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between gap-3 pt-2">
                   <div className="space-y-0.5">
                     <Label
                       htmlFor="skip-existing"
