@@ -10,6 +10,7 @@ import type {
   ViewMode
 } from "@/lib/store/library-store"
 import { useLibraryStore } from "@/lib/store/library-store"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
   OwnershipStatus,
   ReadingStatus,
@@ -55,6 +56,25 @@ function getValidParam<T extends string>(
   return value && validSet.has(value) ? (value as T) : null
 }
 
+/**
+ * Applies the settings-store sort defaults to the library store when no
+ * explicit sort/order URL params are present.
+ */
+function applySettingsSortDefaults(searchParams: URLSearchParams) {
+  const hasSortParam = searchParams.has("sort")
+  const hasOrderParam = searchParams.has("order")
+  if (hasSortParam && hasOrderParam) return
+
+  const { defaultSortBy, defaultSortDir } = useSettingsStore.getState()
+  const store = useLibraryStore.getState()
+  if (!hasSortParam && VALID_SORT_FIELDS.has(defaultSortBy)) {
+    store.setSortField(defaultSortBy as SortField)
+  }
+  if (!hasOrderParam) {
+    store.setSortOrder(defaultSortDir as SortOrder)
+  }
+}
+
 function applyUrlToStore(searchParams: URLSearchParams) {
   const PARAM_KEYS = [
     "q",
@@ -69,7 +89,12 @@ function applyUrlToStore(searchParams: URLSearchParams) {
     "mode",
     "preset"
   ]
-  if (!PARAM_KEYS.some((key) => searchParams.has(key))) return
+  const hasAnyParam = PARAM_KEYS.some((key) => searchParams.has(key))
+
+  // Apply settings-store sort defaults when no URL sort params are present.
+  applySettingsSortDefaults(searchParams)
+
+  if (!hasAnyParam) return
 
   const store = useLibraryStore.getState()
   const updates: Record<string, unknown> = {}

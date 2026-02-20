@@ -17,6 +17,7 @@ import { useLibraryStore } from "@/lib/store/library-store"
 import type {
   CardSize,
   DefaultOwnershipStatus,
+  DefaultSortBy,
   NavigationMode,
   SearchSource
 } from "@/lib/store/settings-store"
@@ -52,6 +53,23 @@ const navigationOptions: Array<{ value: NavigationMode; label: string }> = [
   { value: "header", label: "Header" }
 ]
 
+const sortFieldOptions: Array<{ value: DefaultSortBy; label: string }> = [
+  { value: "title", label: "Title" },
+  { value: "author", label: "Author" },
+  { value: "created_at", label: "Date Added" },
+  { value: "updated_at", label: "Date Updated" },
+  { value: "rating", label: "Rating" },
+  { value: "volume_count", label: "Volume Count" },
+  { value: "price", label: "Price" },
+  { value: "started_at", label: "Date Started" },
+  { value: "finished_at", label: "Date Finished" }
+]
+
+const sortDirOptions: Array<{ value: "asc" | "desc"; label: string }> = [
+  { value: "asc", label: "A \u2192 Z" },
+  { value: "desc", label: "Z \u2192 A" }
+]
+
 const isValidOption = <T extends string>(
   value: string | null | undefined,
   options: Array<{ value: T }>
@@ -83,7 +101,11 @@ export function PreferencesSection() {
     setAutoPurchaseDate,
     navigationMode,
     setNavigationMode,
-    setHasCompletedOnboarding
+    setHasCompletedOnboarding,
+    defaultSortBy,
+    setDefaultSortBy,
+    defaultSortDir,
+    setDefaultSortDir
   } = useSettingsStore()
 
   return (
@@ -364,6 +386,58 @@ export function PreferencesSection() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="border-border/40 border-t" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="default-sort-by" className="font-medium">
+                  Default library sort
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Sort order applied when opening the library without URL
+                  filters.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Select
+                  value={defaultSortBy}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, sortFieldOptions)) {
+                      setDefaultSortBy(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="default-sort-by" className="sm:w-40">
+                    <SelectValue placeholder="Select field" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortFieldOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={defaultSortDir}
+                  onValueChange={(value) => {
+                    if (isValidOption(value, sortDirOptions)) {
+                      setDefaultSortDir(value)
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortDirOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
