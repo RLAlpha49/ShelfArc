@@ -91,6 +91,20 @@ export async function POST(request: NextRequest) {
       return apiError(400, "id is required", { correlationId })
     }
 
+    // Validate id format: must be a UUID (client-generated) or a short system ID
+    // This prevents arbitrary strings from being used as collection IDs
+    const trimmedId = id.trim()
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        trimmedId
+      )
+    const isSystemId = /^[a-z][a-z0-9_-]{0,49}$/.test(trimmedId)
+    if (!isUuid && !isSystemId) {
+      return apiError(400, "id must be a valid UUID or system identifier", {
+        correlationId
+      })
+    }
+
     const trimmedName = typeof name === "string" ? name.trim() : ""
     if (!trimmedName || trimmedName.length > 50) {
       return apiError(400, "Name must be a non-empty string of max 50 chars", {
@@ -100,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     const { error } = await supabase.from("collections").upsert(
       {
-        id: id.trim(),
+        id: trimmedId,
         user_id: user.id,
         name: trimmedName,
         color: typeof color === "string" ? color : "#4682b4",
