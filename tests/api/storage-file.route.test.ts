@@ -91,7 +91,7 @@ describe("GET /api/storage/file", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(401)
-    expect(body.error).toBe("Unauthorized")
+    expect(body.error).toBe("Not authenticated")
   })
 
   it("returns 403 when requesting another user's file", async () => {
