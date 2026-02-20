@@ -10,10 +10,20 @@ import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { useLibraryStore } from "@/lib/store/library-store"
 
+type SortKey = "az" | "price-asc" | "price-desc" | "recent"
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "recent", label: "Recent" },
+  { key: "az", label: "A–Z" },
+  { key: "price-asc", label: "Price ↑" },
+  { key: "price-desc", label: "Price ↓" }
+]
+
 export default function WishlistPage() {
   const { series, isLoading } = useEnsureLibraryLoaded()
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const [tab, setTab] = useState<"wishlist" | "owned">("wishlist")
+  const [sortBy, setSortBy] = useState<SortKey>("recent")
 
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 
@@ -23,24 +33,30 @@ export default function WishlistPage() {
     )
 
     return {
-      wishlist: all
-        .filter((v) => v.ownership_status === "wishlist")
-        .sort(
-          (a, b) =>
-            a.seriesTitle.localeCompare(b.seriesTitle) ||
-            a.volume_number - b.volume_number
-        ),
-      owned: all
-        .filter((v) => v.ownership_status === "owned")
-        .sort(
-          (a, b) =>
-            a.seriesTitle.localeCompare(b.seriesTitle) ||
-            a.volume_number - b.volume_number
-        )
+      wishlist: all.filter((v) => v.ownership_status === "wishlist"),
+      owned: all.filter((v) => v.ownership_status === "owned")
     }
   }, [series])
 
-  const items = tab === "wishlist" ? wishlist : owned
+  const baseItems = tab === "wishlist" ? wishlist : owned
+
+  const items = useMemo(() => {
+    return [...baseItems].sort((a, b) => {
+      if (sortBy === "price-asc")
+        return (a.purchase_price ?? 0) - (b.purchase_price ?? 0)
+      if (sortBy === "price-desc")
+        return (b.purchase_price ?? 0) - (a.purchase_price ?? 0)
+      if (sortBy === "recent") {
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+      }
+      return (
+        a.seriesTitle.localeCompare(b.seriesTitle) ||
+        a.volume_number - b.volume_number
+      )
+    })
+  }, [baseItems, sortBy])
 
   if (isLoading && series.length === 0) {
     return (
@@ -91,8 +107,8 @@ export default function WishlistPage() {
         </p>
       </section>
 
-      {/* Tab toggle */}
-      <div className="animate-fade-in-up stagger-1 mb-6">
+      {/* Tab toggle + sort controls */}
+      <div className="animate-fade-in-up stagger-1 mb-6 space-y-3">
         <div className="bg-muted inline-flex rounded-lg p-0.5">
           <button
             type="button"
@@ -116,6 +132,25 @@ export default function WishlistPage() {
           >
             Owned ({owned.length})
           </button>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-muted-foreground mr-1 text-[11px] font-medium">
+            Sort:
+          </span>
+          {SORT_OPTIONS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSortBy(key)}
+              className={
+                sortBy === key
+                  ? "bg-primary/10 text-primary rounded-md px-2.5 py-1 text-xs font-medium"
+                  : "text-muted-foreground hover:text-foreground rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              }
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
