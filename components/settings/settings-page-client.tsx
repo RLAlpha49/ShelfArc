@@ -11,6 +11,7 @@ import { PreferencesSection } from "@/components/settings/preferences-section"
 import { PricingSection } from "@/components/settings/pricing-section"
 import { ProfileSection } from "@/components/settings/profile-section"
 import { SecuritySection } from "@/components/settings/security-section"
+import { useSettingsStore } from "@/lib/store/settings-store"
 import type { Profile } from "@/lib/types/database"
 import { cn } from "@/lib/utils"
 
@@ -34,6 +35,15 @@ export function SettingsPageClient({
   profile
 }: Readonly<SettingsPageClientProps>) {
   const [activeSection, setActiveSection] = useState("profile")
+  const syncStatus = useSettingsStore((s) => s.syncStatus)
+
+  useEffect(() => {
+    if (syncStatus === "idle") return
+    const timer = setTimeout(() => {
+      useSettingsStore.setState({ syncStatus: "idle" })
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [syncStatus])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -57,9 +67,19 @@ export function SettingsPageClient({
     <div className="mx-auto max-w-5xl px-6 py-10 lg:px-10">
       {/* Header */}
       <div className="animate-fade-in mb-8 lg:mb-10">
-        <h1 className="font-display text-3xl font-bold tracking-tight">
-          Settings
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-3xl font-bold tracking-tight">
+            Settings
+          </h1>
+          {syncStatus === "saved" && (
+            <span className="text-sm font-medium text-green-600">Saved ✓</span>
+          )}
+          {syncStatus === "failed" && (
+            <span className="text-destructive text-sm font-medium">
+              Sync failed — changes saved locally
+            </span>
+          )}
+        </div>
         <p className="text-muted-foreground mt-2">
           Manage your profile, preferences, and data
         </p>
