@@ -55,12 +55,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       user_id: user.id
     }))
 
-    const { error } = await supabase
-      .from("collection_volumes")
-      .upsert(rows, {
-        onConflict: "collection_id,volume_id",
-        ignoreDuplicates: true
-      })
+    const { error } = await supabase.from("collection_volumes").upsert(rows, {
+      onConflict: "collection_id,volume_id",
+      ignoreDuplicates: true
+    })
 
     if (error) {
       log.error("Failed to add volumes to collection", {
