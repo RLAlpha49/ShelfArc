@@ -98,7 +98,6 @@ export default function SeriesDetailPage() {
     removeVolume,
     addVolumeFromSearchResult,
     addVolumesFromSearchResults,
-    batchUpdateVolumes,
     isLoading
   } = useLibrary()
   const { selectedSeries, setSelectedSeries, deleteSeriesVolumes } =
@@ -507,9 +506,16 @@ export default function SeriesDetailPage() {
           v.reading_status !== "completed"
       )
       try {
-        await batchUpdateVolumes(
-          targets.map((v) => v.id),
-          { reading_status: "completed" }
+        await batchedAllSettled(
+          targets.map(
+            (v) => () =>
+              editVolume(v.series_id ?? null, v.id, {
+                reading_status: "completed",
+                ...(v.page_count && v.page_count > 0
+                  ? { current_page: v.page_count }
+                  : {})
+              })
+          )
         )
         toast.success(
           `Marked ${targets.length} volume${targets.length === 1 ? "" : "s"} as read`
@@ -521,7 +527,7 @@ export default function SeriesDetailPage() {
         setMarkAllAboveTarget(null)
       }
     },
-    [currentSeries, batchUpdateVolumes]
+    [currentSeries, editVolume]
   )
 
   const handleMarkAllAboveAsRead = useCallback(
