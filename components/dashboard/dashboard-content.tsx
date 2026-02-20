@@ -973,6 +973,55 @@ function ActivityWidget() {
 
 // ── Main dashboard component ──────────────────────────────────────────────
 
+function DashboardEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <div className="bg-primary/8 text-primary mb-6 flex h-20 w-20 items-center justify-center rounded-2xl">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-10 w-10"
+        >
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+        </svg>
+      </div>
+      <h2 className="font-display text-2xl font-bold tracking-tight">
+        Your collection is empty
+      </h2>
+      <p className="text-muted-foreground mt-2 max-w-sm text-base">
+        Start building your manga and light novel library. Track what you own,
+        what you&apos;re reading, and what you want next.
+      </p>
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <Link
+          href="/library"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold shadow-sm transition-all hover:shadow-md active:scale-[0.97]"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg>
+          Add your first series
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 export interface DashboardContentProps {
   readonly stats: CollectionStats
   readonly priceBreakdown: PriceBreakdown
@@ -987,6 +1036,7 @@ export interface DashboardContentProps {
   readonly series: readonly SeriesWithVolumes[]
   readonly spendingTimeSeries: readonly SpendingDataPoint[]
   readonly tagBreakdown: readonly TagBreakdown[]
+  readonly isEmpty?: boolean
 }
 
 /**
@@ -1008,7 +1058,8 @@ export function DashboardContent({
   upcomingReleases,
   series,
   spendingTimeSeries,
-  tagBreakdown
+  tagBreakdown,
+  isEmpty = false
 }: DashboardContentProps) {
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
@@ -1016,6 +1067,8 @@ export function DashboardContent({
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
   const layout = useSettingsStore((s) => s.dashboardLayout)
+
+  if (isEmpty) return <DashboardEmptyState />
 
   const isVisible = (id: DashboardWidgetId) => !layout.hidden.includes(id)
   const widgetColumn = (id: DashboardWidgetId) =>

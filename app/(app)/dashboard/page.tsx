@@ -205,6 +205,7 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
       series={series}
       spendingTimeSeries={spendingTimeSeries}
       tagBreakdown={tagBreakdown}
+      isEmpty={series.length === 0}
     />
   )
 }
