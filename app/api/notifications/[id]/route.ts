@@ -72,3 +72,60 @@ export async function PATCH(
     return apiError(500, "Failed to update notification", { correlationId })
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const csrfResult = enforceSameOrigin(request)
+  if (csrfResult) return csrfResult
+
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
+  try {
+    const supabase = await createUserClient()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
+
+    const rl = await consumeDistributedRateLimit({
+      key: `notifications-write:${user.id}`,
+      maxHits: 60,
+      windowMs: 60_000,
+      cooldownMs: 30_000,
+      reason: "Rate limit notification deletes"
+    })
+    if (rl && !rl.allowed) {
+      return apiError(429, "Too many requests", { correlationId })
+    }
+
+    const { id } = await params
+
+    if (!isValidUUID(id)) {
+      return apiError(400, "Invalid notification id", { correlationId })
+    }
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select()
+      .single()
+
+    if (error) {
+      log.error("Failed to delete notification", { error: error.message })
+      return apiError(404, "Notification not found", { correlationId })
+    }
+
+    void data
+    return new NextResponse(null, { status: 204 })
+  } catch (error) {
+    log.error("Notification delete failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
+    return apiError(500, "Failed to delete notification", { correlationId })
+  }
+}

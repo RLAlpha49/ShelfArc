@@ -49,10 +49,12 @@ function formatRelativeTime(timestamp: number, now: number): string {
 function NotificationItem({
   notification,
   onRead,
+  onDismiss,
   now
 }: {
   readonly notification: Notification
   readonly onRead: (id: string) => void
+  readonly onDismiss: (id: string) => void
   readonly now: number
 }) {
   const router = useRouter()
@@ -73,36 +75,57 @@ function NotificationItem({
   }
 
   return (
-    <button
-      type="button"
-      className="hover:bg-accent flex w-full gap-3 px-4 py-3 text-left transition-colors"
-      onClick={() => {
-        onRead(notification.id)
-        if (href) router.push(href)
-      }}
-    >
-      <div className={`mt-0.5 shrink-0 ${config.className}`}>
-        <HugeiconsIcon icon={config.icon} size={16} strokeWidth={1.5} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p
-          className={`text-sm leading-tight ${notification.read ? "text-muted-foreground" : "font-medium"}`}
-        >
-          {notification.title}
-        </p>
-        <p className="text-muted-foreground mt-0.5 text-xs leading-snug">
-          {notification.message}
-        </p>
-        <p className="text-muted-foreground/60 mt-1 text-[11px]">
-          {formatRelativeTime(notification.timestamp, now)}
-        </p>
-      </div>
-      {!notification.read && (
-        <div className="mt-1.5 shrink-0">
-          <div className="bg-primary h-2 w-2 rounded-full" />
+    <div className="group relative">
+      <button
+        type="button"
+        className="hover:bg-accent flex w-full gap-3 px-4 py-3 pr-8 text-left transition-colors"
+        onClick={() => {
+          onRead(notification.id)
+          if (href) router.push(href)
+        }}
+      >
+        <div className={`mt-0.5 shrink-0 ${config.className}`}>
+          <HugeiconsIcon icon={config.icon} size={16} strokeWidth={1.5} />
         </div>
-      )}
-    </button>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-sm leading-tight ${notification.read ? "text-muted-foreground" : "font-medium"}`}
+          >
+            {notification.title}
+          </p>
+          <p className="text-muted-foreground mt-0.5 text-xs leading-snug">
+            {notification.message}
+          </p>
+          <p className="text-muted-foreground/60 mt-1 text-[11px]">
+            {formatRelativeTime(notification.timestamp, now)}
+          </p>
+        </div>
+        {!notification.read && (
+          <div className="mt-1.5 shrink-0">
+            <div className="bg-primary h-2 w-2 rounded-full" />
+          </div>
+        )}
+      </button>
+      <button
+        type="button"
+        aria-label="Dismiss notification"
+        className="text-muted-foreground hover:text-foreground hover:bg-accent absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100"
+        onClick={() => onDismiss(notification.id)}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-3 w-3"
+        >
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
   )
 }
 
@@ -111,6 +134,7 @@ export function NotificationCenter() {
   const markReadOnServer = useNotificationStore((s) => s.markReadOnServer)
   const markAllReadOnServer = useNotificationStore((s) => s.markAllReadOnServer)
   const clearAllOnServer = useNotificationStore((s) => s.clearAllOnServer)
+  const dismissOnServer = useNotificationStore((s) => s.dismissOnServer)
   const unreadCount = useNotificationStore((s) => s.unreadCount())
   const [now, setNow] = useState(() => Date.now())
 
@@ -184,6 +208,7 @@ export function NotificationCenter() {
                 key={notification.id}
                 notification={notification}
                 onRead={handleRead}
+                onDismiss={dismissOnServer}
                 now={now}
               />
             ))}

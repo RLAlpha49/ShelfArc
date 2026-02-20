@@ -23,6 +23,7 @@ interface NotificationStore {
   markReadOnServer: (id: string) => void
   markAllReadOnServer: () => void
   clearAllOnServer: () => void
+  dismissOnServer: (id: string) => void
 }
 
 export const useNotificationStore = create<NotificationStore>()(
@@ -153,6 +154,24 @@ export const useNotificationStore = create<NotificationStore>()(
         fetch("/api/notifications", {
           method: "DELETE"
         }).catch(() => {})
+      },
+
+      dismissOnServer: (id) => {
+        const notification = get().notifications.find((n) => n.id === id)
+        if (!notification) return
+        set((state) => ({
+          notifications: state.notifications.filter((n) => n.id !== id)
+        }))
+        fetch(`/api/notifications/${encodeURIComponent(id)}`, {
+          method: "DELETE"
+        }).catch(() => {
+          // Rollback: restore the dismissed notification in sorted order
+          set((state) => ({
+            notifications: [notification, ...state.notifications].sort(
+              (a, b) => b.timestamp - a.timestamp
+            )
+          }))
+        })
       }
     }),
     {
