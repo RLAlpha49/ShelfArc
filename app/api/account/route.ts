@@ -119,11 +119,8 @@ export async function DELETE(request: NextRequest) {
       caller: "DELETE /api/account"
     })
 
-    await cleanupUserStorage(admin, user.id, log)
-
-    // Revoke all active sessions before deleting the auth user
-    await admin.auth.admin.signOut(user.id, "global")
-
+    // Delete auth user first — cascade deletes profile row via DB trigger.
+    // Storage cleanup runs after to avoid orphaned files if deletion fails.
     const { error: deleteError } = await admin.auth.admin.deleteUser(user.id)
     if (deleteError) {
       log.error("Failed to delete auth user", {
@@ -132,6 +129,9 @@ export async function DELETE(request: NextRequest) {
       })
       return apiError(500, "Failed to delete account", { correlationId })
     }
+
+    // Best-effort storage cleanup — errors are logged but do not affect the response.
+    await cleanupUserStorage(admin, user.id, log)
 
     log.info("Account deleted", { userId: user.id })
     return apiSuccess({ deleted: true }, { correlationId })
