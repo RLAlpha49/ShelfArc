@@ -111,5 +111,11 @@ export const RATE_LIMITS = {
     maxHits: 30,
     windowMs: 60_000,
     cooldownMs: 30_000
+  },
+  sessionsRevoke: {
+    prefix: "sessions-revoke",
+    maxHits: 10,
+    windowMs: 60_000,
+    cooldownMs: 30_000
   }
 } as const satisfies Record<string, RateLimitPreset & { prefix: string }>

@@ -1,10 +1,11 @@
 import { type NextRequest } from "next/server"
 
+import { protectedRoute } from "@/lib/api/protected-route"
+import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
-import { createUserClient } from "@/lib/supabase/server"
 import { isValidUUID } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
@@ -26,11 +27,11 @@ export async function DELETE(
       return apiError(400, "Invalid session id", { correlationId })
     }
 
-    const supabase = await createUserClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-    if (!user) return apiError(401, "Not authenticated", { correlationId })
+    const routeResult = await protectedRoute(request, {
+      rateLimit: RATE_LIMITS.sessionsRevoke
+    })
+    if (!routeResult.ok) return routeResult.error
+    const { user } = routeResult
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SECRET_KEY
