@@ -545,7 +545,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
                 {username && (
                   <div>
                     <Link
-                      href={`/u/${username}`}
+                      href={`/u/${encodeURIComponent(username)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary text-sm hover:underline"
