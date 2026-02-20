@@ -517,8 +517,10 @@ export function VolumeDialog({
   const prepareAmazonFetch = (options: {
     includePrice: boolean
     includeImage: boolean
+    source?: string
   }) => {
-    if (priceSource !== "amazon") {
+    const source = options.source || priceSource
+    if (source !== "amazon" && source !== "bookwalker") {
       toast.error("This price source is not supported yet.")
       return null
     }
@@ -535,7 +537,8 @@ export function VolumeDialog({
       fallbackToKindle:
         options.includePrice && !amazonPreferKindle && amazonFallbackToKindle
           ? true
-          : undefined
+          : undefined,
+      source
     })
 
     if ("error" in result) {
@@ -561,7 +564,11 @@ export function VolumeDialog({
 
   /** Core Amazon fetch — returns both price and image when requested. */
   const fetchFromAmazon = useCallback(
-    async (options: { includePrice: boolean; includeImage: boolean }) => {
+    async (options: {
+      includePrice: boolean
+      includeImage: boolean
+      source?: string
+    }) => {
       const params = prepareAmazonFetch(options)
       if (!params) return
 
@@ -589,10 +596,11 @@ export function VolumeDialog({
         ) {
           try {
             const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
+            const source = options.source || priceSource
             const { alertTriggered } = await persistPrice(
               data.data.result.priceValue,
               currency,
-              "amazon"
+              source
             )
             if (alertTriggered) {
               toast.info(
@@ -1040,6 +1048,23 @@ export function VolumeDialog({
                     ) : (
                       "Fetch Amazon Price"
                     )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => {
+                      setShowAmazonWarning(true)
+                      void fetchFromAmazon({
+                        includePrice: true,
+                        includeImage: false,
+                        source: "bookwalker"
+                      })
+                    }}
+                    disabled={isBusy}
+                  >
+                    Fetch from BookWalker
                   </Button>
                   <span className="text-muted-foreground text-[11px]">
                     Price only
