@@ -1,9 +1,11 @@
 import { type NextRequest } from "next/server"
 
+import { protectedRoute } from "@/lib/api/protected-route"
+import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
-import { createUserClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export const dynamic = "force-dynamic"
 
@@ -41,11 +43,11 @@ export async function GET(request: NextRequest) {
   const log = logger.withCorrelationId(correlationId)
 
   try {
-    const supabase = await createUserClient()
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-    if (!user) return apiError(401, "Not authenticated", { correlationId })
+    const result = await protectedRoute(request, {
+      rateLimit: RATE_LIMITS.sessionsRead
+    })
+    if (!result.ok) return result.error
+    const { user, supabase } = result
 
     // Read the current session's access token to identify the active session
     const {
@@ -55,13 +57,14 @@ export async function GET(request: NextRequest) {
       ? extractSessionId(currentSession.access_token)
       : null
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SECRET_KEY
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      log.error("Missing Supabase env vars for sessions listing")
-      return apiError(500, "Server configuration error", { correlationId })
-    }
+    // createAdminClient validates env vars and provides audit logging;
+    // throws if NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY are missing.
+    createAdminClient({
+      reason: "List user sessions",
+      caller: "GET /api/account/sessions"
+    })
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceRoleKey = process.env.SUPABASE_SECRET_KEY!
 
     const response = await fetch(
       `${supabaseUrl}/auth/v1/admin/users/${user.id}/sessions`,

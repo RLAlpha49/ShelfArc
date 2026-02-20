@@ -105,5 +105,11 @@ export const RATE_LIMITS = {
     maxHits: 5,
     windowMs: 300_000,
     cooldownMs: 300_000
+  },
+  sessionsRead: {
+    prefix: "sessions-read",
+    maxHits: 30,
+    windowMs: 60_000,
+    cooldownMs: 30_000
   }
 } as const satisfies Record<string, RateLimitPreset & { prefix: string }>
