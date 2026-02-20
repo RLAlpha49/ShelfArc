@@ -58,6 +58,7 @@ export function fetchPrice(
   if (params.includePrice !== false && params.fallbackToKindle) {
     sp.set("fallbackToKindle", "true")
   }
+  if (params.source) sp.set("source", params.source)
   return apiFetch<FetchPriceResponse>(`/api/books/price?${sp}`, { signal })
 }
 

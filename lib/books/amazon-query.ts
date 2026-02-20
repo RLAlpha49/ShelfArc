@@ -104,6 +104,7 @@ export interface FetchPriceParamsOptions extends PriceQueryOptions {
   fallbackToKindle?: boolean
   includePrice?: boolean
   includeImage?: boolean
+  source?: string
 }
 
 /**
@@ -129,7 +130,8 @@ export function buildFetchPriceParams(
       domain: options.domain,
       includeImage: options.includeImage,
       includePrice: options.includePrice,
-      fallbackToKindle: options.fallbackToKindle
+      fallbackToKindle: options.fallbackToKindle,
+      source: options.source
     }
   }
 }

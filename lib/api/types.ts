@@ -45,6 +45,7 @@ export interface FetchPriceParams {
   includeImage?: boolean
   includePrice?: boolean
   fallbackToKindle?: boolean
+  source?: string
 }
 
 export interface FetchPriceResult {
