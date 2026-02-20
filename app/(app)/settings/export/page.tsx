@@ -83,6 +83,8 @@ export default function ExportPage() {
   )
   const [volumeSearch, setVolumeSearch] = useState("")
   const [isExporting, setIsExporting] = useState(false)
+  const [includePriceAlerts, setIncludePriceAlerts] = useState(false)
+  const [includeActivity, setIncludeActivity] = useState(false)
 
   const flatVolumes = useMemo(() => {
     const rows: Array<{ id: string; label: string; subtitle: string }> = []
@@ -187,8 +189,27 @@ export default function ExportPage() {
         })
         const volumesData = payload.volumes
 
+        const exportObj: Record<string, unknown> = {
+          series: seriesData,
+          volumes: volumesData
+        }
+
+        if (includePriceAlerts) {
+          const alertsRes = await fetch("/api/books/price/alerts")
+          if (!alertsRes.ok) throw new Error("Failed to fetch price alerts")
+          const alertsJson = (await alertsRes.json()) as { data: unknown }
+          exportObj.priceAlerts = alertsJson.data
+        }
+
+        if (includeActivity) {
+          const activityRes = await fetch("/api/activity?limit=1000")
+          if (!activityRes.ok) throw new Error("Failed to fetch activity")
+          const activityJson = (await activityRes.json()) as { data: unknown }
+          exportObj.activity = activityJson.data
+        }
+
         downloadTextFile(
-          JSON.stringify({ series: seriesData, volumes: volumesData }, null, 2),
+          JSON.stringify(exportObj, null, 2),
           `shelfarc-export-${today}.json`,
           "application/json"
         )
@@ -626,6 +647,54 @@ export default function ExportPage() {
                         Select at least one item to export.
                       </p>
                     )}
+                  </div>
+                )}
+
+                {format === "json" && (
+                  <div className="space-y-3">
+                    <Label>Additional Data</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id="include-price-alerts"
+                          checked={includePriceAlerts}
+                          onCheckedChange={(checked) =>
+                            setIncludePriceAlerts(Boolean(checked))
+                          }
+                        />
+                        <div>
+                          <Label
+                            htmlFor="include-price-alerts"
+                            className="cursor-pointer font-medium"
+                          >
+                            Price alerts
+                          </Label>
+                          <p className="text-muted-foreground text-sm">
+                            Include your price alert configurations.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id="include-activity"
+                          checked={includeActivity}
+                          onCheckedChange={(checked) =>
+                            setIncludeActivity(Boolean(checked))
+                          }
+                        />
+                        <div>
+                          <Label
+                            htmlFor="include-activity"
+                            className="cursor-pointer font-medium"
+                          >
+                            Activity log
+                          </Label>
+                          <p className="text-muted-foreground text-sm">
+                            Include recent library activity (up to 100 events).
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
