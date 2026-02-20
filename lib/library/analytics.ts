@@ -45,6 +45,8 @@ export interface CollectionStats {
   averagePricePerTrackedVolume: number
   wishlistCount: number
   completeSets: number
+  totalPages: number
+  readPages: number
 }
 
 export interface PriceBreakdown {
@@ -108,6 +110,8 @@ interface VolumeTally {
   reading: number
   spent: number
   priced: number
+  totalPages: number
+  readPages: number
 }
 
 /** Tallies volume-level counters in a single pass. O(V) total. */
@@ -118,6 +122,8 @@ function tallyVolumes(volumes: Volume[]): VolumeTally {
   let reading = 0
   let spent = 0
   let priced = 0
+  let totalPages = 0
+  let readPages = 0
   for (const v of volumes) {
     if (v.ownership_status === "owned") {
       owned++
@@ -128,8 +134,19 @@ function tallyVolumes(volumes: Volume[]): VolumeTally {
     if (v.ownership_status === "wishlist") wishlist++
     if (v.reading_status === "completed") read++
     if (v.reading_status === "reading") reading++
+    totalPages += v.page_count ?? 0
+    if (v.reading_status === "completed") readPages += v.page_count ?? 0
   }
-  return { owned, wishlist, read, reading, spent, priced }
+  return {
+    owned,
+    wishlist,
+    read,
+    reading,
+    spent,
+    priced,
+    totalPages,
+    readPages
+  }
 }
 
 // O(S + V) single-pass over series and volumes
@@ -146,6 +163,8 @@ export function computeCollectionStats(
   let totalSpent = 0
   let pricedVolumes = 0
   let completeSets = 0
+  let totalPages = 0
+  let readPages = 0
 
   for (const s of series) {
     if (s.type === "light_novel") lightNovelSeries++
@@ -160,6 +179,8 @@ export function computeCollectionStats(
     readingVolumes += t.reading
     totalSpent += t.spent
     pricedVolumes += t.priced
+    totalPages += t.totalPages
+    readPages += t.readPages
 
     const isComplete =
       (s.total_volumes ?? 0) > 0 &&
@@ -182,7 +203,9 @@ export function computeCollectionStats(
     averagePricePerTrackedVolume:
       pricedVolumes > 0 ? totalSpent / pricedVolumes : 0,
     wishlistCount,
-    completeSets
+    completeSets,
+    totalPages,
+    readPages
   }
 }
 
