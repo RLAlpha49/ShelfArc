@@ -98,6 +98,14 @@ export function PriceHistoryCard({
     removeAlert
   } = usePriceHistory(volumeId)
 
+  const percentChange = useMemo(() => {
+    if (priceDelta === null || latestPrice === null || priceDelta === 0)
+      return null
+    const previousPrice = latestPrice - priceDelta
+    if (previousPrice === 0) return null
+    return (Math.abs(priceDelta) / previousPrice) * 100
+  }, [priceDelta, latestPrice])
+
   const dateFormat = useSettingsStore((s) => s.dateFormat)
 
   const [alertInput, setAlertInput] = useState("")
@@ -250,6 +258,7 @@ export function PriceHistoryCard({
               style: "currency",
               currency
             })}
+            {percentChange !== null && ` (${percentChange.toFixed(1)}%)`}
           </Badge>
         )}
       </div>
