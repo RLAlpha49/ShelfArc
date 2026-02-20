@@ -138,6 +138,7 @@ function StatsWidget({ stats, priceFormatter }: StatsWidgetProps) {
           label: "Series",
           value: stats.totalSeries,
           detail: `${stats.lightNovelSeries} LN · ${stats.mangaSeries} Manga`,
+          delta: stats.recentDelta.series,
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -156,6 +157,7 @@ function StatsWidget({ stats, priceFormatter }: StatsWidgetProps) {
           label: "Volumes",
           value: stats.totalVolumes,
           detail: `${stats.ownedVolumes} owned · ${ownedPercentage}%`,
+          delta: stats.recentDelta.volumes,
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -175,6 +177,7 @@ function StatsWidget({ stats, priceFormatter }: StatsWidgetProps) {
           label: "Read",
           value: stats.readVolumes,
           detail: `${readPercentage}% complete`,
+          delta: stats.recentDelta.readVolumes,
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -194,6 +197,8 @@ function StatsWidget({ stats, priceFormatter }: StatsWidgetProps) {
           label: "Invested",
           value: priceFormatter.format(stats.totalSpent),
           detail: `${priceFormatter.format(stats.averagePricePerTrackedVolume)}/priced vol`,
+          delta: stats.recentDelta.spent,
+          deltaLabel: priceFormatter.format(stats.recentDelta.spent),
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -269,8 +274,18 @@ function StatsWidget({ stats, priceFormatter }: StatsWidgetProps) {
               {stat.label}
             </span>
           </div>
-          <div className="font-display text-2xl font-bold tracking-tight">
-            {stat.value}
+          <div className="flex items-baseline gap-2">
+            <div className="font-display text-2xl font-bold tracking-tight">
+              {stat.value}
+            </div>
+            {"delta" in stat && (stat.delta ?? 0) > 0 && (
+              <span
+                className="inline-flex items-center rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
+                title="In the last 30 days"
+              >
+                +{"deltaLabel" in stat ? stat.deltaLabel : stat.delta}
+              </span>
+            )}
           </div>
           <div className="text-muted-foreground text-xs">{stat.detail}</div>
         </div>
