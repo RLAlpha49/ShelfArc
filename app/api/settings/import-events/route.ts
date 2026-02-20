@@ -56,9 +56,7 @@ export async function GET(request: NextRequest) {
       return apiError(429, "Too many requests", { correlationId })
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from("import_events")
       .select("id, format, series_added, volumes_added, errors, imported_at")
       .eq("user_id", user.id)
@@ -122,9 +120,7 @@ export async function POST(request: NextRequest) {
       return apiError(400, "Invalid or missing format", { correlationId })
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any
-    const { data, error: dbError } = await db
+    const { data, error: dbError } = await supabase
       .from("import_events")
       .insert({
         user_id: user.id,
