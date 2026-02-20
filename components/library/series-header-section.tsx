@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { SeriesStatusBadge, TypeBadge } from "@/components/ui/status-badge"
+import { computeHealthScore } from "@/lib/library/health-score"
 import type { SeriesInsightData } from "@/lib/library/series-insights"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import type {
@@ -22,6 +23,15 @@ import type {
   ReadingStatus,
   SeriesWithVolumes
 } from "@/lib/types/database"
+
+const HEALTH_BADGE_CLASS: Record<string, string> = {
+  Excellent:
+    "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  Good: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  Fair: "border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
+  "Needs Work":
+    "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-400"
+}
 
 /** Series header section with cover, metadata, stats, insights, and notes. @source */
 export function SeriesHeaderSection({
@@ -45,6 +55,8 @@ export function SeriesHeaderSection({
   readonly onApplyAllOwnership: (status: OwnershipStatus) => void
   readonly onApplyAllReading: (status: ReadingStatus) => void
 }) {
+  const healthScore = computeHealthScore([currentSeries])
+
   return (
     <div className="relative mb-10">
       <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-[radial-gradient(ellipse_at_30%_50%,var(--warm-glow-strong),transparent_70%)]" />
@@ -90,6 +102,13 @@ export function SeriesHeaderSection({
                 {currentSeries.status && (
                   <SeriesStatusBadge status={currentSeries.status} />
                 )}
+                <Badge
+                  variant="outline"
+                  className={`rounded-lg text-xs font-semibold ${HEALTH_BADGE_CLASS[healthScore.label] ?? ""}`}
+                  title={`Health score: ${healthScore.label}`}
+                >
+                  Health {healthScore.overall}/100
+                </Badge>
               </div>
               <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
                 {currentSeries.title}
