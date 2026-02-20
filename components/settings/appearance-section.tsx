@@ -9,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import type {
   BodyFont,
   DateFormat,
@@ -51,8 +50,6 @@ const isValidOption = <T extends string>(
 
 export function AppearanceSection() {
   const {
-    enableAnimations,
-    setEnableAnimations,
     displayFont,
     setDisplayFont,
     bodyFont,
@@ -137,20 +134,30 @@ export function AppearanceSection() {
               <ThemeToggle />
             </div>
             <div className="border-border/40 border-t" />
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <Label htmlFor="enable-animations" className="font-medium">
-                  Animations
-                </Label>
-                <p className="text-muted-foreground text-sm">
-                  Enable transitions and micro-animations throughout the app.
-                </p>
-              </div>
-              <Switch
-                id="enable-animations"
-                checked={enableAnimations}
-                onCheckedChange={setEnableAnimations}
-              />
+            <div className="bg-muted/40 flex items-start gap-3 rounded-xl px-4 py-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              <p className="text-muted-foreground text-sm">
+                Animation preferences have moved.{" "}
+                <a
+                  href="#accessibility"
+                  className="text-primary font-medium underline-offset-4 hover:underline"
+                >
+                  Accessibility → Reduce Motion
+                </a>
+              </p>
             </div>
           </div>
         </div>
