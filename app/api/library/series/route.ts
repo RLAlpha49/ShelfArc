@@ -26,6 +26,52 @@ export const dynamic = "force-dynamic"
 
 const asString = (v: unknown): string => (typeof v === "string" ? v : "")
 
+/** List the authenticated user's series, sorted by most recently updated. */
+export async function GET(request: NextRequest) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
+  try {
+    const result = await protectedRoute(request, {
+      rateLimit: RATE_LIMITS.libraryRead
+    })
+    if (!result.ok) return result.error
+    const { user, supabase } = result
+
+    const { searchParams } = new URL(request.url)
+    const limit = Math.min(
+      Math.max(Number.parseInt(searchParams.get("limit") ?? "50", 10) || 50, 1),
+      200
+    )
+    const offset = Math.max(
+      Number.parseInt(searchParams.get("offset") ?? "0", 10) || 0,
+      0
+    )
+
+    const { data, error, count } = await supabase
+      .from("series")
+      .select("*", { count: "exact" })
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      log.error("GET /api/library/series failed", { error: error.message })
+      return apiError(500, "Failed to fetch series", { correlationId })
+    }
+
+    return apiSuccess(
+      { data, pagination: { limit, offset, total: count ?? 0 } },
+      { correlationId }
+    )
+  } catch (err) {
+    log.error("GET /api/library/series failed", {
+      error: getErrorMessage(err, "Unknown error")
+    })
+    return apiError(500, "Internal server error", { correlationId })
+  }
+}
+
 export async function POST(request: NextRequest) {
   const correlationId = getCorrelationId(request)
   const log = logger.withCorrelationId(correlationId)
