@@ -5,6 +5,7 @@ import type {
   OwnershipStatus,
   ReadingStatus,
   Series,
+  SeriesStatus,
   SeriesWithVolumes,
   TitleType,
   Volume
@@ -47,6 +48,9 @@ interface FilterState {
   type: TitleType | "all"
   ownershipStatus: OwnershipStatus | "all"
   readingStatus: ReadingStatus | "all"
+  seriesStatus: SeriesStatus | "all"
+  hasCover: "has" | "missing" | "all"
+  hasIsbn: "has" | "missing" | "all"
   tags: string[]
   excludeTags: string[]
 }
@@ -88,6 +92,9 @@ function cloneFilters(filters: FilterState): FilterState {
     type: filters.type,
     ownershipStatus: filters.ownershipStatus,
     readingStatus: filters.readingStatus,
+    seriesStatus: filters.seriesStatus,
+    hasCover: filters.hasCover,
+    hasIsbn: filters.hasIsbn,
     tags: [...(filters.tags ?? [])],
     excludeTags: [...(filters.excludeTags ?? [])]
   }
@@ -111,6 +118,9 @@ function normalizeFilterPreset(preset: FilterPreset): FilterPreset {
         ownershipStatus:
           filters?.ownershipStatus ?? defaultFilters.ownershipStatus,
         readingStatus: filters?.readingStatus ?? defaultFilters.readingStatus,
+        seriesStatus: filters?.seriesStatus ?? defaultFilters.seriesStatus,
+        hasCover: filters?.hasCover ?? defaultFilters.hasCover,
+        hasIsbn: filters?.hasIsbn ?? defaultFilters.hasIsbn,
         tags: filters?.tags ?? defaultFilters.tags,
         excludeTags: filters?.excludeTags ?? defaultFilters.excludeTags
       })
@@ -206,6 +216,9 @@ const defaultFilters: FilterState = {
   type: "all",
   ownershipStatus: "all",
   readingStatus: "all",
+  seriesStatus: "all",
+  hasCover: "all",
+  hasIsbn: "all",
   tags: [],
   excludeTags: []
 }

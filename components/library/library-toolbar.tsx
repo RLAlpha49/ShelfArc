@@ -28,6 +28,7 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
   OwnershipStatus,
   ReadingStatus,
+  SeriesStatus,
   TitleType
 } from "@/lib/types/database"
 
@@ -79,6 +80,9 @@ function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
     filters.type !== "all" ||
     filters.ownershipStatus !== "all" ||
     filters.readingStatus !== "all" ||
+    filters.seriesStatus !== "all" ||
+    filters.hasCover !== "all" ||
+    filters.hasIsbn !== "all" ||
     filters.tags.length > 0 ||
     filters.excludeTags.length > 0
 
@@ -186,6 +190,99 @@ function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
         </Select>
       </div>
 
+      {/* Status Filter */}
+      <div className="space-y-1">
+        <Label
+          htmlFor="filter-status"
+          className="text-muted-foreground text-[11px] font-medium"
+        >
+          Status
+        </Label>
+        <Select
+          value={filters.seriesStatus}
+          onValueChange={(value) => {
+            if (value)
+              setFilters({
+                seriesStatus: value as SeriesStatus | "all"
+              })
+          }}
+        >
+          <SelectTrigger
+            id="filter-status"
+            className="w-30 rounded-xl text-xs shadow-sm"
+          >
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="ongoing">Ongoing</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="hiatus">Hiatus</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="announced">Announced</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Data Filter */}
+      <div className="space-y-1">
+        <Label className="text-muted-foreground text-[11px] font-medium">
+          Data
+        </Label>
+        <div className="flex items-center gap-1">
+          {/* Cover toggle */}
+          <fieldset className="border-input flex items-center overflow-hidden rounded-xl border">
+            <legend className="sr-only">Cover filter</legend>
+            {(["all", "has", "missing"] as const).map((val) => {
+              const labels = {
+                all: "Cover",
+                has: "✓ Cover",
+                missing: "No cover"
+              }
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  className={`focus-visible:ring-ring focus-visible:ring-offset-background px-2 py-1.5 text-[11px] transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${
+                    filters.hasCover === val
+                      ? "bg-primary text-primary-foreground font-medium"
+                      : "hover:bg-accent hover:text-foreground"
+                  }`}
+                  onClick={() => setFilters({ hasCover: val })}
+                  aria-label={labels[val]}
+                  aria-pressed={filters.hasCover === val}
+                >
+                  {labels[val]}
+                </button>
+              )
+            })}
+          </fieldset>
+          {/* ISBN toggle */}
+          <fieldset className="border-input flex items-center overflow-hidden rounded-xl border">
+            <legend className="sr-only">ISBN filter</legend>
+            {(["all", "has", "missing"] as const).map((val) => {
+              const labels = { all: "ISBN", has: "✓ ISBN", missing: "No ISBN" }
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  className={`focus-visible:ring-ring focus-visible:ring-offset-background px-2 py-1.5 text-[11px] transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${
+                    filters.hasIsbn === val
+                      ? "bg-primary text-primary-foreground font-medium"
+                      : "hover:bg-accent hover:text-foreground"
+                  }`}
+                  onClick={() => setFilters({ hasIsbn: val })}
+                  aria-label={labels[val]}
+                  aria-pressed={filters.hasIsbn === val}
+                >
+                  {labels[val]}
+                </button>
+              )
+            })}
+          </fieldset>
+        </div>
+      </div>
+
       {/* Tags Filter */}
       {availableTags.length > 0 && (
         <TagFilterControl
@@ -255,6 +352,9 @@ export function LibraryToolbar({
     if (filters.type !== "all") count++
     if (filters.ownershipStatus !== "all") count++
     if (filters.readingStatus !== "all") count++
+    if (filters.seriesStatus !== "all") count++
+    if (filters.hasCover !== "all") count++
+    if (filters.hasIsbn !== "all") count++
     if (filters.tags.length > 0) count++
     if (filters.excludeTags.length > 0) count++
     return count

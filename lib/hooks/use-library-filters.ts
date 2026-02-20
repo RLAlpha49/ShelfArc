@@ -8,7 +8,21 @@ import {
   selectAllUnassignedVolumes,
   useLibraryStore
 } from "@/lib/store/library-store"
-import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
+import type {
+  SeriesStatus,
+  SeriesWithVolumes,
+  Volume
+} from "@/lib/types/database"
+
+/** Inline filter shape used for series filtering. */
+type SeriesFilterSnapshot = {
+  type: string
+  seriesStatus: SeriesStatus | "all"
+  ownershipStatus: string
+  readingStatus: string
+  hasCover: string
+  hasIsbn: string
+}
 
 /** A volume paired with its parent series, used for flat volume views. @source */
 export interface VolumeWithSeries {
@@ -123,6 +137,72 @@ function getSortValue(
   }
 }
 
+/** Checks data-completeness filter for cover/isbn fields. */
+function matchesDataFilter(
+  volumes: readonly { cover_image_url?: string | null; isbn?: string | null }[],
+  hasCover: string,
+  hasIsbn: string
+): boolean {
+  if (hasCover !== "all") {
+    const found = volumes.some((v) => Boolean(v.cover_image_url?.trim()))
+    if (hasCover === "has" && !found) return false
+    if (hasCover === "missing" && found) return false
+  }
+  if (hasIsbn !== "all") {
+    const found = volumes.some((v) => Boolean(v.isbn?.trim()))
+    if (hasIsbn === "has" && !found) return false
+    if (hasIsbn === "missing" && found) return false
+  }
+  return true
+}
+
+/** Checks whether a series's volumes match ownership/reading/collection filters. */
+function matchesVolumeFilters(
+  s: SeriesWithVolumes,
+  filters: SeriesFilterSnapshot,
+  activeCollectionVolumeIds: Set<string> | null
+): boolean {
+  if (
+    filters.ownershipStatus !== "all" &&
+    !s.volumes.some((v) => v.ownership_status === filters.ownershipStatus)
+  )
+    return false
+  if (
+    filters.readingStatus !== "all" &&
+    !s.volumes.some((v) => v.reading_status === filters.readingStatus)
+  )
+    return false
+  if (!matchesDataFilter(s.volumes, filters.hasCover, filters.hasIsbn))
+    return false
+  if (
+    activeCollectionVolumeIds &&
+    !s.volumes.some((v) => activeCollectionVolumeIds.has(v.id))
+  )
+    return false
+  return true
+}
+
+/** Checks whether a series passes the current filter state. */
+function matchesSeriesFilters(
+  s: SeriesWithVolumes,
+  filters: SeriesFilterSnapshot,
+  searchLower: string,
+  activeCollectionVolumeIds: Set<string> | null,
+  tagFilter: (tags: string[]) => boolean
+): boolean {
+  if (searchLower) {
+    const matchesTitle = s.title.toLowerCase().includes(searchLower)
+    const matchesAuthor = s.author?.toLowerCase().includes(searchLower)
+    const matchesDesc = s.description?.toLowerCase().includes(searchLower)
+    if (!matchesTitle && !matchesAuthor && !matchesDesc) return false
+  }
+  if (filters.type !== "all" && s.type !== filters.type) return false
+  if (filters.seriesStatus !== "all" && s.status !== filters.seriesStatus)
+    return false
+  if (!tagFilter(s.tags)) return false
+  return matchesVolumeFilters(s, filters, activeCollectionVolumeIds)
+}
+
 export function useLibraryFilters() {
   const series = useLibraryStore(selectAllSeries)
   const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
@@ -152,49 +232,20 @@ export function useLibraryFilters() {
   // Filter and sort series based on current filters and sort settings
   const filteredSeries = useMemo(() => {
     const searchLower = filters.search?.toLowerCase() ?? ""
-    const filtered = series.filter((s) => {
-      // Search filter
-      if (searchLower) {
-        const matchesTitle = s.title.toLowerCase().includes(searchLower)
-        const matchesAuthor = s.author?.toLowerCase().includes(searchLower)
-        const matchesDescription = s.description
-          ?.toLowerCase()
-          .includes(searchLower)
-        if (!matchesTitle && !matchesAuthor && !matchesDescription) return false
-      }
-
-      if (filters.type !== "all" && s.type !== filters.type) return false
-      if (!matchesTagFilters(s.tags)) return false
-
-      if (
-        filters.ownershipStatus !== "all" &&
-        !s.volumes.some((v) => v.ownership_status === filters.ownershipStatus)
+    const filtered = series.filter((s) =>
+      matchesSeriesFilters(
+        s,
+        filters,
+        searchLower,
+        activeCollectionVolumeIds,
+        matchesTagFilters
       )
-        return false
-
-      if (
-        filters.readingStatus !== "all" &&
-        !s.volumes.some((v) => v.reading_status === filters.readingStatus)
-      )
-        return false
-
-      if (
-        activeCollectionVolumeIds &&
-        !s.volumes.some((v) => activeCollectionVolumeIds.has(v.id))
-      )
-        return false
-
-      return true
-    })
-
+    )
     return sortSeriesInPlace(filtered, sortField, sortOrder)
   }, [
     series,
     sortOrder,
-    filters.search,
-    filters.type,
-    filters.ownershipStatus,
-    filters.readingStatus,
+    filters,
     matchesTagFilters,
     sortField,
     activeCollectionVolumeIds
