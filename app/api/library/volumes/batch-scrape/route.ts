@@ -21,7 +21,7 @@ import { ApiError } from "@/lib/books/price/api-error"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 import type { Database } from "@/lib/types/database"
-import { AMAZON_DOMAINS, isValidHttpsUrl } from "@/lib/validation"
+import { AMAZON_DOMAINS } from "@/lib/validation"
 
 export const dynamic = "force-dynamic"
 
@@ -64,6 +64,25 @@ const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
 
 const randomDelay = () => Math.floor(Math.random() * 1500) + 1500
+
+/** Wall-clock deadline for the entire batch job (50 seconds). */
+const BATCH_DEADLINE_MS = 50_000
+
+/**
+ * Validates that a cover image URL is from a known Amazon CDN hostname.
+ * Stricter than a generic HTTPS check to prevent SSRF via arbitrary URLs.
+ */
+const AMAZON_CDN_HOSTNAMES =
+  /^(?:.+\.)?(media-amazon\.com|ssl-images-amazon\.com|images-amazon\.com)$/
+
+function isValidAmazonImageUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.protocol === "https:" && AMAZON_CDN_HOSTNAMES.test(u.hostname)
+  } catch {
+    return false
+  }
+}
 
 function toSearchParams(p: FetchPriceParams): URLSearchParams {
   const sp = new URLSearchParams()
@@ -181,7 +200,7 @@ async function scrapeAndUpdate(
   if (
     opts.includeImage &&
     parsed.imageUrl &&
-    isValidHttpsUrl(parsed.imageUrl)
+    isValidAmazonImageUrl(parsed.imageUrl)
   ) {
     update.cover_image_url = parsed.imageUrl
   }
@@ -216,8 +235,21 @@ async function processVolumes(
   let done = 0
   let failed = 0
   let skipped = 0
+  let timedOut = false
+  const deadlineAt = Date.now() + BATCH_DEADLINE_MS
 
   for (let i = 0; i < volumes.length; i++) {
+    // Check the wall-clock deadline before processing each volume.
+    // If the deadline has passed, mark remaining volumes as skipped and stop.
+    if (Date.now() >= deadlineAt) {
+      timedOut = true
+      for (let j = i; j < volumes.length; j++) {
+        results.push({ volumeId: volumes[j]?.id as string, status: "skipped" })
+        skipped++
+      }
+      break
+    }
+
     const vol = volumes[i]
     const jobResult = await processSingleVolume(
       vol,
@@ -235,7 +267,10 @@ async function processVolumes(
     if (i < volumes.length - 1) await delay(randomDelay())
   }
 
-  return { results, summary: { total: volumes.length, done, failed, skipped } }
+  return {
+    results,
+    summary: { total: volumes.length, done, failed, skipped, timeout: timedOut }
+  }
 }
 
 function classifyErrorCode(err: unknown): JobResult["errorCode"] {
