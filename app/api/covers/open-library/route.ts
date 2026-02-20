@@ -43,6 +43,35 @@ function exceedsMaxSize(response: Response): boolean {
   return !Number.isNaN(length) && length > MAX_RESPONSE_BYTES
 }
 
+/**
+ * Reads the full body of a response with a hard byte cap.
+ * Returns the assembled buffer, or null if the cap is exceeded. @source
+ */
+async function readBodyWithCap(
+  body: ReadableStream<Uint8Array>
+): Promise<ArrayBuffer | null> {
+  const reader = body.getReader()
+  let totalBytes = 0
+  const chunks: Uint8Array[] = []
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    totalBytes += value.length
+    if (totalBytes > MAX_RESPONSE_BYTES) {
+      reader.cancel()
+      return null
+    }
+    chunks.push(value)
+  }
+  const buffer = new Uint8Array(totalBytes)
+  let offset = 0
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset)
+    offset += chunk.length
+  }
+  return buffer.buffer
+}
+
 /** Fetches a cover from Open Library and returns the raw response or an error status. @source */
 async function fetchCover(
   url: string,
@@ -141,7 +170,11 @@ export async function GET(request: NextRequest) {
   const response = result
   if (response.status === 404) return new Response(null, { status: 404 })
   if (!response.ok || !response.body) return new Response(null, { status: 502 })
-  if (exceedsMaxSize(response)) return new Response(null, { status: 502 })
+  if (exceedsMaxSize(response)) return new Response(null, { status: 413 })
+
+  // Stream-read the body with a hard byte cap — guards against missing Content-Length
+  const body = await readBodyWithCap(response.body)
+  if (!body) return new Response(null, { status: 413 })
 
   const responseHeaders = new Headers()
   responseHeaders.set("Content-Type", resolveContentType(response))
@@ -152,5 +185,5 @@ export async function GET(request: NextRequest) {
   responseHeaders.set("X-Content-Type-Options", "nosniff")
   responseHeaders.set(CORRELATION_HEADER, correlationId)
 
-  return new Response(response.body, { headers: responseHeaders })
+  return new Response(body, { headers: responseHeaders })
 }
