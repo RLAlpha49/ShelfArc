@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { cache } from "react"
 
 import { ShareButton } from "@/components/ui/share-button"
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import { getPublicSeriesUrl } from "@/lib/share-url"
 // eslint-disable-next-line no-restricted-imports -- Admin client required: public page needs RLS bypass for unauthenticated visitors
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -192,7 +193,9 @@ export default async function PublicSeriesPage({ params }: Props) {
               {series.description && (
                 <p
                   className="mt-4 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400"
-                  dangerouslySetInnerHTML={{ __html: series.description }}
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(series.description)
+                  }}
                 />
               )}
 
