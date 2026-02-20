@@ -276,39 +276,114 @@ export const useSettingsStore = create<SettingsState>()(
       // Navigation
       navigationMode: "sidebar" as NavigationMode,
 
-      // Actions
-      setShowReadingProgress: (value) => set({ showReadingProgress: value }),
-      setShowSeriesProgressBar: (value) =>
-        set({ showSeriesProgressBar: value }),
-      setCardSize: (value) => set({ cardSize: value }),
-      setConfirmBeforeDelete: (value) => set({ confirmBeforeDelete: value }),
-      setDefaultOwnershipStatus: (value) =>
-        set({ defaultOwnershipStatus: value }),
-      setDefaultSearchSource: (value) => set({ defaultSearchSource: value }),
-      setDefaultScrapeMode: (value) => set({ defaultScrapeMode: value }),
-      setAutoPurchaseDate: (value) => set({ autoPurchaseDate: value }),
-      setSidebarCollapsed: (value) => set({ sidebarCollapsed: value }),
-      setEnableAnimations: (value) => set({ enableAnimations: value }),
-      setDisplayFont: (value) => set({ displayFont: value }),
-      setBodyFont: (value) => set({ bodyFont: value }),
-      setDateFormat: (value) => set({ dateFormat: value }),
-      setHighContrastMode: (value) => set({ highContrastMode: value }),
-      setFontSizeScale: (value) => set({ fontSizeScale: value }),
-      setFocusIndicators: (value) => set({ focusIndicators: value }),
-      setAutomatedPriceChecks: (value) => set({ automatedPriceChecks: value }),
-      setReleaseReminders: (value) => set({ releaseReminders: value }),
-      setNotifyOnImportComplete: (value) =>
-        set({ notifyOnImportComplete: value }),
-      setNotifyOnScrapeComplete: (value) =>
-        set({ notifyOnScrapeComplete: value }),
-      setNotifyOnPriceAlert: (value) => set({ notifyOnPriceAlert: value }),
-      setEmailNotifications: (value) => set({ emailNotifications: value }),
-      setHasCompletedOnboarding: (value) =>
-        set({ hasCompletedOnboarding: value }),
-      setNavigationMode: (value) => set({ navigationMode: value }),
-      setDashboardLayout: (layout) => set({ dashboardLayout: layout }),
-      resetDashboardLayout: () =>
-        set({ dashboardLayout: DEFAULT_DASHBOARD_LAYOUT }),
+      // Actions — every setter that maps to a SYNCABLE_KEY also calls
+      // syncToServer() directly. This is the most reliable trigger: setters are
+      // only invoked from user interactions, never during localStorage hydration
+      // or loadFromServer() (which calls set() directly, bypassing setters).
+      setShowReadingProgress: (value) => {
+        set({ showReadingProgress: value })
+        get().syncToServer()
+      },
+      setShowSeriesProgressBar: (value) => {
+        set({ showSeriesProgressBar: value })
+        get().syncToServer()
+      },
+      setCardSize: (value) => {
+        set({ cardSize: value })
+        get().syncToServer()
+      },
+      setConfirmBeforeDelete: (value) => {
+        set({ confirmBeforeDelete: value })
+        get().syncToServer()
+      },
+      setDefaultOwnershipStatus: (value) => {
+        set({ defaultOwnershipStatus: value })
+        get().syncToServer()
+      },
+      setDefaultSearchSource: (value) => {
+        set({ defaultSearchSource: value })
+        get().syncToServer()
+      },
+      setDefaultScrapeMode: (value) => {
+        set({ defaultScrapeMode: value })
+        get().syncToServer()
+      },
+      setAutoPurchaseDate: (value) => {
+        set({ autoPurchaseDate: value })
+        get().syncToServer()
+      },
+      setSidebarCollapsed: (value) => {
+        set({ sidebarCollapsed: value })
+        get().syncToServer()
+      },
+      setEnableAnimations: (value) => {
+        set({ enableAnimations: value })
+        get().syncToServer()
+      },
+      setDisplayFont: (value) => {
+        set({ displayFont: value })
+        get().syncToServer()
+      },
+      setBodyFont: (value) => {
+        set({ bodyFont: value })
+        get().syncToServer()
+      },
+      setDateFormat: (value) => {
+        set({ dateFormat: value })
+        get().syncToServer()
+      },
+      setHighContrastMode: (value) => {
+        set({ highContrastMode: value })
+        get().syncToServer()
+      },
+      setFontSizeScale: (value) => {
+        set({ fontSizeScale: value })
+        get().syncToServer()
+      },
+      setFocusIndicators: (value) => {
+        set({ focusIndicators: value })
+        get().syncToServer()
+      },
+      setAutomatedPriceChecks: (value) => {
+        set({ automatedPriceChecks: value })
+        get().syncToServer()
+      },
+      setReleaseReminders: (value) => {
+        set({ releaseReminders: value })
+        get().syncToServer()
+      },
+      setNotifyOnImportComplete: (value) => {
+        set({ notifyOnImportComplete: value })
+        get().syncToServer()
+      },
+      setNotifyOnScrapeComplete: (value) => {
+        set({ notifyOnScrapeComplete: value })
+        get().syncToServer()
+      },
+      setNotifyOnPriceAlert: (value) => {
+        set({ notifyOnPriceAlert: value })
+        get().syncToServer()
+      },
+      setEmailNotifications: (value) => {
+        set({ emailNotifications: value })
+        get().syncToServer()
+      },
+      setHasCompletedOnboarding: (value) => {
+        set({ hasCompletedOnboarding: value })
+        get().syncToServer()
+      },
+      setNavigationMode: (value) => {
+        set({ navigationMode: value })
+        get().syncToServer()
+      },
+      setDashboardLayout: (layout) => {
+        set({ dashboardLayout: layout })
+        get().syncToServer()
+      },
+      resetDashboardLayout: () => {
+        set({ dashboardLayout: DEFAULT_DASHBOARD_LAYOUT })
+        get().syncToServer()
+      },
 
       // Server sync
       lastSyncedAt: null,
@@ -405,6 +480,7 @@ export const useSettingsStore = create<SettingsState>()(
         notifyOnImportComplete: state.notifyOnImportComplete,
         notifyOnScrapeComplete: state.notifyOnScrapeComplete,
         notifyOnPriceAlert: state.notifyOnPriceAlert,
+        emailNotifications: state.emailNotifications,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         navigationMode: state.navigationMode,
         dashboardLayout: state.dashboardLayout,
@@ -413,17 +489,3 @@ export const useSettingsStore = create<SettingsState>()(
     }
   )
 )
-
-// Auto-sync to server when syncable keys change (skip initial hydration)
-let hasHydratedOnce = false
-useSettingsStore.subscribe((state, prev) => {
-  if (!state._hydrated) return
-  if (!hasHydratedOnce) {
-    hasHydratedOnce = true
-    return
-  }
-  const changed = SYNCABLE_KEYS.some((key) => state[key] !== prev[key])
-  if (changed) {
-    state.syncToServer()
-  }
-})
