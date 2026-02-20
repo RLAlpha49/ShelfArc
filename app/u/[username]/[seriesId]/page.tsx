@@ -194,9 +194,10 @@ export default async function PublicSeriesPage({ params }: Props) {
               </dl>
 
               {series.description && (
-                <p className="mt-4 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
-                  {series.description}
-                </p>
+                <p
+                  className="mt-4 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400"
+                  dangerouslySetInnerHTML={{ __html: series.description }}
+                />
               )}
 
               {series.tags.length > 0 && (
