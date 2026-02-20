@@ -12,12 +12,24 @@ export const dynamic = "force-dynamic"
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
+// Explicit subfolders that can contain user files (covers/* are subdirectories
+// of the covers/ prefix — listing covers/ directly returns folder entries, not
+// files, so we enumerate each leaf subfolder individually to satisfy GDPR Art. 17).
+const USER_STORAGE_SUBFOLDERS = [
+  "avatars",
+  "covers/series",
+  "covers/volumes",
+  "cleanup"
+] as const
+
 async function cleanupStorageFolder(
   admin: AdminClient,
   bucket: string,
   folder: string
 ) {
-  const { data: files } = await admin.storage.from(bucket).list(folder)
+  const { data: files } = await admin.storage
+    .from(bucket)
+    .list(folder, { limit: 1000 })
   if (files && files.length > 0) {
     const paths = files.map((f) => `${folder}/${f.name}`)
     await admin.storage.from(bucket).remove(paths)
@@ -30,7 +42,8 @@ async function cleanupUserStorage(
   log: ReturnType<typeof logger.withCorrelationId>
 ) {
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || "media"
-  for (const folder of [`${userId}/avatars`, `${userId}/covers`]) {
+  for (const sub of USER_STORAGE_SUBFOLDERS) {
+    const folder = `${userId}/${sub}`
     try {
       await cleanupStorageFolder(admin, bucket, folder)
     } catch (err) {
