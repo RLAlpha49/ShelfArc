@@ -138,16 +138,20 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
       request.nextUrl.searchParams.get("deleteVolumes") === "true"
 
     if (deleteVolumes) {
-      const { error: volDelError } = await supabase
-        .from("volumes")
-        .delete()
-        .eq("series_id", id)
-        .eq("user_id", user.id)
+      // Atomically delete all volumes in the series, then the series itself,
+      // in a single DB transaction via the delete_series_atomic RPC.
+      const { error: rpcError } = await supabase.rpc("delete_series_atomic", {
+        p_series_id: id,
+        p_user_id: user.id
+      })
 
-      if (volDelError) {
-        return apiError(400, "Failed to delete series volumes", {
+      if (rpcError) {
+        if (rpcError.message.includes("series_not_found")) {
+          return apiError(404, "Series not found", { correlationId })
+        }
+        return apiError(400, "Failed to delete series", {
           correlationId,
-          details: volDelError.message
+          details: rpcError.message
         })
       }
     } else {
@@ -163,19 +167,19 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
           details: volUpdateError.message
         })
       }
-    }
 
-    const { error: seriesDelError } = await supabase
-      .from("series")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id)
+      const { error: seriesDelError } = await supabase
+        .from("series")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id)
 
-    if (seriesDelError) {
-      return apiError(400, "Failed to delete series", {
-        correlationId,
-        details: seriesDelError.message
-      })
+      if (seriesDelError) {
+        return apiError(400, "Failed to delete series", {
+          correlationId,
+          details: seriesDelError.message
+        })
+      }
     }
 
     void recordActivityEvent(supabase, {

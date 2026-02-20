@@ -39,6 +39,7 @@
 -- DROP FUNCTION IF EXISTS public.sync_profile_email();
 -- DROP FUNCTION IF EXISTS update_updated_at_column();
 -- DROP FUNCTION IF EXISTS public.backup_list_tables();
+-- DROP FUNCTION IF EXISTS public.delete_series_atomic(UUID, UUID);
 -- DROP FUNCTION IF EXISTS public.rate_limit_consume(text, integer, integer, integer);
 -- DROP FUNCTION IF EXISTS public.rate_limit_cleanup(integer);
 -- DROP FUNCTION IF EXISTS public.activity_events_cleanup(integer);
@@ -223,6 +224,7 @@ CREATE TABLE IF NOT EXISTS series (
 
 -- Series indexes
 CREATE INDEX IF NOT EXISTS idx_series_author_trgm ON series USING gin (author gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_series_publisher_trgm ON series USING GIN (publisher gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_series_tags ON series USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_series_title_trgm ON series USING gin (title gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
@@ -864,6 +866,30 @@ $$;
 
 REVOKE ALL ON FUNCTION public.backup_list_tables() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.backup_list_tables() TO service_role;
+
+-- Atomic delete helper to clean up series + volumes in one transaction with proper permission checks
+CREATE OR REPLACE FUNCTION public.delete_series_atomic(p_series_id UUID, p_user_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.series WHERE id = p_series_id AND user_id = p_user_id
+  ) THEN
+    RAISE EXCEPTION 'series_not_found';
+  END IF;
+
+  DELETE FROM public.volumes WHERE series_id = p_series_id AND user_id = p_user_id;
+
+  DELETE FROM public.series WHERE id = p_series_id AND user_id = p_user_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.delete_series_atomic(UUID, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_series_atomic(UUID, UUID)
+  TO authenticated;
 
 -- Function to automatically create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
