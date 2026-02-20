@@ -76,6 +76,9 @@ export async function POST(request: NextRequest) {
       return apiError(500, "Failed to update password", { correlationId })
     }
 
+    // Revoke all other active sessions so the compromised session becomes invalid
+    await supabase.auth.signOut({ scope: "others" })
+
     log.info("Password changed", { userId: user.id })
     return apiSuccess({ updated: true }, { correlationId })
   } catch (error) {
