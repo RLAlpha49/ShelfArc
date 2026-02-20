@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { cache } from "react"
 
 import { ShareButton } from "@/components/ui/share-button"
 import { getPublicSeriesUrl } from "@/lib/share-url"
@@ -8,6 +9,19 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 
 export const dynamic = "force-dynamic"
+
+/** Cached per request — shared between generateMetadata and the page component. */
+const getPublicSeriesData = cache(async (seriesId: string) => {
+  const admin = createAdminClient({ reason: "Public series fetch" })
+  return admin
+    .from("series")
+    .select(
+      "id, title, original_title, author, artist, publisher, cover_image_url, type, total_volumes, status, tags, description, created_at, user_id"
+    )
+    .eq("id", seriesId)
+    .eq("is_public", true)
+    .single()
+})
 
 type Props = {
   readonly params: Promise<{ username: string; seriesId: string }>
@@ -37,19 +51,8 @@ const READING_STATUS_LABELS: Record<string, string> = {
 
 export async function generateMetadata({ params }: Props) {
   const { username, seriesId } = await params
-  const admin = createAdminClient({
-    reason: "Public series metadata generation"
-  })
-
-  const { data: series } = await admin
-    .from("series")
-    .select("title")
-    .eq("id", seriesId)
-    .eq("is_public", true)
-    .single()
-
+  const { data: series } = await getPublicSeriesData(seriesId)
   const title = series?.title ?? "Series"
-
   return {
     title: `${title} — ${username}'s Collection — ShelfArc`,
     description: `View ${title} in ${username}'s collection on ShelfArc`
@@ -71,18 +74,11 @@ export default async function PublicSeriesPage({ params }: Props) {
     notFound()
   }
 
-  // Fetch the series — must belong to user and be public
-  const { data: series } = await admin
-    .from("series")
-    .select(
-      "id, title, original_title, author, artist, publisher, cover_image_url, type, total_volumes, status, tags, description, created_at"
-    )
-    .eq("id", seriesId)
-    .eq("user_id", profile.id)
-    .eq("is_public", true)
-    .single()
+  // Fetch the series via cached loader — re-uses the generateMetadata fetch
+  const { data: series } = await getPublicSeriesData(seriesId)
 
-  if (!series) {
+  // Verify series belongs to this profile
+  if (series?.user_id !== profile.id) {
     notFound()
   }
 
