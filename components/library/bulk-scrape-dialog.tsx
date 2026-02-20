@@ -238,8 +238,29 @@ export function BulkScrapeDialog({
     return seriesIds.size > 1
   }, [series.volumes])
 
-  const { jobs, isRunning, summary, cooldownMessage, start, cancel, reset } =
+  const { jobs, isRunning, summary, cooldownExpiresAt, start, cancel, reset } =
     useBulkScrape(series, editVolume)
+
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!cooldownExpiresAt) return
+    const interval = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(interval)
+  }, [cooldownExpiresAt])
+
+  const cooldownRemaining = cooldownExpiresAt
+    ? Math.max(0, cooldownExpiresAt - now)
+    : null
+
+  const cooldownMessage = useMemo(() => {
+    if (cooldownRemaining === null || cooldownRemaining === 0) return null
+    const totalSeconds = Math.ceil(cooldownRemaining / 1000)
+    const m = Math.floor(totalSeconds / 60)
+    const s = totalSeconds % 60
+    const timeStr = m > 0 ? `${m}m ${s}s` : `${s}s`
+    return `Amazon is rate-limited. Try again in ${timeStr}.`
+  }, [cooldownRemaining])
 
   const { announce } = useLiveAnnouncer()
 
@@ -728,7 +749,10 @@ export function BulkScrapeDialog({
                 type="button"
                 className="rounded-xl shadow-sm hover:shadow-md active:scale-[0.98]"
                 onClick={handleStart}
-                disabled={activeCount === 0}
+                disabled={
+                  activeCount === 0 ||
+                  (cooldownRemaining !== null && cooldownRemaining > 0)
+                }
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

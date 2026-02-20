@@ -57,7 +57,7 @@ interface BulkScrapeState {
   isRunning: boolean
   currentIndex: number
   summary: BulkScrapeSummary
-  cooldownMessage: string | null
+  cooldownExpiresAt: number | null
 }
 
 /** Minimum inter-request delay in milliseconds. @source */
@@ -218,25 +218,6 @@ function finalize(setter: StateSetter): BulkScrapeSummary {
  * @returns A human-readable cooldown message.
  * @source
  */
-function buildCooldownMessage(data?: Record<string, unknown>): string {
-  const ms = data?.cooldownMs ?? data?.retryAfterMs
-  if (typeof ms === "number" && ms > 0) {
-    const totalSeconds = Math.ceil(ms / 1000)
-    const m = Math.floor(totalSeconds / 60)
-    const s = totalSeconds % 60
-    const timeStr = m > 0 ? `${m}m ${s}s` : `${s}s`
-    return `Amazon is rate-limited. Try again in ${timeStr}.`
-  }
-  return "Amazon blocked the request. Try again later."
-}
-
-/**
- * Handles a 429 response by failing the job and cancelling remaining jobs.
- * @param i - Job index that was rate-limited.
- * @param data - The API response data.
- * @param setter - React state setter.
- * @source
- */
 function handleRateLimit(
   i: number,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -249,9 +230,13 @@ function handleRateLimit(
     setter
   )
   cancelRemaining(i + 1, setter)
+
+  const ms = data?.cooldownMs ?? data?.retryAfterMs
+  const expiresAt = typeof ms === "number" && ms > 0 ? Date.now() + ms : null
+
   setter((prev) => ({
     ...prev,
-    cooldownMessage: buildCooldownMessage(data)
+    cooldownExpiresAt: expiresAt
   }))
 }
 
@@ -362,7 +347,7 @@ export function useBulkScrape(
     isRunning: false,
     currentIndex: -1,
     summary: EMPTY_SUMMARY,
-    cooldownMessage: null
+    cooldownExpiresAt: null
   })
 
   // Cleanup on unmount
@@ -399,7 +384,7 @@ export function useBulkScrape(
         isRunning: true,
         currentIndex: -1,
         summary: buildSummary(jobs),
-        cooldownMessage: null
+        cooldownExpiresAt: null
       })
 
       const includePrice = mode === "price" || mode === "both"
@@ -482,7 +467,7 @@ export function useBulkScrape(
       isRunning: false,
       currentIndex: -1,
       summary: EMPTY_SUMMARY,
-      cooldownMessage: null
+      cooldownExpiresAt: null
     })
   }, [state.isRunning])
 
