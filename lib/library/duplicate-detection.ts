@@ -3,6 +3,49 @@ import type { BookSearchResult } from "@/lib/books/search"
 import { normalizeSeriesTitle } from "@/lib/library/volume-normalization"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
+/** Minimum Levenshtein similarity ratio (0–1) to consider two titles similar duplicates. */
+const LEVENSHTEIN_THRESHOLD = 0.85
+
+/**
+ * Computes the Levenshtein edit distance between two strings using Dynamic Programming.
+ * O(a.length × b.length) time; O(min(a.length, b.length)) space (rolling row).
+ */
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0
+  if (a.length === 0) return b.length
+  if (b.length === 0) return a.length
+
+  // Keep the shorter string in the inner loop for space savings
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a]
+  let prev = Array.from({ length: short.length + 1 }, (_, i) => i)
+
+  for (let j = 1; j <= long.length; j++) {
+    const curr = [j]
+    for (let i = 1; i <= short.length; i++) {
+      const cost = short[i - 1] === long[j - 1] ? 0 : 1
+      curr[i] = Math.min(
+        (prev[i] ?? 0) + 1, // deletion
+        (curr[i - 1] ?? 0) + 1, // insertion
+        (prev[i - 1] ?? 0) + cost // substitution
+      )
+    }
+    prev = curr
+  }
+
+  return prev[short.length] ?? 0
+}
+
+/**
+ * Computes a normalized similarity score [0, 1] for two strings using Levenshtein distance.
+ * 1.0 means identical; 0.0 means completely different.
+ */
+function levenshteinSimilarity(a: string, b: string): number {
+  if (a === b) return 1
+  if (a.length === 0 || b.length === 0) return 0
+  const maxLen = Math.max(a.length, b.length)
+  return 1 - levenshteinDistance(a, b) / maxLen
+}
+
 /** Describes why a search result may be a duplicate of an existing volume. */
 export interface DuplicateCandidate {
   reason: "isbn" | "series_title" | "title_similarity"
@@ -76,12 +119,13 @@ export function findDuplicateCandidates(
       return
     }
 
-    // Check 3: Title similarity — normalized result title matches volume title
+    // Check 3: Title similarity — Levenshtein ratio ≥ 0.85 between normalized titles
     if (resultNormalizedTitle && volume.title) {
       const volNormalizedTitle = normalizeSeriesTitle(volume.title)
       if (
         volNormalizedTitle &&
-        volNormalizedTitle === resultNormalizedTitle &&
+        levenshteinSimilarity(resultNormalizedTitle, volNormalizedTitle) >=
+          LEVENSHTEIN_THRESHOLD &&
         !seen.has(`title:${volKey}`)
       ) {
         seen.add(`title:${volKey}`)
