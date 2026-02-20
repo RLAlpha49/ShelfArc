@@ -74,6 +74,24 @@ interface VolumeDialogProps {
   ) => Promise<void>
 }
 
+/** Valid Amazon domains for URL validation. @source */
+const AMAZON_DOMAINS =
+  /^https?:\/\/(www\.)?(amazon\.(com|co\.uk|co\.jp|de|fr|it|es|ca|com\.au|com\.br|com\.mx|in|nl|sg|ae|com\.be|com\.tr)|amzn\.to)\//i
+
+/**
+ * Returns true if the URL is a valid Amazon product URL or empty.
+ * @param url - URL string to validate.
+ * @source
+ */
+function isValidAmazonUrl(url: string): boolean {
+  if (!url.trim()) return true
+  try {
+    return AMAZON_DOMAINS.test(url.trim())
+  } catch {
+    return false
+  }
+}
+
 /** Default values for the volume form fields. @source */
 const defaultFormData = {
   volume_number: 1,
@@ -163,6 +181,7 @@ export function VolumeDialog({
   const uploadAbortRef = useRef<AbortController | null>(null)
   const priceAbortRef = useRef<AbortController | null>(null)
   const [formData, setFormData] = useState(defaultFormData)
+  const [amazonUrlError, setAmazonUrlError] = useState("")
   const [activeTab, setActiveTab] = useState("general")
   const { persistPrice, fetchAlert: fetchPriceAlert } = usePriceHistory(
     volume?.id ?? ""
@@ -205,7 +224,7 @@ export function VolumeDialog({
     seriesOptions?.find((series) => series.id === selectedSeriesId) ?? null
 
   const isBusy = isSubmitting || isUploadingCover || fetchState !== "idle"
-  const isSubmitDisabled = isSubmitting || isUploadingCover
+  const isSubmitDisabled = isSubmitting || isUploadingCover || !!amazonUrlError
 
   useEffect(() => {
     if (!open) return
@@ -277,6 +296,7 @@ export function VolumeDialog({
     }
     setCoverPreviewUrl(null)
     setCoverPreviewError(false)
+    setAmazonUrlError("")
     setActiveTab("general")
     if (volume) {
       const ownershipStatus = isValidOwnershipStatus(volume.ownership_status)
@@ -1095,6 +1115,53 @@ export function VolumeDialog({
                   </svg>
                   {formData.amazon_url ? "Open on Amazon" : "Search on Amazon"}
                 </Button>
+
+                <div className="space-y-1.5 pt-1">
+                  <Label htmlFor="amazon_url" className="text-[11px]">
+                    Amazon URL
+                  </Label>
+                  <Input
+                    id="amazon_url"
+                    type="url"
+                    placeholder="https://www.amazon.com/..."
+                    value={formData.amazon_url}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      updateField("amazon_url", val)
+                      setAmazonUrlError(
+                        val && !isValidAmazonUrl(val)
+                          ? "URL must be from an Amazon domain (e.g. amazon.com)"
+                          : ""
+                      )
+                    }}
+                    className="h-8 text-xs"
+                    aria-describedby={
+                      amazonUrlError ? "amazon-url-error" : undefined
+                    }
+                  />
+                  {amazonUrlError && (
+                    <p
+                      id="amazon-url-error"
+                      className="text-destructive text-[11px]"
+                    >
+                      {amazonUrlError}
+                    </p>
+                  )}
+                  {formData.amazon_url && !amazonUrlError && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => {
+                        updateField("amazon_url", "")
+                        setAmazonUrlError("")
+                      }}
+                    >
+                      Clear URL
+                    </Button>
+                  )}
+                </div>
               </div>
             </TabsContent>
 
