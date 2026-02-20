@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
     }
     const field = rawField as SuggestField
 
+    // pg_trgm GIN indexes (idx_series_title_trgm, idx_series_author_trgm, idx_series_publisher_trgm)
+    // are required in the database for this ILIKE query to use index scans at scale.
     const { data, error } = await supabase
       .from("series")
       .select(field)
