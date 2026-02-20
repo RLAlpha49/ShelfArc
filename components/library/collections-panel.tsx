@@ -93,6 +93,9 @@ export function CollectionsPanel() {
           <path d="m9 18 6-6-6-6" />
         </svg>
         Collections
+        <span className="text-muted-foreground/60 ml-auto font-normal tracking-normal normal-case">
+          {userCollections.length}/{MAX_COLLECTIONS}
+        </span>
         {activeCollectionId && (
           <Badge
             variant="secondary"
