@@ -27,16 +27,56 @@ const eventTypeOptions: { value: ActivityEventType; label: string }[] = [
   { value: "scrape_completed", label: "Scrape" }
 ]
 
+type DateRangeKey = "all" | "7d" | "30d" | "3m" | "1y"
+
+const DATE_RANGE_PRESETS: { key: DateRangeKey; label: string }[] = [
+  { key: "all", label: "All time" },
+  { key: "7d", label: "Last 7 days" },
+  { key: "30d", label: "Last 30 days" },
+  { key: "3m", label: "Last 3 months" },
+  { key: "1y", label: "This year" }
+]
+
+function getAfterDate(key: DateRangeKey): string | undefined {
+  const now = new Date()
+  switch (key) {
+    case "7d": {
+      const d = new Date(now)
+      d.setDate(d.getDate() - 7)
+      return d.toISOString()
+    }
+    case "30d": {
+      const d = new Date(now)
+      d.setDate(d.getDate() - 30)
+      return d.toISOString()
+    }
+    case "3m": {
+      const d = new Date(now)
+      d.setMonth(d.getMonth() - 3)
+      return d.toISOString()
+    }
+    case "1y":
+      return new Date(now.getFullYear(), 0, 1).toISOString()
+    default:
+      return undefined
+  }
+}
+
 export function ActivityFeed() {
   const { events, pagination, isLoading, error, fetchEvents } =
     useActivityFeed()
   const [selectedType, setSelectedType] = useState<
     ActivityEventType | undefined
   >(undefined)
+  const [dateRange, setDateRange] = useState<DateRangeKey>("all")
 
   useEffect(() => {
-    fetchEvents(1, 20, selectedType ? { eventType: selectedType } : undefined)
-  }, [fetchEvents, selectedType])
+    const afterDate = getAfterDate(dateRange)
+    fetchEvents(1, 20, {
+      ...(selectedType ? { eventType: selectedType } : {}),
+      ...(afterDate ? { afterDate } : {})
+    })
+  }, [fetchEvents, selectedType, dateRange])
 
   const groups = useMemo(() => {
     if (events.length === 0) return []
@@ -78,17 +118,17 @@ export function ActivityFeed() {
   }, [events])
 
   const handleLoadMore = () => {
-    fetchEvents(
-      pagination.page + 1,
-      20,
-      selectedType ? { eventType: selectedType } : undefined
-    )
+    const afterDate = getAfterDate(dateRange)
+    fetchEvents(pagination.page + 1, 20, {
+      ...(selectedType ? { eventType: selectedType } : {}),
+      ...(afterDate ? { afterDate } : {})
+    })
   }
 
   return (
     <div>
-      {/* Filter */}
-      <div className="mb-6 flex items-center gap-2">
+      {/* Filters */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Select
           value={selectedType ?? "all"}
           onValueChange={(value) =>
@@ -97,7 +137,10 @@ export function ActivityFeed() {
             )
           }
         >
-          <SelectTrigger aria-label="Filter by event type">
+          <SelectTrigger
+            aria-label="Filter by event type"
+            className="w-full sm:w-48"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -109,6 +152,24 @@ export function ActivityFeed() {
             ))}
           </SelectContent>
         </Select>
+        <fieldset
+          className="flex flex-wrap gap-1.5 border-0 p-0"
+          aria-label="Filter by date range"
+        >
+          <legend className="sr-only">Date range</legend>
+          {DATE_RANGE_PRESETS.map((preset) => (
+            <Button
+              key={preset.key}
+              variant={dateRange === preset.key ? "default" : "outline"}
+              size="sm"
+              className="h-8 px-2.5 text-xs"
+              onClick={() => setDateRange(preset.key)}
+              aria-pressed={dateRange === preset.key}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </fieldset>
       </div>
 
       {/* Error state */}

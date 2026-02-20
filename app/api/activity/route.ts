@@ -23,6 +23,39 @@ const VALID_EVENT_TYPES = new Set<ActivityEventType>([
   "scrape_completed"
 ])
 
+const VALID_ENTITY_TYPES = new Set(["volume", "series", "batch"])
+
+function isValidDateParam(value: string | null): boolean {
+  return value === null || !Number.isNaN(Date.parse(value))
+}
+
+function parseActivityFilters(searchParams: URLSearchParams): {
+  eventType: string | null
+  entityType: string | null
+  afterDate: string | null
+  beforeDate: string | null
+} {
+  return {
+    eventType: searchParams.get("eventType"),
+    entityType: searchParams.get("entityType"),
+    afterDate: searchParams.get("afterDate"),
+    beforeDate: searchParams.get("beforeDate")
+  }
+}
+
+function validateActivityFilters(
+  params: ReturnType<typeof parseActivityFilters>
+): string | null {
+  const { eventType, entityType, afterDate, beforeDate } = params
+  if (eventType && !VALID_EVENT_TYPES.has(eventType as ActivityEventType))
+    return "Invalid eventType filter"
+  if (entityType && !VALID_ENTITY_TYPES.has(entityType))
+    return "Invalid entityType filter"
+  if (!isValidDateParam(afterDate) || !isValidDateParam(beforeDate))
+    return "Invalid date filter"
+  return null
+}
+
 export async function GET(request: NextRequest) {
   const correlationId = getCorrelationId(request)
   const log = logger.withCorrelationId(correlationId)
@@ -50,29 +83,27 @@ export async function GET(request: NextRequest) {
       defaultLimit: 20,
       maxLimit: 100
     })
-    const eventType = searchParams.get("eventType")
-    const entityType = searchParams.get("entityType")
+    const { eventType, entityType, afterDate, beforeDate } =
+      parseActivityFilters(searchParams)
 
-    if (eventType && !VALID_EVENT_TYPES.has(eventType as ActivityEventType)) {
-      return apiError(400, "Invalid eventType filter", { correlationId })
-    }
-
-    const VALID_ENTITY_TYPES = new Set(["volume", "series", "batch"])
-    if (entityType && !VALID_ENTITY_TYPES.has(entityType)) {
-      return apiError(400, "Invalid entityType filter", { correlationId })
-    }
+    const filterError = validateActivityFilters({
+      eventType,
+      entityType,
+      afterDate,
+      beforeDate
+    })
+    if (filterError) return apiError(400, filterError, { correlationId })
 
     let query = supabase
       .from("activity_events")
       .select("*", { count: "exact" })
       .eq("user_id", user.id)
 
-    if (eventType) {
+    if (eventType)
       query = query.eq("event_type", eventType as ActivityEventType)
-    }
-    if (entityType) {
-      query = query.eq("entity_type", entityType)
-    }
+    if (entityType) query = query.eq("entity_type", entityType)
+    if (afterDate) query = query.gte("created_at", afterDate)
+    if (beforeDate) query = query.lte("created_at", beforeDate)
 
     const { data, error, count } = await query
       .order("created_at", { ascending: false })

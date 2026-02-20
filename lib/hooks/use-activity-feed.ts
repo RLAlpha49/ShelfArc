@@ -14,6 +14,8 @@ type Pagination = {
 type Filters = {
   eventType?: ActivityEventType
   entityType?: string
+  afterDate?: string
+  beforeDate?: string
 }
 
 export function useActivityFeed() {
@@ -38,6 +40,8 @@ export function useActivityFeed() {
         })
         if (filters?.eventType) params.set("eventType", filters.eventType)
         if (filters?.entityType) params.set("entityType", filters.entityType)
+        if (filters?.afterDate) params.set("afterDate", filters.afterDate)
+        if (filters?.beforeDate) params.set("beforeDate", filters.beforeDate)
 
         const res = await fetch(`/api/activity?${params}`)
         if (!res.ok) throw new Error("Failed to fetch activity")
