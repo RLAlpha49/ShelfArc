@@ -57,7 +57,13 @@ export function usePriceHistory(volumeId: string) {
       )
       if (!res.ok) return
       const { data } = await res.json()
-      setHistory(data ?? [])
+      const sorted = ((data ?? []) as PriceHistory[])
+        .slice()
+        .sort(
+          (a, b) =>
+            new Date(b.scraped_at).getTime() - new Date(a.scraped_at).getTime()
+        )
+      setHistory(sorted)
     } finally {
       setIsLoading(false)
     }
