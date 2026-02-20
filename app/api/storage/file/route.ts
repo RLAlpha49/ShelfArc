@@ -1,11 +1,12 @@
 import { type NextRequest } from "next/server"
 
+import { protectedRoute } from "@/lib/api/protected-route"
+import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import { apiError } from "@/lib/api-response"
 import { CORRELATION_HEADER, getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 import { isSafeStoragePath } from "@/lib/storage/safe-path"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createUserClient } from "@/lib/supabase/server"
 
 /** Supabase Storage bucket for user media files. @source */
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "media"
@@ -20,6 +21,12 @@ export async function GET(request: NextRequest) {
   const correlationId = getCorrelationId(request)
   const log = logger.withCorrelationId(correlationId)
 
+  const auth = await protectedRoute(request, {
+    rateLimit: RATE_LIMITS.storageRead
+  })
+  if (!auth.ok) return auth.error
+  const { user } = auth
+
   const path = request.nextUrl.searchParams.get("path")?.trim()
 
   if (!path) {
@@ -28,15 +35,6 @@ export async function GET(request: NextRequest) {
 
   if (!isSafeStoragePath(path)) {
     return apiError(400, "Invalid path")
-  }
-
-  const userClient = await createUserClient()
-  const {
-    data: { user }
-  } = await userClient.auth.getUser()
-
-  if (!user) {
-    return apiError(401, "Unauthorized")
   }
 
   if (!path.startsWith(`${user.id}/`)) {

@@ -82,6 +82,12 @@ export const RATE_LIMITS = {
     windowMs: 60_000,
     cooldownMs: 120_000
   },
+  storageRead: {
+    prefix: "storage-read",
+    maxHits: 120,
+    windowMs: 60_000,
+    cooldownMs: 30_000
+  },
   batchScrape: {
     prefix: "batch-scrape",
     maxHits: 3,
