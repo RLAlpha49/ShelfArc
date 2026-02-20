@@ -119,6 +119,7 @@ interface SettingsState {
   notifyOnImportComplete: boolean
   notifyOnScrapeComplete: boolean
   notifyOnPriceAlert: boolean
+  emailNotifications: boolean
 
   // Dashboard layout
   dashboardLayout: DashboardLayout
@@ -151,6 +152,7 @@ interface SettingsState {
   setNotifyOnImportComplete: (value: boolean) => void
   setNotifyOnScrapeComplete: (value: boolean) => void
   setNotifyOnPriceAlert: (value: boolean) => void
+  setEmailNotifications: (value: boolean) => void
   setHasCompletedOnboarding: (value: boolean) => void
   setNavigationMode: (value: NavigationMode) => void
   setDashboardLayout: (layout: DashboardLayout) => void
@@ -215,6 +217,7 @@ const SYNCABLE_KEYS = [
   "notifyOnImportComplete",
   "notifyOnScrapeComplete",
   "notifyOnPriceAlert",
+  "emailNotifications",
   "hasCompletedOnboarding",
   "navigationMode",
   "dashboardLayout"
@@ -262,6 +265,7 @@ export const useSettingsStore = create<SettingsState>()(
       notifyOnImportComplete: true,
       notifyOnScrapeComplete: true,
       notifyOnPriceAlert: true,
+      emailNotifications: false,
 
       // Dashboard layout
       dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
@@ -298,6 +302,7 @@ export const useSettingsStore = create<SettingsState>()(
       setNotifyOnScrapeComplete: (value) =>
         set({ notifyOnScrapeComplete: value }),
       setNotifyOnPriceAlert: (value) => set({ notifyOnPriceAlert: value }),
+      setEmailNotifications: (value) => set({ emailNotifications: value }),
       setHasCompletedOnboarding: (value) =>
         set({ hasCompletedOnboarding: value }),
       setNavigationMode: (value) => set({ navigationMode: value }),

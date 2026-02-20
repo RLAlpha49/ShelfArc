@@ -13,7 +13,9 @@ export function NotificationsSection() {
     notifyOnScrapeComplete,
     setNotifyOnScrapeComplete,
     notifyOnPriceAlert,
-    setNotifyOnPriceAlert
+    setNotifyOnPriceAlert,
+    emailNotifications,
+    setEmailNotifications
   } = useSettingsStore()
 
   return (
@@ -130,6 +132,29 @@ export function NotificationsSection() {
                 onCheckedChange={setReleaseReminders}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Email Notifications */}
+        <div className="bg-muted/30 rounded-2xl border p-5">
+          <p className="text-muted-foreground mb-4 text-xs font-semibold tracking-wider uppercase">
+            Email Notifications
+          </p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="email-notifications" className="font-medium">
+                Price alert emails
+              </Label>
+              <p className="text-muted-foreground text-sm">
+                Receive an email when a tracked book drops below your target
+                price. Uses the email address on your account.
+              </p>
+            </div>
+            <Switch
+              id="email-notifications"
+              checked={emailNotifications}
+              onCheckedChange={setEmailNotifications}
+            />
           </div>
         </div>
       </div>

@@ -455,6 +455,30 @@ async function triggerPriceAlert(
     .from("price_alerts")
     .update({ triggered_at: new Date().toISOString(), enabled: false })
     .eq("id", alert.id)
+
+  // Fire-and-forget email notification if user has emailNotifications enabled
+  const { data: profile } = await adminSupabase
+    .from("profiles")
+    .select("settings")
+    .eq("id", alert.user_id)
+    .single()
+
+  if (
+    (profile?.settings as Record<string, unknown> | null)
+      ?.emailNotifications === true
+  ) {
+    void adminSupabase.functions.invoke("send-notification-email", {
+      body: {
+        userId: alert.user_id,
+        seriesTitle,
+        volumeTitle: vol.title ?? null,
+        volumeNumber: vol.volume_number,
+        currentPrice: priceData.price,
+        targetPrice: alert.target_price,
+        currency: priceData.currency
+      }
+    })
+  }
 }
 
 /**
