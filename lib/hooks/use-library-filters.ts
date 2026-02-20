@@ -207,13 +207,19 @@ export function useLibraryFilters() {
   const series = useLibraryStore(selectAllSeries)
   const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
   const { filters, sortField, sortOrder } = useLibraryStore()
-  const { activeCollectionId, collections } = useCollectionsStore()
+  const { activeCollectionIds, collections } = useCollectionsStore()
 
   const activeCollectionVolumeIds = useMemo(() => {
-    if (!activeCollectionId) return null
-    const col = collections.find((c) => c.id === activeCollectionId)
-    return col ? new Set(col.volumeIds) : null
-  }, [activeCollectionId, collections])
+    if (activeCollectionIds.length === 0) return null
+    const union = new Set<string>()
+    for (const aid of activeCollectionIds) {
+      const col = collections.find((c) => c.id === aid)
+      if (col) {
+        for (const vid of col.volumeIds) union.add(vid)
+      }
+    }
+    return union
+  }, [activeCollectionIds, collections])
 
   const matchesTagFilters = useCallback(
     (seriesTags: string[]) => {

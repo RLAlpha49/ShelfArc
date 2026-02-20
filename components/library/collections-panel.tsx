@@ -29,8 +29,10 @@ import {
 export function CollectionsPanel() {
   const {
     collections,
-    activeCollectionId,
-    setActiveCollection,
+    activeCollectionIds,
+    toggleCollectionFilter,
+    clearCollectionFilters,
+    reorderCollection,
     addCollection,
     renameCollection,
     deleteCollection,
@@ -66,11 +68,9 @@ export function CollectionsPanel() {
 
   const handleToggleFilter = useCallback(
     (collectionId: string) => {
-      setActiveCollection(
-        activeCollectionId === collectionId ? null : collectionId
-      )
+      toggleCollectionFilter(collectionId)
     },
-    [activeCollectionId, setActiveCollection]
+    [toggleCollectionFilter]
   )
 
   return (
@@ -96,12 +96,12 @@ export function CollectionsPanel() {
         <span className="text-muted-foreground/60 ml-auto font-normal tracking-normal normal-case">
           {userCollections.length}/{MAX_COLLECTIONS}
         </span>
-        {activeCollectionId && (
+        {activeCollectionIds.length > 0 && (
           <Badge
             variant="secondary"
             className="ml-1 h-4 min-w-4 px-1 text-[10px]"
           >
-            1
+            {activeCollectionIds.length}
           </Badge>
         )}
       </button>
@@ -114,7 +114,7 @@ export function CollectionsPanel() {
                 type="button"
                 onClick={() => handleToggleFilter(collection.id)}
                 className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs transition-all ${
-                  activeCollectionId === collection.id
+                  activeCollectionIds.includes(collection.id)
                     ? "bg-primary text-primary-foreground border-transparent font-medium"
                     : "border-input hover:bg-accent hover:text-foreground"
                 }`}
@@ -160,6 +160,22 @@ export function CollectionsPanel() {
                   >
                     Rename
                   </DropdownMenuItem>
+                  {!collection.isSystem && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => reorderCollection(collection.id, "up")}
+                        disabled={userCollections[0]?.id === collection.id}
+                      >
+                        Move Up
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => reorderCollection(collection.id, "down")}
+                        disabled={userCollections.at(-1)?.id === collection.id}
+                      >
+                        Move Down
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   {COLLECTION_COLORS.map((color) => (
                     <DropdownMenuItem
                       key={color}
@@ -208,13 +224,13 @@ export function CollectionsPanel() {
             </button>
           )}
 
-          {activeCollectionId && (
+          {activeCollectionIds.length > 0 && (
             <button
               type="button"
-              onClick={() => setActiveCollection(null)}
+              onClick={clearCollectionFilters}
               className="text-muted-foreground hover:text-foreground text-xs underline transition-colors"
             >
-              Clear filter
+              Clear filters
             </button>
           )}
         </div>

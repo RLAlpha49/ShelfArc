@@ -65,7 +65,7 @@ function createCollectionId(): string {
 /** State and actions for the collections store. @source */
 interface CollectionsState {
   collections: Collection[]
-  activeCollectionId: string | null
+  activeCollectionIds: string[]
   initialized: boolean
 
   // Actions
@@ -80,7 +80,9 @@ interface CollectionsState {
     collectionId: string,
     volumeIds: string[]
   ) => void
-  setActiveCollection: (id: string | null) => void
+  toggleCollectionFilter: (id: string) => void
+  clearCollectionFilters: () => void
+  reorderCollection: (id: string, direction: "up" | "down") => void
   getCollectionsForVolume: (volumeId: string) => Collection[]
 }
 
@@ -89,7 +91,7 @@ export const useCollectionsStore = create<CollectionsState>()(
   persist(
     (set, get) => ({
       collections: [],
-      activeCollectionId: null,
+      activeCollectionIds: [],
       initialized: false,
 
       ensureDefaults: () => {
@@ -213,8 +215,9 @@ export const useCollectionsStore = create<CollectionsState>()(
 
         set((prev) => ({
           collections: prev.collections.filter((c) => c.id !== id),
-          activeCollectionId:
-            prev.activeCollectionId === id ? null : prev.activeCollectionId
+          activeCollectionIds: prev.activeCollectionIds.filter(
+            (aid) => aid !== id
+          )
         }))
 
         void fetch(`/api/library/collections/${id}`, {
@@ -272,7 +275,38 @@ export const useCollectionsStore = create<CollectionsState>()(
         }).catch(() => undefined)
       },
 
-      setActiveCollection: (id) => set({ activeCollectionId: id }),
+      toggleCollectionFilter: (id) =>
+        set((prev) => {
+          const isActive = prev.activeCollectionIds.includes(id)
+          return {
+            activeCollectionIds: isActive
+              ? prev.activeCollectionIds.filter((aid) => aid !== id)
+              : [...prev.activeCollectionIds, id]
+          }
+        }),
+
+      clearCollectionFilters: () => set({ activeCollectionIds: [] }),
+
+      reorderCollection: (id, direction) => {
+        const { collections } = get()
+        const userCols = collections.filter((c) => !c.isSystem)
+        const sysCols = collections.filter((c) => c.isSystem)
+        const idx = userCols.findIndex((c) => c.id === id)
+        if (idx === -1) return
+        const newIdx = direction === "up" ? idx - 1 : idx + 1
+        if (newIdx < 0 || newIdx >= userCols.length) return
+        const reordered = [...userCols]
+        ;[reordered[idx], reordered[newIdx]] = [
+          reordered[newIdx],
+          reordered[idx]
+        ]
+        set({ collections: [...reordered, ...sysCols] })
+        void fetch(`/api/library/collections/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sort_order: newIdx })
+        }).catch(() => undefined)
+      },
 
       getCollectionsForVolume: (volumeId) => {
         return get().collections.filter((c) => c.volumeIds.includes(volumeId))
