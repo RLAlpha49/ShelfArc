@@ -102,7 +102,7 @@ async function sendEmail({
       Authorization: `Bearer ${resendKey}`
     },
     body: JSON.stringify({
-      from: "ShelfArc <notifications@shelfarc.app>",
+      from: "ShelfArc <notifications@shelfarc.alpha49.com>",
       to: [to],
       subject,
       html
