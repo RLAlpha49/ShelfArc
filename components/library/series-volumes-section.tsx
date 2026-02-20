@@ -16,7 +16,7 @@ import type {
 } from "@/lib/types/database"
 
 /** Item count above which series detail volumes switch to virtualization. @source */
-const VIRTUALIZE_THRESHOLD = 200
+const VIRTUALIZE_THRESHOLD = 100
 
 /** Series volumes section with selection, bulk actions, and volume grid. @source */
 export function SeriesVolumesSection({
