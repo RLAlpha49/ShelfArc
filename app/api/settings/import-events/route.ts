@@ -1,0 +1,152 @@
+import { type NextRequest, NextResponse } from "next/server"
+
+import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
+import { getCorrelationId } from "@/lib/correlation"
+import { enforceSameOrigin } from "@/lib/csrf"
+import { logger } from "@/lib/logger"
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
+import { createUserClient } from "@/lib/supabase/server"
+
+export const dynamic = "force-dynamic"
+
+const VALID_FORMATS = new Set([
+  "json",
+  "csv-isbn",
+  "csv-shelfarc",
+  "mal",
+  "anilist",
+  "goodreads",
+  "barcode"
+])
+
+interface ImportEventRow {
+  id: string
+  format: string
+  series_added: number
+  volumes_added: number
+  errors: number
+  imported_at: string
+}
+
+function safeInt(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.floor(value))
+    : 0
+}
+
+export async function GET(request: NextRequest) {
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
+  try {
+    const supabase = await createUserClient()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
+
+    const rl = await consumeDistributedRateLimit({
+      key: `import-events-read:${user.id}`,
+      maxHits: 30,
+      windowMs: 60_000,
+      cooldownMs: 30_000,
+      reason: "Rate limit import events reads"
+    })
+    if (rl && !rl.allowed) {
+      return apiError(429, "Too many requests", { correlationId })
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
+    const { data, error } = await db
+      .from("import_events")
+      .select("id, format, series_added, volumes_added, errors, imported_at")
+      .eq("user_id", user.id)
+      .order("imported_at", { ascending: false })
+      .limit(20)
+
+    if (error) {
+      log.error("Failed to fetch import events", { error: error.message })
+      return apiError(500, "Failed to fetch import events", { correlationId })
+    }
+
+    const events = ((data as ImportEventRow[]) ?? []).map((row) => ({
+      id: row.id,
+      format: row.format,
+      seriesAdded: row.series_added,
+      volumesAdded: row.volumes_added,
+      errors: row.errors,
+      importedAt: row.imported_at
+    }))
+
+    return apiSuccess({ events }, { correlationId })
+  } catch (error) {
+    log.error("Import events fetch failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
+    return apiError(500, "Failed to fetch import events", { correlationId })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const csrfResult = enforceSameOrigin(request)
+  if (csrfResult) return csrfResult
+
+  const correlationId = getCorrelationId(request)
+  const log = logger.withCorrelationId(correlationId)
+
+  try {
+    const supabase = await createUserClient()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
+    if (!user) return apiError(401, "Not authenticated", { correlationId })
+
+    const rl = await consumeDistributedRateLimit({
+      key: `import-events-write:${user.id}`,
+      maxHits: 10,
+      windowMs: 60_000,
+      cooldownMs: 30_000,
+      reason: "Rate limit import events writes"
+    })
+    if (rl && !rl.allowed) {
+      return apiError(429, "Too many requests", { correlationId })
+    }
+
+    const body = await parseJsonBody(request)
+    if (body instanceof NextResponse) return body
+
+    const { format, seriesAdded, volumesAdded, errors } = body
+
+    if (typeof format !== "string" || !VALID_FORMATS.has(format)) {
+      return apiError(400, "Invalid or missing format", { correlationId })
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
+    const { data, error: dbError } = await db
+      .from("import_events")
+      .insert({
+        user_id: user.id,
+        format,
+        series_added: safeInt(seriesAdded),
+        volumes_added: safeInt(volumesAdded),
+        errors: safeInt(errors)
+      })
+      .select("id")
+      .single()
+
+    if (dbError) {
+      log.error("Failed to insert import event", { error: dbError.message })
+      return apiError(500, "Failed to log import event", { correlationId })
+    }
+
+    const row = data as { id: string } | null
+    return apiSuccess({ id: row?.id ?? null }, { status: 201, correlationId })
+  } catch (error) {
+    log.error("Import events insert failed", {
+      error: error instanceof Error ? error.message : String(error)
+    })
+    return apiError(500, "Failed to log import event", { correlationId })
+  }
+}

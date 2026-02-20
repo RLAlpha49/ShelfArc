@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
+import { logImportEvent } from "@/lib/api/import-events"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { sanitizePlainText } from "@/lib/sanitize-html"
 import type { ReadingStatus } from "@/lib/types/database"
@@ -249,6 +250,11 @@ export function AniListImport() {
     await fetchSeries()
     const failSuffix = errors > 0 ? `, ${errors} failed` : ""
     toast.success(`Import complete: ${added} series added${failSuffix}`)
+    void logImportEvent("anilist", {
+      seriesAdded: added,
+      volumesAdded: 0,
+      errors
+    })
   }, [entries, importEntry, fetchSeries])
 
   const reset = useCallback(() => {

@@ -19,6 +19,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { logImportEvent } from "@/lib/api/import-events"
 import { isValidIsbn, normalizeIsbn } from "@/lib/books/isbn"
 import type { BookSearchSource } from "@/lib/books/search"
 import type {
@@ -1241,6 +1242,7 @@ export function CsvImport() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
   const lastAnnouncedImport = useRef(0)
+  const csvImportLogged = useRef(false)
 
   const { announce } = useLiveAnnouncer()
 
@@ -1329,6 +1331,20 @@ export function CsvImport() {
       lastAnnouncedImport.current = stats.processed
     }
   }, [phase, stats, announce])
+
+  useEffect(() => {
+    if (phase === "complete" && !csvImportLogged.current) {
+      csvImportLogged.current = true
+      void logImportEvent("csv-isbn", {
+        seriesAdded: 0,
+        volumesAdded: stats.added,
+        errors: stats.errors
+      })
+    }
+    if (phase === "idle") {
+      csvImportLogged.current = false
+    }
+  }, [phase, stats.added, stats.errors])
 
   useEffect(() => {
     if (isLoading) return
@@ -1519,6 +1535,12 @@ export function CsvImport() {
 
     setShelfArcPhase("complete")
     await fetchSeries()
+
+    void logImportEvent("csv-shelfarc", {
+      seriesAdded: 0,
+      volumesAdded: runningStats.created + runningStats.updated,
+      errors: runningStats.failed
+    })
 
     const statEntries: Array<[number, string]> = [
       [runningStats.created, "created"],

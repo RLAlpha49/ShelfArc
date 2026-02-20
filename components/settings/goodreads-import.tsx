@@ -17,6 +17,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { searchBooks } from "@/lib/api/endpoints"
+import { logImportEvent } from "@/lib/api/import-events"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { sanitizePlainText } from "@/lib/sanitize-html"
 import type { OwnershipStatus, ReadingStatus } from "@/lib/types/database"
@@ -348,6 +349,11 @@ export function GoodreadsImport() {
     if (skipped > 0) parts.push(`${skipped} skipped`)
     if (errors > 0) parts.push(`${errors} failed`)
     toast.success(`Import complete: ${parts.join(", ")}`)
+    void logImportEvent("goodreads", {
+      seriesAdded: 0,
+      volumesAdded: added,
+      errors
+    })
   }, [
     entries,
     importEntryWithSearch,

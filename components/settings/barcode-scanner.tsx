@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { searchBooks } from "@/lib/api/endpoints"
+import { logImportEvent } from "@/lib/api/import-events"
 import { isValidIsbn } from "@/lib/books/isbn"
 import { useLibrary } from "@/lib/hooks/use-library"
 
@@ -164,7 +165,7 @@ export function BarcodeScanner() {
   }, [manualIsbn, addIsbn, phase])
 
   const lookupAndAdd = useCallback(
-    async (item: ScannedIsbn) => {
+    async (item: ScannedIsbn): Promise<"added" | "not-found" | "error"> => {
       setScannedItems((prev) =>
         prev.map((i) =>
           i.isbn === item.isbn ? { ...i, status: "pending" } : i
@@ -184,7 +185,7 @@ export function BarcodeScanner() {
               i.isbn === item.isbn ? { ...i, status: "not-found" } : i
             )
           )
-          return
+          return "not-found"
         }
 
         const book = books[0]
@@ -202,12 +203,14 @@ export function BarcodeScanner() {
             i.isbn === item.isbn ? { ...i, status: "added" } : i
           )
         )
+        return "added"
       } catch {
         setScannedItems((prev) =>
           prev.map((i) =>
             i.isbn === item.isbn ? { ...i, status: "error" } : i
           )
         )
+        return "error"
       }
     },
     [addBookFromSearchResult]
@@ -218,12 +221,21 @@ export function BarcodeScanner() {
     if (pending.length === 0) return
 
     setIsProcessing(true)
+    let addedCount = 0
+    let errorsCount = 0
     for (const item of pending) {
-      await lookupAndAdd(item)
+      const result = await lookupAndAdd(item)
+      if (result === "added") addedCount++
+      else if (result === "error") errorsCount++
     }
     setIsProcessing(false)
     await fetchSeries()
     toast.success("Barcode import complete!")
+    void logImportEvent("barcode", {
+      seriesAdded: 0,
+      volumesAdded: addedCount,
+      errors: errorsCount
+    })
   }, [scannedItems, lookupAndAdd, fetchSeries])
 
   const removeItem = useCallback((isbn: string) => {

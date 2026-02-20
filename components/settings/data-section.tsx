@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 
 import { Skeleton } from "@/components/ui/skeleton"
+import type { ImportEvent } from "@/lib/api/import-events"
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -69,6 +70,116 @@ function StorageUsageCard() {
             </>
           )}
         </p>
+      )}
+    </div>
+  )
+}
+
+const FORMAT_LABELS: Record<string, string> = {
+  json: "JSON",
+  "csv-isbn": "CSV (ISBN)",
+  "csv-shelfarc": "CSV (ShelfArc)",
+  mal: "MyAnimeList",
+  anilist: "AniList",
+  goodreads: "Goodreads",
+  barcode: "Barcode"
+}
+
+function RecentImportsCard() {
+  const [events, setEvents] = useState<ImportEvent[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/settings/import-events")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!cancelled && Array.isArray(json?.events)) {
+          setEvents(json.events as ImportEvent[])
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return (
+    <div className="bg-muted/30 rounded-2xl border p-5 sm:col-span-2">
+      <div className="bg-primary/8 text-primary mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-5 w-5"
+        >
+          <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
+        </svg>
+      </div>
+      <h3 className="font-display mb-3 text-base font-semibold">
+        Recent Imports
+      </h3>
+
+      {loading && (
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-3/4" />
+        </div>
+      )}
+
+      {!loading && events.length === 0 && (
+        <p className="text-muted-foreground text-sm">No imports yet.</p>
+      )}
+
+      {!loading && events.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-muted-foreground border-b text-left text-xs">
+                <th className="pr-4 pb-2 font-medium">Date</th>
+                <th className="pr-4 pb-2 font-medium">Format</th>
+                <th className="pr-4 pb-2 font-medium">Series</th>
+                <th className="pr-4 pb-2 font-medium">Volumes</th>
+                <th className="pb-2 font-medium">Errors</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {events.map((ev) => (
+                <tr key={ev.id} className="text-xs">
+                  <td className="text-muted-foreground py-2 pr-4 tabular-nums">
+                    {new Date(ev.importedAt).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric"
+                    })}
+                  </td>
+                  <td className="py-2 pr-4 font-medium">
+                    {FORMAT_LABELS[ev.format] ?? ev.format}
+                  </td>
+                  <td className="text-muted-foreground py-2 pr-4 tabular-nums">
+                    {ev.seriesAdded}
+                  </td>
+                  <td className="text-muted-foreground py-2 pr-4 tabular-nums">
+                    {ev.volumesAdded}
+                  </td>
+                  <td
+                    className={`py-2 tabular-nums ${ev.errors > 0 ? "text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {ev.errors}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
@@ -159,6 +270,7 @@ export function DataSection() {
           </div>
         </Link>
         <StorageUsageCard />
+        <RecentImportsCard />
       </div>
     </section>
   )

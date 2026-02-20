@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { logImportEvent } from "@/lib/api/import-events"
 import {
   sanitizeOptionalHtml,
   sanitizeOptionalPlainText,
@@ -785,6 +786,11 @@ export function JsonImport() {
       )
       setResultMessage(message)
       toast.success(message)
+      void logImportEvent("json", {
+        seriesAdded: preview.seriesCount,
+        volumesAdded: preview.volumeCount,
+        errors: 0
+      })
       addNotification({
         type: "import_complete",
         title: "Import complete",

@@ -420,6 +420,18 @@ CREATE INDEX IF NOT EXISTS idx_collection_volumes_collection ON collection_volum
 CREATE INDEX IF NOT EXISTS idx_collection_volumes_user ON collection_volumes(user_id);
 CREATE INDEX IF NOT EXISTS idx_collection_volumes_volume ON collection_volumes(volume_id);
 
+CREATE TABLE IF NOT EXISTS import_events (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  format      TEXT        NOT NULL CHECK (format IN ('json','csv-isbn','csv-shelfarc','mal','anilist','goodreads','barcode')),
+  series_added INT        NOT NULL DEFAULT 0,
+  volumes_added INT       NOT NULL DEFAULT 0,
+  errors      INT         NOT NULL DEFAULT 0,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_import_events_user_id ON import_events(user_id, imported_at DESC);
+
 -- -----------------------------------------------------------------------------
 -- Row Level Security (enable + policies grouped per-table)
 -- -----------------------------------------------------------------------------
@@ -816,6 +828,30 @@ BEGIN
       AND policyname = 'Users can delete their own collection_volumes'
   ) THEN
     EXECUTE 'CREATE POLICY "Users can delete their own collection_volumes" ON public.collection_volumes FOR DELETE USING ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+ALTER TABLE import_events ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'import_events'
+      AND policyname = 'Users can view their own import events'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own import events" ON public.import_events FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'import_events'
+      AND policyname = 'Users can insert their own import events'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own import events" ON public.import_events FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
