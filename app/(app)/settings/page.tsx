@@ -114,7 +114,7 @@ export default function SettingsPage() {
             <a
               key={section.id}
               href={`#${section.id}`}
-              aria-current={activeSection === section.id ? "true" : undefined}
+              aria-current={activeSection === section.id ? "page" : undefined}
               className={cn(
                 "relative shrink-0 px-3 py-2.5 text-sm font-medium transition-colors",
                 activeSection === section.id
@@ -141,7 +141,7 @@ export default function SettingsPage() {
                   <a
                     href={`#${section.id}`}
                     aria-current={
-                      activeSection === section.id ? "true" : undefined
+                      activeSection === section.id ? "page" : undefined
                     }
                     className={cn(
                       "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
