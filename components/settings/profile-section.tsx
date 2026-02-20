@@ -655,7 +655,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
       </div>
 
       {/* Avatar crop modal */}
-      {cropFile && cropObjectUrl && (
+      {cropFile && cropObjectUrl && cropObjectUrl.startsWith("blob:") && (
         <dialog
           open
           className="bg-background/80 fixed inset-0 z-50 m-0 flex h-full w-full max-w-none items-center justify-center border-none p-0 backdrop-blur-sm"
