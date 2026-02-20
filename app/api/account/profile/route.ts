@@ -21,7 +21,32 @@ type ProfileFields = {
 }
 
 /** Extracts and sanitizes profile fields from a request body. @source */
-function extractProfileFields(body: Record<string, unknown>): ProfileFields {
+function extractProfileFields(
+  body: Record<string, unknown>,
+  userId: string
+): ProfileFields {
+  let avatarUrl: string | null | undefined = undefined
+  if (typeof body.avatarUrl === "string") {
+    const trimmed = body.avatarUrl.trim()
+    if (!trimmed) {
+      avatarUrl = null
+    } else if (
+      // Allow relative storage API paths scoped to this user
+      trimmed.startsWith(`/api/storage/file?`) ||
+      // Allow storage: prefixed paths scoped to this user
+      trimmed.startsWith(`storage:${userId}/`) ||
+      // Allow full https URLs only from the configured Supabase storage bucket
+      (trimmed.startsWith("https://") &&
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        trimmed.startsWith(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/`
+        ))
+    ) {
+      avatarUrl = trimmed
+    }
+    // Reject any other URL format (external URLs, arbitrary paths)
+  }
+
   return {
     username:
       typeof body.username === "string"
@@ -34,8 +59,7 @@ function extractProfileFields(body: Record<string, unknown>): ProfileFields {
     isPublic: typeof body.isPublic === "boolean" ? body.isPublic : undefined,
     publicStats:
       typeof body.publicStats === "boolean" ? body.publicStats : undefined,
-    avatarUrl:
-      typeof body.avatarUrl === "string" ? body.avatarUrl.trim() : undefined
+    avatarUrl
   }
 }
 
@@ -78,7 +102,7 @@ export async function PATCH(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const fields = extractProfileFields(body)
+    const fields = extractProfileFields(body, user.id)
     const validationError = validateProfileFields(fields, user.id)
     if (validationError) {
       return apiError(400, validationError, { correlationId })
