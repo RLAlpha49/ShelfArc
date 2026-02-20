@@ -10,6 +10,7 @@ import {
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { createAdminClient } from "@/lib/supabase/admin"
 import {
   isNonNegativeFinite,
   isValidOwnershipStatus,
@@ -131,13 +132,24 @@ export async function PATCH(request: NextRequest) {
       })
     }
 
-    return apiSuccess(
-      {
-        updated: data?.length ?? 0,
-        requested: validation.volumeIds.length
-      },
-      { correlationId }
-    )
+    const updated = data?.length ?? 0
+
+    // Use admin client to count how many of the requested IDs exist in the DB
+    // regardless of ownership (bypasses RLS), then derive notFound and forbidden.
+    const admin = createAdminClient({
+      reason: "Batch volume PATCH - count existing IDs",
+      caller: "PATCH /api/library/volumes/batch"
+    })
+    const { count: existsCount } = await admin
+      .from("volumes")
+      .select("id", { count: "exact", head: true })
+      .in("id", validation.volumeIds)
+
+    const totalExists = existsCount ?? 0
+    const notFound = validation.volumeIds.length - totalExists
+    const forbidden = totalExists - updated
+
+    return apiSuccess({ updated, notFound, forbidden }, { correlationId })
   } catch (err) {
     log.error("PATCH /api/library/volumes/batch failed", {
       error: getErrorMessage(err, "Unknown error")
