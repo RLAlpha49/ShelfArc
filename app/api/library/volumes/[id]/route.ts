@@ -15,6 +15,7 @@ import {
   sanitizeVolumeUpdate
 } from "@/lib/library/sanitize-library"
 import { logger } from "@/lib/logger"
+import { createUserClient } from "@/lib/supabase/server"
 import type { Volume } from "@/lib/types/database"
 import { isValidUUID } from "@/lib/validation"
 
@@ -22,6 +23,49 @@ export const dynamic = "force-dynamic"
 
 interface RouteContext {
   params: Promise<{ id: string }>
+}
+
+async function getPrevReadingStatus(
+  supabase: Awaited<ReturnType<typeof createUserClient>>,
+  id: string,
+  userId: string,
+  body: Record<string, unknown>
+): Promise<string | null | undefined> {
+  if (!Object.hasOwn(body, "reading_status")) return undefined
+  const { data } = await supabase
+    .from("volumes")
+    .select("reading_status")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .single()
+  return data?.reading_status ?? null
+}
+
+function emitReadingStatusEvent(
+  supabase: Awaited<ReturnType<typeof createUserClient>>,
+  opts: {
+    userId: string
+    entityId: string
+    prevStatus: string | null | undefined
+    newStatus: string | null | undefined
+    title: string | null | undefined
+    volumeNumber: number | null | undefined
+  }
+) {
+  if (opts.prevStatus === undefined) return
+  if (opts.newStatus === opts.prevStatus) return
+  void recordActivityEvent(supabase, {
+    userId: opts.userId,
+    eventType: "reading_status_changed",
+    entityType: "volume",
+    entityId: opts.entityId,
+    metadata: {
+      from: opts.prevStatus ?? null,
+      to: opts.newStatus ?? null,
+      volumeTitle: opts.title ?? null,
+      volumeNumber: opts.volumeNumber ?? null
+    }
+  })
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
@@ -110,6 +154,13 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       }
     }
 
+    const prevReadingStatus = await getPrevReadingStatus(
+      supabase,
+      id,
+      user.id,
+      body
+    )
+
     const sanitized = sanitizeVolumeUpdate(body as Partial<Volume>)
     let resolvedSeriesId: string | null | undefined
     if (Object.hasOwn(body, "series_id")) {
@@ -148,6 +199,15 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         title: data.title,
         volumeNumber: data.volume_number
       }
+    })
+
+    emitReadingStatusEvent(supabase, {
+      userId: user.id,
+      entityId: id,
+      prevStatus: prevReadingStatus,
+      newStatus: data.reading_status,
+      title: data.title,
+      volumeNumber: data.volume_number
     })
 
     return apiSuccess(data, { correlationId })

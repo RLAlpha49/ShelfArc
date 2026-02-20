@@ -236,6 +236,36 @@ const eventConfigs: Record<ActivityEventType, EventConfig> = {
       return `${n} volume${n === 1 ? "" : "s"} updated`
     },
     entityHref: () => null
+  },
+  reading_status_changed: {
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+      >
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        <path d="m9 9 2 2 4-4" />
+      </svg>
+    ),
+    label: "Reading status changed",
+    getDetail: (m) => {
+      const from = m.from as string | undefined
+      const to = m.to as string | undefined
+      const title = m.volumeTitle as string | undefined
+      const parts: string[] = []
+      if (title) parts.push(title)
+      if (from && to) parts.push(`${from} → ${to}`)
+      return parts.join(" — ")
+    },
+    entityHref: (type, id) =>
+      type === "volume" && id ? `/library/volume/${id}` : null
   }
 }
 

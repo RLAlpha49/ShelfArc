@@ -57,6 +57,7 @@ export type ActivityEventType =
   | "price_alert_triggered"
   | "import_completed"
   | "scrape_completed"
+  | "reading_status_changed"
 
 /** Supabase database schema definition for the public schema. @source */
 export interface Database {
@@ -558,7 +559,10 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_series_atomic: {
+        Args: { p_series_id: string; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       title_type: TitleType
