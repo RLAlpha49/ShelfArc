@@ -93,5 +93,11 @@ export const RATE_LIMITS = {
     maxHits: 3,
     windowMs: 300_000,
     cooldownMs: 300_000
+  },
+  collectionReset: {
+    prefix: "collection-reset",
+    maxHits: 3,
+    windowMs: 3_600_000,
+    cooldownMs: 3_600_000
   }
 } as const satisfies Record<string, RateLimitPreset & { prefix: string }>

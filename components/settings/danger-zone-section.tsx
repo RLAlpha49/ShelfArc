@@ -1,6 +1,7 @@
 "use client"
 
 import { AccountDeleteDialog } from "@/components/settings/account-delete-dialog"
+import { CollectionResetDialog } from "@/components/settings/collection-reset-dialog"
 import { Button } from "@/components/ui/button"
 
 export function DangerZoneSection() {
@@ -30,6 +31,24 @@ export function DangerZoneSection() {
           </div>
         </div>
         <div className="space-y-4">
+          <div className="border-destructive/20 bg-background/50 rounded-xl border p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-medium">Reset Collection</h3>
+                <p className="text-muted-foreground text-sm">
+                  Permanently delete all series, volumes, price history, and
+                  price alerts. Your account and settings will not be affected.
+                </p>
+              </div>
+              <CollectionResetDialog
+                trigger={
+                  <Button variant="destructive" size="sm">
+                    Reset Collection
+                  </Button>
+                }
+              />
+            </div>
+          </div>
           <div className="border-destructive/20 bg-background/50 rounded-xl border p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
