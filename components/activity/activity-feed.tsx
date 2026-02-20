@@ -33,9 +33,16 @@ const eventTypeOptions: { value: ActivityEventType; label: string }[] = [
   { value: "series_created", label: "Series Created" },
   { value: "series_updated", label: "Series Updated" },
   { value: "series_deleted", label: "Series Deleted" },
+  { value: "reading_status_changed", label: "Status Changed" },
   { value: "price_alert_triggered", label: "Price Alert" },
   { value: "import_completed", label: "Import" },
   { value: "scrape_completed", label: "Scrape" }
+]
+
+const entityTypeOptions: { value: string; label: string }[] = [
+  { value: "volume", label: "Volume" },
+  { value: "series", label: "Series" },
+  { value: "batch", label: "Batch" }
 ]
 
 type DateRangeKey = "all" | "7d" | "30d" | "3m" | "1y"
@@ -79,6 +86,9 @@ export function ActivityFeed() {
   const [selectedType, setSelectedType] = useState<
     ActivityEventType | undefined
   >(undefined)
+  const [selectedEntityType, setSelectedEntityType] = useState<
+    string | undefined
+  >(undefined)
   const [dateRange, setDateRange] = useState<DateRangeKey>("all")
   const [isClearing, setIsClearing] = useState(false)
   const [clearCooldown, setClearCooldown] = useState(false)
@@ -87,14 +97,16 @@ export function ActivityFeed() {
     const afterDate = getAfterDate(dateRange)
     fetchEvents(1, 20, {
       ...(selectedType ? { eventType: selectedType } : {}),
+      ...(selectedEntityType ? { entityType: selectedEntityType } : {}),
       ...(afterDate ? { afterDate } : {})
     })
-  }, [fetchEvents, selectedType, dateRange])
+  }, [fetchEvents, selectedType, selectedEntityType, dateRange])
 
   const refetchCurrent = () => {
     const afterDate = getAfterDate(dateRange)
     fetchEvents(1, 20, {
       ...(selectedType ? { eventType: selectedType } : {}),
+      ...(selectedEntityType ? { entityType: selectedEntityType } : {}),
       ...(afterDate ? { afterDate } : {})
     })
   }
@@ -156,6 +168,7 @@ export function ActivityFeed() {
     const afterDate = getAfterDate(dateRange)
     fetchEvents(pagination.page + 1, 20, {
       ...(selectedType ? { eventType: selectedType } : {}),
+      ...(selectedEntityType ? { entityType: selectedEntityType } : {}),
       ...(afterDate ? { afterDate } : {})
     })
   }
@@ -181,6 +194,29 @@ export function ActivityFeed() {
           <SelectContent>
             <SelectItem value="all">All events</SelectItem>
             {eventTypeOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={selectedEntityType ?? "all"}
+          onValueChange={(value) =>
+            setSelectedEntityType(
+              value === "all" ? undefined : (value ?? undefined)
+            )
+          }
+        >
+          <SelectTrigger
+            aria-label="Filter by entity type"
+            className="w-full sm:w-36"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {entityTypeOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
