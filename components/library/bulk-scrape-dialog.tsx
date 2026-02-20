@@ -250,12 +250,13 @@ export function BulkScrapeDialog({
   } = useBulkScrape(series, editVolume)
 
   const [now, setNow] = useState(() => Date.now())
+  const [scrapeStartedAt, setScrapeStartedAt] = useState<number | null>(null)
 
   useEffect(() => {
-    if (!cooldownExpiresAt) return
+    if (!isRunning && !cooldownExpiresAt) return
     const interval = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(interval)
-  }, [cooldownExpiresAt])
+  }, [isRunning, cooldownExpiresAt])
 
   const cooldownRemaining = cooldownExpiresAt
     ? Math.max(0, cooldownExpiresAt - now)
@@ -269,6 +270,28 @@ export function BulkScrapeDialog({
     const timeStr = m > 0 ? `${m}m ${s}s` : `${s}s`
     return `Amazon is rate-limited. Try again in ${timeStr}.`
   }, [cooldownRemaining])
+
+  const elapsedDisplay = useMemo(() => {
+    if (!scrapeStartedAt || !isRunning) return null
+    const totalSeconds = Math.floor((now - scrapeStartedAt) / 1000)
+    const m = Math.floor(totalSeconds / 60)
+    const s = totalSeconds % 60
+    return m > 0 ? `${m}m ${s}s` : `${s}s`
+  }, [scrapeStartedAt, isRunning, now])
+
+  const remainingDisplay = useMemo(() => {
+    if (!scrapeStartedAt || !isRunning) return null
+    const elapsedMs = now - scrapeStartedAt
+    const processed = summary.done + summary.failed + summary.skipped
+    const remaining = summary.total - processed
+    if (processed === 0 || remaining <= 0) return null
+    const avgMs = elapsedMs / processed
+    const estimatedMs = avgMs * remaining
+    const totalSeconds = Math.ceil(estimatedMs / 1000)
+    const m = Math.floor(totalSeconds / 60)
+    const s = totalSeconds % 60
+    return m > 0 ? `~${m}m ${s}s` : `~${s}s`
+  }, [scrapeStartedAt, isRunning, now, summary])
 
   const { announce } = useLiveAnnouncer()
 
@@ -359,10 +382,12 @@ export function BulkScrapeDialog({
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStart = () => {
+    setScrapeStartedAt(Date.now())
     void start(mode, skipExisting)
   }
 
   const handleRetry = () => {
+    setScrapeStartedAt(Date.now())
     void retry(mode)
   }
 
@@ -519,7 +544,14 @@ export function BulkScrapeDialog({
                   </p>
                 </div>
                 <div className="text-muted-foreground text-xs">
-                  ~{Math.ceil((activeCount * 4.5) / 60)} min estimated
+                  {(() => {
+                    const lo = Math.ceil((activeCount * 3) / 60)
+                    const hi = Math.ceil((activeCount * 6) / 60)
+                    if (lo < 1)
+                      return `~${activeCount * 3}\u2013${activeCount * 6}s estimated`
+                    if (lo === hi) return `~${lo} min estimated`
+                    return `~${lo}\u2013${hi} min estimated`
+                  })()}
                 </div>
               </div>
             </div>
@@ -579,6 +611,19 @@ export function BulkScrapeDialog({
                   </span>
                 )}
               </div>
+
+              {/* Timing row */}
+              {(elapsedDisplay ?? remainingDisplay) && (
+                <div className="text-muted-foreground/70 flex items-center gap-2 text-xs tabular-nums">
+                  {elapsedDisplay && <span>Elapsed: {elapsedDisplay}</span>}
+                  {elapsedDisplay && remainingDisplay && (
+                    <span aria-hidden>\u00b7</span>
+                  )}
+                  {remainingDisplay && (
+                    <span>{remainingDisplay} remaining</span>
+                  )}
+                </div>
+              )}
             </output>
           )}
 
