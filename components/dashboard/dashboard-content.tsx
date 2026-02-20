@@ -1016,6 +1016,220 @@ function ActivityWidget() {
   return <RecentActivityCard />
 }
 
+interface BacklogWidgetProps {
+  readonly stats: CollectionStats
+}
+
+function BacklogWidget({ stats }: BacklogWidgetProps) {
+  const backlog = stats.ownedVolumes - stats.readVolumes - stats.readingVolumes
+  const completedLast30 = stats.recentDelta.readVolumes
+  const acquiredLast30 = stats.recentDelta.volumes
+  const netGrowth = acquiredLast30 - completedLast30
+
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Reading Backlog
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          Owned but unread volumes
+        </p>
+      </div>
+
+      <div className="glass-card rounded-xl p-6">
+        {backlog === 0 ? (
+          <p className="text-muted-foreground py-4 text-center text-sm">
+            No backlog! All owned volumes read.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-baseline gap-3">
+              <span className="font-display text-4xl font-bold">{backlog}</span>
+              <span className="text-muted-foreground text-sm">
+                volumes to read
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-primary/8 rounded-lg p-3">
+                <div className="text-muted-foreground mb-1 text-[11px] font-medium uppercase">
+                  Completed (30d)
+                </div>
+                <div className="font-display text-primary text-xl font-bold">
+                  {completedLast30}
+                </div>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-3">
+                <div className="text-muted-foreground mb-1 text-[11px] font-medium uppercase">
+                  Acquired (30d)
+                </div>
+                <div className="font-display text-xl font-bold">
+                  {acquiredLast30}
+                </div>
+              </div>
+            </div>
+            <div
+              className={`rounded-lg px-3 py-2 text-center text-xs font-medium ${
+                netGrowth > 0
+                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  : "bg-green-500/10 text-green-600 dark:text-green-400"
+              }`}
+            >
+              {netGrowth > 0
+                ? `Backlog growing by ~${netGrowth}/mo`
+                : "On track 🎯"}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+interface ReadingGoalWidgetProps {
+  readonly velocityTimeSeries: readonly SpendingDataPoint[]
+}
+
+function ReadingGoalWidget({ velocityTimeSeries }: ReadingGoalWidgetProps) {
+  const readingGoal = useSettingsStore((s) => s.readingGoal)
+  const setReadingGoal = useSettingsStore((s) => s.setReadingGoal)
+  const [goalInput, setGoalInput] = useState("")
+
+  const currentYear = new Date().getFullYear().toString()
+  const completedThisYear = velocityTimeSeries
+    .filter((d) => d.yearMonth.startsWith(currentYear))
+    .reduce((sum, d) => sum + d.total, 0)
+
+  const goalPercent =
+    readingGoal == null
+      ? 0
+      : Math.min(Math.round((completedThisYear / readingGoal) * 100), 100)
+
+  const handleSetGoal = () => {
+    const n = Number.parseInt(goalInput, 10)
+    if (n > 0) {
+      setReadingGoal(n)
+      setGoalInput("")
+    }
+  }
+
+  let goalContent: React.ReactNode
+  if (readingGoal == null) {
+    goalContent = (
+      <div className="flex flex-col items-center gap-4 py-2 text-center">
+        <p className="text-muted-foreground text-sm">
+          Set a reading goal for {currentYear}
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            min={1}
+            value={goalInput}
+            onChange={(e) => setGoalInput(e.target.value)}
+            placeholder="e.g. 52"
+            className="bg-background focus:ring-primary/50 w-24 rounded-lg border px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSetGoal()
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleSetGoal}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+          >
+            Set goal
+          </button>
+        </div>
+      </div>
+    )
+  } else if (completedThisYear >= readingGoal) {
+    goalContent = (
+      <div className="flex flex-col items-center gap-2 py-4 text-center">
+        <div className="text-4xl">🎉</div>
+        <p className="font-display text-lg font-semibold">Goal reached!</p>
+        <p className="text-muted-foreground text-xs">
+          {completedThisYear} of {readingGoal} volumes read in {currentYear}
+        </p>
+        <button
+          type="button"
+          onClick={() => setReadingGoal(undefined)}
+          className="text-muted-foreground hover:text-foreground mt-2 text-xs underline transition-colors"
+        >
+          Clear goal
+        </button>
+      </div>
+    )
+  } else {
+    goalContent = (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-6">
+          <div className="relative h-24 w-24 shrink-0">
+            <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                className="stroke-primary/10"
+                strokeWidth="8"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                className="stroke-primary"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={`${goalPercent * 2.64} ${264 - goalPercent * 2.64}`}
+                style={{ transition: "stroke-dasharray 1s ease-out" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-display text-xl font-bold">
+                {goalPercent}%
+              </span>
+            </div>
+          </div>
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="font-display text-2xl font-bold">
+              {completedThisYear}
+            </div>
+            <div className="text-muted-foreground text-xs">
+              of {readingGoal} volumes read
+            </div>
+            <div className="text-muted-foreground text-xs">
+              {readingGoal - completedThisYear} remaining in {currentYear}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setReadingGoal(undefined)}
+          className="text-muted-foreground hover:text-foreground text-xs underline transition-colors"
+        >
+          Clear goal
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Reading Goal
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          {currentYear} reading target
+        </p>
+      </div>
+
+      <div className="glass-card rounded-xl p-6">{goalContent}</div>
+    </div>
+  )
+}
+
 // ── Main dashboard component ──────────────────────────────────────────────
 
 function DashboardEmptyState() {
@@ -1194,6 +1408,10 @@ export function DashboardContent({
         tagBreakdown={tagBreakdown}
         priceFormatter={priceFormatter}
       />
+    ),
+    backlog: <BacklogWidget stats={stats} />,
+    "reading-goal": (
+      <ReadingGoalWidget velocityTimeSeries={velocityTimeSeries} />
     )
   }
 

@@ -39,6 +39,8 @@ export type DashboardWidgetId =
   | "spending-chart"
   | "tag-analytics"
   | "reading-velocity"
+  | "backlog"
+  | "reading-goal"
 
 /** Column assignment for a dashboard widget. @source */
 export type DashboardWidgetColumn = "full" | "left" | "right"
@@ -72,13 +74,15 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetMeta[] = [
   { id: "price-alerts", label: "Price Alerts", column: "right" },
   { id: "spending-chart", label: "Spending Over Time", column: "left" },
   { id: "reading-velocity", label: "Reading Velocity", column: "left" },
-  { id: "tag-analytics", label: "Tag Breakdown", column: "left" }
+  { id: "tag-analytics", label: "Tag Breakdown", column: "left" },
+  { id: "backlog", label: "Reading Backlog", column: "right" },
+  { id: "reading-goal", label: "Reading Goal", column: "right" }
 ]
 
 /** Default dashboard layout with all widgets visible in the default order. @source */
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   order: DASHBOARD_WIDGETS.map((w) => w.id),
-  hidden: []
+  hidden: ["reading-goal"]
 }
 
 /** Combined settings state and actions for the settings Zustand store. @source */
@@ -124,6 +128,9 @@ interface SettingsState {
   // Dashboard layout
   dashboardLayout: DashboardLayout
 
+  // Reading goal
+  readingGoal: number | undefined
+
   // Onboarding
   hasCompletedOnboarding: boolean
 
@@ -157,6 +164,7 @@ interface SettingsState {
   setNavigationMode: (value: NavigationMode) => void
   setDashboardLayout: (layout: DashboardLayout) => void
   resetDashboardLayout: () => void
+  setReadingGoal: (goal: number | undefined) => void
 
   // Server sync
   lastSyncedAt: number | null
@@ -220,7 +228,8 @@ const SYNCABLE_KEYS = [
   "emailNotifications",
   "hasCompletedOnboarding",
   "navigationMode",
-  "dashboardLayout"
+  "dashboardLayout",
+  "readingGoal"
 ] as const
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null
@@ -269,6 +278,9 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Dashboard layout
       dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
+
+      // Reading goal
+      readingGoal: undefined,
 
       // Onboarding
       hasCompletedOnboarding: false,
@@ -384,6 +396,10 @@ export const useSettingsStore = create<SettingsState>()(
         set({ dashboardLayout: DEFAULT_DASHBOARD_LAYOUT })
         get().syncToServer()
       },
+      setReadingGoal: (goal) => {
+        set({ readingGoal: goal })
+        get().syncToServer()
+      },
 
       // Server sync
       lastSyncedAt: null,
@@ -484,6 +500,7 @@ export const useSettingsStore = create<SettingsState>()(
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         navigationMode: state.navigationMode,
         dashboardLayout: state.dashboardLayout,
+        readingGoal: state.readingGoal,
         lastSyncedAt: state.lastSyncedAt
       })
     }
