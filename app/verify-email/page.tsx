@@ -1,11 +1,18 @@
 "use client"
 
-import { createBrowserClient } from "@supabase/ssr"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
+import { resendVerificationEmail } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
+import { createClient } from "@/lib/supabase/client"
+
+function resendButtonLabel(sent: boolean, sending: boolean) {
+  if (sent) return "Email sent! Check your inbox"
+  if (sending) return "Sending..."
+  return "Resend verification email"
+}
 
 /**
  * Email verification page shown to users who haven't confirmed their email.
@@ -16,12 +23,9 @@ export default function VerifyEmailPage() {
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
   const [email, setEmail] = useState<string | null>(null)
+  const [resendError, setResendError] = useState<string | null>(null)
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-  )
+  const supabase = createClient()
 
   useEffect(() => {
     async function checkVerification() {
@@ -58,14 +62,14 @@ export default function VerifyEmailPage() {
   const handleResend = async () => {
     if (!email || resending) return
     setResending(true)
+    setResendError(null)
 
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email
-    })
+    const result = await resendVerificationEmail()
 
     setResending(false)
-    if (!error) {
+    if ("error" in result) {
+      setResendError(result.error ?? "Something went wrong. Please try again.")
+    } else {
       setResent(true)
     }
   }
@@ -105,12 +109,12 @@ export default function VerifyEmailPage() {
             variant="outline"
             className="w-full"
           >
-            {resent
-              ? "Email sent! Check your inbox"
-              : resending
-                ? "Sending..."
-                : "Resend verification email"}
+            {resendButtonLabel(resent, resending)}
           </Button>
+
+          {resendError && (
+            <p className="text-destructive text-sm">{resendError}</p>
+          )}
 
           <Link
             href="/login"

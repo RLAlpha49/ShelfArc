@@ -270,3 +270,44 @@ export async function getUser() {
 
   return user
 }
+
+/**
+ * Resends a verification email to the currently authenticated user.
+ * Rate-limited to 3 attempts per hour per user.
+ * @returns `{ success: true }` on success, or `{ error: string }` on failure.
+ * @source
+ */
+export async function resendVerificationEmail() {
+  const supabase = await createUserClient()
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    return { error: "You must be logged in to resend verification." }
+  }
+
+  const rateLimitResult = await consumeDistributedRateLimit({
+    key: `verify-resend:${user.id}`,
+    maxHits: 3,
+    windowMs: 3_600_000,
+    cooldownMs: 3_600_000,
+    reason: "Verify email resend rate limit"
+  })
+
+  if (rateLimitResult && !rateLimitResult.allowed) {
+    return { error: "Too many resend attempts. Try again later." }
+  }
+
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: user.email!
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true as const }
+}
