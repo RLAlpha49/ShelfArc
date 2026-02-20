@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { sanitizePlainText } from "@/lib/sanitize-html"
+import { createClient } from "@/lib/supabase/client"
 import type { Profile } from "@/lib/types/database"
 import {
   extractStoragePath,
@@ -68,6 +69,10 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
   const previewUrlRef = useRef<string | null>(null)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [showEmailChange, setShowEmailChange] = useState(false)
+  const [newEmail, setNewEmail] = useState("")
+  const [emailChangePending, setEmailChangePending] = useState(false)
+  const [emailChangeSuccess, setEmailChangeSuccess] = useState(false)
 
   // Sync local state when profile prop arrives (initial fetch resolves)
   useEffect(() => {
@@ -145,6 +150,38 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
         setUsernameChecking(false)
       }
     }, 300)
+  }
+
+  const handleEmailChange = async () => {
+    const trimmed = newEmail.trim()
+    if (!trimmed) {
+      toast.error("Please enter a new email address")
+      return
+    }
+    if (trimmed === (baseProfile?.email ?? "")) {
+      toast.error("New email must be different from your current email")
+      return
+    }
+
+    setEmailChangePending(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.updateUser({ email: trimmed })
+      if (error) {
+        toast.error(error.message ?? "Failed to request email change")
+        return
+      }
+      setEmailChangeSuccess(true)
+      setShowEmailChange(false)
+      setNewEmail("")
+      toast.success(
+        "Confirmation emails sent to both addresses. Check your inbox to verify the change."
+      )
+    } catch {
+      toast.error("Failed to request email change")
+    } finally {
+      setEmailChangePending(false)
+    }
   }
 
   const handleSaveProfile = async () => {
@@ -352,9 +389,63 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
                 disabled
                 className="bg-muted max-w-sm"
               />
-              <p className="text-muted-foreground text-xs">
-                Email cannot be changed
-              </p>
+              {emailChangeSuccess && (
+                <p className="text-xs text-emerald-600">
+                  Verification emails sent. Check your inbox to confirm the
+                  change.
+                </p>
+              )}
+              {!showEmailChange && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-1 h-7 rounded-lg px-3 text-xs"
+                  onClick={() => {
+                    setShowEmailChange(true)
+                    setEmailChangeSuccess(false)
+                  }}
+                >
+                  Change Email
+                </Button>
+              )}
+              {showEmailChange && (
+                <div className="mt-2 max-w-sm space-y-2">
+                  <Input
+                    id="new-email"
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="New email address"
+                    disabled={emailChangePending}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 rounded-lg px-4 text-xs"
+                      onClick={() => void handleEmailChange()}
+                      disabled={emailChangePending}
+                    >
+                      {emailChangePending ? "Sending..." : "Send Verification"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 rounded-lg px-3 text-xs"
+                      onClick={() => {
+                        setShowEmailChange(false)
+                        setNewEmail("")
+                      }}
+                      disabled={emailChangePending}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
