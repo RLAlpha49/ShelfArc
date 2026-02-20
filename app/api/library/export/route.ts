@@ -37,7 +37,9 @@ const SERIES_FIELDS = new Set(["series_title", "author", "publisher", "type"])
 
 function csvEscape(value: unknown): string {
   if (value == null) return ""
-  const str = String(value)
+  let str = String(value)
+  // Neutralize CSV formula injection (Excel, LibreOffice, Google Sheets)
+  if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
     return `"${str.replaceAll('"', '""')}"`
   }
