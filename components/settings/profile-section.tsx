@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -541,6 +542,18 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
             {isPublic && (
               <>
+                {username && (
+                  <div>
+                    <Link
+                      href={`/u/${username}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary text-sm hover:underline"
+                    >
+                      View public profile →
+                    </Link>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="public-bio">Public Bio</Label>
                   <Input
