@@ -1,5 +1,6 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useCallback, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -11,7 +12,19 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import type { BookSearchResult } from "@/lib/books/search"
+import { useLibraryImport } from "@/lib/hooks/use-library-import"
 import { useSettingsStore } from "@/lib/store/settings-store"
+import type { OwnershipStatus } from "@/lib/types/database"
+
+const BookSearchDialog = dynamic(
+  () =>
+    import("@/components/library/book-search-dialog").then((m) => ({
+      default: m.BookSearchDialog
+    })),
+  { ssr: false }
+)
 
 interface OnboardingDialogProps {
   readonly open: boolean
@@ -168,6 +181,9 @@ export function OnboardingDialog({
   const setHasCompletedOnboarding = useSettingsStore(
     (s) => s.setHasCompletedOnboarding
   )
+  const { addBookFromSearchResult } = useLibraryImport()
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Compute the active step list: for users with books, replace the
   // "Build Your Library" step with a "Discover New Features" step.
@@ -181,80 +197,131 @@ export function OnboardingDialog({
     setStep(0)
   }, [setHasCompletedOnboarding, onOpenChange])
 
+  const handleSelectResult = useCallback(
+    async (
+      result: BookSearchResult,
+      options?: { ownershipStatus?: OwnershipStatus }
+    ) => {
+      try {
+        await addBookFromSearchResult(result, options)
+      } finally {
+        setShowSearch(false)
+        setStep((s) => Math.min(s + 1, STEPS.length - 1))
+      }
+    },
+    [addBookFromSearchResult]
+  )
+
   const current = activeSteps[step]
   const isLast = step === activeSteps.length - 1
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="from-background to-muted/40 ring-border/60 rounded-2xl border-0 bg-linear-to-b p-0 shadow-xl ring-1 sm:max-w-md"
-      >
-        <div
-          key={step}
-          style={{ animation: "fade-in-up 150ms ease-out both" }}
-          className="flex flex-col items-center px-6 pt-8 pb-2 text-center"
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          showCloseButton={false}
+          className="from-background to-muted/40 ring-border/60 rounded-2xl border-0 bg-linear-to-b p-0 shadow-xl ring-1 sm:max-w-md"
         >
-          <div className="bg-primary/8 text-primary mb-5 flex h-20 w-20 items-center justify-center rounded-2xl">
-            {current.icon}
-          </div>
-          <DialogHeader className="items-center">
-            <DialogTitle className="font-display text-xl font-bold tracking-tight">
-              {current.title}
-            </DialogTitle>
-            <DialogDescription className="mt-2 max-w-xs text-sm leading-relaxed">
-              {current.description}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-
-        {/* Progress dots */}
-        <div
-          className="flex items-center justify-center gap-1.5 py-3"
-          aria-label={`Step ${step + 1} of ${activeSteps.length}`}
-        >
-          {activeSteps.map((s, i) => (
-            <span
-              key={s.id}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === step ? "bg-primary w-6" : "bg-muted-foreground/25 w-1.5"
-              }`}
-            />
-          ))}
-        </div>
-
-        <DialogFooter className="border-border/40 border-t px-6 py-4">
-          <div className="flex w-full items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={finish}
-              className="text-muted-foreground"
-            >
-              Skip
-            </Button>
-            <div className="flex gap-2">
-              {step > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setStep((s) => s - 1)}
-                  className="rounded-xl"
-                >
-                  Back
-                </Button>
-              )}
-              <Button
-                size="sm"
-                onClick={isLast ? finish : () => setStep((s) => s + 1)}
-                className="rounded-xl px-5"
-              >
-                {isLast ? "Get Started" : "Next"}
-              </Button>
+          <div
+            key={step}
+            style={{ animation: "fade-in-up 150ms ease-out both" }}
+            className="flex flex-col items-center px-6 pt-8 pb-2 text-center"
+          >
+            <div className="bg-primary/8 text-primary mb-5 flex h-20 w-20 items-center justify-center rounded-2xl">
+              {current.icon}
             </div>
+            <DialogHeader className="items-center">
+              <DialogTitle className="font-display text-xl font-bold tracking-tight">
+                {current.title}
+              </DialogTitle>
+              <DialogDescription className="mt-2 max-w-xs text-sm leading-relaxed">
+                {current.description}
+              </DialogDescription>
+            </DialogHeader>
+            {current.id === "build" && (
+              <form
+                className="mt-4 flex w-full max-w-xs gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (searchQuery.trim()) setShowSearch(true)
+                }}
+              >
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search for a series\u2026"
+                  className="flex-1 rounded-xl text-sm"
+                  aria-label="Search for a series to add to your library"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!searchQuery.trim()}
+                  className="shrink-0 rounded-xl"
+                >
+                  Search
+                </Button>
+              </form>
+            )}
           </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+          {/* Progress dots */}
+          <div
+            className="flex items-center justify-center gap-1.5 py-3"
+            aria-label={`Step ${step + 1} of ${activeSteps.length}`}
+          >
+            {activeSteps.map((s, i) => (
+              <span
+                key={s.id}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === step ? "bg-primary w-6" : "bg-muted-foreground/25 w-1.5"
+                }`}
+              />
+            ))}
+          </div>
+
+          <DialogFooter className="border-border/40 border-t px-6 py-4">
+            <div className="flex w-full items-center justify-between">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={finish}
+                className="text-muted-foreground"
+              >
+                Skip
+              </Button>
+              <div className="flex gap-2">
+                {step > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStep((s) => s - 1)}
+                    className="rounded-xl"
+                  >
+                    Back
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={isLast ? finish : () => setStep((s) => s + 1)}
+                  className="rounded-xl px-5"
+                >
+                  {isLast ? "Get Started" : "Next"}
+                </Button>
+              </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <BookSearchDialog
+        open={showSearch}
+        onOpenChange={setShowSearch}
+        context="series"
+        onSelectResult={handleSelectResult}
+        onAddManual={() => setShowSearch(false)}
+        initialQuery={searchQuery}
+      />
+    </>
   )
 }
