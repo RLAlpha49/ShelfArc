@@ -101,7 +101,7 @@ export default function RootLayout({
         {/* Synchronously apply animation setting before hydration to prevent reduced-motion flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var s=JSON.parse(localStorage.getItem('settings-store')||'{}');var a=s&&s.state&&s.state.animations;if(a&&a!=='auto'){document.documentElement.setAttribute('data-animations',a);}}catch(e){}`
+            __html: `try{var s=JSON.parse(localStorage.getItem('settings-store')||'{}');var e=s&&s.state&&s.state.enableAnimations;if(e===false){document.documentElement.dataset.animations='disabled';document.documentElement.classList.add('no-animations');}else if(typeof e==='boolean'){document.documentElement.dataset.animations='enabled';}}catch(e){}`
           }}
         />
       </head>
