@@ -3,18 +3,23 @@ export const CORRELATION_HEADER = "x-correlation-id"
 
 /**
  * Extracts or generates a correlation ID from the incoming request.
- * Reads the `x-correlation-id` header when present, otherwise generates a UUID.
+ * Reads the `x-correlation-id` header when present, sanitizes it to
+ * `[a-zA-Z0-9\-_]` characters (max 64 chars, min 8 chars after cleaning),
+ * then falls back to a fresh UUID to prevent log injection.
  * @param request - The incoming HTTP request.
- * @returns A correlation ID string.
+ * @returns A sanitized correlation ID string.
  * @source
  */
 export const getCorrelationId = (request: Request): string => {
-  const headers = request?.headers
+  const reqHeaders = request?.headers
   const existing =
-    headers && typeof headers.get === "function"
-      ? headers.get(CORRELATION_HEADER)?.trim()
+    reqHeaders && typeof reqHeaders.get === "function"
+      ? reqHeaders.get(CORRELATION_HEADER)?.trim()
       : undefined
-  if (existing) return existing
+  if (existing) {
+    const cleaned = existing.replaceAll(/[^a-zA-Z0-9\-_]/g, "").slice(0, 64)
+    if (cleaned.length >= 8) return cleaned
+  }
   return crypto.randomUUID()
 }
 
