@@ -293,6 +293,20 @@ const sectionIcons = {
       <path d="M6 2v12" />
     </svg>
   ),
+  settings: (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+    >
+      <circle cx="8" cy="8" r="2" />
+      <path d="M8 1.5v1.25m0 10.5v1.25M1.5 8h1.25m10.5 0H14.5M3.4 3.4l.88.88m7.44 7.44.88.88M3.4 12.6l.88-.88m7.44-7.44.88-.88" />
+    </svg>
+  ),
   series: (
     <svg
       viewBox="0 0 16 16"
@@ -660,6 +674,95 @@ export function CommandPalette() {
               }
             >
               {highlightMatch("Keyboard shortcuts", query)}
+            </CommandItem>
+          </CommandGroup>
+
+          <CommandSeparator />
+
+          <CommandGroup
+            heading={
+              <SectionHeading icon={sectionIcons.settings}>
+                Settings
+              </SectionHeading>
+            }
+          >
+            <CommandItem
+              value="settings profile account avatar username"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#profile"))
+              }
+            >
+              {highlightMatch("Settings: Profile", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings appearance font theme display dark light color"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#appearance"))
+              }
+            >
+              {highlightMatch("Settings: Appearance", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings preferences card size format date workflow defaults"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#preferences"))
+              }
+            >
+              {highlightMatch("Settings: Preferences", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings accessibility contrast font size focus indicators"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#accessibility"))
+              }
+            >
+              {highlightMatch("Settings: Accessibility", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings notifications import scrape price alert email release reminder"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#notifications"))
+              }
+            >
+              {highlightMatch("Settings: Notifications", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings security password 2fa two factor authentication"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#security"))
+              }
+            >
+              {highlightMatch("Settings: Security", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings pricing price alerts amazon tracking"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#pricing"))
+              }
+            >
+              {highlightMatch("Settings: Pricing", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings data export import backup csv json"
+              onSelect={() => runCommand(() => router.push("/settings#data"))}
+            >
+              {highlightMatch("Settings: Data", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings automations automated price checks"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#automations"))
+              }
+            >
+              {highlightMatch("Settings: Automations", query)}
+            </CommandItem>
+            <CommandItem
+              value="settings danger zone delete account reset library"
+              onSelect={() =>
+                runCommand(() => router.push("/settings#danger-zone"))
+              }
+            >
+              {highlightMatch("Settings: Danger Zone", query)}
             </CommandItem>
           </CommandGroup>
 
