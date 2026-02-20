@@ -47,6 +47,13 @@ export interface CollectionStats {
   completeSets: number
   totalPages: number
   readPages: number
+  /** 30-day rolling additions. */
+  recentDelta: {
+    series: number
+    volumes: number
+    readVolumes: number
+    spent: number
+  }
 }
 
 export interface PriceBreakdown {
@@ -149,6 +156,33 @@ function tallyVolumes(volumes: Volume[]): VolumeTally {
   }
 }
 
+interface DeltaTally {
+  volumes: number
+  readVolumes: number
+  spent: number
+}
+
+/** Tallies 30-day rolling additions for volumes. */
+function tallyDelta(volumes: Volume[], cutoffIso: string): DeltaTally {
+  let vol = 0
+  let read = 0
+  let spent = 0
+  for (const v of volumes) {
+    if (v.created_at >= cutoffIso) {
+      vol++
+      if (v.ownership_status === "owned" && v.purchase_price) {
+        spent += v.purchase_price
+      }
+    }
+    const recentlyCompleted =
+      v.reading_status === "completed" &&
+      ((v.finished_at && v.finished_at >= cutoffIso) ||
+        (!v.finished_at && v.updated_at >= cutoffIso))
+    if (recentlyCompleted) read++
+  }
+  return { volumes: vol, readVolumes: read, spent }
+}
+
 // O(S + V) single-pass over series and volumes
 export function computeCollectionStats(
   series: SeriesWithVolumes[]
@@ -165,10 +199,20 @@ export function computeCollectionStats(
   let completeSets = 0
   let totalPages = 0
   let readPages = 0
+  let deltaSeriesCount = 0
+  let deltaVolumes = 0
+  let deltaReadVolumes = 0
+  let deltaSpent = 0
+
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - 30)
+  const cutoffIso = cutoff.toISOString()
 
   for (const s of series) {
     if (s.type === "light_novel") lightNovelSeries++
     else if (s.type === "manga") mangaSeries++
+
+    if (s.created_at >= cutoffIso) deltaSeriesCount++
 
     const vols = s.volumes
     totalVolumes += vols.length
@@ -181,6 +225,11 @@ export function computeCollectionStats(
     pricedVolumes += t.priced
     totalPages += t.totalPages
     readPages += t.readPages
+
+    const d = tallyDelta(vols, cutoffIso)
+    deltaVolumes += d.volumes
+    deltaReadVolumes += d.readVolumes
+    deltaSpent += d.spent
 
     const isComplete =
       (s.total_volumes ?? 0) > 0 &&
@@ -205,7 +254,13 @@ export function computeCollectionStats(
     wishlistCount,
     completeSets,
     totalPages,
-    readPages
+    readPages,
+    recentDelta: {
+      series: deltaSeriesCount,
+      volumes: deltaVolumes,
+      readVolumes: deltaReadVolumes,
+      spent: deltaSpent
+    }
   }
 }
 
