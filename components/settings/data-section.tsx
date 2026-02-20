@@ -1,6 +1,78 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
+
+import { Skeleton } from "@/components/ui/skeleton"
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+function StorageUsageCard() {
+  const [totalBytes, setTotalBytes] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/storage/usage")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!cancelled && typeof json?.data?.totalBytes === "number") {
+          setTotalBytes(json.data.totalBytes)
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return (
+    <div className="bg-muted/30 rounded-2xl border p-5 sm:col-span-2">
+      <div className="bg-primary/8 text-primary mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-5 w-5"
+        >
+          <ellipse cx="12" cy="5" rx="9" ry="3" />
+          <path d="M3 5v14a9 3 0 0 0 18 0V5" />
+          <path d="M3 12a9 3 0 0 0 18 0" />
+        </svg>
+      </div>
+      <h3 className="font-display mb-1 text-base font-semibold">
+        Storage Usage
+      </h3>
+      {loading ? (
+        <Skeleton className="mt-1 h-5 w-24" />
+      ) : (
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {totalBytes === null ? (
+            "Could not load storage info"
+          ) : (
+            <>
+              <span className="text-foreground font-medium">
+                {formatBytes(totalBytes)}
+              </span>{" "}
+              used (covers &amp; avatars)
+            </>
+          )}
+        </p>
+      )}
+    </div>
+  )
+}
 
 export function DataSection() {
   return (
@@ -86,6 +158,7 @@ export function DataSection() {
             </p>
           </div>
         </Link>
+        <StorageUsageCard />
       </div>
     </section>
   )
