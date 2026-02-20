@@ -161,11 +161,7 @@ export function PriceHistoryCard({
   }, [history, timeRange])
 
   const sparkPrices = useMemo(
-    () =>
-      filteredHistory
-        .slice(0, 30)
-        .map((e) => e.price)
-        .reverse(),
+    () => filteredHistory.map((e) => e.price).reverse(),
     [filteredHistory]
   )
 
