@@ -9,6 +9,11 @@ import {
   parseAmazonResult
 } from "@/lib/books/price/amazon-price"
 import { ApiError } from "@/lib/books/price/api-error"
+import {
+  createBookWalkerSearchContext,
+  fetchBookWalkerHtml,
+  parseBookWalkerResult
+} from "@/lib/books/price/bookwalker-price"
 import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
@@ -110,6 +115,8 @@ type UserPriceSettings = {
   amazonPreferKindle?: boolean
   amazonFallbackToKindle?: boolean
   automatedPriceChecks?: boolean
+  /** Price source preference; defaults to "amazon" when absent. @source */
+  priceSource?: string
 }
 
 /** Resolved price data from either cache or a live Amazon scrape. @source */
@@ -340,6 +347,57 @@ function buildAmazonParams(
 }
 
 /**
+ * Scrapes BookWalker for a volume's current price.
+ * Returns `null` on failure (API error, no match, or unexpected error).
+ * @param vol - Volume data used to build the search context.
+ * @param volumeId - Volume ID for logging.
+ * @param log - Correlated logger.
+ * @returns Resolved price data, or `null` on failure.
+ * @source
+ */
+async function scrapeVolumeBookWalker(
+  vol: AlertVolume,
+  volumeId: string,
+  log: ReturnType<typeof logger.withCorrelationId>
+): Promise<PriceData | null> {
+  try {
+    const params = new URLSearchParams()
+    const seriesTitle = vol.series?.title ?? vol.title ?? "Unknown"
+    params.set("title", seriesTitle)
+    params.set("volume", String(vol.volume_number))
+
+    const context = createBookWalkerSearchContext(params)
+    const html = await fetchBookWalkerHtml(context.searchUrl)
+    const result = parseBookWalkerResult(html, context)
+
+    if (result.priceValue === null || result.currency === null) {
+      log.warn("BookWalker scrape returned no price", { volumeId })
+      return null
+    }
+
+    return {
+      price: result.priceValue,
+      currency: result.currency,
+      productUrl: result.productUrl ?? null
+    }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      log.warn("BookWalker API error for volume", {
+        volumeId,
+        status: err.status,
+        error: err.message
+      })
+    } else {
+      log.error("BookWalker scrape failed for volume", {
+        volumeId,
+        error: err instanceof Error ? err.message : String(err)
+      })
+    }
+    return null
+  }
+}
+
+/**
  * Scrapes Amazon for a volume's current price.
  * Returns `null` on failure (API error, no price found, or unexpected error).
  * @param vol - Volume data used to build the search context.
@@ -397,13 +455,15 @@ async function scrapeVolume(
  * @param volumeId - The scraped volume.
  * @param group - Alerts belonging to this volume group.
  * @param priceData - Resolved price to record.
+ * @param source - Price source that produced the data ("amazon" or "bookwalker").
  * @source
  */
 async function insertPriceHistory(
   adminSupabase: ReturnType<typeof createAdminClient>,
   volumeId: string,
   group: AlertWithVolume[],
-  priceData: PriceData
+  priceData: PriceData,
+  source: "amazon" | "bookwalker" = "amazon"
 ): Promise<void> {
   const uniqueUserIds = [...new Set(group.map((a) => a.user_id))]
   await adminSupabase.from("price_history").insert(
@@ -412,7 +472,7 @@ async function insertPriceHistory(
       user_id: userId,
       price: priceData.price,
       currency: priceData.currency,
-      source: "amazon",
+      source,
       product_url: priceData.productUrl
     }))
   )
@@ -532,13 +592,21 @@ async function processVolumeGroup(
   const settings: UserPriceSettings = userSettings.get(firstAlert.user_id) ?? {}
   const vol = firstAlert.volumes
 
-  const priceData = await scrapeVolume(vol, settings, volumeId, log)
+  // Select price source: BookWalker when explicitly configured, Amazon otherwise.
+  const useBookWalker = settings.priceSource === "bookwalker"
+  const source: "amazon" | "bookwalker" = useBookWalker
+    ? "bookwalker"
+    : "amazon"
+
+  const priceData = useBookWalker
+    ? await scrapeVolumeBookWalker(vol, volumeId, log)
+    : await scrapeVolume(vol, settings, volumeId, log)
 
   if (!priceData) {
     return { priceData: null, evaluated: false, error: true }
   }
 
-  await insertPriceHistory(adminSupabase, volumeId, group, priceData)
+  await insertPriceHistory(adminSupabase, volumeId, group, priceData, source)
   return { priceData, evaluated: true, error: false }
 }
 
