@@ -1,5 +1,7 @@
 import "server-only"
 
+import { timingSafeEqual } from "node:crypto"
+
 import { NextRequest, NextResponse } from "next/server"
 
 import { apiError, apiSuccess } from "@/lib/api-response"
@@ -167,8 +169,18 @@ async function authenticate(
   const secret = process.env.EVALUATION_SECRET
   const provided = request.headers.get("x-evaluation-secret")?.trim() ?? ""
 
-  if (secret && provided === secret) {
-    return { ok: true, targetUserId: null }
+  if (secret) {
+    const secretBuf = Buffer.from(secret, "utf8")
+    const providedBuf = Buffer.from(
+      provided.padEnd(secret.length, "\0").slice(0, secret.length),
+      "utf8"
+    )
+    if (
+      secretBuf.length === providedBuf.length &&
+      timingSafeEqual(secretBuf, providedBuf)
+    ) {
+      return { ok: true, targetUserId: null }
+    }
   }
 
   const csrf = enforceSameOrigin(request)
