@@ -437,6 +437,43 @@ export interface Database {
           }
         ]
       }
+      import_events: {
+        Row: {
+          id: string
+          user_id: string
+          format: string
+          series_added: number
+          volumes_added: number
+          errors: number
+          imported_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          format: string
+          series_added?: number
+          volumes_added?: number
+          errors?: number
+          imported_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          format?: string
+          series_added?: number
+          volumes_added?: number
+          errors?: number
+          imported_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_events_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       notifications: {
         Row: {
           id: string
