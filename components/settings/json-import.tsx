@@ -11,6 +11,7 @@ import {
   sanitizeOptionalPlainText,
   sanitizePlainText
 } from "@/lib/sanitize-html"
+import { useNotificationStore } from "@/lib/store/notification-store"
 import { createClient } from "@/lib/supabase/client"
 import type {
   SeriesInsert,
@@ -653,6 +654,7 @@ function ImportProgress({
  */
 export function JsonImport() {
   const supabase = createClient()
+  const addNotification = useNotificationStore((s) => s.addNotification)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<ImportMode>("merge")
   const [isImporting, setIsImporting] = useState(false)
@@ -783,6 +785,12 @@ export function JsonImport() {
       )
       setResultMessage(message)
       toast.success(message)
+      addNotification({
+        type: "import_complete",
+        title: "Import complete",
+        message,
+        metadata: {}
+      })
       setPreview(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
