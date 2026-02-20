@@ -38,6 +38,7 @@ export type DashboardWidgetId =
   | "price-alerts"
   | "spending-chart"
   | "tag-analytics"
+  | "reading-velocity"
 
 /** Column assignment for a dashboard widget. @source */
 export type DashboardWidgetColumn = "full" | "left" | "right"
@@ -70,6 +71,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetMeta[] = [
   { id: "releases", label: "Upcoming Releases", column: "right" },
   { id: "price-alerts", label: "Price Alerts", column: "right" },
   { id: "spending-chart", label: "Spending Over Time", column: "left" },
+  { id: "reading-velocity", label: "Reading Velocity", column: "left" },
   { id: "tag-analytics", label: "Tag Breakdown", column: "left" }
 ]
 

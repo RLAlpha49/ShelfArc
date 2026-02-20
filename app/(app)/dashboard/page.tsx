@@ -16,6 +16,7 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import {
   computeCollectionStats,
   computePriceBreakdown,
+  computeReadingVelocity,
   computeReleases,
   computeSpendingTimeSeries,
   computeSuggestedBuys,
@@ -188,6 +189,7 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
   const { upcoming } = computeReleases(series)
   const upcomingReleases = upcoming.flatMap((g) => g.items).slice(0, 5)
   const spendingTimeSeries = computeSpendingTimeSeries(series)
+  const velocityTimeSeries = computeReadingVelocity(series)
   const tagBreakdown = computeTagBreakdown(series)
 
   return (
@@ -204,6 +206,7 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
       upcomingReleases={upcomingReleases}
       series={series}
       spendingTimeSeries={spendingTimeSeries}
+      velocityTimeSeries={velocityTimeSeries}
       tagBreakdown={tagBreakdown}
       isEmpty={series.length === 0}
     />

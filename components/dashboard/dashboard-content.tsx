@@ -113,6 +113,11 @@ interface SpendingChartWidgetProps {
   readonly priceFormatter: PriceFormatter
 }
 
+interface ReadingVelocityChartWidgetProps {
+  readonly velocityTimeSeries: readonly SpendingDataPoint[]
+  readonly priceFormatter: PriceFormatter
+}
+
 interface TagAnalyticsWidgetProps {
   readonly tagBreakdown: readonly TagBreakdown[]
   readonly priceFormatter: PriceFormatter
@@ -958,6 +963,31 @@ function SpendingChartWidget({
   )
 }
 
+function ReadingVelocityChartWidget({
+  velocityTimeSeries,
+  priceFormatter
+}: ReadingVelocityChartWidgetProps) {
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          Reading Velocity
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          Volumes completed per month
+        </p>
+      </div>
+      <Suspense fallback={<WidgetSkeleton />}>
+        <LazySpendingChart
+          data={velocityTimeSeries as SpendingDataPoint[]}
+          priceFormatter={priceFormatter}
+          mode="velocity"
+        />
+      </Suspense>
+    </div>
+  )
+}
+
 function TagAnalyticsWidget({
   tagBreakdown,
   priceFormatter
@@ -1050,6 +1080,7 @@ export interface DashboardContentProps {
   readonly upcomingReleases: readonly ReleaseItem[]
   readonly series: readonly SeriesWithVolumes[]
   readonly spendingTimeSeries: readonly SpendingDataPoint[]
+  readonly velocityTimeSeries: readonly SpendingDataPoint[]
   readonly tagBreakdown: readonly TagBreakdown[]
   readonly isEmpty?: boolean
 }
@@ -1073,6 +1104,7 @@ export function DashboardContent({
   upcomingReleases,
   series,
   spendingTimeSeries,
+  velocityTimeSeries,
   tagBreakdown,
   isEmpty = false
 }: DashboardContentProps) {
@@ -1148,6 +1180,12 @@ export function DashboardContent({
     "spending-chart": (
       <SpendingChartWidget
         spendingTimeSeries={spendingTimeSeries}
+        priceFormatter={priceFormatter}
+      />
+    ),
+    "reading-velocity": (
+      <ReadingVelocityChartWidget
+        velocityTimeSeries={velocityTimeSeries}
         priceFormatter={priceFormatter}
       />
     ),

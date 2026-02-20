@@ -672,7 +672,38 @@ export function computeSpendingTimeSeries(
   )
 }
 
-// ── Per-tag analytics ──────────────────────────────────────────────────
+/**
+ * Aggregates completed volumes by the month they were finished.
+ * Uses `finished_at` when set, falls back to `updated_at`.
+ * Returns data points sorted ascending by date, with `total` = volumes completed that month.
+ */
+export function computeReadingVelocity(
+  series: SeriesWithVolumes[]
+): SpendingDataPoint[] {
+  const map = new Map<string, SpendingDataPoint>()
+  const fmt = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short"
+  })
+  for (const s of series) {
+    for (const v of s.volumes) {
+      if (v.reading_status !== "completed") continue
+      const rawDate = v.finished_at ?? v.updated_at
+      const d = new Date(rawDate)
+      if (Number.isNaN(d.getTime())) continue
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+      const existing = map.get(ym)
+      if (existing) {
+        existing.total += 1
+      } else {
+        map.set(ym, { yearMonth: ym, label: fmt.format(d), total: 1 })
+      }
+    }
+  }
+  return [...map.values()].sort((a, b) =>
+    a.yearMonth.localeCompare(b.yearMonth)
+  )
+}
 
 export interface TagBreakdown {
   tag: string

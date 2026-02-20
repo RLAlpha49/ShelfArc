@@ -7,6 +7,7 @@ import type { SpendingDataPoint } from "@/lib/library/analytics"
 interface DashboardSpendingChartProps {
   readonly data: SpendingDataPoint[]
   readonly priceFormatter: Intl.NumberFormat
+  readonly mode?: "spending" | "velocity"
 }
 
 type TimeRange = "6M" | "1Y" | "All"
@@ -28,8 +29,10 @@ const ROTATE_AT = 9
 
 export default function DashboardSpendingChart({
   data,
-  priceFormatter
+  priceFormatter,
+  mode = "spending"
 }: DashboardSpendingChartProps) {
+  const isVelocity = mode === "velocity"
   const uid = useId()
   const gradientId = `spend-grad-${uid.replaceAll(":", "")}`
 
@@ -153,9 +156,13 @@ export default function DashboardSpendingChart({
             <path d="M7 16l4-4 4 4 4-8" />
           </svg>
         </div>
-        <p className="text-muted-foreground text-sm">No purchase data yet</p>
+        <p className="text-muted-foreground text-sm">
+          {isVelocity ? "No completed volumes yet" : "No purchase data yet"}
+        </p>
         <p className="text-muted-foreground/60 mt-1 text-xs">
-          Add purchase dates and prices to volumes to see spending trends
+          {isVelocity
+            ? "Mark volumes as completed to see your reading velocity"
+            : "Add purchase dates and prices to volumes to see spending trends"}
         </p>
       </div>
     )
@@ -165,7 +172,7 @@ export default function DashboardSpendingChart({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-          Monthly spending
+          {isVelocity ? "Monthly completed volumes" : "Monthly spending"}
         </span>
         <div className="flex gap-1">
           {(["6M", "1Y", "All"] as const).map((r) => (
@@ -189,7 +196,11 @@ export default function DashboardSpendingChart({
           width={svgWidth}
           height={CHART_H}
           onMouseLeave={onLeave}
-          aria-label="Monthly spending chart"
+          aria-label={
+            isVelocity
+              ? "Monthly reading velocity chart"
+              : "Monthly spending chart"
+          }
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -213,7 +224,12 @@ export default function DashboardSpendingChart({
 
           {chartBars.map((bar) => (
             <g key={bar.d.yearMonth}>
-              <title>{`${bar.d.label}: ${priceFormatter.format(bar.d.total)}`}</title>
+              <title>
+                {`${bar.d.label}: ` +
+                  (isVelocity
+                    ? `${bar.d.total} volumes`
+                    : priceFormatter.format(bar.d.total))}
+              </title>
               <rect
                 x={bar.x}
                 y={bar.y}
@@ -259,7 +275,9 @@ export default function DashboardSpendingChart({
           >
             <p className="text-muted-foreground text-[10px]">{tooltip.label}</p>
             <p className="font-display text-xs font-semibold">
-              {priceFormatter.format(tooltip.value)}
+              {isVelocity
+                ? `${tooltip.value} vol`
+                : priceFormatter.format(tooltip.value)}
             </p>
           </div>
         )}
@@ -272,7 +290,7 @@ export default function DashboardSpendingChart({
               Total
             </span>
             <div className="text-copper font-display mt-0.5 text-sm font-semibold">
-              {priceFormatter.format(stats.total)}
+              {isVelocity ? stats.total : priceFormatter.format(stats.total)}
             </div>
           </div>
           <div className="bg-card p-3 text-center">
@@ -280,7 +298,9 @@ export default function DashboardSpendingChart({
               Peak
             </span>
             <div className="font-display mt-0.5 text-sm font-semibold">
-              {priceFormatter.format(stats.peak.total)}
+              {isVelocity
+                ? stats.peak.total
+                : priceFormatter.format(stats.peak.total)}
             </div>
             <div className="text-muted-foreground/60 mt-0.5 text-[9px]">
               {stats.peak.label}
@@ -291,7 +311,9 @@ export default function DashboardSpendingChart({
               Avg / mo
             </span>
             <div className="font-display mt-0.5 text-sm font-semibold">
-              {priceFormatter.format(stats.avg)}
+              {isVelocity
+                ? stats.avg.toFixed(1)
+                : priceFormatter.format(stats.avg)}
             </div>
           </div>
         </div>
