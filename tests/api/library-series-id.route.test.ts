@@ -45,9 +45,17 @@ qb.delete = mock(() => ({ eq: mock(() => ({ eq: deleteMock })) }))
 
 const fromMock = mock(() => qb)
 
+const rpcMock = mock(
+  async (): Promise<{ data: null; error: null }> => ({
+    data: null,
+    error: null
+  })
+)
+
 const createUserClient = mock(async () => ({
   auth: { getUser: getUserMock },
-  from: fromMock
+  from: fromMock,
+  rpc: rpcMock
 }))
 
 const distributedRateLimitMocks = {
@@ -73,6 +81,8 @@ beforeEach(() => {
   qb.eq.mockClear()
   qb.update.mockClear()
   qb.delete.mockClear()
+  rpcMock.mockClear()
+  rpcMock.mockResolvedValue({ data: null, error: null })
   distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
   distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
   enforceSameOriginMock.mockClear()

@@ -39,7 +39,23 @@ const distributedRateLimitMocks = {
 
 const enforceSameOriginMock = mock(() => undefined)
 
+const adminSelectMock = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async (): Promise<any> => ({ count: 2, error: null })
+)
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const adminQb: Record<string, any> = {
+  select: mock(() => adminQb),
+  in: mock(() => adminSelectMock())
+}
+
+const createAdminClient = mock(() => ({
+  from: mock(() => adminQb)
+}))
+
 mock.module("@/lib/supabase/server", () => ({ createUserClient }))
+mock.module("@/lib/supabase/admin", () => ({ createAdminClient }))
 mock.module("@/lib/rate-limit-distributed", () => distributedRateLimitMocks)
 mock.module("@/lib/csrf", () => ({ enforceSameOrigin: enforceSameOriginMock }))
 
@@ -65,6 +81,12 @@ beforeEach(() => {
   distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
   enforceSameOriginMock.mockClear()
   enforceSameOriginMock.mockReturnValue(undefined)
+  createAdminClient.mockClear()
+  adminQb.select.mockClear()
+  adminQb.in.mockClear()
+  adminSelectMock.mockClear()
+  adminSelectMock.mockResolvedValue({ count: 2, error: null })
+  adminQb.in.mockImplementation(() => adminSelectMock())
 })
 
 afterEach(() => {
@@ -254,7 +276,7 @@ describe("PATCH /api/library/volumes/batch", () => {
     expect(response.status).toBe(400)
   })
 
-  it("returns { updated, requested } on success", async () => {
+  it("returns { updated, notFound, forbidden } on success", async () => {
     const { PATCH } = await loadRoute()
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
@@ -267,12 +289,15 @@ describe("PATCH /api/library/volumes/batch", () => {
       })
     )
 
-    const body = await readJson<{ updated: number; requested: number }>(
-      response
-    )
+    const body = await readJson<{
+      updated: number
+      notFound: number
+      forbidden: number
+    }>(response)
     expect(response.status).toBe(200)
     expect(body.updated).toBe(2)
-    expect(body.requested).toBe(2)
+    expect(body.notFound).toBe(0)
+    expect(body.forbidden).toBe(0)
   })
 
   it("returns 400 on DB update error", async () => {
