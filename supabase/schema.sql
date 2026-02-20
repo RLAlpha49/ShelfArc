@@ -12,13 +12,13 @@
 -- DROP TRIGGER IF EXISTS update_volumes_updated_at ON public.volumes;
 -- DROP TRIGGER IF EXISTS update_price_alerts_updated_at ON public.price_alerts;
 --
--- DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+-- DROP POLICY IF EXISTS "Users can view profiles" ON public.profiles;
 -- DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
--- DROP POLICY IF EXISTS "Users can view their own series" ON public.series;
+-- DROP POLICY IF EXISTS "Users can view series" ON public.series;
 -- DROP POLICY IF EXISTS "Users can insert their own series" ON public.series;
 -- DROP POLICY IF EXISTS "Users can update their own series" ON public.series;
 -- DROP POLICY IF EXISTS "Users can delete their own series" ON public.series;
--- DROP POLICY IF EXISTS "Users can view their own volumes" ON public.volumes;
+-- DROP POLICY IF EXISTS "Users can view volumes" ON public.volumes;
 -- DROP POLICY IF EXISTS "Users can insert their own volumes" ON public.volumes;
 -- DROP POLICY IF EXISTS "Users can update their own volumes" ON public.volumes;
 -- DROP POLICY IF EXISTS "Users can delete their own volumes" ON public.volumes;
@@ -34,6 +34,19 @@
 -- DROP POLICY IF EXISTS "Users can delete their own price alerts" ON public.price_alerts;
 -- DROP POLICY IF EXISTS "Users can view their own activity events" ON public.activity_events;
 -- DROP POLICY IF EXISTS "Users can insert their own activity events" ON public.activity_events;
+-- DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
+-- DROP POLICY IF EXISTS "Users can insert their own notifications" ON public.notifications;
+-- DROP POLICY IF EXISTS "Users can update their own notifications" ON public.notifications;
+-- DROP POLICY IF EXISTS "Users can delete their own notifications" ON public.notifications;
+-- DROP POLICY IF EXISTS "Users can view their own collections" ON public.collections;
+-- DROP POLICY IF EXISTS "Users can insert their own collections" ON public.collections;
+-- DROP POLICY IF EXISTS "Users can update their own collections" ON public.collections;
+-- DROP POLICY IF EXISTS "Users can delete their own collections" ON public.collections;
+-- DROP POLICY IF EXISTS "Users can view their own collection_volumes" ON public.collection_volumes;
+-- DROP POLICY IF EXISTS "Users can insert their own collection_volumes" ON public.collection_volumes;
+-- DROP POLICY IF EXISTS "Users can delete their own collection_volumes" ON public.collection_volumes;
+-- DROP POLICY IF EXISTS "Users can view their own import events" ON public.import_events;
+-- DROP POLICY IF EXISTS "Users can insert their own import events" ON public.import_events;
 --
 -- DROP FUNCTION IF EXISTS public.handle_new_user();
 -- DROP FUNCTION IF EXISTS public.sync_profile_email();
@@ -43,7 +56,11 @@
 -- DROP FUNCTION IF EXISTS public.rate_limit_consume(text, integer, integer, integer);
 -- DROP FUNCTION IF EXISTS public.rate_limit_cleanup(integer);
 -- DROP FUNCTION IF EXISTS public.activity_events_cleanup(integer);
+-- DROP FUNCTION IF EXISTS public.notifications_cleanup(integer);
 --
+-- DROP TABLE IF EXISTS public.collection_volumes CASCADE;
+-- DROP TABLE IF EXISTS public.import_events CASCADE;
+-- DROP TABLE IF EXISTS public.notifications CASCADE;
 -- DROP TABLE IF EXISTS public.activity_events CASCADE;
 -- DROP TABLE IF EXISTS public.price_alerts CASCADE;
 -- DROP TABLE IF EXISTS public.price_history CASCADE;
@@ -51,9 +68,11 @@
 -- DROP TABLE IF EXISTS public.tags CASCADE;
 -- DROP TABLE IF EXISTS public.volumes CASCADE;
 -- DROP TABLE IF EXISTS public.series CASCADE;
+-- DROP TABLE IF EXISTS public.collections CASCADE;
 -- DROP TABLE IF EXISTS public.profiles CASCADE;
 --
 -- DROP TYPE IF EXISTS public.activity_event_type CASCADE;
+-- DROP TYPE IF EXISTS public.notification_type CASCADE;
 -- DROP TYPE IF EXISTS public.volume_format CASCADE;
 -- DROP TYPE IF EXISTS public.volume_edition CASCADE;
 -- DROP TYPE IF EXISTS public.series_status CASCADE;
@@ -67,11 +86,14 @@
 -- -----------------------------------------------------------------------------
 -- Extensions
 -- -----------------------------------------------------------------------------
+-- Use a dedicated schema for extensions (Supabase security recommendation).
+CREATE SCHEMA IF NOT EXISTS extensions;
+
 -- Enable trigram extension for fuzzy search
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
 
 -- -----------------------------------------------------------------------------
 -- Custom types
@@ -227,6 +249,7 @@ CREATE INDEX IF NOT EXISTS idx_series_author_trgm ON series USING gin (author gi
 CREATE INDEX IF NOT EXISTS idx_series_publisher_trgm ON series USING GIN (publisher gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_series_tags ON series USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_series_title_trgm ON series USING gin (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_series_user_id ON public.series USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
 CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
 CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
@@ -439,14 +462,18 @@ CREATE INDEX IF NOT EXISTS idx_import_events_user_id ON import_events(user_id, i
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
+  -- Consolidate two SELECT policies into one to avoid multiple permissive policy overhead
+  EXECUTE 'DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles';
+  EXECUTE 'DROP POLICY IF EXISTS "Anyone can view public profiles" ON public.profiles';
+
   IF NOT EXISTS (
     SELECT 1
     FROM pg_policies
     WHERE schemaname = 'public'
       AND tablename = 'profiles'
-      AND policyname = 'Users can view their own profile'
+      AND policyname = 'Users can view profiles'
   ) THEN
-    EXECUTE 'CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT USING ((select auth.uid()) = id)';
+    EXECUTE 'CREATE POLICY "Users can view profiles" ON public.profiles FOR SELECT USING ((select auth.uid()) = id OR is_public = TRUE)';
   END IF;
 
   IF NOT EXISTS (
@@ -460,28 +487,21 @@ BEGIN
   END IF;
 END $$;
 
--- Public profile access policy
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Anyone can view public profiles'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Anyone can view public profiles" ON public.profiles FOR SELECT USING (is_public = TRUE)';
-  END IF;
-END $$;
-
 ALTER TABLE series ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
+  -- Consolidate two SELECT policies into one to avoid multiple permissive policy overhead
+  EXECUTE 'DROP POLICY IF EXISTS "Users can view their own series" ON public.series';
+  EXECUTE 'DROP POLICY IF EXISTS "Anyone can view public series" ON public.series';
+
   IF NOT EXISTS (
     SELECT 1
     FROM pg_policies
     WHERE schemaname = 'public'
       AND tablename = 'series'
-      AND policyname = 'Users can view their own series'
+      AND policyname = 'Users can view series'
   ) THEN
-    EXECUTE 'CREATE POLICY "Users can view their own series" ON public.series FOR SELECT USING ((select auth.uid()) = user_id)';
+    EXECUTE 'CREATE POLICY "Users can view series" ON public.series FOR SELECT USING ((select auth.uid()) = user_id OR is_public = TRUE)';
   END IF;
 
   IF NOT EXISTS (
@@ -515,28 +535,24 @@ BEGIN
   END IF;
 END $$;
 
--- Public series access policy
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'series' AND policyname = 'Anyone can view public series'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Anyone can view public series" ON public.series FOR SELECT USING (is_public = TRUE)';
-  END IF;
-END $$;
-
 ALTER TABLE volumes ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
+  -- Consolidate two SELECT policies into one to avoid multiple permissive policy overhead
+  EXECUTE 'DROP POLICY IF EXISTS "Users can view their own volumes" ON public.volumes';
+  EXECUTE 'DROP POLICY IF EXISTS "Anyone can view volumes of public series" ON public.volumes';
+
   IF NOT EXISTS (
     SELECT 1
     FROM pg_policies
     WHERE schemaname = 'public'
       AND tablename = 'volumes'
-      AND policyname = 'Users can view their own volumes'
+      AND policyname = 'Users can view volumes'
   ) THEN
-    EXECUTE 'CREATE POLICY "Users can view their own volumes" ON public.volumes FOR SELECT USING ((select auth.uid()) = user_id)';
+    EXECUTE 'CREATE POLICY "Users can view volumes" ON public.volumes FOR SELECT USING (
+      (select auth.uid()) = user_id OR
+      EXISTS (SELECT 1 FROM public.series s WHERE s.id = series_id AND s.is_public = TRUE)
+    )';
   END IF;
 
   IF NOT EXISTS (
@@ -567,19 +583,6 @@ BEGIN
       AND policyname = 'Users can delete their own volumes'
   ) THEN
     EXECUTE 'CREATE POLICY "Users can delete their own volumes" ON public.volumes FOR DELETE USING ((select auth.uid()) = user_id)';
-  END IF;
-END $$;
-
--- Public volumes access policy (volumes belonging to public series)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'volumes' AND policyname = 'Anyone can view volumes of public series'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Anyone can view volumes of public series" ON public.volumes FOR SELECT USING (
-      EXISTS (SELECT 1 FROM public.series s WHERE s.id = series_id AND s.is_public = TRUE)
-    )';
   END IF;
 END $$;
 
