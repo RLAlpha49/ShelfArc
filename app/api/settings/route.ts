@@ -11,6 +11,40 @@ export const dynamic = "force-dynamic"
 
 const MAX_SETTINGS_SIZE = 10_240 // 10 KB
 
+/** Server-side allowlist of permitted settings keys — mirrors the client SYNCABLE_KEYS. */
+const ALLOWED_SETTINGS_KEYS = new Set([
+  "showReadingProgress",
+  "showSeriesProgressBar",
+  "cardSize",
+  "confirmBeforeDelete",
+  "defaultOwnershipStatus",
+  "defaultSearchSource",
+  "defaultScrapeMode",
+  "autoPurchaseDate",
+  "sidebarCollapsed",
+  "enableAnimations",
+  "displayFont",
+  "bodyFont",
+  "dateFormat",
+  "highContrastMode",
+  "fontSizeScale",
+  "focusIndicators",
+  "automatedPriceChecks",
+  "releaseReminders",
+  "releaseReminderDays",
+  "notifyOnImportComplete",
+  "notifyOnScrapeComplete",
+  "notifyOnPriceAlert",
+  "emailNotifications",
+  "defaultSortBy",
+  "defaultSortDir",
+  "hasCompletedOnboarding",
+  "navigationMode",
+  "dashboardLayout",
+  "readingGoal",
+  "lastSyncedAt"
+])
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return (
     typeof value === "object" &&
@@ -99,6 +133,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const incoming = body.settings
+
+    // Reject any keys not in the server-side allowlist
+    const unrecognizedKeys = Object.keys(incoming).filter(
+      (k) => !ALLOWED_SETTINGS_KEYS.has(k)
+    )
+    if (unrecognizedKeys.length > 0) {
+      return apiError(400, "Unrecognized settings keys", { correlationId })
+    }
 
     // Fetch current settings for shallow merge
     const { data: existing, error: fetchError } = await supabase
