@@ -346,6 +346,9 @@ describe("POST /api/books/price/alerts", () => {
   })
 
   it("returns 500 on upsert failure", async () => {
+    // First single() call is the volume ownership check — must succeed
+    singleMock.mockResolvedValueOnce({ data: { id: "vol-1" }, error: null })
+    // Second single() call is the upsert — simulate failure
     singleMock.mockResolvedValueOnce({
       data: null,
       error: { message: "upsert failed" }

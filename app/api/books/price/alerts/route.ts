@@ -130,6 +130,18 @@ export async function POST(request: NextRequest) {
     const validated = validateAlertBody(body)
     if (validated instanceof NextResponse) return validated
 
+    // Verify the volume belongs to the authenticated user before creating/updating alert
+    const { data: volume } = await supabase
+      .from("volumes")
+      .select("id")
+      .eq("id", validated.volumeId)
+      .eq("user_id", user.id)
+      .single()
+
+    if (!volume) {
+      return apiError(404, "Volume not found", { correlationId })
+    }
+
     const { data, error } = await supabase
       .from("price_alerts")
       .upsert(
