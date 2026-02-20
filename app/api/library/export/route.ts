@@ -80,6 +80,15 @@ function validateExportBody(
     if (body.ids.length > 500) {
       return apiError(400, "Maximum 500 series IDs allowed", { correlationId })
     }
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (
+      !body.ids.every(
+        (id: unknown) => typeof id === "string" && UUID_RE.test(id)
+      )
+    ) {
+      return apiError(400, "All IDs must be valid UUIDs.", { correlationId })
+    }
     return { format, scope, ids: body.ids }
   }
 
