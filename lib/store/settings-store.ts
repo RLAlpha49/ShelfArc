@@ -321,23 +321,46 @@ export const useSettingsStore = create<SettingsState>()(
           for (const key of SYNCABLE_KEYS) {
             syncable[key] = state[key]
           }
+          const syncTime = Date.now()
+          syncable.lastSyncedAt = syncTime
           fetch("/api/settings", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ settings: syncable })
-          }).catch(() => {
-            // Fire-and-forget — swallow network errors
           })
+            .then((res) => {
+              if (res.ok) {
+                useSettingsStore.setState({ lastSyncedAt: syncTime })
+              }
+            })
+            .catch(() => {
+              // Swallow network errors
+            })
         }, 2_000)
       },
 
       loadFromServer: async () => {
+        const localSyncedAt = get().lastSyncedAt
         try {
           const res = await fetch("/api/settings")
           if (!res.ok) return
           const json = await res.json()
           const server = json?.data?.settings
           if (!server || typeof server !== "object") return
+
+          // Only apply server settings if they are newer than local.
+          // This prevents overwriting local changes that haven't synced yet
+          // (e.g. user changed a setting within the 2-second debounce window
+          // and reloaded before syncToServer fired).
+          const serverSyncedAt =
+            typeof server.lastSyncedAt === "number" ? server.lastSyncedAt : null
+          if (
+            localSyncedAt !== null &&
+            (serverSyncedAt === null || serverSyncedAt <= localSyncedAt)
+          ) {
+            return
+          }
+
           const patch: Record<string, unknown> = {}
           for (const key of SYNCABLE_KEYS) {
             if (key in server) {
@@ -347,7 +370,7 @@ export const useSettingsStore = create<SettingsState>()(
           if (Object.keys(patch).length > 0) {
             set({
               ...patch,
-              lastSyncedAt: Date.now()
+              lastSyncedAt: serverSyncedAt ?? Date.now()
             } as Partial<SettingsState>)
           }
         } catch {
