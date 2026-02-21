@@ -245,7 +245,7 @@ export function AppShell({ children, user }: AppShellProps) {
       return
     }
 
-    const main = document.getElementById("main")
+    const main = document.getElementById("main-content")
     if (main instanceof HTMLElement) {
       main.focus({ preventScroll: true })
     }
@@ -269,7 +269,7 @@ export function AppShell({ children, user }: AppShellProps) {
   if (navigationMode === "header") {
     return (
       <div className="relative min-h-screen">
-        <a href="#main" className="skip-link">
+        <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
         <CommandPalette />
@@ -284,7 +284,7 @@ export function AppShell({ children, user }: AppShellProps) {
           hasExistingLibrary={hasExistingLibrary}
         />
         <Header user={user} />
-        <main id="main" tabIndex={-1} className={mainClassName}>
+        <main id="main-content" tabIndex={-1} className={mainClassName}>
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             {routeAnnouncement}
           </div>
@@ -298,7 +298,7 @@ export function AppShell({ children, user }: AppShellProps) {
 
   return (
     <div className="relative flex min-h-screen">
-      <a href="#main" className="skip-link">
+      <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
       <CommandPalette />
@@ -317,7 +317,7 @@ export function AppShell({ children, user }: AppShellProps) {
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
       />
-      <main id="main" tabIndex={-1} className={mainClassName}>
+      <main id="main-content" tabIndex={-1} className={mainClassName}>
         <div className="sr-only" aria-live="polite" aria-atomic="true">
           {routeAnnouncement}
         </div>
