@@ -2,6 +2,7 @@
 
 import { memo, useMemo } from "react"
 
+import { useLibraryStore } from "@/lib/store/library-store"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
 interface LibraryStatsBarProps {
@@ -30,6 +31,8 @@ export const LibraryStatsBar = memo(function LibraryStatsBar({
       totalVolumes > 0 ? Math.round((read / totalVolumes) * 100) : 0
     return { totalVolumes, owned, wishlist, read, inProgress, completionRate }
   }, [series])
+
+  const setFilters = useLibraryStore((s) => s.setFilters)
 
   if (series.length === 0) return null
 
@@ -60,30 +63,45 @@ export const LibraryStatsBar = memo(function LibraryStatsBar({
             Owned
           </div>
         </div>
-        <div className="text-center">
+        <button
+          type="button"
+          className="hover:bg-accent/50 cursor-pointer rounded-xl text-center transition-colors"
+          onClick={() => setFilters({ readingStatus: "completed" })}
+          aria-label="Filter by read volumes"
+        >
           <div className="font-display text-primary text-lg font-bold md:text-xl">
             {stats.read}
           </div>
           <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
             Read
           </div>
-        </div>
-        <div className="hidden text-center sm:block">
+        </button>
+        <button
+          type="button"
+          className="hover:bg-accent/50 hidden cursor-pointer rounded-xl text-center transition-colors sm:block"
+          onClick={() => setFilters({ readingStatus: "reading" })}
+          aria-label="Filter by in progress volumes"
+        >
           <div className="font-display text-primary text-lg font-bold md:text-xl">
             {stats.inProgress}
           </div>
           <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
             In Progress
           </div>
-        </div>
-        <div className="hidden text-center md:block">
+        </button>
+        <button
+          type="button"
+          className="hover:bg-accent/50 hidden cursor-pointer rounded-xl text-center transition-colors md:block"
+          onClick={() => setFilters({ ownershipStatus: "wishlist" })}
+          aria-label="Filter by wishlist volumes"
+        >
           <div className="font-display text-primary text-lg font-bold md:text-xl">
             {stats.wishlist}
           </div>
           <div className="text-muted-foreground text-[10px] tracking-widest uppercase md:text-xs">
             Wishlist
           </div>
-        </div>
+        </button>
         <div className="hidden text-center md:block">
           <div className="font-display text-copper text-lg font-bold md:text-xl">
             {stats.completionRate}%
