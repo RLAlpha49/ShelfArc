@@ -10,13 +10,10 @@ import {
   parseJsonBody
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
-import {
-  buildSanitizedVolumeInsert,
-  normalizeVolumeDates
-} from "@/lib/library/sanitize-library"
 import { logger } from "@/lib/logger"
 import type { VolumeInsert } from "@/lib/types/database"
 import { isNonNegativeFinite } from "@/lib/validation"
+import { CreateVolumeSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -35,10 +32,15 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const seriesId =
-      typeof body.series_id === "string" && body.series_id.trim()
-        ? body.series_id.trim()
-        : null
+    const parsed = CreateVolumeSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
+
+    const seriesId = parsed.data.series_id
 
     if (seriesId) {
       const { data: seriesExists } = await supabase
@@ -53,15 +55,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const sanitizedData = buildSanitizedVolumeInsert(
-      body as Omit<VolumeInsert, "user_id" | "series_id">
-    )
-
     const payload = {
-      ...normalizeVolumeDates(sanitizedData),
+      ...parsed.data,
       series_id: seriesId,
       user_id: user.id
-    }
+    } as VolumeInsert
 
     const { data, error } = await supabase
       .from("volumes")
@@ -70,10 +68,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return apiError(400, "Failed to create volume", {
-        correlationId,
-        details: error.message
+      log.error("Failed to create volume", {
+        error: error.message,
+        code: error.code
       })
+      return apiError(500, "Failed to create volume", { correlationId })
     }
 
     if (
