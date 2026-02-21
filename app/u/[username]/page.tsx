@@ -13,7 +13,8 @@ import {
 import type { PublicSeries } from "./series-grid"
 import { SeriesGrid } from "./series-grid"
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-static"
+export const revalidate = 3600
 
 type VolumeRow = { series_id: string | null; reading_status: string | null }
 
