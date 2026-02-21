@@ -2,7 +2,9 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 
+import { CoverImage } from "@/components/library/cover-image"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEnsureLibraryLoaded } from "@/lib/hooks/use-ensure-library-loaded"
@@ -26,6 +28,29 @@ export default function WishlistPage() {
   const [sortBy, setSortBy] = useState<SortKey>("recent")
 
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
+  const [removedIds, setRemovedIds] = useState(new Set<string>())
+
+  const handleMarkOwned = async (volumeId: string, seriesId: string) => {
+    setRemovedIds((prev) => new Set(prev).add(volumeId))
+    try {
+      const res = await fetch(`/api/library/volumes/${volumeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownership_status: "owned" })
+      })
+      if (!res.ok) throw new Error("Failed to update volume")
+      useLibraryStore.getState().updateVolume(seriesId, volumeId, {
+        ownership_status: "owned"
+      })
+    } catch {
+      setRemovedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(volumeId)
+        return next
+      })
+      toast.error("Failed to mark as owned. Please try again.")
+    }
+  }
 
   const { wishlist, owned } = useMemo(() => {
     const all = series.flatMap((s) =>
@@ -38,10 +63,11 @@ export default function WishlistPage() {
     }
   }, [series])
 
-  const baseItems = tab === "wishlist" ? wishlist : owned
-
   const items = useMemo(() => {
-    return [...baseItems].sort((a, b) => {
+    const base = (tab === "wishlist" ? wishlist : owned).filter(
+      (v) => !removedIds.has(v.id)
+    )
+    return [...base].sort((a, b) => {
       if (sortBy === "price-asc")
         return (a.purchase_price ?? 0) - (b.purchase_price ?? 0)
       if (sortBy === "price-desc")
@@ -56,7 +82,7 @@ export default function WishlistPage() {
         a.volume_number - b.volume_number
       )
     })
-  }, [baseItems, sortBy])
+  }, [wishlist, owned, tab, sortBy, removedIds])
 
   if (isLoading && series.length === 0) {
     return (
@@ -183,53 +209,75 @@ export default function WishlistPage() {
                 ? normalizeVolumeTitle(v.title)
                 : null
               return (
-                <Link
+                <div
                   key={v.id}
-                  href={`/library/volume/${v.id}`}
-                  className="bg-card group hover:bg-accent/60 flex items-center justify-between p-4 transition-colors"
+                  className="bg-card group hover:bg-accent/60 flex items-center gap-3 p-4 transition-colors"
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
-                        {v.seriesTitle}
-                      </span>
-                      <span className="text-muted-foreground shrink-0 text-xs">
-                        Vol. {v.volume_number}
-                      </span>
-                      {v.format && (
-                        <Badge
-                          variant="outline"
-                          className="shrink-0 text-[10px]"
-                        >
-                          {v.format}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-muted-foreground mt-0.5 text-xs">
-                      {displayTitle && (
-                        <span className="text-muted-foreground/80">
-                          {displayTitle}
-                        </span>
-                      )}
-                      {v.purchase_price != null && v.purchase_price > 0 && (
-                        <span className="text-primary/80 font-medium">
-                          {displayTitle && " · "}
-                          {priceFormatter.format(v.purchase_price)}
-                        </span>
-                      )}
-                    </div>
+                  <div className="h-14 w-10 shrink-0 overflow-hidden rounded">
+                    <CoverImage
+                      isbn={v.isbn}
+                      coverImageUrl={v.cover_image_url}
+                      alt={`${v.seriesTitle} Vol. ${v.volume_number}`}
+                      className="h-14 w-10 rounded object-cover"
+                    />
                   </div>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+                  <Link
+                    href={`/library/volume/${v.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-2"
                   >
-                    <polyline points="9,18 15,12 9,6" />
-                  </svg>
-                </Link>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
+                          {v.seriesTitle}
+                        </span>
+                        <span className="text-muted-foreground shrink-0 text-xs">
+                          Vol. {v.volume_number}
+                        </span>
+                        {v.format && (
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 text-[10px]"
+                          >
+                            {v.format}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground mt-0.5 text-xs">
+                        {displayTitle && (
+                          <span className="text-muted-foreground/80">
+                            {displayTitle}
+                          </span>
+                        )}
+                        {v.purchase_price != null && v.purchase_price > 0 && (
+                          <span className="text-primary/80 font-medium">
+                            {displayTitle && " · "}
+                            {priceFormatter.format(v.purchase_price)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="text-muted-foreground/40 group-hover:text-primary ml-3 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+                    >
+                      <polyline points="9,18 15,12 9,6" />
+                    </svg>
+                  </Link>
+                  {tab === "wishlist" && (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkOwned(v.id, v.seriesId)}
+                      className="bg-primary/10 text-primary hover:bg-primary/20 shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                      aria-label={`Mark ${v.seriesTitle} Vol. ${v.volume_number} as owned`}
+                    >
+                      Mark Owned
+                    </button>
+                  )}
+                </div>
               )
             })}
           </div>
