@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import {
@@ -11,92 +12,10 @@ import {
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 import { createAdminClient } from "@/lib/supabase/admin"
-import {
-  isNonNegativeFinite,
-  isValidOwnershipStatus,
-  isValidReadingStatus
-} from "@/lib/validation"
+import type { Volume } from "@/lib/types/database"
+import { BatchUpdateVolumesSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
-
-const MAX_BATCH_SIZE = 200
-
-const isValidRating = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isInteger(value) &&
-  value >= 0 &&
-  value <= 10
-
-type BatchValidation =
-  | { ok: true; volumeIds: string[]; updatePayload: Record<string, unknown> }
-  | { ok: false; message: string }
-
-function validateBatchInput(body: Record<string, unknown>): BatchValidation {
-  const { volumeIds, updates } = body
-
-  if (!Array.isArray(volumeIds) || volumeIds.length === 0) {
-    return { ok: false, message: "volumeIds must be a non-empty array" }
-  }
-  if (volumeIds.length > MAX_BATCH_SIZE) {
-    return { ok: false, message: `Maximum batch size is ${MAX_BATCH_SIZE}` }
-  }
-  if (
-    !volumeIds.every(
-      (id: unknown) => typeof id === "string" && id.trim().length > 0
-    )
-  ) {
-    return { ok: false, message: "All volumeIds must be non-empty strings" }
-  }
-  if (!updates || typeof updates !== "object" || Array.isArray(updates)) {
-    return { ok: false, message: "updates must be a JSON object" }
-  }
-
-  const updatePayload = buildUpdatePayload(updates as Record<string, unknown>)
-  if (typeof updatePayload === "string") {
-    return { ok: false, message: updatePayload }
-  }
-
-  return { ok: true, volumeIds: volumeIds as string[], updatePayload }
-}
-
-function buildUpdatePayload(
-  raw: Record<string, unknown>
-): Record<string, unknown> | string {
-  const payload: Record<string, unknown> = {}
-
-  if (Object.hasOwn(raw, "ownership_status")) {
-    if (!isValidOwnershipStatus(raw.ownership_status)) {
-      return "Invalid ownership_status"
-    }
-    payload.ownership_status = raw.ownership_status
-  }
-  if (Object.hasOwn(raw, "reading_status")) {
-    if (!isValidReadingStatus(raw.reading_status)) {
-      return "Invalid reading_status"
-    }
-    payload.reading_status = raw.reading_status
-  }
-  if (Object.hasOwn(raw, "rating")) {
-    if (raw.rating !== null && !isValidRating(raw.rating)) {
-      return "Invalid rating (must be 0-10 or null)"
-    }
-    payload.rating = raw.rating
-  }
-  if (Object.hasOwn(raw, "purchase_price")) {
-    if (
-      raw.purchase_price !== null &&
-      !isNonNegativeFinite(raw.purchase_price)
-    ) {
-      return "Invalid purchase_price"
-    }
-    payload.purchase_price = raw.purchase_price
-  }
-
-  if (Object.keys(payload).length === 0) {
-    return "No valid update fields provided"
-  }
-  return payload
-}
 
 export async function PATCH(request: NextRequest) {
   const correlationId = getCorrelationId(request)
@@ -113,15 +32,24 @@ export async function PATCH(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const validation = validateBatchInput(body)
-    if (!validation.ok) {
-      return apiError(400, validation.message, { correlationId })
+    const parsed = BatchUpdateVolumesSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
+
+    const { volume_ids: volumeIds, updates: updatePayload } = parsed.data
+
+    if (Object.keys(updatePayload).length === 0) {
+      return apiError(400, "No valid update fields provided", { correlationId })
     }
 
     const { data, error } = await supabase
       .from("volumes")
-      .update(validation.updatePayload)
-      .in("id", validation.volumeIds)
+      .update(updatePayload as Partial<Volume>)
+      .in("id", volumeIds)
       .eq("user_id", user.id)
       .select("id")
 
@@ -134,6 +62,22 @@ export async function PATCH(request: NextRequest) {
 
     const updated = data?.length ?? 0
 
+    if (updated > 0) {
+      void recordActivityEvent(supabase, {
+        userId: user.id,
+        eventType: "volume_updated",
+        entityType: "batch",
+        entityId: null,
+        metadata: {
+          count: updated,
+          updates: updatePayload as Record<
+            string,
+            string | number | boolean | null
+          >
+        }
+      })
+    }
+
     // Use admin client to count how many of the requested IDs exist in the DB
     // regardless of ownership (bypasses RLS), then derive notFound and forbidden.
     const admin = createAdminClient({
@@ -143,10 +87,10 @@ export async function PATCH(request: NextRequest) {
     const { count: existsCount } = await admin
       .from("volumes")
       .select("id", { count: "exact", head: true })
-      .in("id", validation.volumeIds)
+      .in("id", volumeIds)
 
     const totalExists = existsCount ?? 0
-    const notFound = validation.volumeIds.length - totalExists
+    const notFound = volumeIds.length - totalExists
     const forbidden = totalExists - updated
 
     return apiSuccess({ updated, notFound, forbidden }, { correlationId })
