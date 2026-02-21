@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createUserClient } from "@/lib/supabase/server"
 import { isValidUUID } from "@/lib/validation"
+import { UpdateNotificationSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -47,13 +48,17 @@ export async function PATCH(
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    if (typeof body.read !== "boolean") {
-      return apiError(400, "Field 'read' must be a boolean", { correlationId })
+    const parsed = UpdateNotificationSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
     }
 
     const { data, error } = await supabase
       .from("notifications")
-      .update({ read: body.read })
+      .update({ read: parsed.data.read })
       .eq("id", id)
       .eq("user_id", user.id)
       .select()
