@@ -11,14 +11,16 @@ import { Toaster } from "@/components/ui/sonner"
 const lora = Lora({
   subsets: ["latin"],
   variable: "--font-lora",
-  display: "swap"
+  display: "swap",
+  preload: false
 })
 
 /** Inter sans-serif font for body text. @source */
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-  display: "swap"
+  display: "swap",
+  preload: false
 })
 
 /** Global page metadata for ShelfArc. @source */
