@@ -492,17 +492,22 @@ async function processCsvGroup(
   mergeStrategy: MergeStrategy,
   userId: string,
   supabase: Db
-): Promise<{ created: number; skipped: number }> {
+): Promise<{
+  toUpsert: (VolumeInsert & { id?: string })[]
+  created: number
+  skipped: number
+}> {
   const seriesId = await ensureCsvSeries(
     group,
     existingSeriesMap,
     userId,
     supabase
   )
-  if (!seriesId) return { created: 0, skipped: 0 }
+  if (!seriesId) return { toUpsert: [], created: 0, skipped: 0 }
 
   let created = 0
   let skipped = 0
+  const toUpsert: (VolumeInsert & { id?: string })[] = []
 
   for (const row of group.rows) {
     const volumeKey = `${seriesId}::${row.volumeNumber}::${row.edition ?? ""}`
@@ -516,17 +521,15 @@ async function processCsvGroup(
     const volumeData = buildVolumeInsert(row, seriesId, userId)
 
     if (existingId) {
-      await supabase.from("volumes").update(volumeData).eq("id", existingId)
+      toUpsert.push({ ...volumeData, id: existingId })
     } else {
-      const { error } = await supabase.from("volumes").insert(volumeData)
-      if (!error) {
-        existingVolumeLookup.set(volumeKey, "inserted")
-        created++
-      }
+      toUpsert.push(volumeData)
+      existingVolumeLookup.set(volumeKey, "inserted")
+      created++
     }
   }
 
-  return { created, skipped }
+  return { toUpsert, created, skipped }
 }
 
 /* ─── ShelfArc CSV import logic ──────────────────────────── */
@@ -586,11 +589,12 @@ async function handleCsvImport(
   let totalCreatedSeries = 0
   let totalCreatedVolumes = 0
   let totalSkipped = 0
+  const allToUpsert: (VolumeInsert & { id?: string })[] = []
 
   for (const [, group] of seriesMap) {
     const seriesKey = `${group.seriesTitle.toLowerCase()}::${group.seriesType.toLowerCase()}`
     const hadSeriesBefore = existingSeriesMap.has(seriesKey)
-    const { created, skipped } = await processCsvGroup(
+    const { toUpsert, created, skipped } = await processCsvGroup(
       group,
       existingSeriesMap,
       existingVolumeLookup,
@@ -600,8 +604,17 @@ async function handleCsvImport(
     )
     if (!hadSeriesBefore && existingSeriesMap.has(seriesKey))
       totalCreatedSeries++
+    allToUpsert.push(...toUpsert)
     totalCreatedVolumes += created
     totalSkipped += skipped
+  }
+
+  for (let i = 0; i < allToUpsert.length; i += 500) {
+    const batch = allToUpsert.slice(i, i + 500)
+    const { error } = await supabase
+      .from("volumes")
+      .upsert(batch, { onConflict: "id" })
+    if (error) throw new Error("Failed to import volumes")
   }
 
   const actionLabel = mode === "replace" ? "Replaced" : "Merged"
