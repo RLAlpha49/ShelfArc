@@ -55,7 +55,6 @@ export type DashboardWidgetId =
   | "tag-analytics"
   | "reading-velocity"
   | "backlog"
-  | "reading-goal"
   | "rating-distribution"
 
 /** Column assignment for a dashboard widget. @source */
@@ -94,14 +93,13 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetMeta[] = [
   { id: "reading-velocity", label: "Reading Velocity", column: "left" },
   { id: "tag-analytics", label: "Tag Breakdown", column: "left" },
   { id: "backlog", label: "Reading Backlog", column: "right" },
-  { id: "reading-goal", label: "Reading Goal", column: "right" },
   { id: "rating-distribution", label: "Rating Distribution", column: "right" }
 ]
 
 /** Default dashboard layout with all widgets visible in the default order. @source */
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   order: DASHBOARD_WIDGETS.map((w) => w.id),
-  hidden: ["reading-goal"]
+  hidden: []
 }
 
 /** Combined settings state and actions for the settings Zustand store. @source */

@@ -1506,10 +1506,7 @@ export function DashboardContent({
         unratedCount={ratingUnratedCount}
       />
     ) : null,
-    backlog: isVisible("backlog") ? <BacklogWidget stats={stats} /> : null,
-    "reading-goal": isVisible("reading-goal") ? (
-      <ReadingGoalWidget velocityTimeSeries={velocityTimeSeries} />
-    ) : null
+    backlog: isVisible("backlog") ? <BacklogWidget stats={stats} /> : null
   }
 
   return (
