@@ -301,10 +301,12 @@ export const useCollectionsStore = create<CollectionsState>()(
           reordered[idx]
         ]
         set({ collections: [...reordered, ...sysCols] })
-        void fetch(`/api/library/collections/${id}`, {
-          method: "PATCH",
+        void fetch(`/api/library/collections/sort`, {
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sort_order: newIdx })
+          body: JSON.stringify(
+            reordered.map((c, i) => ({ id: c.id, sort_order: i }))
+          )
         }).catch(() => undefined)
       },
 
