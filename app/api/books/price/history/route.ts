@@ -6,11 +6,7 @@ import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createUserClient } from "@/lib/supabase/server"
-import {
-  isNonNegativeFinite,
-  isValidAmazonUrl,
-  isValidCurrencyCode
-} from "@/lib/validation"
+import { PriceHistorySchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -58,73 +54,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-type ValidatedHistory = {
-  volumeId: string
-  price: number
-  currency: string
-  source: string
-  productUrl: string | null
-}
-
-const resolveOptionalCurrency = (value: unknown): string | NextResponse => {
-  if (value === undefined || value === null) return "USD"
-  if (
-    typeof value !== "string" ||
-    !isValidCurrencyCode(value.trim().toUpperCase())
-  ) {
-    return apiError(400, "currency must be a 3-letter ISO currency code")
-  }
-  return value.trim().toUpperCase()
-}
-
-const VALID_SOURCES = new Set(["amazon", "manual", "imported"])
-
-const resolveOptionalSource = (value: unknown): string | NextResponse => {
-  if (value === undefined || value === null) return "amazon"
-  if (typeof value !== "string" || !VALID_SOURCES.has(value.trim())) {
-    return apiError(400, "source must be one of: amazon, manual, imported")
-  }
-  return value.trim()
-}
-
-const resolveOptionalProductUrl = (
-  value: unknown
-): string | null | NextResponse => {
-  if (value === undefined || value === null) return null
-  if (typeof value !== "string") {
-    return apiError(400, "productUrl must be a string")
-  }
-  if (!value.trim()) return null
-  if (!isValidAmazonUrl(value.trim())) {
-    return apiError(400, "productUrl must be a valid Amazon URL")
-  }
-  return value.trim()
-}
-
-const validateHistoryBody = (
-  body: Record<string, unknown>
-): ValidatedHistory | NextResponse => {
-  const { volumeId, price } = body
-
-  if (typeof volumeId !== "string" || !volumeId.trim()) {
-    return apiError(400, "volumeId is required")
-  }
-  if (!isNonNegativeFinite(price) || price <= 0) {
-    return apiError(400, "price must be a positive number")
-  }
-
-  const currency = resolveOptionalCurrency(body.currency)
-  if (currency instanceof NextResponse) return currency
-
-  const source = resolveOptionalSource(body.source)
-  if (source instanceof NextResponse) return source
-
-  const productUrl = resolveOptionalProductUrl(body.productUrl)
-  if (productUrl instanceof NextResponse) return productUrl
-
-  return { volumeId, price, currency, source, productUrl }
-}
-
 export async function POST(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
@@ -152,8 +81,27 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const validated = validateHistoryBody(body)
-    if (validated instanceof NextResponse) return validated
+    const parsed = PriceHistorySchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
+    const validated = parsed.data
+
+    const today = new Date().toISOString().split("T")[0]
+    const { data: existing } = await supabase
+      .from("price_history")
+      .select("*")
+      .eq("volume_id", validated.volumeId)
+      .eq("user_id", user.id)
+      .gte("scraped_at", today)
+      .single()
+
+    if (existing) {
+      return apiSuccess({ data: existing }, { correlationId })
+    }
 
     const { data, error } = await supabase
       .from("price_history")
