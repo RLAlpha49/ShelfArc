@@ -266,6 +266,152 @@ const eventConfigs: Record<ActivityEventType, EventConfig> = {
     },
     entityHref: (type, id) =>
       type === "volume" && id ? `/library/volume/${id}` : null
+  },
+  bulk_scrape_completed: {
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+      >
+        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+        <polyline points="9 11 12 14 22 4" />
+      </svg>
+    ),
+    label: "Bulk scrape completed",
+    getDetail: (m) => {
+      if (!m.count) return ""
+      const n = m.count as number
+      return `${n} volume${n === 1 ? "" : "s"} updated`
+    },
+    entityHref: () => null
+  },
+  settings_updated: {
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+      >
+        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    ),
+    label: "Settings updated",
+    getDetail: (m) => (m.section as string) || "",
+    entityHref: () => null
+  },
+  session_revoked: {
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+      >
+        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+        <line x1="8" y1="15" x2="16" y2="15" />
+      </svg>
+    ),
+    label: "Session revoked",
+    getDetail: (m) => (m.device as string) || "",
+    entityHref: () => null
+  },
+  tag_added: {
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+      >
+        <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+        <path d="M7 7h.01" />
+        <line x1="12" y1="8" x2="12" y2="14" />
+        <line x1="9" y1="11" x2="15" y2="11" />
+      </svg>
+    ),
+    label: "Tag added",
+    getDetail: (m) => {
+      const tag = m.tag as string | undefined
+      const title = m.title as string | undefined
+      const parts: string[] = []
+      if (tag) parts.push(tag)
+      if (title) parts.push(title)
+      return parts.join(" — ")
+    },
+    entityHref: (type, id) =>
+      type === "volume" && id ? `/library/volume/${id}` : null
+  },
+  tag_removed: {
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+      >
+        <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+        <path d="M7 7h.01" />
+        <line x1="9" y1="11" x2="15" y2="11" />
+      </svg>
+    ),
+    label: "Tag removed",
+    getDetail: (m) => {
+      const tag = m.tag as string | undefined
+      const title = m.title as string | undefined
+      const parts: string[] = []
+      if (tag) parts.push(tag)
+      if (title) parts.push(title)
+      return parts.join(" — ")
+    },
+    entityHref: (type, id) =>
+      type === "volume" && id ? `/library/volume/${id}` : null
+  },
+  volume_merged: {
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+      >
+        <circle cx="18" cy="18" r="3" />
+        <circle cx="6" cy="6" r="3" />
+        <path d="M6 21V9a9 9 0 0 0 9 9" />
+      </svg>
+    ),
+    label: "Volumes merged",
+    getDetail: (m) => (m.title as string) || "",
+    entityHref: (type, id) =>
+      type === "volume" && id ? `/library/volume/${id}` : null
   }
 }
 
