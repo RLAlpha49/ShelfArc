@@ -10,14 +10,11 @@ import {
   parseJsonBody
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
-import {
-  normalizeVolumeDates,
-  sanitizeVolumeUpdate
-} from "@/lib/library/sanitize-library"
 import { logger } from "@/lib/logger"
 import { createUserClient } from "@/lib/supabase/server"
 import type { Volume } from "@/lib/types/database"
 import { isValidUUID } from "@/lib/validation"
+import { UpdateVolumeSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -136,16 +133,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    if (
-      Object.hasOwn(body, "series_id") &&
-      body.series_id !== null &&
-      typeof body.series_id === "string" &&
-      body.series_id.trim()
-    ) {
+    const parsed = UpdateVolumeSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
+
+    if (parsed.data.series_id) {
       const { data: seriesExists } = await supabase
         .from("series")
         .select("id")
-        .eq("id", body.series_id)
+        .eq("id", parsed.data.series_id)
         .eq("user_id", user.id)
         .single()
 
@@ -161,20 +161,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       body
     )
 
-    const sanitized = sanitizeVolumeUpdate(body as Partial<Volume>)
-    let resolvedSeriesId: string | null | undefined
-    if (Object.hasOwn(body, "series_id")) {
-      if (body.series_id === null) resolvedSeriesId = null
-      else if (typeof body.series_id === "string")
-        resolvedSeriesId = body.series_id
-      else resolvedSeriesId = undefined
-    }
-    const updatePayload = normalizeVolumeDates({
-      ...sanitized,
-      ...(Object.hasOwn(body, "series_id")
-        ? { series_id: resolvedSeriesId }
-        : {})
-    })
+    const updatePayload = parsed.data as Partial<Volume>
 
     const { data, error } = await supabase
       .from("volumes")
@@ -185,6 +172,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       .single()
 
     if (error || !data) {
+      log.error("Failed to update volume", {
+        error: error?.message,
+        code: error?.code
+      })
       return apiError(404, "Volume not found or update failed", {
         correlationId
       })
