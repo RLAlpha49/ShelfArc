@@ -1,10 +1,23 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ImportEvent } from "@/lib/api/import-events"
+
+const PAGE_SIZE = 10
+
+/** Maps import format key → the URL query param value for the import page tab. */
+const FORMAT_TO_TAB: Record<string, string> = {
+  json: "json",
+  "csv-isbn": "csv",
+  "csv-shelfarc": "csv",
+  mal: "mal",
+  anilist: "anilist",
+  goodreads: "goodreads",
+  barcode: "csv"
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -88,24 +101,47 @@ const FORMAT_LABELS: Record<string, string> = {
 function RecentImportsCard() {
   const [events, setEvents] = useState<ImportEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const [total, setTotal] = useState<number | null>(null)
+
+  const fetchEvents = useCallback(
+    async (newOffset: number, append: boolean) => {
+      const isInitial = newOffset === 0
+      if (isInitial) setLoading(true)
+      else setLoadingMore(true)
+      try {
+        const res = await fetch(
+          `/api/settings/import-events?offset=${newOffset}&limit=${PAGE_SIZE}`
+        )
+        const json = res.ok
+          ? await (res.json() as Promise<{
+              events: ImportEvent[]
+              total: number
+            }>)
+          : null
+        if (json && Array.isArray(json.events)) {
+          setEvents((prev) =>
+            append ? [...prev, ...json.events] : json.events
+          )
+          setTotal(json.total ?? null)
+          setOffset(newOffset + json.events.length)
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (isInitial) setLoading(false)
+        else setLoadingMore(false)
+      }
+    },
+    []
+  )
 
   useEffect(() => {
-    let cancelled = false
-    fetch("/api/settings/import-events")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (!cancelled && Array.isArray(json?.events)) {
-          setEvents(json.events as ImportEvent[])
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    void fetchEvents(0, false)
+  }, [fetchEvents])
+
+  const hasMore = total !== null && events.length < total
 
   return (
     <div className="bg-muted/30 rounded-2xl border p-5 sm:col-span-2">
@@ -136,50 +172,87 @@ function RecentImportsCard() {
       )}
 
       {!loading && events.length === 0 && (
-        <p className="text-muted-foreground text-sm">No imports yet.</p>
+        <p className="text-muted-foreground text-sm">
+          No imports yet.{" "}
+          <Link
+            href="/settings/import"
+            className="text-primary hover:underline"
+          >
+            Import now
+          </Link>
+        </p>
       )}
 
       {!loading && events.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-muted-foreground border-b text-left text-xs">
-                <th className="pr-4 pb-2 font-medium">Date</th>
-                <th className="pr-4 pb-2 font-medium">Format</th>
-                <th className="pr-4 pb-2 font-medium">Series</th>
-                <th className="pr-4 pb-2 font-medium">Volumes</th>
-                <th className="pb-2 font-medium">Errors</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {events.map((ev) => (
-                <tr key={ev.id} className="text-xs">
-                  <td className="text-muted-foreground py-2 pr-4 tabular-nums">
-                    {new Date(ev.importedAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric"
-                    })}
-                  </td>
-                  <td className="py-2 pr-4 font-medium">
-                    {FORMAT_LABELS[ev.format] ?? ev.format}
-                  </td>
-                  <td className="text-muted-foreground py-2 pr-4 tabular-nums">
-                    {ev.seriesAdded}
-                  </td>
-                  <td className="text-muted-foreground py-2 pr-4 tabular-nums">
-                    {ev.volumesAdded}
-                  </td>
-                  <td
-                    className={`py-2 tabular-nums ${ev.errors > 0 ? "text-destructive" : "text-muted-foreground"}`}
-                  >
-                    {ev.errors}
-                  </td>
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-muted-foreground border-b text-left text-xs">
+                  <th className="pr-4 pb-2 font-medium">Date</th>
+                  <th className="pr-4 pb-2 font-medium">Format</th>
+                  <th className="pr-4 pb-2 font-medium">Series</th>
+                  <th className="pr-4 pb-2 font-medium">Volumes</th>
+                  <th className="pb-2 font-medium">Errors</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {events.map((ev) => {
+                  const tab = FORMAT_TO_TAB[ev.format] ?? ""
+                  const href = tab
+                    ? `/settings/import?tab=${tab}`
+                    : "/settings/import"
+                  return (
+                    <tr
+                      key={ev.id}
+                      className="hover:bg-muted/50 text-xs transition-colors"
+                    >
+                      <td className="text-muted-foreground py-2 pr-4 tabular-nums">
+                        {new Date(ev.importedAt).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric"
+                        })}
+                      </td>
+                      <td className="py-2 pr-4">
+                        <Link
+                          href={href}
+                          className="text-primary font-medium hover:underline"
+                        >
+                          {FORMAT_LABELS[ev.format] ?? ev.format}
+                        </Link>
+                      </td>
+                      <td className="text-muted-foreground py-2 pr-4 tabular-nums">
+                        {ev.seriesAdded}
+                      </td>
+                      <td className="text-muted-foreground py-2 pr-4 tabular-nums">
+                        {ev.volumesAdded}
+                      </td>
+                      <td
+                        className={`py-2 tabular-nums ${ev.errors > 0 ? "text-destructive" : "text-muted-foreground"}`}
+                      >
+                        {ev.errors}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {hasMore && (
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={() => void fetchEvents(offset, true)}
+                disabled={loadingMore}
+                className="text-primary hover:text-primary/80 text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -41,12 +41,23 @@ export async function GET(request: NextRequest) {
       return apiError(429, "Too many requests", { correlationId })
     }
 
-    const { data, error } = await supabase
+    const url = new URL(request.url)
+    const rawOffset = url.searchParams.get("offset")
+    const rawLimit = url.searchParams.get("limit")
+    const offset = Math.max(0, Number.parseInt(rawOffset ?? "0", 10) || 0)
+    const limit = Math.min(
+      100,
+      Math.max(1, Number.parseInt(rawLimit ?? "20", 10) || 20)
+    )
+
+    const { data, error, count } = await supabase
       .from("import_events")
-      .select("id, format, series_added, volumes_added, errors, imported_at")
+      .select("id, format, series_added, volumes_added, errors, imported_at", {
+        count: "exact"
+      })
       .eq("user_id", user.id)
       .order("imported_at", { ascending: false })
-      .limit(20)
+      .range(offset, offset + limit - 1)
 
     if (error) {
       log.error("Failed to fetch import events", { error: error.message })
@@ -62,7 +73,10 @@ export async function GET(request: NextRequest) {
       importedAt: row.imported_at
     }))
 
-    return apiSuccess({ events }, { correlationId })
+    return apiSuccess(
+      { events, total: count ?? events.length },
+      { correlationId }
+    )
   } catch (error) {
     log.error("Import events fetch failed", {
       error: error instanceof Error ? error.message : String(error)
