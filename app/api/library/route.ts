@@ -246,7 +246,9 @@ async function handleSeriesView(
   // Use embedded join to fetch volumes in a single round-trip
   let dataQuery = supabase
     .from("series")
-    .select("*, volumes(*)")
+    .select(
+      "id, title, type, status, tags, cover_image_url, total_volumes, is_public, created_at, updated_at, volumes!inner(id, volume_number, ownership_status, reading_status, rating, cover_image_url)"
+    )
     .eq("user_id", userId)
     .order("volume_number", {
       ascending: true,
