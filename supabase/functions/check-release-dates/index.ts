@@ -62,6 +62,8 @@ type NotifDedupeRow = {
 /** User settings relevant to release reminder notifications. @source */
 type UserReleaseSettings = {
   releaseReminders?: boolean
+  releaseReminderDays?: number
+  emailNotifications?: boolean
 }
 
 /**
@@ -132,18 +134,18 @@ const checkAuthorization = (
 }
 
 /**
- * Queries upcoming volumes with a publish_date in [today, today+7], ownership_status
+ * Queries upcoming volumes with a publish_date in [today, today+30], ownership_status
  * of 'wishlist', and release_reminder enabled.
  * @param supabase - Admin Supabase client.
  * @param todayStr - ISO date string for the start of the window (today, UTC midnight).
- * @param weekLaterStr - ISO date string for the end of the window (today+7 days).
+ * @param thirtyDaysLaterStr - ISO date string for the end of the window (today+30 days).
  * @returns Array of volumes with embedded series data, or an error.
  * @source
  */
 const fetchUpcomingVolumes = async (
   supabase: SupabaseClient,
   todayStr: string,
-  weekLaterStr: string
+  thirtyDaysLaterStr: string
 ): Promise<{ data: VolumeWithSeries[] | null; error: string | null }> => {
   const { data, error } = await flex<VolumeWithSeries[]>(
     supabase
@@ -153,7 +155,7 @@ const fetchUpcomingVolumes = async (
       )
   )
     .gte("publish_date", todayStr)
-    .lte("publish_date", weekLaterStr)
+    .lte("publish_date", thirtyDaysLaterStr)
     .eq("ownership_status", "wishlist")
     .eq("release_reminder", true)
     .limit(1000)
@@ -189,13 +191,13 @@ const fetchUserSettings = async (
 /**
  * Queries recent release_reminder notifications to build a deduplication Set.
  * @param supabase - Admin Supabase client.
- * @param sevenDaysAgoStr - ISO timestamp for the lookback boundary.
- * @returns A Set of `${userId}:${volumeId}` keys already notified in the last 7 days.
+ * @param thirtyDaysAgoStr - ISO timestamp for the lookback boundary.
+ * @returns A Set of `${userId}:${volumeId}` keys already notified in the last 30 days.
  * @source
  */
 const buildDedupeSet = async (
   supabase: SupabaseClient,
-  sevenDaysAgoStr: string,
+  thirtyDaysAgoStr: string,
   userIds: string[]
 ): Promise<Set<string>> => {
   const notifiedSet = new Set<string>()
@@ -205,7 +207,7 @@ const buildDedupeSet = async (
     supabase.from("notifications").select("user_id, metadata")
   )
     .eq("type", "release_reminder")
-    .gte("created_at", sevenDaysAgoStr)
+    .gte("created_at", thirtyDaysAgoStr)
     .in("user_id", userIds)
 
   for (const notif of data ?? []) {
@@ -228,6 +230,102 @@ const formatDayLabel = (daysUntil: number): string => {
   if (daysUntil <= 0) return "today"
   if (daysUntil === 1) return "tomorrow"
   return `in ${daysUntil} days`
+}
+
+/**
+ * Builds the list of notifications to insert for one upcoming volume.
+ * Returns the notification object or `null` if the volume should be skipped.
+ * @source
+ */
+function buildNotificationEntry(
+  volume: VolumeWithSeries,
+  settings: UserReleaseSettings,
+  notifiedSet: Set<string>,
+  today: Date
+): NotificationEntry | null {
+  if (settings.releaseReminders === false) return null
+  if (notifiedSet.has(`${volume.user_id}:${volume.id}`)) return null
+  if (!volume.publish_date) return null
+
+  const dayMs = 24 * 60 * 60 * 1000
+  const publishDate = new Date(volume.publish_date)
+  const daysUntil = Math.round(
+    (publishDate.getTime() - today.getTime()) / dayMs
+  )
+
+  if (daysUntil > (settings.releaseReminderDays ?? 7)) return null
+
+  const seriesTitle = volume.series?.title ?? volume.title ?? "Unknown Series"
+  const volumeLabel = `Volume ${volume.volume_number}`
+  const dayLabel = formatDayLabel(daysUntil)
+  const message = `${seriesTitle} ${volumeLabel} releases ${dayLabel} on ${volume.publish_date}.`
+
+  return {
+    user_id: volume.user_id,
+    type: "release_reminder" as const,
+    title: "Upcoming Release",
+    message,
+    metadata: {
+      volumeId: volume.id,
+      seriesTitle,
+      volumeTitle: volume.title ?? null,
+      volumeNumber: volume.volume_number,
+      publishDate: volume.publish_date,
+      daysUntil
+    }
+  }
+}
+
+/** @source */
+type NotificationEntry = {
+  user_id: string
+  type: "release_reminder"
+  title: string
+  message: string
+  metadata: Record<string, unknown>
+}
+
+/**
+ * Fire-and-forget: sends release reminder emails for a batch of notifications
+ * to users who have opted in to email notifications.
+ * @source
+ */
+function sendBatchReleaseEmails(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  batch: NotificationEntry[],
+  userSettings: Map<string, Record<string, unknown>>
+): void {
+  for (const notif of batch) {
+    const emailSettings = (userSettings.get(notif.user_id) ??
+      {}) as UserReleaseSettings
+    if (emailSettings.emailNotifications !== true) continue
+    fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`
+      },
+      body: JSON.stringify({
+        userId: notif.user_id,
+        seriesTitle: notif.metadata.seriesTitle,
+        volumeTitle: notif.metadata.volumeTitle ?? null,
+        volumeNumber: notif.metadata.volumeNumber,
+        isReleaseReminder: true,
+        publishDate: notif.metadata.publishDate,
+        daysUntil: notif.metadata.daysUntil
+      })
+    }).catch((err: unknown) => {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          message: "Failed to invoke send-notification-email",
+          userId: notif.user_id,
+          error: err instanceof Error ? err.message : String(err)
+        })
+      )
+    })
+  }
 }
 
 /**
@@ -264,23 +362,23 @@ serve(async (request: Request): Promise<Response> => {
     auth: { autoRefreshToken: false, persistSession: false }
   })
 
-  // Calculate date window: today UTC midnight to today+7 days.
+  // Calculate date window: today UTC midnight to today+30 days.
   const now = new Date()
   const today = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
   )
-  const weekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const thirtyDaysLater = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
   const todayStr = toDateString(today)
-  const weekLaterStr = toDateString(weekLater)
-  const sevenDaysAgoStr = new Date(
-    today.getTime() - 7 * 24 * 60 * 60 * 1000
+  const thirtyDaysLaterStr = toDateString(thirtyDaysLater)
+  const thirtyDaysAgoStr = new Date(
+    today.getTime() - 30 * 24 * 60 * 60 * 1000
   ).toISOString()
 
   // Fetch upcoming volumes.
   const { data: volumes, error: volError } = await fetchUpcomingVolumes(
     supabase,
     todayStr,
-    weekLaterStr
+    thirtyDaysLaterStr
   )
   if (volError || !volumes) {
     return jsonResponse(500, {
@@ -300,59 +398,23 @@ serve(async (request: Request): Promise<Response> => {
   // Build notification deduplication set.
   const notifiedSet = await buildDedupeSet(
     supabase,
-    sevenDaysAgoStr,
+    thirtyDaysAgoStr,
     uniqueUserIds
   )
 
-  const dayMs = 24 * 60 * 60 * 1000
   let notified = 0
   let skipped = 0
-  const allNotifications = []
+  const allNotifications: NotificationEntry[] = []
 
   for (const volume of volumes) {
-    // Filter: skip users who have disabled release reminders in their settings.
     const settings = (userSettings.get(volume.user_id) ??
       {}) as UserReleaseSettings
-    if (settings.releaseReminders === false) {
+    const entry = buildNotificationEntry(volume, settings, notifiedSet, today)
+    if (entry) {
+      allNotifications.push(entry)
+    } else {
       skipped++
-      continue
     }
-
-    // Deduplication: skip if already notified for this user+volume in the last 7 days.
-    const dedupeKey = `${volume.user_id}:${volume.id}`
-    if (notifiedSet.has(dedupeKey)) {
-      skipped++
-      continue
-    }
-
-    if (!volume.publish_date) {
-      skipped++
-      continue
-    }
-
-    const publishDate = new Date(volume.publish_date)
-    const daysUntil = Math.round(
-      (publishDate.getTime() - today.getTime()) / dayMs
-    )
-    const dayLabel = formatDayLabel(daysUntil)
-    const seriesTitle = volume.series?.title ?? volume.title ?? "Unknown Series"
-    const volumeLabel = `Volume ${volume.volume_number}`
-
-    const message = `${seriesTitle} ${volumeLabel} releases ${dayLabel} on ${volume.publish_date}.`
-
-    allNotifications.push({
-      user_id: volume.user_id,
-      type: "release_reminder",
-      title: "Upcoming Release",
-      message,
-      metadata: {
-        volumeId: volume.id,
-        seriesTitle,
-        volumeNumber: volume.volume_number,
-        publishDate: volume.publish_date,
-        daysUntil
-      }
-    })
   }
 
   for (let i = 0; i < allNotifications.length; i += 500) {
@@ -372,6 +434,7 @@ serve(async (request: Request): Promise<Response> => {
       skipped += batch.length
     } else {
       notified += batch.length
+      sendBatchReleaseEmails(supabaseUrl, serviceRoleKey, batch, userSettings)
     }
   }
 

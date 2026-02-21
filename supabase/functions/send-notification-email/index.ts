@@ -18,7 +18,7 @@ const getEnv = (key: string): string | undefined => {
   return val?.trim() || undefined
 }
 
-interface EmailPayload {
+interface PriceAlertPayload {
   userId: string
   seriesTitle: string
   volumeTitle: string
@@ -26,7 +26,20 @@ interface EmailPayload {
   currentPrice: number
   targetPrice: number
   currency: string
+  isReleaseReminder?: never
 }
+
+interface ReleaseReminderPayload {
+  userId: string
+  seriesTitle: string
+  volumeTitle: string | null
+  volumeNumber: number
+  isReleaseReminder: true
+  publishDate: string
+  daysUntil: number
+}
+
+type EmailPayload = PriceAlertPayload | ReleaseReminderPayload
 
 async function getUserEmail(
   supabaseUrl: string,
@@ -112,6 +125,75 @@ async function sendEmail({
   return res.ok
 }
 
+interface SendReleaseReminderEmailArgs {
+  resendKey: string
+  to: string
+  seriesTitle: string
+  volumeTitle: string | null
+  volumeNumber: number
+  publishDate: string
+  daysUntil: number
+}
+
+async function sendReleaseReminderEmail({
+  resendKey,
+  to,
+  seriesTitle,
+  volumeTitle,
+  volumeNumber,
+  publishDate,
+  daysUntil
+}: SendReleaseReminderEmailArgs): Promise<boolean> {
+  const displayTitle = volumeTitle ?? `Volume ${volumeNumber}`
+  let dayLabel: string
+  if (daysUntil <= 0) {
+    dayLabel = "today"
+  } else if (daysUntil === 1) {
+    dayLabel = "tomorrow"
+  } else {
+    dayLabel = `in ${daysUntil} days`
+  }
+  const subject = `Release Reminder: ${seriesTitle} Vol. ${volumeNumber} releases ${dayLabel}`
+
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+      <h1 style="font-size:20px;font-weight:600;margin-bottom:8px">Upcoming Release</h1>
+      <p style="color:#555;margin-bottom:16px">
+        A book on your wishlist is releasing ${dayLabel}!
+      </p>
+      <div style="background:#f9f9f9;border:1px solid #e5e5e5;border-radius:12px;padding:20px;margin-bottom:16px">
+        <p style="margin:0 0 8px;font-weight:600">${seriesTitle}</p>
+        <p style="margin:0 0 16px;color:#555">${displayTitle} (Volume ${volumeNumber})</p>
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <td style="padding:4px 0;color:#555">Release date</td>
+            <td style="padding:4px 0;text-align:right;font-weight:600">${publishDate}</td>
+          </tr>
+        </table>
+      </div>
+      <p style="color:#888;font-size:13px">
+        You can manage your release reminders and email preferences in ShelfArc Settings → Notifications.
+      </p>
+    </div>
+  `
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${resendKey}`
+    },
+    body: JSON.stringify({
+      from: "ShelfArc <notifications@shelfarc.alpha49.com>",
+      to: [to],
+      subject,
+      html
+    })
+  })
+
+  return res.ok
+}
+
 serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse(405, { error: "Method not allowed" })
@@ -134,15 +216,7 @@ serve(async (req: Request) => {
     return jsonResponse(400, { error: "Invalid JSON body" })
   }
 
-  const {
-    userId,
-    seriesTitle,
-    volumeTitle,
-    volumeNumber,
-    currentPrice,
-    targetPrice,
-    currency
-  } = payload
+  const { userId, seriesTitle } = payload
 
   if (!userId || !seriesTitle) {
     return jsonResponse(400, { error: "Missing required fields" })
@@ -153,16 +227,32 @@ serve(async (req: Request) => {
     return jsonResponse(404, { error: "User email not found" })
   }
 
-  const sent = await sendEmail({
-    resendKey,
-    to: email,
-    seriesTitle,
-    volumeTitle: volumeTitle ?? `Volume ${volumeNumber}`,
-    volumeNumber,
-    currentPrice,
-    targetPrice,
-    currency
-  })
+  let sent: boolean
+  if (payload.isReleaseReminder) {
+    const { volumeTitle, volumeNumber, publishDate, daysUntil } = payload
+    sent = await sendReleaseReminderEmail({
+      resendKey,
+      to: email,
+      seriesTitle,
+      volumeTitle,
+      volumeNumber,
+      publishDate,
+      daysUntil
+    })
+  } else {
+    const { volumeTitle, volumeNumber, currentPrice, targetPrice, currency } =
+      payload
+    sent = await sendEmail({
+      resendKey,
+      to: email,
+      seriesTitle,
+      volumeTitle: volumeTitle ?? `Volume ${volumeNumber}`,
+      volumeNumber,
+      currentPrice,
+      targetPrice,
+      currency
+    })
+  }
 
   if (!sent) {
     return jsonResponse(502, { error: "Email delivery failed" })
