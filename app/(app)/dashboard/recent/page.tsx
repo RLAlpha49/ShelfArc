@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useMemo, useState } from "react"
 
+import { CoverImage } from "@/components/library/cover-image"
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -111,8 +112,16 @@ function VolumesList({
           <Link
             key={v.id}
             href={`/library/volume/${v.id}`}
-            className="bg-card group hover:bg-accent/60 flex items-center justify-between p-4 transition-colors"
+            className="bg-card group hover:bg-accent/60 flex items-center gap-3 p-4 transition-colors"
           >
+            <div className="h-14 w-10 shrink-0 overflow-hidden rounded">
+              <CoverImage
+                isbn={v.isbn}
+                coverImageUrl={v.cover_image_url}
+                alt={`${v.seriesTitle} Vol. ${v.volume_number}`}
+                className="h-14 w-10 rounded object-cover"
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
