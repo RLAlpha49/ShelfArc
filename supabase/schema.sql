@@ -11,6 +11,11 @@
 -- DROP TRIGGER IF EXISTS update_series_updated_at ON public.series;
 -- DROP TRIGGER IF EXISTS update_volumes_updated_at ON public.volumes;
 -- DROP TRIGGER IF EXISTS update_price_alerts_updated_at ON public.price_alerts;
+-- DROP TRIGGER IF EXISTS update_collections_updated_at ON public.collections;
+-- DROP TRIGGER IF EXISTS trg_volume_user_consistency ON public.volumes;
+-- DROP TRIGGER IF EXISTS trg_cleanup_import_events ON public.import_events;
+-- DROP TRIGGER IF EXISTS trg_series_owned_volume_count ON public.volumes;
+-- DROP TRIGGER IF EXISTS trg_cleanup_price_history ON public.price_history;
 --
 -- DROP POLICY IF EXISTS "Users can view profiles" ON public.profiles;
 -- DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
@@ -57,6 +62,11 @@
 -- DROP FUNCTION IF EXISTS public.rate_limit_cleanup(integer);
 -- DROP FUNCTION IF EXISTS public.activity_events_cleanup(integer);
 -- DROP FUNCTION IF EXISTS public.notifications_cleanup(integer);
+-- DROP FUNCTION IF EXISTS public.check_volume_user_consistency();
+-- DROP FUNCTION IF EXISTS public.cleanup_old_import_events();
+-- DROP FUNCTION IF EXISTS public.restore_user_library(UUID, JSONB, JSONB);
+-- DROP FUNCTION IF EXISTS public.update_series_owned_volume_count();
+-- DROP FUNCTION IF EXISTS public.cleanup_price_history();
 --
 -- DROP TABLE IF EXISTS public.collection_volumes CASCADE;
 -- DROP TABLE IF EXISTS public.import_events CASCADE;
@@ -70,6 +80,8 @@
 -- DROP TABLE IF EXISTS public.series CASCADE;
 -- DROP TABLE IF EXISTS public.collections CASCADE;
 -- DROP TABLE IF EXISTS public.profiles CASCADE;
+--
+-- DROP MATERIALIZED VIEW IF EXISTS public.user_tags;
 --
 -- DROP TYPE IF EXISTS public.activity_event_type CASCADE;
 -- DROP TYPE IF EXISTS public.notification_type CASCADE;
@@ -237,6 +249,7 @@ CREATE TABLE IF NOT EXISTS series (
   cover_image_url TEXT,
   type title_type DEFAULT 'manga' NOT NULL,
   total_volumes INTEGER,
+  owned_volume_count INTEGER NOT NULL DEFAULT 0,
   status series_status,
   tags TEXT[] DEFAULT '{}',
   is_public BOOLEAN DEFAULT FALSE NOT NULL,
@@ -253,6 +266,11 @@ CREATE INDEX IF NOT EXISTS idx_series_user_id ON public.series USING btree (user
 CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
 CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
 CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
+
+CREATE VIEW public.user_tags WITH (security_invoker = true) AS
+  SELECT DISTINCT unnest(tags) AS tag, user_id
+  FROM public.series
+  WHERE array_length(tags, 1) > 0;
 
 -- Volumes table (individual books/volumes)
 CREATE TABLE IF NOT EXISTS volumes (
@@ -304,6 +322,23 @@ CREATE INDEX IF NOT EXISTS idx_volumes_volume_number ON public.volumes USING btr
 CREATE UNIQUE INDEX IF NOT EXISTS idx_volumes_unique_null_edition
   ON volumes(series_id, volume_number)
   WHERE edition IS NULL;
+CREATE INDEX IF NOT EXISTS idx_volumes_series_ownership
+  ON volumes(series_id, ownership_status);
+CREATE INDEX IF NOT EXISTS idx_volumes_series_reading
+  ON volumes(series_id, reading_status);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'current_page_within_bounds'
+      AND conrelid = to_regclass('public.volumes')
+  ) THEN
+    ALTER TABLE public.volumes
+      ADD CONSTRAINT current_page_within_bounds
+      CHECK (current_page IS NULL OR page_count IS NULL OR current_page <= page_count);
+  END IF;
+END $$;
 
 -- Tags table (user-defined tags)
 CREATE TABLE IF NOT EXISTS tags (
@@ -379,7 +414,9 @@ CREATE TABLE IF NOT EXISTS price_alerts (
   UNIQUE(volume_id, user_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_price_alerts_user_enabled ON price_alerts(user_id, enabled);
+CREATE INDEX IF NOT EXISTS idx_price_alerts_enabled_volume
+  ON price_alerts(user_id, volume_id)
+  WHERE enabled = TRUE;
 CREATE INDEX IF NOT EXISTS idx_price_alerts_user_id ON price_alerts(user_id);
 CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id);
 
@@ -400,6 +437,8 @@ CREATE INDEX IF NOT EXISTS idx_activity_events_user_created
   ON activity_events(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_activity_events_user_event_type
   ON activity_events(user_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_activity_events_created_brin
+  ON activity_events USING BRIN(created_at);
 
 
 -- Notifications table (server-synced user notifications)
@@ -427,8 +466,24 @@ CREATE TABLE IF NOT EXISTS collections (
   color TEXT NOT NULL DEFAULT '#4682b4',
   is_system BOOLEAN NOT NULL DEFAULT FALSE,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'collections_id_uuid_format'
+      AND conrelid = to_regclass('public.collections')
+  ) THEN
+    ALTER TABLE public.collections
+      ADD CONSTRAINT collections_id_uuid_format
+      CHECK (id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_collections_user_id ON collections(user_id);
 
 CREATE TABLE IF NOT EXISTS collection_volumes (
   collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -438,7 +493,7 @@ CREATE TABLE IF NOT EXISTS collection_volumes (
   PRIMARY KEY (collection_id, volume_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_collections_user_id ON collections(user_id);
+
 CREATE INDEX IF NOT EXISTS idx_collection_volumes_collection ON collection_volumes(collection_id);
 CREATE INDEX IF NOT EXISTS idx_collection_volumes_user ON collection_volumes(user_id);
 CREATE INDEX IF NOT EXISTS idx_collection_volumes_volume ON collection_volumes(volume_id);
@@ -458,6 +513,13 @@ CREATE INDEX IF NOT EXISTS idx_import_events_user_id ON import_events(user_id, i
 -- -----------------------------------------------------------------------------
 -- Row Level Security (enable + policies grouped per-table)
 -- -----------------------------------------------------------------------------
+
+-- RLS Template — apply this pattern to every new user-scoped table:
+--   ALTER TABLE new_table ENABLE ROW LEVEL SECURITY;
+--   CREATE POLICY "Users manage own rows" ON new_table
+--     USING ((select auth.uid()) = user_id)
+--     WITH CHECK ((select auth.uid()) = user_id);
+-- All new tables MUST have RLS policies from day one.
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DO $$
@@ -858,6 +920,32 @@ BEGIN
   END IF;
 END $$;
 
+-- Storage RLS: restrict media bucket to each user's own folder prefix
+-- This prevents authenticated users from reading/writing other users' files.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'Users can manage own media'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "Users can manage own media"
+        ON storage.objects FOR ALL
+        TO authenticated
+        USING (
+          bucket_id = 'media'
+          AND (storage.foldername(name))[1] = (select auth.uid())::text
+        )
+        WITH CHECK (
+          bucket_id = 'media'
+          AND (storage.foldername(name))[1] = (select auth.uid())::text
+        )
+    $policy$;
+  END IF;
+END $$;
+
 -- -----------------------------------------------------------------------------
 -- Functions
 -- -----------------------------------------------------------------------------
@@ -939,7 +1027,10 @@ SET search_path = ''
 AS $$
 DECLARE
   raw_username TEXT;
+  base_username TEXT;
   final_username TEXT;
+  attempt      INT := 0;
+  success      BOOLEAN := FALSE;
 BEGIN
   raw_username := COALESCE(
     NEW.raw_user_meta_data->>'username',
@@ -947,18 +1038,38 @@ BEGIN
   );
 
   -- Strip non-word characters
-  final_username := regexp_replace(raw_username, '[^\w]', '_', 'g');
+  base_username := regexp_replace(raw_username, '[^\w]', '_', 'g');
 
-  -- Pad short usernames
-  IF length(final_username) < 3 THEN
-    final_username := final_username || repeat('_', 3 - length(final_username));
+  -- Ensure minimum length of 3
+  IF length(base_username) < 3 THEN
+    base_username := rpad(base_username, 3, '_');
   END IF;
 
-  -- Truncate long usernames
-  final_username := left(final_username, 20);
+  -- Truncate base to 16 chars (leaves 4 chars for a _NNN suffix)
+  base_username := left(base_username, 16);
 
-  INSERT INTO public.profiles (id, email, username)
-  VALUES (NEW.id, NEW.email, final_username);
+  -- First candidate: use full base (up to 20 chars)
+  final_username := left(base_username, 20);
+
+  WHILE NOT success LOOP
+    BEGIN
+      INSERT INTO public.profiles (id, email, username)
+      VALUES (NEW.id, NEW.email, final_username);
+      success := TRUE;
+    EXCEPTION WHEN unique_violation THEN
+      attempt := attempt + 1;
+      IF attempt > 10 THEN
+        -- Final fallback: UUID-fragment suffix is effectively collision-free
+        final_username := left(base_username, 12) || '_' ||
+                          left(replace(gen_random_uuid()::text, '-', ''), 7);
+      ELSE
+        -- Random 3-digit suffix (_001 .. _999)
+        final_username := left(base_username, 16) || '_' ||
+                          lpad((floor(random() * 999) + 1)::int::text, 3, '0');
+      END IF;
+    END;
+  END LOOP;
+
   RETURN NEW;
 END;
 $$;
@@ -1153,6 +1264,152 @@ BEGIN
 END;
 $$;
 
+-- [DB-08] Ensure volume.user_id always matches its parent series.user_id
+CREATE OR REPLACE FUNCTION public.check_volume_user_consistency()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW.series_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.series
+      WHERE id = NEW.series_id AND user_id = NEW.user_id
+    ) THEN
+      RAISE EXCEPTION 'volume.user_id must match series.user_id (series_id=%, volume user_id=%)',
+        NEW.series_id, NEW.user_id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.cleanup_old_import_events()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  DELETE FROM public.import_events
+  WHERE user_id = NEW.user_id
+    AND id NOT IN (
+      SELECT id FROM public.import_events
+      WHERE user_id = NEW.user_id
+      ORDER BY imported_at DESC
+      LIMIT 100
+    );
+  RETURN NEW;
+END;
+$$;
+
+-- Atomic library restore wrapped in a single DB transaction.
+-- Called from the restore-db Edge Function via supabase.rpc() to guarantee
+-- that the delete + re-insert of series and volumes is all-or-nothing.
+CREATE OR REPLACE FUNCTION public.restore_user_library(
+  p_user_id UUID,
+  p_series  JSONB,
+  p_volumes JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_series_count  INT;
+  v_volumes_count INT;
+BEGIN
+  DELETE FROM public.volumes WHERE user_id = p_user_id;
+  DELETE FROM public.series  WHERE user_id = p_user_id;
+
+  INSERT INTO public.series
+    SELECT * FROM jsonb_populate_recordset(NULL::public.series, p_series)
+    WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_series_count = ROW_COUNT;
+
+  INSERT INTO public.volumes
+    SELECT * FROM jsonb_populate_recordset(NULL::public.volumes, p_volumes)
+    WHERE user_id = p_user_id;
+  GET DIAGNOSTICS v_volumes_count = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'series_restored',  v_series_count,
+    'volumes_restored', v_volumes_count
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.restore_user_library(UUID, JSONB, JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.restore_user_library(UUID, JSONB, JSONB) TO service_role;
+
+-- Maintain series.owned_volume_count in sync with volumes table changes
+CREATE OR REPLACE FUNCTION public.update_series_owned_volume_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_series_id UUID;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_series_id := OLD.series_id;
+  ELSIF TG_OP = 'INSERT' THEN
+    v_series_id := NEW.series_id;
+  ELSE -- UPDATE: handle series_id change (e.g. reassigning a volume)
+    IF OLD.series_id IS DISTINCT FROM NEW.series_id AND OLD.series_id IS NOT NULL THEN
+      UPDATE public.series
+      SET owned_volume_count = (
+        SELECT COUNT(*) FROM public.volumes
+        WHERE series_id = OLD.series_id
+          AND ownership_status = 'owned'
+          AND deleted_at IS NULL
+      )
+      WHERE id = OLD.series_id;
+    END IF;
+    v_series_id := NEW.series_id;
+  END IF;
+
+  IF v_series_id IS NOT NULL THEN
+    UPDATE public.series
+    SET owned_volume_count = (
+      SELECT COUNT(*) FROM public.volumes
+      WHERE series_id = v_series_id
+        AND ownership_status = 'owned'
+        AND deleted_at IS NULL
+    )
+    WHERE id = v_series_id;
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Keep only the last 90 price history entries per volume to prevent unbounded growth
+CREATE OR REPLACE FUNCTION public.cleanup_price_history()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  DELETE FROM public.price_history
+  WHERE volume_id = NEW.volume_id
+    AND id NOT IN (
+      SELECT id FROM public.price_history
+      WHERE volume_id = NEW.volume_id
+      ORDER BY scraped_at DESC
+      LIMIT 90
+    );
+  RETURN NEW;
+END;
+$$;
+
 -- -----------------------------------------------------------------------------
 -- Triggers (created after functions exist)
 -- -----------------------------------------------------------------------------
@@ -1250,5 +1507,86 @@ BEGIN
     CREATE TRIGGER update_volumes_updated_at
       BEFORE UPDATE ON public.volumes
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
+
+-- Reject volumes whose user_id does not match their parent series' user_id
+DO $$
+BEGIN
+  IF to_regclass('public.volumes') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'trg_volume_user_consistency'
+         AND tgrelid = to_regclass('public.volumes')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER trg_volume_user_consistency
+      BEFORE INSERT OR UPDATE ON public.volumes
+      FOR EACH ROW EXECUTE FUNCTION public.check_volume_user_consistency();
+  END IF;
+END $$;
+
+-- Trim import_events to last 100 rows per user after each insert
+DO $$
+BEGIN
+  IF to_regclass('public.import_events') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'trg_cleanup_import_events'
+         AND tgrelid = to_regclass('public.import_events')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER trg_cleanup_import_events
+      AFTER INSERT ON public.import_events
+      FOR EACH ROW EXECUTE FUNCTION public.cleanup_old_import_events();
+  END IF;
+END $$;
+
+-- Keep collections.updated_at current
+DO $$
+BEGIN
+  IF to_regclass('public.collections') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'update_collections_updated_at'
+         AND tgrelid = to_regclass('public.collections')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER update_collections_updated_at
+      BEFORE UPDATE ON public.collections
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
+
+-- Maintain series.owned_volume_count counter on volume changes
+DO $$
+BEGIN
+  IF to_regclass('public.volumes') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'trg_series_owned_volume_count'
+         AND tgrelid = to_regclass('public.volumes')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER trg_series_owned_volume_count
+      AFTER INSERT OR DELETE OR UPDATE OF series_id, ownership_status
+      ON public.volumes
+      FOR EACH ROW EXECUTE FUNCTION public.update_series_owned_volume_count();
+  END IF;
+END $$;
+
+-- Trim price_history to last 90 entries per volume after each insert
+DO $$
+BEGIN
+  IF to_regclass('public.price_history') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'trg_cleanup_price_history'
+         AND tgrelid = to_regclass('public.price_history')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER trg_cleanup_price_history
+      AFTER INSERT ON public.price_history
+      FOR EACH ROW EXECUTE FUNCTION public.cleanup_price_history();
   END IF;
 END $$;
