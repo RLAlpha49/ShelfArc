@@ -43,6 +43,9 @@ interface BulkVolumeFields {
   edition: VolumeEdition | "none" | typeof UNCHANGED
   format: VolumeFormat | "none" | typeof UNCHANGED
   rating: string
+  tagsToAdd: string
+  tagsToRemove: string
+  purchasePrice: string
 }
 
 function getSeriesChanges(
@@ -72,6 +75,24 @@ function getVolumeChanges(
   if (fields.rating.trim()) {
     const val = Number(fields.rating)
     if (Number.isFinite(val) && val >= 0 && val <= 10) changes.rating = val
+  }
+  if (fields.tagsToAdd.trim()) {
+    const tags = fields.tagsToAdd
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+    if (tags.length > 0) changes.tags_to_add = tags
+  }
+  if (fields.tagsToRemove.trim()) {
+    const tags = fields.tagsToRemove
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+    if (tags.length > 0) changes.tags_to_remove = tags
+  }
+  if (fields.purchasePrice.trim()) {
+    const val = Number.parseFloat(fields.purchasePrice)
+    if (Number.isFinite(val) && val >= 0) changes.purchase_price = val
   }
   return Object.keys(changes).length > 0 ? changes : null
 }
@@ -111,7 +132,10 @@ export function BulkEditDialog({
     reading_status: UNCHANGED,
     edition: UNCHANGED,
     format: UNCHANGED,
-    rating: ""
+    rating: "",
+    tagsToAdd: "",
+    tagsToRemove: "",
+    purchasePrice: ""
   })
 
   const resetFields = useCallback(() => {
@@ -126,7 +150,10 @@ export function BulkEditDialog({
       reading_status: UNCHANGED,
       edition: UNCHANGED,
       format: UNCHANGED,
-      rating: ""
+      rating: "",
+      tagsToAdd: "",
+      tagsToRemove: "",
+      purchasePrice: ""
     })
   }, [])
 
@@ -371,6 +398,57 @@ export function BulkEditDialog({
                   setVolumeFields((prev) => ({
                     ...prev,
                     rating: e.target.value
+                  }))
+                }
+                placeholder="Leave empty to keep unchanged"
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bulk-tags-add">Add Tags</Label>
+              <Input
+                id="bulk-tags-add"
+                value={volumeFields.tagsToAdd}
+                onChange={(e) =>
+                  setVolumeFields((prev) => ({
+                    ...prev,
+                    tagsToAdd: e.target.value
+                  }))
+                }
+                placeholder="tag1, tag2 (comma-separated)"
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bulk-tags-remove">Remove Tags</Label>
+              <Input
+                id="bulk-tags-remove"
+                value={volumeFields.tagsToRemove}
+                onChange={(e) =>
+                  setVolumeFields((prev) => ({
+                    ...prev,
+                    tagsToRemove: e.target.value
+                  }))
+                }
+                placeholder="tag1, tag2 (comma-separated)"
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bulk-price">Purchase Price</Label>
+              <Input
+                id="bulk-price"
+                type="number"
+                min={0}
+                step={0.01}
+                value={volumeFields.purchasePrice}
+                onChange={(e) =>
+                  setVolumeFields((prev) => ({
+                    ...prev,
+                    purchasePrice: e.target.value
                   }))
                 }
                 placeholder="Leave empty to keep unchanged"
