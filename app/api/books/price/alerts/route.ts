@@ -8,10 +8,9 @@ import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createUserClient } from "@/lib/supabase/server"
 import {
-  isNonNegativeFinite,
-  isValidCurrencyCode,
-  isValidUUID
-} from "@/lib/validation"
+  PriceAlertSchema,
+  UpdatePriceAlertSchema
+} from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -59,47 +58,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-type ValidatedAlert = {
-  volumeId: string
-  targetPrice: number
-  currency: string
-  enabled: boolean | undefined
-}
-
-const validateAlertBody = (
-  body: Record<string, unknown>
-): ValidatedAlert | NextResponse => {
-  const { volumeId, targetPrice, currency, enabled } = body
-
-  if (typeof volumeId !== "string" || !volumeId.trim()) {
-    return apiError(400, "volumeId is required")
-  }
-  if (!isNonNegativeFinite(targetPrice) || targetPrice <= 0) {
-    return apiError(400, "targetPrice must be a positive number")
-  }
-  if (currency !== undefined && currency !== null) {
-    if (
-      typeof currency !== "string" ||
-      !isValidCurrencyCode(currency.trim().toUpperCase())
-    ) {
-      return apiError(400, "currency must be a 3-letter ISO currency code")
-    }
-  }
-  if (enabled !== undefined && typeof enabled !== "boolean") {
-    return apiError(400, "enabled must be a boolean")
-  }
-
-  return {
-    volumeId,
-    targetPrice,
-    currency:
-      typeof currency === "string" && currency.trim()
-        ? currency.trim().toUpperCase()
-        : "USD",
-    enabled: typeof enabled === "boolean" ? enabled : undefined
-  }
-}
-
 export async function POST(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
@@ -127,8 +85,14 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const validated = validateAlertBody(body)
-    if (validated instanceof NextResponse) return validated
+    const parsed = PriceAlertSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
+    const validated = parsed.data
 
     // Verify the volume belongs to the authenticated user before creating/updating alert
     const { data: volume } = await supabase
@@ -213,14 +177,19 @@ export async function PATCH(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const { id } = body
-    if (!isValidUUID(id)) {
-      return apiError(400, "id must be a valid UUID", { correlationId })
+    const parsed = UpdatePriceAlertSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
     }
+
+    const { id, snooze_days } = parsed.data
 
     // Snooze mode: snooze_days key present in body
     if ("snooze_days" in body) {
-      const result = computeSnoozedUntil(body.snooze_days)
+      const result = computeSnoozedUntil(snooze_days)
       if (!result.ok) {
         return apiError(400, "snooze_days must be 7, 30, 0, or null", {
           correlationId
