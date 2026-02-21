@@ -11,20 +11,9 @@ import {
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
-import {
-  sanitizeOptionalHtml,
-  sanitizeOptionalPlainText,
-  sanitizePlainText
-} from "@/lib/sanitize-html"
-import {
-  isPositiveInteger,
-  isValidSeriesStatus,
-  isValidTitleType
-} from "@/lib/validation"
+import { CreateSeriesSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
-
-const asString = (v: unknown): string => (typeof v === "string" ? v : "")
 
 /** List the authenticated user's series, sorted by most recently updated. */
 export async function GET(request: NextRequest) {
@@ -87,37 +76,18 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const title = sanitizePlainText(asString(body.title), 500)
-    if (!title) {
-      return apiError(400, "Title is required", { correlationId })
+    const parsed = CreateSeriesSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
     }
 
-    const insert = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const insert: any = {
       user_id: user.id,
-      title,
-      original_title: sanitizeOptionalPlainText(
-        asString(body.original_title),
-        500
-      ),
-      description: sanitizeOptionalHtml(asString(body.description)),
-      author: sanitizeOptionalPlainText(asString(body.author), 1000),
-      artist: sanitizeOptionalPlainText(asString(body.artist), 1000),
-      publisher: sanitizeOptionalPlainText(asString(body.publisher), 1000),
-      notes: sanitizeOptionalPlainText(asString(body.notes), 5000),
-      type: isValidTitleType(body.type) ? body.type : ("other" as const),
-      tags: Array.isArray(body.tags)
-        ? body.tags
-            .map((t: unknown) => sanitizePlainText(String(t), 100))
-            .filter(Boolean)
-        : [],
-      total_volumes: isPositiveInteger(body.total_volumes)
-        ? body.total_volumes
-        : null,
-      cover_image_url: sanitizeOptionalPlainText(
-        asString(body.cover_image_url),
-        2000
-      ),
-      status: isValidSeriesStatus(body.status) ? body.status : null
+      ...parsed.data
     }
 
     const { data, error } = await supabase
@@ -127,10 +97,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return apiError(400, "Failed to create series", {
-        correlationId,
-        details: error.message
+      log.error("Failed to create series", {
+        error: error.message,
+        code: error.code
       })
+      return apiError(500, "Failed to create series", { correlationId })
     }
 
     void recordActivityEvent(supabase, {
@@ -138,7 +109,7 @@ export async function POST(request: NextRequest) {
       eventType: "series_created",
       entityType: "series",
       entityId: data.id,
-      metadata: { title }
+      metadata: { title: parsed.data.title }
     })
 
     return apiSuccess(data, { correlationId, status: 201 })
