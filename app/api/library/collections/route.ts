@@ -26,7 +26,12 @@ export async function GET(request: NextRequest) {
 
     const { data: cols, error } = await supabase
       .from("collections")
-      .select("id, name, color, is_system, created_at, sort_order")
+      .select(
+        `
+        id, name, color, is_system, sort_order, created_at,
+        collection_volumes(volume_id)
+      `
+      )
       .eq("user_id", user.id)
       .order("sort_order", { ascending: true })
 
@@ -35,25 +40,19 @@ export async function GET(request: NextRequest) {
       return apiError(500, "Failed to fetch collections", { correlationId })
     }
 
-    const collections = await Promise.all(
-      (cols ?? []).map(async (col) => {
-        const { data: vols } = await supabase
-          .from("collection_volumes")
-          .select("volume_id")
-          .eq("collection_id", col.id)
-          .eq("user_id", user.id)
-
-        return {
-          id: col.id,
-          name: col.name,
-          color: col.color,
-          isSystem: col.is_system,
-          createdAt: col.created_at,
-          sortOrder: col.sort_order,
-          volumeIds: (vols ?? []).map((v) => v.volume_id)
-        }
-      })
-    )
+    const collections = (cols ?? []).map((col) => {
+      return {
+        id: col.id,
+        name: col.name,
+        color: col.color,
+        isSystem: col.is_system,
+        createdAt: col.created_at,
+        sortOrder: col.sort_order,
+        volumeIds: (col.collection_volumes ?? []).map(
+          (v: { volume_id: string }) => v.volume_id
+        )
+      }
+    })
 
     return apiSuccess({ collections }, { correlationId })
   } catch (err) {
