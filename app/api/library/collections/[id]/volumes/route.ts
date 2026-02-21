@@ -10,7 +10,7 @@ import {
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
-import { isValidUUID } from "@/lib/validation"
+import { CollectionVolumesSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -33,23 +33,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const { volumeIds } = body as { volumeIds?: unknown }
-    if (!Array.isArray(volumeIds) || volumeIds.length === 0) {
-      return apiError(400, "volumeIds must be a non-empty array", {
-        correlationId
+    const parsed = CollectionVolumesSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
       })
     }
 
-    const invalidIds = (volumeIds as unknown[]).filter(
-      (v) => typeof v !== "string" || !isValidUUID(v)
-    )
-    if (invalidIds.length > 0) {
-      return apiError(400, "All volumeIds must be valid UUIDs", {
-        correlationId
-      })
-    }
+    const { volumeIds } = parsed.data
 
-    const rows = (volumeIds as string[]).map((volumeId) => ({
+    const rows = volumeIds.map((volumeId) => ({
       collection_id: id,
       volume_id: volumeId,
       user_id: user.id
@@ -62,7 +56,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     if (error) {
       log.error("Failed to add volumes to collection", {
-        error: error.message
+        error: error.message,
+        code: error.code
       })
       return apiError(500, "Failed to add volumes to collection", {
         correlationId
@@ -93,32 +88,27 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const { volumeIds } = body as { volumeIds?: unknown }
-    if (!Array.isArray(volumeIds) || volumeIds.length === 0) {
-      return apiError(400, "volumeIds must be a non-empty array", {
-        correlationId
+    const parsed = CollectionVolumesSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
       })
     }
 
-    const invalidIds = (volumeIds as unknown[]).filter(
-      (v) => typeof v !== "string" || !isValidUUID(v)
-    )
-    if (invalidIds.length > 0) {
-      return apiError(400, "All volumeIds must be valid UUIDs", {
-        correlationId
-      })
-    }
+    const { volumeIds } = parsed.data
 
     const { error } = await supabase
       .from("collection_volumes")
       .delete()
       .eq("collection_id", id)
       .eq("user_id", user.id)
-      .in("volume_id", volumeIds as string[])
+      .in("volume_id", volumeIds)
 
     if (error) {
       log.error("Failed to remove volumes from collection", {
-        error: error.message
+        error: error.message,
+        code: error.code
       })
       return apiError(500, "Failed to remove volumes from collection", {
         correlationId
