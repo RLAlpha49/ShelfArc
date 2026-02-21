@@ -1,5 +1,6 @@
-import { type NextRequest } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 
+import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { updateSession } from "@/lib/supabase/middleware"
 
 /**
@@ -10,6 +11,30 @@ import { updateSession } from "@/lib/supabase/middleware"
  * @source
  */
 export async function middleware(request: NextRequest) {
+  // Rate limit public profile pages by IP
+  if (request.nextUrl.pathname.startsWith("/u/")) {
+    const ip =
+      request.headers.get("x-forwarded-for") ??
+      request.headers.get("x-real-ip") ??
+      "unknown"
+    const rate = await consumeDistributedRateLimit({
+      key: `public-profile:${ip}`,
+      maxHits: 60,
+      windowMs: 60_000,
+      cooldownMs: 30_000,
+      reason: "public-profile-rate-limit"
+    })
+
+    if (rate && !rate.allowed) {
+      return new NextResponse("Too Many Requests", {
+        status: 429,
+        headers: {
+          "Retry-After": Math.ceil(rate.retryAfterMs / 1000).toString()
+        }
+      })
+    }
+  }
+
   const response = await updateSession(request)
 
   if (request.nextUrl.pathname.startsWith("/dashboard")) {
