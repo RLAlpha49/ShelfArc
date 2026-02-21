@@ -6,6 +6,7 @@ import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import { apiError, getErrorMessage, parseJsonBody } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { ExportSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -49,52 +50,6 @@ function csvEscape(value: unknown): string {
 
 type ExportFormat = "json" | "csv"
 type ExportScope = "all" | "selected"
-
-function validateExportBody(
-  body: Record<string, unknown>,
-  correlationId: string
-): { format: ExportFormat; scope: ExportScope; ids?: string[] } | Response {
-  const format = body.format
-  if (format !== "json" && format !== "csv") {
-    return apiError(400, "Format must be 'json' or 'csv'", { correlationId })
-  }
-
-  const scope = body.scope
-  if (scope !== "all" && scope !== "selected") {
-    return apiError(400, "Scope must be 'all' or 'selected'", { correlationId })
-  }
-
-  if (scope === "selected") {
-    if (
-      !Array.isArray(body.ids) ||
-      body.ids.length === 0 ||
-      !body.ids.every((id: unknown) => typeof id === "string")
-    ) {
-      return apiError(
-        400,
-        "Selected scope requires a non-empty 'ids' array of strings",
-        {
-          correlationId
-        }
-      )
-    }
-    if (body.ids.length > 500) {
-      return apiError(400, "Maximum 500 series IDs allowed", { correlationId })
-    }
-    const UUID_RE =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (
-      !body.ids.every(
-        (id: unknown) => typeof id === "string" && UUID_RE.test(id)
-      )
-    ) {
-      return apiError(400, "All IDs must be valid UUIDs.", { correlationId })
-    }
-    return { format, scope, ids: body.ids }
-  }
-
-  return { format, scope }
-}
 
 function csvColumnValue(
   col: string,
@@ -151,6 +106,30 @@ async function* fetchSeriesBatches(
   }
 }
 
+function enqueueBatch(
+  controller: ReadableStreamDefaultController,
+  batch: Record<string, unknown>[],
+  format: ExportFormat,
+  firstBatch: boolean
+): boolean {
+  if (format === "csv") {
+    const chunk = buildCsvChunk(batch)
+    if (chunk) {
+      controller.enqueue(new TextEncoder().encode(chunk + "\n"))
+    }
+    return false
+  } else {
+    const jsonStr = JSON.stringify(batch)
+    const innerJson = jsonStr.slice(1, -1)
+    if (innerJson) {
+      const prefix = firstBatch ? "" : ","
+      controller.enqueue(new TextEncoder().encode(prefix + innerJson))
+      return false
+    }
+    return firstBatch
+  }
+}
+
 async function handleExportStream(
   controller: ReadableStreamDefaultController,
   supabase: SupabaseClient,
@@ -175,20 +154,7 @@ async function handleExportStream(
       ids,
       100
     )) {
-      if (format === "csv") {
-        const chunk = buildCsvChunk(batch)
-        if (chunk) {
-          controller.enqueue(new TextEncoder().encode(chunk + "\n"))
-        }
-      } else {
-        const jsonStr = JSON.stringify(batch)
-        const innerJson = jsonStr.slice(1, -1)
-        if (innerJson) {
-          const prefix = firstBatch ? "" : ","
-          controller.enqueue(new TextEncoder().encode(prefix + innerJson))
-          firstBatch = false
-        }
-      }
+      firstBatch = enqueueBatch(controller, batch, format, firstBatch)
     }
 
     if (format === "json") {
@@ -218,9 +184,15 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const validated = validateExportBody(body, correlationId)
-    if (validated instanceof Response) return validated
-    const { format, scope, ids } = validated
+    const parsed = ExportSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
+
+    const { format, scope, ids } = parsed.data
 
     // Check total volumes to prevent massive exports
     let countQuery = supabase
