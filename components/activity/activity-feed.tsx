@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useActivityFeed } from "@/lib/hooks/use-activity-feed"
+import { selectAllSeries, useLibraryStore } from "@/lib/store/library-store"
 import type { ActivityEventType } from "@/lib/types/database"
 
 const eventTypeOptions: { value: ActivityEventType; label: string }[] = [
@@ -92,6 +93,10 @@ export function ActivityFeed() {
   const [dateRange, setDateRange] = useState<DateRangeKey>("all")
   const [isClearing, setIsClearing] = useState(false)
   const [clearCooldown, setClearCooldown] = useState(false)
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string | undefined>(
+    undefined
+  )
+  const allSeries = useLibraryStore(selectAllSeries)
 
   useEffect(() => {
     const afterDate = getAfterDate(dateRange)
@@ -125,8 +130,18 @@ export function ActivityFeed() {
     }
   }
 
+  const filteredEvents = useMemo(() => {
+    if (!selectedSeriesId) return events
+    return events.filter(
+      (e) =>
+        e.entity_id === selectedSeriesId ||
+        (e.metadata as Record<string, unknown> | null)?.series_id ===
+          selectedSeriesId
+    )
+  }, [events, selectedSeriesId])
+
   const groups = useMemo(() => {
-    if (events.length === 0) return []
+    if (filteredEvents.length === 0) return []
     const now = new Date()
     const todayKey = now.toDateString()
     const yesterdayDate = new Date(now)
@@ -148,7 +163,7 @@ export function ActivityFeed() {
       label: string
       eventIds: typeof events
     }[] = []
-    for (const event of events) {
+    for (const event of filteredEvents) {
       const dateKey = new Date(event.created_at).toDateString()
       const last = result.at(-1)
       if (last?.dateKey === dateKey) {
@@ -162,7 +177,7 @@ export function ActivityFeed() {
       }
     }
     return result
-  }, [events])
+  }, [filteredEvents])
 
   const handleLoadMore = () => {
     const afterDate = getAfterDate(dateRange)
@@ -219,6 +234,29 @@ export function ActivityFeed() {
             {entityTypeOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={selectedSeriesId ?? "all"}
+          onValueChange={(value) =>
+            setSelectedSeriesId(
+              value === "all" ? undefined : (value ?? undefined)
+            )
+          }
+        >
+          <SelectTrigger
+            aria-label="Filter by series"
+            className="w-full sm:w-44"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All series</SelectItem>
+            {allSeries.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.title}
               </SelectItem>
             ))}
           </SelectContent>
@@ -304,7 +342,7 @@ export function ActivityFeed() {
       )}
 
       {/* Empty state */}
-      {!isLoading && !error && events.length === 0 && (
+      {!isLoading && !error && filteredEvents.length === 0 && (
         <div className="glass-card flex flex-col items-center justify-center rounded-xl px-6 py-14 text-center">
           <div className="text-primary bg-primary/8 mb-3 flex h-11 w-11 items-center justify-center rounded-lg">
             <svg
