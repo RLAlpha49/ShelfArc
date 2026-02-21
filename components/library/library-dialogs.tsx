@@ -2,8 +2,6 @@
 
 import { lazy, memo, Suspense } from "react"
 
-import { BulkEditDialog } from "@/components/library/bulk-edit-dialog"
-import { AddToCollectionDialog } from "@/components/library/collections-panel"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +49,16 @@ const VolumeDialog = lazy(() =>
 const BookSearchDialog = lazy(() =>
   import("@/components/library/book-search-dialog").then((m) => ({
     default: m.BookSearchDialog
+  }))
+)
+const BulkEditDialog = lazy(() =>
+  import("@/components/library/bulk-edit-dialog").then((m) => ({
+    default: m.BulkEditDialog
+  }))
+)
+const AddToCollectionDialog = lazy(() =>
+  import("@/components/library/collections-panel").then((m) => ({
+    default: m.AddToCollectionDialog
   }))
 )
 
@@ -197,108 +205,125 @@ export const LibraryDialogs = memo(function LibraryDialogs(
 
   return (
     <>
-      <Suspense fallback={null}>
-        <DuplicateMergeDialog
-          open={duplicateDialogOpen}
-          onOpenChange={onDuplicateDialogChange}
-        />
-      </Suspense>
+      {duplicateDialogOpen && (
+        <Suspense fallback={null}>
+          <DuplicateMergeDialog
+            open={duplicateDialogOpen}
+            onOpenChange={onDuplicateDialogChange}
+          />
+        </Suspense>
+      )}
 
-      <Suspense fallback={null}>
-        <BookSearchDialog
-          open={searchDialogOpen}
-          onOpenChange={onSearchDialogChange}
-          onSelectResult={onSearchSelect}
-          onSelectResults={onSearchSelectMany}
-          onAddManual={onAddManual}
-          context="series"
-          existingIsbns={existingIsbns}
-        />
-      </Suspense>
+      {searchDialogOpen && (
+        <Suspense fallback={null}>
+          <BookSearchDialog
+            open={searchDialogOpen}
+            onOpenChange={onSearchDialogChange}
+            onSelectResult={onSearchSelect}
+            onSelectResults={onSearchSelectMany}
+            onAddManual={onAddManual}
+            context="series"
+            existingIsbns={existingIsbns}
+          />
+        </Suspense>
+      )}
 
-      <Suspense fallback={null}>
-        <VolumeDialog
-          open={volumeDialogOpen}
-          onOpenChange={onVolumeDialogChange}
-          volume={editingVolume}
-          nextVolumeNumber={nextVolumeNumber}
-          onSubmit={onVolumeSubmit}
-          seriesOptions={series}
-          selectedSeriesId={selectedSeriesId}
-          onSeriesChange={onSeriesChange}
-          onCreateSeries={onCreateSeries}
-          allowNoSeries
-        />
-      </Suspense>
+      {volumeDialogOpen && (
+        <Suspense fallback={null}>
+          <VolumeDialog
+            open={volumeDialogOpen}
+            onOpenChange={onVolumeDialogChange}
+            volume={editingVolume}
+            nextVolumeNumber={nextVolumeNumber}
+            onSubmit={onVolumeSubmit}
+            seriesOptions={series}
+            selectedSeriesId={selectedSeriesId}
+            onSeriesChange={onSeriesChange}
+            onCreateSeries={onCreateSeries}
+            allowNoSeries
+          />
+        </Suspense>
+      )}
 
-      <Suspense fallback={null}>
-        <SeriesDialog
-          open={seriesDialogOpen}
-          onOpenChange={onSeriesDialogChange}
-          series={editingSeries}
-          unassignedVolumes={unassignedVolumes}
-          onSubmit={onSeriesSubmit}
-        />
-      </Suspense>
+      {seriesDialogOpen && (
+        <Suspense fallback={null}>
+          <SeriesDialog
+            open={seriesDialogOpen}
+            onOpenChange={onSeriesDialogChange}
+            series={editingSeries}
+            unassignedVolumes={unassignedVolumes}
+            onSubmit={onSeriesSubmit}
+          />
+        </Suspense>
+      )}
 
-      <Suspense fallback={null}>
-        <AssignToSeriesDialog
-          open={assignToSeriesDialogOpen}
-          onOpenChange={onAssignToSeriesDialogChange}
-          series={series}
-          selectedVolumeCount={selectedUnassignedCount}
-          onAssign={onAssign}
-        />
-      </Suspense>
+      {assignToSeriesDialogOpen && (
+        <Suspense fallback={null}>
+          <AssignToSeriesDialog
+            open={assignToSeriesDialogOpen}
+            onOpenChange={onAssignToSeriesDialogChange}
+            series={series}
+            selectedVolumeCount={selectedUnassignedCount}
+            onAssign={onAssign}
+          />
+        </Suspense>
+      )}
 
-      <AlertDialog
-        open={deleteVolumeDialogOpen}
-        onOpenChange={onDeleteVolumeDialogChange}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Book</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this book? This action cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={onDeleteVolumeConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteVolumeDialogOpen && (
+        <AlertDialog
+          open={deleteVolumeDialogOpen}
+          onOpenChange={onDeleteVolumeDialogChange}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Book</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this book? This action cannot be
+                undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={onDeleteVolumeConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={onDeleteDialogChange}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Series</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete &quot;{deletingSeries?.title}
-              &quot;?{" "}
-              {deleteSeriesVolumes
-                ? "This will also delete all volumes associated with this series."
-                : "The volumes will be kept and moved to Unassigned Books."}{" "}
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={onDeleteSeriesConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteDialogOpen && (
+        <AlertDialog
+          open={deleteDialogOpen}
+          onOpenChange={onDeleteDialogChange}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Series</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete &quot;{deletingSeries?.title}
+                &quot;?{" "}
+                {deleteSeriesVolumes
+                  ? "This will also delete all volumes associated with this series."
+                  : "The volumes will be kept and moved to Unassigned Books."}{" "}
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={onDeleteSeriesConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {scrapeTarget && (
         <Suspense fallback={null}>
@@ -311,60 +336,70 @@ export const LibraryDialogs = memo(function LibraryDialogs(
         </Suspense>
       )}
 
-      <AlertDialog
-        open={bulkDeleteDialogOpen}
-        onOpenChange={onBulkDeleteDialogChange}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {collectionView === "series"
-                ? "Delete Selected Series"
-                : "Delete Selected Books"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {collectionView === "series" ? (
-                <>
-                  You are about to delete {selectedCount} series. {""}
-                  {deleteSeriesVolumes
-                    ? "This will also delete all volumes associated with these series."
-                    : "The volumes will be kept and moved to Unassigned Books."}{" "}
-                  This action cannot be undone.
-                </>
-              ) : (
-                <>
-                  You are about to delete {selectedCount} book
-                  {selectedCount === 1 ? "" : "s"}. This action cannot be
-                  undone.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={onBulkDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {bulkDeleteDialogOpen && (
+        <AlertDialog
+          open={bulkDeleteDialogOpen}
+          onOpenChange={onBulkDeleteDialogChange}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {collectionView === "series"
+                  ? "Delete Selected Series"
+                  : "Delete Selected Books"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {collectionView === "series" ? (
+                  <>
+                    You are about to delete {selectedCount} series. {""}
+                    {deleteSeriesVolumes
+                      ? "This will also delete all volumes associated with these series."
+                      : "The volumes will be kept and moved to Unassigned Books."}{" "}
+                    This action cannot be undone.
+                  </>
+                ) : (
+                  <>
+                    You are about to delete {selectedCount} book
+                    {selectedCount === 1 ? "" : "s"}. This action cannot be
+                    undone.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={onBulkDeleteConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
-      <BulkEditDialog
-        open={bulkEditDialogOpen}
-        onOpenChange={onBulkEditDialogChange}
-        mode={collectionView === "series" ? "series" : "volumes"}
-        selectedCount={selectedCount}
-        onApply={onBulkEditApply}
-      />
+      {bulkEditDialogOpen && (
+        <Suspense fallback={null}>
+          <BulkEditDialog
+            open={bulkEditDialogOpen}
+            onOpenChange={onBulkEditDialogChange}
+            mode={collectionView === "series" ? "series" : "volumes"}
+            selectedCount={selectedCount}
+            onApply={onBulkEditApply}
+          />
+        </Suspense>
+      )}
 
-      <AddToCollectionDialog
-        open={addToCollectionDialogOpen}
-        onOpenChange={onAddToCollectionDialogChange}
-        volumeIds={selectedVolumeIdsArray}
-      />
+      {addToCollectionDialogOpen && (
+        <Suspense fallback={null}>
+          <AddToCollectionDialog
+            open={addToCollectionDialogOpen}
+            onOpenChange={onAddToCollectionDialogChange}
+            volumeIds={selectedVolumeIdsArray}
+          />
+        </Suspense>
+      )}
     </>
   )
 })
