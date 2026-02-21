@@ -55,7 +55,7 @@ export default async function HomePage() {
               <>
                 <Link
                   href="/login"
-                  className="text-foreground/70 hover:text-foreground hidden h-10 items-center justify-center px-4 text-sm font-medium transition-colors sm:inline-flex"
+                  className="text-foreground/70 hover:text-foreground inline-flex h-10 items-center justify-center px-4 text-sm font-medium transition-colors"
                 >
                   Sign In
                 </Link>
@@ -210,6 +210,102 @@ export default async function HomePage() {
                     ))}
                   </div>
                   <div className="from-border via-border/60 to-border absolute right-4 bottom-7 left-4 h-1 rounded-full bg-linear-to-r" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Product Preview */}
+      <section id="main-content" className="relative z-10 border-t">
+        <div className="mx-auto max-w-6xl px-6 py-20 lg:px-8 lg:py-28">
+          <div className="animate-fade-in-up mb-12 text-center">
+            <span className="text-muted-foreground mb-3 block text-xs tracking-widest uppercase">
+              Preview
+            </span>
+            <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+              Your library, beautifully organized
+            </h2>
+          </div>
+
+          {/* Browser window mockup */}
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-3xl bg-[radial-gradient(ellipse_at_center,var(--warm-glow-strong),transparent_70%)] opacity-40" />
+            <div className="bg-card relative overflow-hidden rounded-2xl border shadow-2xl">
+              {/* Browser chrome */}
+              <div className="bg-muted/60 flex items-center gap-3 border-b px-4 py-3">
+                <div className="flex gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-red-400/80" />
+                  <div className="h-3 w-3 rounded-full bg-yellow-400/80" />
+                  <div className="h-3 w-3 rounded-full bg-green-400/80" />
+                </div>
+                <div className="bg-background text-muted-foreground mx-4 flex-1 rounded-md border px-3 py-1 text-center text-xs">
+                  shelfarc.app/library
+                </div>
+              </div>
+
+              {/* Mock library UI */}
+              <div className="bg-background p-5">
+                {/* Toolbar row */}
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <div className="bg-muted h-8 w-36 rounded-lg" />
+                  <div className="flex gap-2">
+                    <div className="bg-muted h-8 w-28 rounded-lg" />
+                    <div className="bg-primary/15 h-8 w-8 rounded-lg" />
+                    <div className="bg-muted h-8 w-8 rounded-lg" />
+                  </div>
+                </div>
+
+                {/* Book grid mockup */}
+                <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8">
+                  {[
+                    {
+                      id: "p1",
+                      bg: "from-primary/70 to-primary/40",
+                      h: "h-28"
+                    },
+                    { id: "p2", bg: "from-copper/60 to-copper/30", h: "h-32" },
+                    { id: "p3", bg: "from-gold/70 to-gold/40", h: "h-28" },
+                    {
+                      id: "p4",
+                      bg: "from-primary/50 to-primary/25",
+                      h: "h-30"
+                    },
+                    { id: "p5", bg: "from-copper/80 to-copper/50", h: "h-28" },
+                    { id: "p6", bg: "from-gold/60 to-gold/30", h: "h-32" },
+                    {
+                      id: "p7",
+                      bg: "from-primary/60 to-primary/35",
+                      h: "h-28"
+                    },
+                    { id: "p8", bg: "from-copper/70 to-copper/40", h: "h-30" },
+                    { id: "p9", bg: "from-gold/80 to-gold/50", h: "h-28" },
+                    {
+                      id: "p10",
+                      bg: "from-primary/65 to-primary/38",
+                      h: "h-32"
+                    },
+                    { id: "p11", bg: "from-copper/55 to-copper/28", h: "h-28" },
+                    { id: "p12", bg: "from-gold/65 to-gold/35", h: "h-28" }
+                  ].map((card) => (
+                    <div
+                      key={card.id}
+                      className="group relative overflow-hidden rounded-lg"
+                    >
+                      <div
+                        className={`${card.h} w-full bg-linear-to-b ${card.bg} rounded-lg`}
+                      />
+                      <div className="bg-muted/60 mt-1.5 h-2 w-3/4 rounded-sm" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Status bar */}
+                <div className="mt-5 flex items-center gap-3">
+                  <div className="bg-muted h-5 w-20 rounded-full" />
+                  <div className="bg-primary/15 h-5 w-16 rounded-full" />
+                  <div className="bg-muted h-5 w-24 rounded-full" />
                 </div>
               </div>
             </div>
@@ -407,7 +503,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Footer — minimal */}
+      {/* Footer */}
       <footer className="animate-fade-in relative z-10 border-t">
         <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
@@ -430,9 +526,35 @@ export default async function HomePage() {
                 ShelfArc &mdash; Your personal library manager
               </span>
             </div>
-            <p className="text-muted-foreground text-sm">
-              &copy; {new Date().getFullYear()} ShelfArc
-            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+              <Link
+                href="https://github.com/RLAlpha49/ShelfArc"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                GitHub
+              </Link>
+              <Link
+                href="https://github.com/RLAlpha49/ShelfArc/blob/main/LICENSE"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                MIT License
+              </Link>
+              <Link
+                href="https://github.com/RLAlpha49/ShelfArc/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Report an Issue
+              </Link>
+              <span className="text-muted-foreground/50 text-sm">
+                &copy; {new Date().getFullYear()} ShelfArc
+              </span>
+            </div>
           </div>
         </div>
       </footer>
