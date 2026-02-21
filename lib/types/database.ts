@@ -57,7 +57,13 @@ export type ActivityEventType =
   | "price_alert_triggered"
   | "import_completed"
   | "scrape_completed"
+  | "bulk_scrape_completed"
   | "reading_status_changed"
+  | "settings_updated"
+  | "session_revoked"
+  | "tag_added"
+  | "tag_removed"
+  | "volume_merged"
 
 /** Supabase database schema definition for the public schema. @source */
 export interface Database {
