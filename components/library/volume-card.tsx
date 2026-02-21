@@ -117,6 +117,24 @@ export function VolumeCard({
             }
           />
 
+          {/* Rating overlay badge */}
+          {volume.rating && (
+            <div className="absolute top-2 right-2 z-1 flex items-center gap-0.5 rounded-md bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-3 w-3 text-amber-400"
+                aria-hidden="true"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              <span className="text-xs font-semibold text-white">
+                {volume.rating}
+              </span>
+            </div>
+          )}
+
           {/* Hover Overlay */}
           <div className="pointer-events-none absolute inset-0 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
