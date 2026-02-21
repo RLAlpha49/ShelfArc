@@ -266,7 +266,7 @@ CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
 CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
 CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
 
-CREATE VIEW public.user_tags WITH (security_invoker = true) AS
+CREATE OR REPLACE VIEW public.user_tags WITH (security_invoker = true) AS
   SELECT DISTINCT unnest(tags) AS tag, user_id
   FROM public.series
   WHERE array_length(tags, 1) > 0;
@@ -503,7 +503,7 @@ CREATE TABLE IF NOT EXISTS import_events (
 
 CREATE INDEX IF NOT EXISTS idx_import_events_user_id ON import_events(user_id, imported_at DESC);
 
-CREATE TABLE automations (
+CREATE TABLE IF NOT EXISTS automations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -516,7 +516,7 @@ CREATE TABLE automations (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX idx_automations_user_id ON automations(user_id);
+CREATE INDEX IF NOT EXISTS idx_automations_user_id ON automations(user_id);
 
 -- -----------------------------------------------------------------------------
 -- Row Level Security (enable + policies grouped per-table)
