@@ -42,6 +42,16 @@ type ImportMode = "merge" | "replace"
 type MergeStrategy = "skip" | "overwrite"
 type Db = SupabaseClient<Database>
 
+/** Structured result returned from a dry-run import (no DB writes). */
+interface DryRunResult {
+  dryRun: true
+  seriesCount: number
+  volumeCount: number
+  newSeriesCount: number
+  existingSeriesCount: number
+  conflictingTitles: string[]
+}
+
 /* ─── Sanitizers ─────────────────────────────────────────── */
 
 function sanitizeSeriesImport(
@@ -534,6 +544,19 @@ async function processCsvGroup(
 
 /* ─── ShelfArc CSV import logic ──────────────────────────── */
 
+async function upsertVolumeBatches(
+  allToUpsert: (VolumeInsert & { id?: string })[],
+  supabase: Db
+): Promise<void> {
+  for (let i = 0; i < allToUpsert.length; i += 500) {
+    const batch = allToUpsert.slice(i, i + 500)
+    const { error } = await supabase
+      .from("volumes")
+      .upsert(batch, { onConflict: "id" })
+    if (error) throw new Error("Failed to import volumes")
+  }
+}
+
 async function handleCsvImport(
   content: string,
   mode: ImportMode,
@@ -609,13 +632,7 @@ async function handleCsvImport(
     totalSkipped += skipped
   }
 
-  for (let i = 0; i < allToUpsert.length; i += 500) {
-    const batch = allToUpsert.slice(i, i + 500)
-    const { error } = await supabase
-      .from("volumes")
-      .upsert(batch, { onConflict: "id" })
-    if (error) throw new Error("Failed to import volumes")
-  }
+  await upsertVolumeBatches(allToUpsert, supabase)
 
   const actionLabel = mode === "replace" ? "Replaced" : "Merged"
   const skipNote =
@@ -623,7 +640,135 @@ async function handleCsvImport(
   return `${actionLabel} collection: ${totalCreatedSeries.toLocaleString()} new series, ${totalCreatedVolumes.toLocaleString()} new volumes${skipNote}`
 }
 
+/* ─── Dry-run helpers ────────────────────────────────────── */
+
+async function dryRunJsonImport(
+  content: string,
+  userId: string,
+  supabase: Db
+): Promise<DryRunResult> {
+  const data = parseImportJson(content)
+  validateImportStructure(data)
+
+  const validSeries = data.filter((s) => s.title && typeof s.title === "string")
+  const seriesCount = validSeries.length
+  const volumeCount = validSeries.reduce(
+    (sum, s) => sum + (s.volumes?.length ?? 0),
+    0
+  )
+
+  const { data: existingSeries } = await supabase
+    .from("series")
+    .select("title, type")
+    .eq("user_id", userId)
+
+  const existingMap = new Set<string>()
+  for (const s of existingSeries ?? []) {
+    existingMap.add(`${s.title.toLowerCase()}::${s.type}`)
+  }
+
+  const conflictingTitles: string[] = []
+  for (const s of validSeries) {
+    const title = (s.title || "").slice(0, 500).trim()
+    const type = s.type ?? "other"
+    if (existingMap.has(`${title.toLowerCase()}::${type}`)) {
+      conflictingTitles.push(title)
+    }
+  }
+
+  return {
+    dryRun: true,
+    seriesCount,
+    volumeCount,
+    newSeriesCount: seriesCount - conflictingTitles.length,
+    existingSeriesCount: conflictingTitles.length,
+    conflictingTitles
+  }
+}
+
+async function dryRunCsvImport(
+  content: string,
+  userId: string,
+  supabase: Db
+): Promise<DryRunResult> {
+  const rows = parseShelfArcCsv(content)
+  const seriesMap = groupCsvRowsBySeries(rows)
+  const seriesCount = seriesMap.size
+  const volumeCount = rows.length
+
+  const { data: existingSeries } = await supabase
+    .from("series")
+    .select("title, type")
+    .eq("user_id", userId)
+
+  const existingMap = new Set<string>()
+  for (const s of existingSeries ?? []) {
+    existingMap.add(`${s.title.toLowerCase()}::${s.type}`)
+  }
+
+  const conflictingTitles: string[] = []
+  for (const [, group] of seriesMap) {
+    const key = `${group.seriesTitle.toLowerCase()}::${group.seriesType.toLowerCase()}`
+    if (existingMap.has(key)) {
+      conflictingTitles.push(group.seriesTitle)
+    }
+  }
+
+  return {
+    dryRun: true,
+    seriesCount,
+    volumeCount,
+    newSeriesCount: seriesCount - conflictingTitles.length,
+    existingSeriesCount: conflictingTitles.length,
+    conflictingTitles
+  }
+}
+
+function isCsvFile(filename: string): boolean {
+  return (
+    filename.endsWith(".csv") ||
+    filename.endsWith(".tsv") ||
+    filename.endsWith(".txt")
+  )
+}
+
+async function handleDryRun(
+  filename: string,
+  content: string,
+  userId: string,
+  supabase: Db
+): Promise<DryRunResult | null> {
+  if (filename.endsWith(".json")) {
+    return dryRunJsonImport(content, userId, supabase)
+  }
+  if (
+    filename.endsWith(".csv") ||
+    filename.endsWith(".tsv") ||
+    filename.endsWith(".txt")
+  ) {
+    return dryRunCsvImport(content, userId, supabase)
+  }
+  return null
+}
+
 /* ─── Route handler ──────────────────────────────────────── */
+
+async function runImport(
+  filename: string,
+  content: string,
+  mode: ImportMode,
+  mergeStrategy: MergeStrategy,
+  userId: string,
+  supabase: Db
+): Promise<string | null> {
+  if (filename.endsWith(".json")) {
+    return handleJsonImport(content, mode, mergeStrategy, userId, supabase)
+  }
+  if (isCsvFile(filename)) {
+    return handleCsvImport(content, mode, mergeStrategy, userId, supabase)
+  }
+  return null
+}
 
 export async function POST(request: NextRequest) {
   const correlationId = getCorrelationId(request)
@@ -657,43 +802,45 @@ export async function POST(request: NextRequest) {
 
     const modeRaw = formData.get("mode")
     const mode: ImportMode = modeRaw === "replace" ? "replace" : "merge"
-
     const mergeStrategyRaw = formData.get("mergeStrategy")
     const mergeStrategy: MergeStrategy =
       mergeStrategyRaw === "skip" ? "skip" : "overwrite"
-
     const content = await file.text()
     const filename = file.name.toLowerCase()
 
-    let summary: string
-    if (filename.endsWith(".json")) {
-      summary = await handleJsonImport(
+    const dryRunRaw = formData.get("dryRun")
+    if (dryRunRaw === "true" || dryRunRaw === "1") {
+      const dryRunResult = await handleDryRun(
+        filename,
         content,
-        mode,
-        mergeStrategy,
         user.id,
         supabase
       )
-    } else if (
-      filename.endsWith(".csv") ||
-      filename.endsWith(".tsv") ||
-      filename.endsWith(".txt")
-    ) {
-      summary = await handleCsvImport(
-        content,
-        mode,
-        mergeStrategy,
-        user.id,
-        supabase
-      )
-    } else {
+      if (!dryRunResult) {
+        return apiError(
+          400,
+          "Unsupported file type. Upload a .json or .csv file",
+          { correlationId }
+        )
+      }
+      return apiSuccess(dryRunResult, { correlationId })
+    }
+
+    const summary = await runImport(
+      filename,
+      content,
+      mode,
+      mergeStrategy,
+      user.id,
+      supabase
+    )
+    if (summary === null) {
       return apiError(
         400,
         "Unsupported file type. Upload a .json or .csv file",
         { correlationId }
       )
     }
-
     return apiSuccess({ summary }, { correlationId })
   } catch (err) {
     const message = getErrorMessage(err, "Unknown error")

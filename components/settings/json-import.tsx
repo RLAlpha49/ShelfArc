@@ -43,6 +43,8 @@ interface ImportPreview {
   seriesCount: number
   volumeCount: number
   data: SeriesWithVolumes[]
+  existingSeriesCount: number
+  conflictingTitles: string[]
 }
 
 /**
@@ -659,6 +661,7 @@ export function JsonImport() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<ImportMode>("merge")
   const [isImporting, setIsImporting] = useState(false)
+  const [isCheckingConflicts, setIsCheckingConflicts] = useState(false)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [importPhases, setImportPhases] = useState<ImportPhase[]>([])
   const [mergeStrategy, setMergeStrategy] = useState<MergeStrategy>("overwrite")
@@ -689,7 +692,44 @@ export function JsonImport() {
         0
       )
 
-      setPreview({ seriesCount: data.length, volumeCount, data })
+      setPreview({
+        seriesCount: data.length,
+        volumeCount,
+        data,
+        existingSeriesCount: 0,
+        conflictingTitles: []
+      })
+
+      // Best-effort server-side conflict detection via dry-run
+      setIsCheckingConflicts(true)
+      try {
+        const dryRunForm = new FormData()
+        dryRunForm.append("file", file)
+        dryRunForm.append("dryRun", "true")
+        const res = await fetch("/api/library/import", {
+          method: "POST",
+          body: dryRunForm
+        })
+        if (res.ok) {
+          const result = (await res.json()) as {
+            existingSeriesCount?: number
+            conflictingTitles?: string[]
+          }
+          setPreview((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  existingSeriesCount: result.existingSeriesCount ?? 0,
+                  conflictingTitles: result.conflictingTitles ?? []
+                }
+              : prev
+          )
+        }
+      } catch {
+        // Conflict detection is best-effort; preview still shows without it
+      } finally {
+        setIsCheckingConflicts(false)
+      }
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to read the import file"
@@ -849,6 +889,29 @@ export function JsonImport() {
             </span>{" "}
             volumes
           </p>
+          {isCheckingConflicts && (
+            <p className="text-muted-foreground mt-2 text-xs">
+              Checking for conflicts…
+            </p>
+          )}
+          {!isCheckingConflicts && preview.existingSeriesCount > 0 && (
+            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                ⚠️ {preview.existingSeriesCount} series already exist in your
+                library and will be merged or replaced.
+              </p>
+              {preview.conflictingTitles.length > 0 && (
+                <ul className="mt-1.5 list-inside list-disc text-xs text-amber-700/80 dark:text-amber-400/80">
+                  {preview.conflictingTitles.slice(0, 5).map((title) => (
+                    <li key={title}>{title}</li>
+                  ))}
+                  {preview.conflictingTitles.length > 5 && (
+                    <li>…and {preview.conflictingTitles.length - 5} more</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       )}
 

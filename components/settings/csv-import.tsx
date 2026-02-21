@@ -359,6 +359,7 @@ function ShelfArcParsedPhase({
   rows,
   fileName,
   conflictCount,
+  seriesConflictCount,
   conflictStrategy,
   onConflictStrategyChange,
   onReset,
@@ -367,6 +368,7 @@ function ShelfArcParsedPhase({
   rows: ShelfArcCsvRow[]
   fileName: string | null
   conflictCount: number
+  seriesConflictCount: number
   conflictStrategy: ShelfArcConflictStrategy
   onConflictStrategyChange: (s: ShelfArcConflictStrategy) => void
   onReset: () => void
@@ -419,7 +421,17 @@ function ShelfArcParsedPhase({
         </p>
       </div>
 
-      {/* Conflict resolution */}
+      {/* Series-level conflict warning */}
+      {seriesConflictCount > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+            ⚠ {seriesConflictCount} series with the same title already exist in
+            your library and will be merged.
+          </p>
+        </div>
+      )}
+
+      {/* Volume-level conflict resolution */}
       {conflictCount > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
           <p className="mb-3 text-sm font-medium text-amber-700 dark:text-amber-400">
@@ -1259,6 +1271,23 @@ export function CsvImport() {
     return count
   }, [shelfArcRows, existingIsbns])
 
+  const shelfArcSeriesConflictCount = useMemo(() => {
+    if (!shelfArcRows) return 0
+    const existingKeys = new Set(
+      series.map((s) => `${s.title.toLowerCase()}|${s.type}`)
+    )
+    const seen = new Set<string>()
+    let count = 0
+    for (const row of shelfArcRows) {
+      const key = `${row.seriesTitle.toLowerCase()}|${row.seriesType}`
+      if (!seen.has(key) && existingKeys.has(key)) {
+        seen.add(key)
+        count++
+      }
+    }
+    return count
+  }, [shelfArcRows, series])
+
   // ── SessionStorage: persist during import ──
   useEffect(() => {
     if (phase !== "importing") return
@@ -1573,6 +1602,7 @@ export function CsvImport() {
         rows={shelfArcRows}
         fileName={shelfArcFileName}
         conflictCount={shelfArcConflictCount}
+        seriesConflictCount={shelfArcSeriesConflictCount}
         conflictStrategy={shelfArcConflictStrategy}
         onConflictStrategyChange={setShelfArcConflictStrategy}
         onReset={handleShelfArcReset}
