@@ -11,6 +11,7 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover"
 import { useNotificationStore } from "@/lib/store/notification-store"
+import { createClient } from "@/lib/supabase/client"
 
 const subscribe = () => () => {}
 export function NotificationBell() {
@@ -27,6 +28,20 @@ export function NotificationBell() {
     globalThis.addEventListener("open-notification-center", handleOpen)
     return () =>
       globalThis.removeEventListener("open-notification-center", handleOpen)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!cancelled && user) {
+        useNotificationStore.getState().subscribeToRealtime(user.id)
+      }
+    })
+    return () => {
+      cancelled = true
+      useNotificationStore.getState().unsubscribeFromRealtime()
+    }
   }, [])
 
   return (

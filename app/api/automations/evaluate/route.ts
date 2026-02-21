@@ -541,17 +541,42 @@ async function triggerPriceAlert(
     (profile?.settings as Record<string, unknown> | null)
       ?.emailNotifications === true
   ) {
-    void adminSupabase.functions.invoke("send-notification-email", {
-      body: {
-        userId: alert.user_id,
-        seriesTitle,
-        volumeTitle: vol.title ?? null,
-        volumeNumber: vol.volume_number,
-        currentPrice: priceData.price,
-        targetPrice: alert.target_price,
-        currency: priceData.currency
-      }
-    })
+    adminSupabase.functions
+      .invoke("send-notification-email", {
+        body: {
+          userId: alert.user_id,
+          seriesTitle,
+          volumeTitle: vol.title ?? null,
+          volumeNumber: vol.volume_number,
+          currentPrice: priceData.price,
+          targetPrice: alert.target_price,
+          currency: priceData.currency
+        }
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error(
+            JSON.stringify({
+              level: "warn",
+              message: "send-notification-email failed for price alert",
+              userId: alert.user_id,
+              alertId: alert.id,
+              error: error.message
+            })
+          )
+        }
+      })
+      .catch((err: unknown) => {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "send-notification-email threw for price alert",
+            userId: alert.user_id,
+            alertId: alert.id,
+            error: String(err)
+          })
+        )
+      })
   }
 }
 

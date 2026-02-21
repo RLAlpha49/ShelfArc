@@ -1,9 +1,15 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+import { createClient } from "@/lib/supabase/client"
 import type { Notification } from "@/lib/types/notification"
 
 const MAX_NOTIFICATIONS = 50
+
+let _supabaseClient: ReturnType<typeof createClient> | null = null
+let _realtimeChannel: ReturnType<
+  ReturnType<typeof createClient>["channel"]
+> | null = null
 
 interface NotificationStore {
   _hydrated: boolean
@@ -16,6 +22,8 @@ interface NotificationStore {
   markAllRead: () => void
   clearAll: () => void
   unreadCount: () => number
+  subscribeToRealtime: (userId: string) => void
+  unsubscribeFromRealtime: () => void
   loadFromServer: () => Promise<void>
   syncToServer: (
     notification: Omit<Notification, "id" | "timestamp" | "read">
@@ -81,6 +89,48 @@ export const useNotificationStore = create<NotificationStore>()(
       clearAll: () => set({ notifications: [] }),
 
       unreadCount: () => get().notifications.filter((n) => !n.read).length,
+
+      subscribeToRealtime: (userId) => {
+        if (_realtimeChannel) return
+        _supabaseClient = createClient()
+        _realtimeChannel = _supabaseClient
+          .channel("notifications")
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${userId}`
+            },
+            (payload) => {
+              const raw = payload.new as Record<string, unknown>
+              const notification: Notification = {
+                id: raw.id as string,
+                type: raw.type as Notification["type"],
+                title: raw.title as string,
+                message: raw.message as string,
+                read: raw.read as boolean,
+                metadata: (raw.metadata as Record<string, unknown>) ?? {},
+                timestamp: new Date(raw.created_at as string).getTime()
+              }
+              set((state) => ({
+                notifications: [notification, ...state.notifications].slice(
+                  0,
+                  MAX_NOTIFICATIONS
+                )
+              }))
+            }
+          )
+          .subscribe()
+      },
+
+      unsubscribeFromRealtime: () => {
+        if (!_realtimeChannel || !_supabaseClient) return
+        _supabaseClient.removeChannel(_realtimeChannel)
+        _realtimeChannel = null
+        _supabaseClient = null
+      },
 
       loadFromServer: async () => {
         try {
