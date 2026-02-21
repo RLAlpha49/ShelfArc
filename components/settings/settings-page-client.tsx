@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState } from "react"
 
 import { AccessibilitySection } from "@/components/settings/accessibility-section"
@@ -113,6 +114,12 @@ export function SettingsPageClient({
               )}
             </a>
           ))}
+          <Link
+            href="/settings/automations"
+            className="text-muted-foreground hover:text-foreground hover:bg-accent/50 relative shrink-0 px-3 py-2.5 text-sm font-medium transition-colors"
+          >
+            Automations
+          </Link>
         </div>
       </nav>
 
@@ -243,6 +250,26 @@ export function SettingsPageClient({
                 </li>
               ))}
             </ul>
+            <div className="mt-4 border-t pt-4">
+              <Link
+                href="/settings/automations"
+                className="text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:shadow-sm"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4 shrink-0"
+                >
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                Automations
+              </Link>
+            </div>
           </div>
         </nav>
 

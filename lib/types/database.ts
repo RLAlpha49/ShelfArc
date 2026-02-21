@@ -597,6 +597,52 @@ export interface Database {
           }
         ]
       }
+      automations: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          trigger_type: string
+          conditions: Record<string, unknown>
+          actions: Record<string, unknown>
+          enabled: boolean
+          last_triggered_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          trigger_type: string
+          conditions?: Record<string, unknown>
+          actions?: Record<string, unknown>
+          enabled?: boolean
+          last_triggered_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          trigger_type?: string
+          conditions?: Record<string, unknown>
+          actions?: Record<string, unknown>
+          enabled?: boolean
+          last_triggered_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automations_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

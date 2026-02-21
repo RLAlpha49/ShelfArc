@@ -435,7 +435,6 @@ CREATE INDEX IF NOT EXISTS idx_activity_events_user_event_type
 CREATE INDEX IF NOT EXISTS idx_activity_events_created_brin
   ON activity_events USING BRIN(created_at);
 
-
 -- Notifications table (server-synced user notifications)
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -488,7 +487,6 @@ CREATE TABLE IF NOT EXISTS collection_volumes (
   PRIMARY KEY (collection_id, volume_id)
 );
 
-
 CREATE INDEX IF NOT EXISTS idx_collection_volumes_collection ON collection_volumes(collection_id);
 CREATE INDEX IF NOT EXISTS idx_collection_volumes_user ON collection_volumes(user_id);
 CREATE INDEX IF NOT EXISTS idx_collection_volumes_volume ON collection_volumes(volume_id);
@@ -504,6 +502,21 @@ CREATE TABLE IF NOT EXISTS import_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_import_events_user_id ON import_events(user_id, imported_at DESC);
+
+CREATE TABLE automations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  trigger_type TEXT NOT NULL,  -- 'price_drop', 'new_volume', 'release_date', 'status_change'
+  conditions JSONB DEFAULT '{}' NOT NULL,
+  actions JSONB DEFAULT '{}' NOT NULL,
+  enabled BOOLEAN DEFAULT TRUE NOT NULL,
+  last_triggered_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX idx_automations_user_id ON automations(user_id);
 
 -- -----------------------------------------------------------------------------
 -- Row Level Security (enable + policies grouped per-table)
@@ -912,6 +925,25 @@ BEGIN
       AND policyname = 'Users can insert their own import events'
   ) THEN
     EXECUTE 'CREATE POLICY "Users can insert their own import events" ON public.import_events FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+ALTER TABLE automations ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'automations'
+      AND policyname = 'users manage own automations'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "users manage own automations" ON automations
+        FOR ALL
+        USING (user_id = auth.uid())
+        WITH CHECK (user_id = auth.uid())
+    $policy$;
   END IF;
 END $$;
 
@@ -1405,6 +1437,14 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION update_automations_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- -----------------------------------------------------------------------------
 -- Triggers (created after functions exist)
 -- -----------------------------------------------------------------------------
@@ -1583,5 +1623,20 @@ BEGIN
     CREATE TRIGGER trg_cleanup_price_history
       AFTER INSERT ON public.price_history
       FOR EACH ROW EXECUTE FUNCTION public.cleanup_price_history();
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.automations') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'automations_updated_at_trigger'
+         AND tgrelid = to_regclass('public.automations')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER automations_updated_at_trigger
+      BEFORE UPDATE ON public.automations
+      FOR EACH ROW EXECUTE FUNCTION update_automations_updated_at();
   END IF;
 END $$;

@@ -485,3 +485,24 @@ export const DeleteAccountSchema = z
     password: z.string().optional()
   })
   .strip()
+
+export const AutomationSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .transform((v) => sanitizePlainText(v, 200)),
+    trigger_type: z.enum([
+      "price_drop",
+      "new_volume",
+      "release_date",
+      "status_change"
+    ]),
+    conditions: z.record(z.string(), z.unknown()).optional().default({}),
+    actions: z.record(z.string(), z.unknown()).optional().default({}),
+    enabled: z.boolean().optional().default(true)
+  })
+  .strip()
+
+export const UpdateAutomationSchema = AutomationSchema.partial().strip()
