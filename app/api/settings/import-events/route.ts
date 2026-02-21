@@ -6,18 +6,9 @@ import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createUserClient } from "@/lib/supabase/server"
+import { ImportEventSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
-
-const VALID_FORMATS = new Set([
-  "json",
-  "csv-isbn",
-  "csv-shelfarc",
-  "mal",
-  "anilist",
-  "goodreads",
-  "barcode"
-])
 
 interface ImportEventRow {
   id: string
@@ -26,12 +17,6 @@ interface ImportEventRow {
   volumes_added: number
   errors: number
   imported_at: string
-}
-
-function safeInt(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(0, Math.floor(value))
-    : 0
 }
 
 export async function GET(request: NextRequest) {
@@ -114,20 +99,24 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const { format, seriesAdded, volumesAdded, errors } = body
-
-    if (typeof format !== "string" || !VALID_FORMATS.has(format)) {
-      return apiError(400, "Invalid or missing format", { correlationId })
+    const parsed = ImportEventSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
     }
+
+    const { format, seriesAdded, volumesAdded, errors } = parsed.data
 
     const { data, error: dbError } = await supabase
       .from("import_events")
       .insert({
         user_id: user.id,
         format,
-        series_added: safeInt(seriesAdded),
-        volumes_added: safeInt(volumesAdded),
-        errors: safeInt(errors)
+        series_added: seriesAdded,
+        volumes_added: volumesAdded,
+        errors: errors
       })
       .select("id")
       .single()
