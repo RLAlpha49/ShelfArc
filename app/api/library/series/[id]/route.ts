@@ -10,10 +10,10 @@ import {
   parseJsonBody
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
-import { sanitizeSeriesUpdate } from "@/lib/library/sanitize-library"
 import { logger } from "@/lib/logger"
 import type { Series } from "@/lib/types/database"
 import { isValidUUID } from "@/lib/validation"
+import { UpdateSeriesSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -84,7 +84,26 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const update = sanitizeSeriesUpdate(body as Partial<Series>)
+    const parsed = UpdateSeriesSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
+
+    const update = parsed.data as Partial<Series>
+
+    const { data: existing, error: existingError } = await supabase
+      .from("series")
+      .select("tags")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single()
+
+    if (existingError || !existing) {
+      return apiError(404, "Series not found", { correlationId })
+    }
 
     const { data, error } = await supabase
       .from("series")
@@ -107,6 +126,34 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       entityId: id,
       metadata: { title: data.title ?? "Series" }
     })
+
+    if (existing && update.tags) {
+      const oldTags = new Set(existing.tags || [])
+      const newTags = new Set(update.tags)
+
+      const added = [...newTags].filter((t) => !oldTags.has(t))
+      const removed = [...oldTags].filter((t) => !newTags.has(t))
+
+      for (const tag of added) {
+        void recordActivityEvent(supabase, {
+          userId: user.id,
+          eventType: "tag_added",
+          entityType: "series",
+          entityId: id,
+          metadata: { tag, title: data.title ?? "Series" }
+        })
+      }
+
+      for (const tag of removed) {
+        void recordActivityEvent(supabase, {
+          userId: user.id,
+          eventType: "tag_removed",
+          entityType: "series",
+          entityId: id,
+          metadata: { tag, title: data.title ?? "Series" }
+        })
+      }
+    }
 
     return apiSuccess(data, { correlationId })
   } catch (err) {
