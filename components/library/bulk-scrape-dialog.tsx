@@ -682,20 +682,25 @@ export function BulkScrapeDialog({
                           </Tooltip>
                         </TooltipProvider>
                       )}
-                      {job.status === "failed" && job.errorMessage && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <span className="bg-destructive/10 text-destructive cursor-help rounded-lg px-2 py-0.5 text-[10px] font-medium">
-                                Error
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="left" className="max-w-xs">
-                              <p className="text-xs">{job.errorMessage}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
+                      {job.status === "failed" &&
+                        (job.errorMessage ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <span className="bg-destructive/10 text-destructive cursor-help rounded-lg px-2 py-0.5 text-[10px] font-medium">
+                                  Failed
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="max-w-xs">
+                                <p className="text-xs">{job.errorMessage}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="bg-destructive/10 text-destructive rounded-lg px-2 py-0.5 text-[10px] font-medium">
+                            Failed
+                          </span>
+                        ))}
                       {job.status === "scraping" && (
                         <span className="text-primary text-[10px] font-medium">
                           Fetching…
