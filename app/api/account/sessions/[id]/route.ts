@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
 import { apiError, apiSuccess } from "@/lib/api-response"
@@ -64,6 +65,13 @@ export async function DELETE(
       })
       return apiError(500, "Failed to revoke session", { correlationId })
     }
+
+    void recordActivityEvent(routeResult.supabase, {
+      userId: user.id,
+      eventType: "session_revoked",
+      entityType: "session",
+      entityId: sessionId
+    })
 
     log.info("Session revoked", { userId: user.id, sessionId })
     return apiSuccess({ revoked: true }, { correlationId })
