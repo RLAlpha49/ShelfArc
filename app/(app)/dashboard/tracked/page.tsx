@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,6 +18,40 @@ export default function TrackedPage() {
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
   const [tab, setTab] = useState<"priced" | "unpriced">("priced")
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({})
+  const [savingIds, setSavingIds] = useState(new Set<string>())
+
+  const handleSetPrice = async (volumeId: string, seriesId: string) => {
+    const value = priceInputs[volumeId] ?? ""
+    const price = Number.parseFloat(value)
+    if (!Number.isFinite(price) || price < 0) return
+
+    setSavingIds((prev) => new Set(prev).add(volumeId))
+    try {
+      const res = await fetch(`/api/library/volumes/${volumeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purchase_price: price })
+      })
+      if (!res.ok) throw new Error("Failed to set price")
+      useLibraryStore.getState().updateVolume(seriesId, volumeId, {
+        purchase_price: price
+      })
+      setPriceInputs((prev) => {
+        const next = { ...prev }
+        delete next[volumeId]
+        return next
+      })
+    } catch {
+      toast.error("Failed to set price. Please try again.")
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(volumeId)
+        return next
+      })
+    }
+  }
 
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 
@@ -150,6 +185,77 @@ export default function TrackedPage() {
               const displayTitle = v.title
                 ? normalizeVolumeTitle(v.title)
                 : null
+
+              if (tab === "unpriced") {
+                const inputVal = priceInputs[v.id] ?? ""
+                return (
+                  <div
+                    key={v.id}
+                    className="bg-card group hover:bg-accent/60 flex items-center gap-3 p-4 transition-colors"
+                  >
+                    <Link
+                      href={`/library/volume/${v.id}`}
+                      className="min-w-0 flex-1"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="group-hover:text-primary truncate text-sm font-semibold transition-colors">
+                          {v.seriesTitle}
+                        </span>
+                        <span className="text-muted-foreground shrink-0 text-xs">
+                          Vol. {v.volume_number}
+                        </span>
+                        {v.format && (
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 text-[10px]"
+                          >
+                            {v.format}
+                          </Badge>
+                        )}
+                      </div>
+                      {displayTitle && (
+                        <div className="text-muted-foreground/80 mt-0.5 text-xs">
+                          {displayTitle}
+                        </div>
+                      )}
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={inputVal}
+                        onChange={(e) =>
+                          setPriceInputs((prev) => ({
+                            ...prev,
+                            [v.id]: e.target.value
+                          }))
+                        }
+                        placeholder="0.00"
+                        className="bg-background focus:ring-primary/50 w-20 rounded-lg border px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter")
+                            handleSetPrice(v.id, v.seriesId)
+                        }}
+                        aria-label={`Purchase price for ${v.seriesTitle} Vol. ${v.volume_number}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrice(v.id, v.seriesId)}
+                        disabled={
+                          !inputVal ||
+                          !Number.isFinite(Number.parseFloat(inputVal)) ||
+                          savingIds.has(v.id)
+                        }
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+                      >
+                        {savingIds.has(v.id) ? "…" : "Set"}
+                      </button>
+                    </div>
+                  </div>
+                )
+              }
+
               return (
                 <Link
                   key={v.id}
