@@ -86,8 +86,6 @@ export function SeriesVolumesSection({
 
   const shouldVirtualize = sortedVolumes.length > VIRTUALIZE_THRESHOLD
 
-  const [showGapCards, setShowGapCards] = useState(true)
-
   const gapVolumeNumbers = useMemo(() => {
     if (sortedVolumes.length === 0) return []
     const ownedOrWishlisted = new Set(sortedVolumes.map((v) => v.volume_number))
@@ -101,6 +99,10 @@ export function SeriesVolumesSection({
     }
     return gaps
   }, [sortedVolumes])
+
+  const [showGapCards, setShowGapCards] = useState(
+    () => gapVolumeNumbers.length <= 5
+  )
 
   return (
     <div>
@@ -122,7 +124,9 @@ export function SeriesVolumesSection({
               onClick={() => setShowGapCards((prev) => !prev)}
               aria-pressed={showGapCards}
               aria-label={
-                showGapCards ? "Hide missing volumes" : "Show missing volumes"
+                showGapCards
+                  ? `Hide ${gapVolumeNumbers.length} missing volumes`
+                  : `Show ${gapVolumeNumbers.length} missing volumes`
               }
             >
               <svg
@@ -148,7 +152,7 @@ export function SeriesVolumesSection({
                 />
                 <rect x="16" y="3" width="6" height="18" rx="1" />
               </svg>
-              Gaps
+              Gaps ({gapVolumeNumbers.length})
             </Button>
           )}
           {currentSeries.volumes.length > 0 && (
