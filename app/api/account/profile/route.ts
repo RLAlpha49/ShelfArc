@@ -5,10 +5,10 @@ import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
-import { sanitizePlainText } from "@/lib/sanitize-html"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 import { validateProfileFields } from "@/lib/validation"
+import { ProfileSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -25,9 +25,15 @@ function extractProfileFields(
   body: Record<string, unknown>,
   userId: string
 ): ProfileFields {
+  const parsed = ProfileSchema.safeParse(body)
+  if (!parsed.success) {
+    return {}
+  }
+  const data = parsed.data
+
   let avatarUrl: string | null | undefined = undefined
-  if (typeof body.avatarUrl === "string") {
-    const trimmed = body.avatarUrl.trim()
+  if (typeof data.avatarUrl === "string") {
+    const trimmed = data.avatarUrl.trim()
     if (!trimmed) {
       avatarUrl = null
     } else if (
@@ -45,20 +51,15 @@ function extractProfileFields(
       avatarUrl = trimmed
     }
     // Reject any other URL format (external URLs, arbitrary paths)
+  } else if (data.avatarUrl === null) {
+    avatarUrl = null
   }
 
   return {
-    username:
-      typeof body.username === "string"
-        ? sanitizePlainText(body.username, 20) || null
-        : undefined,
-    publicBio:
-      typeof body.publicBio === "string"
-        ? sanitizePlainText(body.publicBio, 500) || null
-        : undefined,
-    isPublic: typeof body.isPublic === "boolean" ? body.isPublic : undefined,
-    publicStats:
-      typeof body.publicStats === "boolean" ? body.publicStats : undefined,
+    username: data.username,
+    publicBio: data.publicBio,
+    isPublic: data.isPublic,
+    publicStats: data.publicStats,
     avatarUrl
   }
 }
@@ -102,7 +103,15 @@ export async function PATCH(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const fields = extractProfileFields(body, user.id)
+    const parsed = ProfileSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
+
+    const fields = extractProfileFields(parsed.data, user.id)
     const validationError = validateProfileFields(fields, user.id)
     if (validationError) {
       return apiError(400, validationError, { correlationId })
