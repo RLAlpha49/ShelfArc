@@ -57,6 +57,104 @@ const formatReadingStatus = (status: string) => {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
+/** Ten-star interactive rating widget. @source */
+function StarRatingDisplay({
+  activeRating,
+  onSetRating
+}: {
+  readonly activeRating: number | null
+  readonly onSetRating: (rating: number) => void
+}) {
+  const [hoverRating, setHoverRating] = useState<number | null>(null)
+  const displayRating = hoverRating ?? activeRating ?? 0
+  return (
+    <div className="flex items-center justify-center gap-0.5">
+      {Array.from({ length: 10 }, (_, i) => i + 1).map((star) => (
+        <button
+          key={star}
+          type="button"
+          aria-label={`Rate ${star} out of 10`}
+          onClick={() => onSetRating(star)}
+          onMouseEnter={() => setHoverRating(star)}
+          onMouseLeave={() => setHoverRating(null)}
+          className="focus-visible:ring-ring rounded transition-transform hover:scale-125 focus-visible:ring-1 focus-visible:outline-none"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-3 w-3 transition-colors ${
+              star <= displayRating
+                ? "fill-amber-400 stroke-amber-500"
+                : "stroke-muted-foreground/40 fill-none"
+            }`}
+            aria-hidden="true"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          >
+            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Clipboard copy button for ISBN with 2-second feedback. @source */
+function IsbnCopyButton({ isbn }: { readonly isbn: string }) {
+  const [isCopied, setIsCopied] = useState(false)
+
+  const handleCopy = useCallback(async () => {
+    if (!globalThis.isSecureContext) return
+    try {
+      await navigator.clipboard.writeText(isbn)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 2000)
+    } catch {
+      // Clipboard access denied — silently ignore
+    }
+  }, [isbn])
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleCopy()}
+      title={isCopied ? "Copied!" : "Copy ISBN"}
+      aria-label={
+        isCopied ? "ISBN copied to clipboard" : "Copy ISBN to clipboard"
+      }
+      className="text-muted-foreground hover:text-foreground rounded transition-colors"
+    >
+      {isCopied ? (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-3.5 w-3.5 text-emerald-500"
+          aria-hidden="true"
+        >
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      ) : (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-3.5 w-3.5"
+          aria-hidden="true"
+        >
+          <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
 /** Props for the volume stats strip component. @source */
 type VolumeStatsStripProps = {
   readonly volume: Volume
@@ -64,6 +162,8 @@ type VolumeStatsStripProps = {
   readonly priceFormatter: Intl.NumberFormat
   readonly publishedLabel: string
   readonly purchaseDateLabel: string
+  readonly activeRating: number | null
+  readonly onSetRating: (rating: number) => void
 }
 
 /** Grid of volume metrics displayed below the header. @source */
@@ -72,7 +172,9 @@ const VolumeStatsStrip = ({
   readingProgress,
   priceFormatter,
   publishedLabel,
-  purchaseDateLabel
+  purchaseDateLabel,
+  activeRating,
+  onSetRating
 }: VolumeStatsStripProps) => (
   <div className="animate-fade-in-up grid-stagger mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-4">
     <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
@@ -112,26 +214,18 @@ const VolumeStatsStrip = ({
         <div className="text-muted-foreground text-[10px]">pages</div>
       )}
     </div>
-    <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
+    <div className="bg-card hover:bg-accent/50 flex flex-col gap-2 p-4 text-center transition-colors">
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         Rating
       </span>
-      <div className="font-display text-xl font-bold">
-        {volume.rating !== null && volume.rating !== undefined ? (
-          <>
-            {volume.rating}
-            <span className="text-muted-foreground text-sm font-normal">
-              /10
-            </span>
-          </>
-        ) : (
-          "—"
-        )}
-      </div>
+      <StarRatingDisplay
+        activeRating={activeRating}
+        onSetRating={onSetRating}
+      />
       <div className="text-muted-foreground text-[10px]">
-        {volume.rating !== null && volume.rating !== undefined
-          ? "rating"
-          : "not rated"}
+        {activeRating !== null && activeRating !== undefined
+          ? `${activeRating}/10`
+          : "click to rate"}
       </div>
     </div>
     <div className="bg-card hover:bg-accent/50 flex flex-col gap-1 p-4 text-center transition-colors">
@@ -185,8 +279,9 @@ const VolumeStatsStrip = ({
       <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
         ISBN
       </span>
-      <div className="font-display text-sm font-bold break-all">
-        {volume.isbn ?? "—"}
+      <div className="font-display flex items-center justify-center gap-1.5 text-sm font-bold break-all">
+        <span>{volume.isbn ?? "—"}</span>
+        {volume.isbn && <IsbnCopyButton isbn={volume.isbn} />}
       </div>
       <div className="text-muted-foreground text-[10px]">identifier</div>
     </div>
@@ -219,6 +314,18 @@ export default function VolumeDetailPage() {
   const [ctaLoading, setCtaLoading] = useState<"read" | "wishlist" | null>(null)
   const [progressInput, setProgressInput] = useState<string>("")
   const [isSavingProgress, setIsSavingProgress] = useState(false)
+  // UX-11: optimistic star rating
+  const [optimisticRating, setOptimisticRating] = useState<
+    number | null | undefined
+  >(undefined)
+  // UX-12: inline date editing
+  const [isEditingStartDate, setIsEditingStartDate] = useState(false)
+  const [isEditingEndDate, setIsEditingEndDate] = useState(false)
+  const [startDateInput, setStartDateInput] = useState("")
+  const [endDateInput, setEndDateInput] = useState("")
+  const [isSavingDate, setIsSavingDate] = useState<"start" | "end" | null>(null)
+  // UX-14: completion prompt
+  const [showCompletionPrompt, setShowCompletionPrompt] = useState(false)
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
   )
@@ -374,12 +481,87 @@ export default function VolumeDetailPage() {
         current_page: parsed
       })
       toast.success("Progress updated")
+      // UX-14: prompt completion when last page is reached
+      if (
+        currentVolume.page_count != null &&
+        parsed >= currentVolume.page_count &&
+        currentVolume.reading_status !== "completed"
+      ) {
+        setShowCompletionPrompt(true)
+      }
     } catch {
       toast.error("Failed to update progress")
     } finally {
       setIsSavingProgress(false)
     }
   }, [currentVolume, progressInput, editVolume])
+
+  // UX-11: optimistic star rating
+  const handleSetRating = useCallback(
+    async (rating: number) => {
+      if (!currentVolume) return
+      setOptimisticRating(rating)
+      try {
+        await editVolume(currentVolume.series_id ?? null, currentVolume.id, {
+          rating
+        })
+        toast.success("Rating updated")
+        setOptimisticRating(undefined)
+      } catch {
+        setOptimisticRating(undefined)
+        toast.error("Failed to update rating")
+      }
+    },
+    [currentVolume, editVolume]
+  )
+
+  // UX-12: save start/end reading dates
+  const handleSaveStartDate = useCallback(async () => {
+    if (!currentVolume || !startDateInput) return
+    setIsSavingDate("start")
+    try {
+      await editVolume(currentVolume.series_id ?? null, currentVolume.id, {
+        started_at: startDateInput
+      })
+      toast.success("Start date saved")
+      setIsEditingStartDate(false)
+    } catch {
+      toast.error("Failed to save start date")
+    } finally {
+      setIsSavingDate(null)
+    }
+  }, [currentVolume, startDateInput, editVolume])
+
+  const handleSaveEndDate = useCallback(async () => {
+    if (!currentVolume || !endDateInput) return
+    setIsSavingDate("end")
+    try {
+      await editVolume(currentVolume.series_id ?? null, currentVolume.id, {
+        finished_at: endDateInput
+      })
+      toast.success("Finish date saved")
+      setIsEditingEndDate(false)
+    } catch {
+      toast.error("Failed to save finish date")
+    } finally {
+      setIsSavingDate(null)
+    }
+  }, [currentVolume, endDateInput, editVolume])
+
+  // UX-14: confirm marking volume as completed
+  const handleConfirmCompletion = useCallback(async () => {
+    if (!currentVolume) return
+    try {
+      await editVolume(currentVolume.series_id ?? null, currentVolume.id, {
+        reading_status: "completed"
+      })
+      toast.success("Marked as completed!")
+    } catch {
+      toast.error("Failed to update reading status")
+    } finally {
+      setShowCompletionPrompt(false)
+    }
+  }, [currentVolume, editVolume])
 
   const priceFormatter = useMemo(() => {
     const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
@@ -687,6 +869,12 @@ export default function VolumeDetailPage() {
                 priceFormatter={priceFormatter}
                 publishedLabel={publishedLabel}
                 purchaseDateLabel={purchaseDateLabel}
+                activeRating={
+                  optimisticRating === undefined
+                    ? (currentVolume.rating ?? null)
+                    : optimisticRating
+                }
+                onSetRating={handleSetRating}
               />
             </div>
 
@@ -754,8 +942,108 @@ export default function VolumeDetailPage() {
                   }
                   className="rounded-xl"
                 >
-                  {isSavingProgress ? "Saving…" : "Save"}
+                  {isSavingProgress ? "Saving\u2026" : "Save"}
                 </Button>
+              </div>
+              {/* Reading Dates (UX-12) */}
+              <div className="border-border/40 mt-4 border-t pt-4">
+                <span className="text-muted-foreground mb-2 block text-xs tracking-widest uppercase">
+                  Reading Dates
+                </span>
+                <div className="flex flex-wrap gap-3">
+                  {isEditingStartDate ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={startDateInput}
+                        onChange={(e) => setStartDateInput(e.target.value)}
+                        className="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
+                        aria-label="Start date"
+                      />
+                      <Button
+                        size="sm"
+                        className="rounded-lg"
+                        onClick={() => void handleSaveStartDate()}
+                        disabled={isSavingDate === "start"}
+                      >
+                        {isSavingDate === "start" ? "Saving\u2026" : "Save"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-lg"
+                        onClick={() => setIsEditingStartDate(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => {
+                        setStartDateInput(
+                          currentVolume.started_at
+                            ? currentVolume.started_at.slice(0, 10)
+                            : ""
+                        )
+                        setIsEditingStartDate(true)
+                      }}
+                    >
+                      {"\uD83D\uDCC5"}{" "}
+                      {startedLabel
+                        ? `Started: ${startedLabel}`
+                        : "Set start date"}
+                    </Button>
+                  )}
+                  {isEditingEndDate ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={endDateInput}
+                        onChange={(e) => setEndDateInput(e.target.value)}
+                        className="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
+                        aria-label="Finish date"
+                      />
+                      <Button
+                        size="sm"
+                        className="rounded-lg"
+                        onClick={() => void handleSaveEndDate()}
+                        disabled={isSavingDate === "end"}
+                      >
+                        {isSavingDate === "end" ? "Saving\u2026" : "Save"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-lg"
+                        onClick={() => setIsEditingEndDate(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => {
+                        setEndDateInput(
+                          currentVolume.finished_at
+                            ? currentVolume.finished_at.slice(0, 10)
+                            : ""
+                        )
+                        setIsEditingEndDate(true)
+                      }}
+                    >
+                      {"\uD83D\uDCC5"}{" "}
+                      {finishedLabel
+                        ? `Finished: ${finishedLabel}`
+                        : "Set finish date"}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -865,6 +1153,29 @@ export default function VolumeDetailPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* UX-14: completion prompt */}
+      <AlertDialog
+        open={showCompletionPrompt}
+        onOpenChange={setShowCompletionPrompt}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              You&apos;ve reached the last page!
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Mark this volume as completed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not yet</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleConfirmCompletion()}>
+              Mark as Completed
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
