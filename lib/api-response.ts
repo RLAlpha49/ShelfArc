@@ -155,6 +155,11 @@ export const getErrorMessage = (error: unknown, fallback: string) => {
 export const parseJsonBody = async (
   request: Request
 ): Promise<Record<string, unknown> | NextResponse> => {
+  const contentType = request.headers.get("content-type")
+  if (!contentType?.includes("application/json")) {
+    return apiError(415, "Unsupported Media Type: Expected application/json")
+  }
+
   try {
     const parsed: unknown = await request.json()
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
