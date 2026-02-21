@@ -195,15 +195,18 @@ const fetchUserSettings = async (
  */
 const buildDedupeSet = async (
   supabase: SupabaseClient,
-  sevenDaysAgoStr: string
+  sevenDaysAgoStr: string,
+  userIds: string[]
 ): Promise<Set<string>> => {
   const notifiedSet = new Set<string>()
+  if (userIds.length === 0) return notifiedSet
 
   const { data } = await flex<NotifDedupeRow[]>(
     supabase.from("notifications").select("user_id, metadata")
   )
     .eq("type", "release_reminder")
     .gte("created_at", sevenDaysAgoStr)
+    .in("user_id", userIds)
 
   for (const notif of data ?? []) {
     const volumeId = notif.metadata?.volumeId
@@ -295,11 +298,16 @@ serve(async (request: Request): Promise<Response> => {
   const userSettings = await fetchUserSettings(supabase, uniqueUserIds)
 
   // Build notification deduplication set.
-  const notifiedSet = await buildDedupeSet(supabase, sevenDaysAgoStr)
+  const notifiedSet = await buildDedupeSet(
+    supabase,
+    sevenDaysAgoStr,
+    uniqueUserIds
+  )
 
   const dayMs = 24 * 60 * 60 * 1000
   let notified = 0
   let skipped = 0
+  const allNotifications = []
 
   for (const volume of volumes) {
     // Filter: skip users who have disabled release reminders in their settings.
@@ -332,37 +340,39 @@ serve(async (request: Request): Promise<Response> => {
 
     const message = `${seriesTitle} ${volumeLabel} releases ${dayLabel} on ${volume.publish_date}.`
 
+    allNotifications.push({
+      user_id: volume.user_id,
+      type: "release_reminder",
+      title: "Upcoming Release",
+      message,
+      metadata: {
+        volumeId: volume.id,
+        seriesTitle,
+        volumeNumber: volume.volume_number,
+        publishDate: volume.publish_date,
+        daysUntil
+      }
+    })
+  }
+
+  for (let i = 0; i < allNotifications.length; i += 500) {
+    const batch = allNotifications.slice(i, i + 500)
     const { error: insertError } = await (flex(
-      supabase.from("notifications").insert({
-        user_id: volume.user_id,
-        type: "release_reminder",
-        title: "Upcoming Release",
-        message,
-        metadata: {
-          volumeId: volume.id,
-          seriesTitle,
-          volumeNumber: volume.volume_number,
-          publishDate: volume.publish_date,
-          daysUntil
-        }
-      })
+      supabase.from("notifications").insert(batch)
     ) as Promise<{ data: unknown; error: { message: string } | null }>)
 
     if (insertError) {
       console.error(
         JSON.stringify({
           level: "error",
-          message: "Failed to insert release reminder notification",
-          volumeId: volume.id,
-          userId: volume.user_id,
+          message: "Failed to insert release reminder notifications batch",
           error: insertError.message
         })
       )
-      skipped++
-      continue
+      skipped += batch.length
+    } else {
+      notified += batch.length
     }
-
-    notified++
   }
 
   return jsonResponse(200, { ok: true, notified, skipped, total })
