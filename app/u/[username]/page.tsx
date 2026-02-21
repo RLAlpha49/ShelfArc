@@ -5,6 +5,7 @@ import { ShareButton } from "@/components/ui/share-button"
 import { getPublicProfileUrl } from "@/lib/share-url"
 // eslint-disable-next-line no-restricted-imports -- Admin client required: public page needs RLS bypass for unauthenticated visitors
 import { createAdminClient } from "@/lib/supabase/admin"
+import { createUserClient } from "@/lib/supabase/server"
 import {
   extractStoragePath,
   resolveImageUrl
@@ -13,8 +14,7 @@ import {
 import type { PublicSeries } from "./series-grid"
 import { SeriesGrid } from "./series-grid"
 
-export const dynamic = "force-static"
-export const revalidate = 3600
+export const dynamic = "force-dynamic"
 
 type VolumeRow = { series_id: string | null; reading_status: string | null }
 
@@ -47,6 +47,11 @@ export async function generateMetadata({ params }: Props) {
 export default async function PublicProfilePage({ params }: Props) {
   const { username } = await params
   const admin = createAdminClient({ reason: "Public profile page lookup" })
+
+  const supabase = await createUserClient()
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
 
   // Look up profile by username
   const { data: profile } = await admin
@@ -125,13 +130,13 @@ export default async function PublicProfilePage({ params }: Props) {
   })
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-neutral-50 to-white dark:from-neutral-950 dark:to-neutral-900">
+    <div className="via-background to-background dark:via-background dark:to-background min-h-screen bg-linear-to-b from-amber-50/30 dark:from-amber-950/10">
       {/* Profile Header */}
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
+      <header className="bg-card/80 border-b border-amber-500/20 backdrop-blur-sm">
         <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
             {/* Avatar */}
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-200 ring-4 ring-neutral-100 dark:bg-neutral-700 dark:ring-neutral-800">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-50 ring-4 ring-amber-500/20 dark:bg-amber-900/20">
               {resolvedAvatar ? (
                 <img
                   src={resolvedAvatar}
@@ -139,7 +144,7 @@ export default async function PublicProfilePage({ params }: Props) {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <span className="text-3xl font-semibold text-neutral-500 dark:text-neutral-400">
+                <span className="text-3xl font-semibold text-amber-600 dark:text-amber-400">
                   {displayName.charAt(0).toUpperCase()}
                 </span>
               )}
@@ -147,17 +152,17 @@ export default async function PublicProfilePage({ params }: Props) {
 
             <div className="text-center sm:text-left">
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                <h1 className="font-display text-3xl font-bold tracking-tight">
                   {displayName}
                 </h1>
                 <ShareButton url={shareUrl} label="Share" />
               </div>
               {profile.public_bio && (
-                <p className="mt-2 max-w-lg text-neutral-600 dark:text-neutral-400">
+                <p className="text-muted-foreground mt-2 max-w-lg">
                   {profile.public_bio}
                 </p>
               )}
-              <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
+              <p className="text-muted-foreground mt-2 text-sm">
                 Member since {memberSince}
               </p>
             </div>
@@ -165,26 +170,20 @@ export default async function PublicProfilePage({ params }: Props) {
 
           {/* Stats */}
           {profile.public_stats && (
-            <div className="mt-8 flex gap-8">
-              <div>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                  {totalSeries}
-                </p>
-                <p className="text-sm text-neutral-500">Series</p>
+            <div className="mt-8 flex gap-4">
+              <div className="bg-card/80 rounded-2xl border border-amber-500/20 px-5 py-3 backdrop-blur-sm">
+                <p className="text-2xl font-bold">{totalSeries}</p>
+                <p className="text-muted-foreground text-sm">Series</p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                  {totalVolumes}
-                </p>
-                <p className="text-sm text-neutral-500">
+              <div className="bg-card/80 rounded-2xl border border-amber-500/20 px-5 py-3 backdrop-blur-sm">
+                <p className="text-2xl font-bold">{totalVolumes}</p>
+                <p className="text-muted-foreground text-sm">
                   {totalVolumes === 1 ? "Volume" : "Volumes"}
                 </p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                  {readingCompletionPct}%
-                </p>
-                <p className="text-sm text-neutral-500">Read</p>
+              <div className="bg-card/80 rounded-2xl border border-amber-500/20 px-5 py-3 backdrop-blur-sm">
+                <p className="text-2xl font-bold">{readingCompletionPct}%</p>
+                <p className="text-muted-foreground text-sm">Read</p>
               </div>
             </div>
           )}
@@ -192,14 +191,14 @@ export default async function PublicProfilePage({ params }: Props) {
       </header>
 
       {/* Series Grid */}
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         {seriesList.length === 0 ? (
-          <p className="text-center text-neutral-500">
+          <p className="text-muted-foreground text-center">
             No public series to display yet.
           </p>
         ) : (
           <>
-            <h2 className="mb-6 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+            <h2 className="font-display mb-6 text-lg font-semibold">
               Collection
             </h2>
             <SeriesGrid seriesList={seriesList} displayName={displayName} />
@@ -208,14 +207,29 @@ export default async function PublicProfilePage({ params }: Props) {
       </main>
 
       {/* Footer branding */}
-      <footer className="border-t border-neutral-200 py-6 text-center dark:border-neutral-800">
+      <footer className="border-t border-amber-500/20 py-6 text-center">
         <Link
           href="/"
-          className="text-sm text-neutral-400 transition-colors hover:text-neutral-600 dark:hover:text-neutral-300"
+          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
         >
           Powered by ShelfArc
         </Link>
       </footer>
+
+      {/* Sign-up CTA banner for unauthenticated visitors */}
+      {!user && (
+        <div className="bg-background/95 fixed right-0 bottom-0 left-0 z-50 border-t p-4 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
+            <p className="text-sm">Track your own manga &amp; light novels</p>
+            <Link
+              href="/signup"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
+            >
+              Start for free &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
