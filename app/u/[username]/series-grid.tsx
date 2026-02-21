@@ -3,6 +3,7 @@
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 
 export type PublicSeries = {
@@ -52,6 +53,7 @@ export function SeriesGrid({ seriesList, displayName }: Props) {
   const [page, setPage] = useState(1)
   const [activeType, setActiveType] = useState<string | null>(null)
   const [activeTag, setActiveTag] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const availableTypes = Array.from(
     new Set(seriesList.map((s) => s.type))
@@ -60,9 +62,18 @@ export function SeriesGrid({ seriesList, displayName }: Props) {
     (a, b) => a.localeCompare(b)
   )
 
+  const normalizedQuery = searchQuery.trim().toLowerCase()
   const filtered = seriesList.filter((s) => {
     if (activeType !== null && s.type !== activeType) return false
     if (activeTag !== null && !s.tags.includes(activeTag)) return false
+    if (normalizedQuery) {
+      const inTitle = s.title.toLowerCase().includes(normalizedQuery)
+      const inOriginal =
+        s.original_title?.toLowerCase().includes(normalizedQuery) ?? false
+      const inAuthor =
+        s.author?.toLowerCase().includes(normalizedQuery) ?? false
+      if (!inTitle && !inOriginal && !inAuthor) return false
+    }
     return true
   })
 
@@ -80,63 +91,79 @@ export function SeriesGrid({ seriesList, displayName }: Props) {
     setPage(1)
   }
 
+  function handleSearchChange(value: string) {
+    setSearchQuery(value)
+    setPage(1)
+  }
+
   const showTypeFilter = availableTypes.length > 1
   const showTagFilter = allTags.length > 0
 
   return (
     <>
-      {/* Filters */}
-      {(showTypeFilter || showTagFilter) && (
-        <div className="mb-6 flex flex-col gap-3">
-          {showTypeFilter && (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => handleTypeChange(null)}
-                className={`${PILL_BASE} ${
-                  activeType === null ? PILL_ACTIVE : PILL_INACTIVE
-                }`}
-              >
-                All Types
-              </button>
-              {availableTypes.map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleTypeChange(type)}
-                  className={`${PILL_BASE} ${
-                    activeType === type ? PILL_ACTIVE : PILL_INACTIVE
-                  }`}
-                >
-                  {TYPE_LABELS[type] ?? type}
-                </button>
-              ))}
-            </div>
-          )}
+      {/* Search + Filters */}
+      <div className="mb-6 flex flex-col gap-3">
+        <Input
+          type="search"
+          placeholder="Search by title or author…"
+          value={searchQuery}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="max-w-sm"
+          aria-label="Search series"
+        />
 
-          {showTagFilter && (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => handleTagChange(null)}
-                className={`${PILL_BASE} ${
-                  activeTag === null ? PILL_ACTIVE : PILL_INACTIVE
-                }`}
-              >
-                All Tags
-              </button>
-              {allTags.map((tag) => (
+        {(showTypeFilter || showTagFilter) && (
+          <div className="flex flex-col gap-3">
+            {showTypeFilter && (
+              <div className="flex flex-wrap gap-1.5">
                 <button
-                  key={tag}
-                  onClick={() => handleTagChange(tag)}
+                  onClick={() => handleTypeChange(null)}
                   className={`${PILL_BASE} ${
-                    activeTag === tag ? PILL_ACTIVE : PILL_INACTIVE
+                    activeType === null ? PILL_ACTIVE : PILL_INACTIVE
                   }`}
                 >
-                  {tag}
+                  All Types
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                {availableTypes.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => handleTypeChange(type)}
+                    className={`${PILL_BASE} ${
+                      activeType === type ? PILL_ACTIVE : PILL_INACTIVE
+                    }`}
+                  >
+                    {TYPE_LABELS[type] ?? type}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {showTagFilter && (
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => handleTagChange(null)}
+                  className={`${PILL_BASE} ${
+                    activeTag === null ? PILL_ACTIVE : PILL_INACTIVE
+                  }`}
+                >
+                  All Tags
+                </button>
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => handleTagChange(tag)}
+                    className={`${PILL_BASE} ${
+                      activeTag === tag ? PILL_ACTIVE : PILL_INACTIVE
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {filtered.length === 0 ? (
         <p className="text-center text-neutral-500">
