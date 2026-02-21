@@ -25,6 +25,12 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
 import { normalizeVolumeTitle } from "@/lib/normalize-title"
 import { selectAllSeries, useLibraryStore } from "@/lib/store/library-store"
 import type {
@@ -803,7 +809,42 @@ export function SeriesDialog({
                 {/* Visibility */}
                 <div className="flex items-center justify-between border-t pt-4">
                   <div>
-                    <Label htmlFor="series-is-public">Public</Label>
+                    <div className="flex items-center gap-1">
+                      <Label htmlFor="series-is-public">Public</Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-foreground inline-flex items-center"
+                              aria-label="More information about public visibility"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-3.5 w-3.5"
+                              >
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 16v-4" />
+                                <path d="M12 8h.01" />
+                              </svg>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p className="max-w-xs">
+                              When enabled, this series and its volumes
+                              (excluding wishlist and prices) will be visible on
+                              your public profile.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <p className="text-muted-foreground text-xs">
                       Allow anyone to view this series on your public profile
                     </p>
