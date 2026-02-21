@@ -6,19 +6,10 @@ import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
-import { sanitizePlainText } from "@/lib/sanitize-html"
 import { createUserClient } from "@/lib/supabase/server"
-import type { NotificationType } from "@/lib/types/notification"
+import { NotificationSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
-
-const VALID_NOTIFICATION_TYPES = new Set<NotificationType>([
-  "import_complete",
-  "scrape_complete",
-  "price_alert",
-  "release_reminder",
-  "info"
-])
 
 export async function GET(request: NextRequest) {
   const correlationId = getCorrelationId(request)
@@ -82,41 +73,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function validateNotificationBody(body: Record<string, unknown>):
-  | { error: string }
-  | {
-      type: NotificationType
-      title: string
-      message: string
-      metadata: Record<string, unknown>
-    } {
-  const type = typeof body.type === "string" ? body.type.trim() : ""
-  if (!type || !VALID_NOTIFICATION_TYPES.has(type as NotificationType)) {
-    return { error: "Invalid or missing type" }
-  }
-
-  const title = sanitizePlainText(
-    typeof body.title === "string" ? body.title : "",
-    200
-  )
-  if (!title) return { error: "Title is required" }
-
-  const message = sanitizePlainText(
-    typeof body.message === "string" ? body.message : "",
-    2000
-  )
-  if (!message) return { error: "Message is required" }
-
-  const metadata =
-    body.metadata &&
-    typeof body.metadata === "object" &&
-    !Array.isArray(body.metadata)
-      ? (body.metadata as Record<string, unknown>)
-      : {}
-
-  return { type: type as NotificationType, title, message, metadata }
-}
-
 export async function POST(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
@@ -145,10 +101,14 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const validated = validateNotificationBody(body)
-    if ("error" in validated) {
-      return apiError(400, validated.error, { correlationId })
+    const parsed = NotificationSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
     }
+    const validated = parsed.data
 
     // Check user preferences before inserting
     const PREF_KEY_MAP: Partial<Record<string, string>> = {
