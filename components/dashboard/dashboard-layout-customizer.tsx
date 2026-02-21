@@ -29,7 +29,11 @@ const COLUMN_ABBR: Record<DashboardWidgetColumn, string> = {
   right: "R"
 }
 
-export function DashboardLayoutCustomizer() {
+/**
+ * Standalone panel content — embed in a Sheet, Dialog, or other container.
+ * @source
+ */
+export function DashboardLayoutCustomizerContent() {
   const layout = useSettingsStore((s) => s.dashboardLayout)
   const setLayout = useSettingsStore((s) => s.setDashboardLayout)
   const resetLayout = useSettingsStore((s) => s.resetDashboardLayout)
@@ -118,6 +122,135 @@ export function DashboardLayoutCustomizer() {
   )
 
   return (
+    <>
+      <div className="border-b p-3">
+        <h3 className="text-sm font-semibold">Dashboard Layout</h3>
+        <p className="text-muted-foreground text-xs">
+          Show, hide, or reorder widgets
+        </p>
+      </div>
+
+      <div className="max-h-80 overflow-y-auto p-2">
+        {(["full", "left", "right"] as const).map((column) => {
+          const widgets = widgetsByColumn[column]
+          if (widgets.length === 0) return null
+          return (
+            <div key={column} className="mb-3 last:mb-0">
+              <span className="text-muted-foreground mb-1.5 block px-1 text-[10px] font-medium tracking-wider uppercase">
+                {COLUMN_LABELS[column]}
+              </span>
+              <div className="space-y-0.5">
+                {widgets.map((widget, idx) => {
+                  const isHidden = layout.hidden.includes(widget.id)
+                  return (
+                    <div
+                      key={widget.id}
+                      className="hover:bg-accent/50 flex items-center gap-2 rounded-md px-1.5 py-1.5"
+                    >
+                      <Checkbox
+                        id={`widget-${widget.id}`}
+                        checked={!isHidden}
+                        onCheckedChange={() => toggleVisibility(widget.id)}
+                      />
+                      <label
+                        htmlFor={`widget-${widget.id}`}
+                        className="min-w-0 flex-1 cursor-pointer text-xs font-medium"
+                      >
+                        {widget.label}
+                      </label>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        {(["left", "right", "full"] as const).map((col) => {
+                          const isActive =
+                            (layout.columns?.[widget.id] ?? widget.column) ===
+                            col
+                          return (
+                            <button
+                              key={col}
+                              type="button"
+                              onClick={() => setColumnOverride(widget.id, col)}
+                              className={
+                                isActive
+                                  ? "bg-primary/10 text-primary rounded px-1 py-0.5 text-[9px] font-semibold"
+                                  : "text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-[9px] font-medium transition-colors"
+                              }
+                              aria-label={`Set ${widget.label} to ${col} column`}
+                              aria-pressed={isActive}
+                            >
+                              {COLUMN_ABBR[col]}
+                            </button>
+                          )
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => moveWidget(widget.id, "up")}
+                          disabled={idx === 0}
+                          className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors disabled:opacity-30"
+                          aria-label={`Move ${widget.label} up`}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            className="h-3 w-3"
+                          >
+                            <polyline points="18,15 12,9 6,15" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveWidget(widget.id, "down")}
+                          disabled={idx === widgets.length - 1}
+                          className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors disabled:opacity-30"
+                          aria-label={`Move ${widget.label} down`}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            className="h-3 w-3"
+                          >
+                            <polyline points="6,9 12,15 18,9" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="border-t p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full"
+          onClick={() => {
+            if (
+              globalThis.confirm(
+                "Reset dashboard layout to defaults? This cannot be undone."
+              )
+            ) {
+              resetLayout()
+            }
+          }}
+        >
+          Reset to Default
+        </Button>
+      </div>
+    </>
+  )
+}
+
+/** @source */
+export function DashboardLayoutCustomizer() {
+  return (
     <Popover>
       <PopoverTrigger
         render={
@@ -143,121 +276,7 @@ export function DashboardLayoutCustomizer() {
         Customize
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-0">
-        <div className="border-b p-3">
-          <h3 className="text-sm font-semibold">Dashboard Layout</h3>
-          <p className="text-muted-foreground text-xs">
-            Show, hide, or reorder widgets
-          </p>
-        </div>
-
-        <div className="max-h-80 overflow-y-auto p-2">
-          {(["full", "left", "right"] as const).map((column) => {
-            const widgets = widgetsByColumn[column]
-            if (widgets.length === 0) return null
-            return (
-              <div key={column} className="mb-3 last:mb-0">
-                <span className="text-muted-foreground mb-1.5 block px-1 text-[10px] font-medium tracking-wider uppercase">
-                  {COLUMN_LABELS[column]}
-                </span>
-                <div className="space-y-0.5">
-                  {widgets.map((widget, idx) => {
-                    const isHidden = layout.hidden.includes(widget.id)
-                    return (
-                      <div
-                        key={widget.id}
-                        className="hover:bg-accent/50 flex items-center gap-2 rounded-md px-1.5 py-1.5"
-                      >
-                        <Checkbox
-                          id={`widget-${widget.id}`}
-                          checked={!isHidden}
-                          onCheckedChange={() => toggleVisibility(widget.id)}
-                        />
-                        <label
-                          htmlFor={`widget-${widget.id}`}
-                          className="min-w-0 flex-1 cursor-pointer text-xs font-medium"
-                        >
-                          {widget.label}
-                        </label>
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          {(["left", "right", "full"] as const).map((col) => {
-                            const isActive =
-                              (layout.columns?.[widget.id] ?? widget.column) ===
-                              col
-                            return (
-                              <button
-                                key={col}
-                                type="button"
-                                onClick={() =>
-                                  setColumnOverride(widget.id, col)
-                                }
-                                className={
-                                  isActive
-                                    ? "bg-primary/10 text-primary rounded px-1 py-0.5 text-[9px] font-semibold"
-                                    : "text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-[9px] font-medium transition-colors"
-                                }
-                                aria-label={`Set ${widget.label} to ${col} column`}
-                                aria-pressed={isActive}
-                              >
-                                {COLUMN_ABBR[col]}
-                              </button>
-                            )
-                          })}
-                          <button
-                            type="button"
-                            onClick={() => moveWidget(widget.id, "up")}
-                            disabled={idx === 0}
-                            className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors disabled:opacity-30"
-                            aria-label={`Move ${widget.label} up`}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className="h-3 w-3"
-                            >
-                              <polyline points="18,15 12,9 6,15" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveWidget(widget.id, "down")}
-                            disabled={idx === widgets.length - 1}
-                            className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors disabled:opacity-30"
-                            aria-label={`Move ${widget.label} down`}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className="h-3 w-3"
-                            >
-                              <polyline points="6,9 12,15 18,9" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="border-t p-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full"
-            onClick={resetLayout}
-          >
-            Reset to Default
-          </Button>
-        </div>
+        <DashboardLayoutCustomizerContent />
       </PopoverContent>
     </Popover>
   )
