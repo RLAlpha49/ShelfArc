@@ -181,7 +181,7 @@ describe("POST /api/library/export", () => {
   })
 
   it("returns 404 when no data to export", async () => {
-    eqMock.mockResolvedValueOnce({ data: [], error: null })
+    eqMock.mockResolvedValueOnce({ data: [], error: null, count: 0 })
 
     const { POST } = await loadRoute()
     const response = await POST(
