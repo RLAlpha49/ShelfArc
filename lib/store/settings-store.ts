@@ -202,17 +202,17 @@ interface SettingsState {
 
 /** Maps display font keys to their CSS variable references loaded by next/font. @source */
 export const DISPLAY_FONT_MAP: Record<DisplayFont, string> = {
-  playfair: "var(--font-playfair)",
-  lora: "var(--font-lora)",
-  "crimson-text": "var(--font-crimson-text)",
-  "source-serif": "var(--font-source-serif)"
+  playfair: "'Playfair Display', serif",
+  lora: "var(--font-lora), serif",
+  "crimson-text": "'Crimson Text', serif",
+  "source-serif": "'Source Serif 4', serif"
 }
 
 /** Maps body font keys to their CSS variable references loaded by next/font. @source */
 export const BODY_FONT_MAP: Record<BodyFont, string> = {
-  "plus-jakarta": "var(--font-plus-jakarta)",
-  inter: "var(--font-inter)",
-  "dm-sans": "var(--font-dm-sans)"
+  "plus-jakarta": "'Plus Jakarta Sans', sans-serif",
+  inter: "var(--font-inter), sans-serif",
+  "dm-sans": "'DM Sans', sans-serif"
 }
 
 /**
