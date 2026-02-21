@@ -301,7 +301,10 @@ export function SeriesHeaderSection({
             </div>
           </div>
 
-          <SeriesInsightsPanel insights={insights} />
+          <SeriesInsightsPanel
+            insights={insights}
+            seriesTitle={currentSeries.title}
+          />
 
           {currentSeries.notes && (
             <div
