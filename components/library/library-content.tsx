@@ -20,6 +20,7 @@ import {
   getGridClasses,
   VIRTUALIZE_THRESHOLD
 } from "@/lib/library/grid-utils"
+import { useLibraryStore } from "@/lib/store/library-store"
 import type { CardSize } from "@/lib/store/settings-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
@@ -231,10 +232,33 @@ function VolumesView({
     onSetRating,
     onAddBook
   } = useLibraryActions()
+  const filters = useLibraryStore((s) => s.filters)
+  const resetFilters = useLibraryStore((s) => s.resetFilters)
+  const isFiltering =
+    filters.search !== "" ||
+    filters.type !== "all" ||
+    filters.ownershipStatus !== "all" ||
+    filters.readingStatus !== "all" ||
+    filters.seriesStatus !== "all" ||
+    filters.hasCover !== "all" ||
+    filters.hasIsbn !== "all" ||
+    filters.tags.length > 0 ||
+    filters.excludeTags.length > 0
+
   const hasAssignedVolumes = filteredVolumes.length > 0
   const hasUnassignedVolumes = filteredUnassignedVolumes.length > 0
 
   if (!hasAssignedVolumes && !hasUnassignedVolumes) {
+    if (isFiltering) {
+      return (
+        <EmptyState
+          icon={BookIcon}
+          title="No results for your current filters"
+          description="Try adjusting or clearing your filters to find what you're looking for"
+          actions={[{ label: "Clear all filters", onClick: resetFilters }]}
+        />
+      )
+    }
     return (
       <EmptyState
         icon={BookIcon}
@@ -400,7 +424,30 @@ function SeriesView({
     onToggleSeriesSelection,
     onAddBook
   } = useLibraryActions()
+  const filters = useLibraryStore((s) => s.filters)
+  const resetFilters = useLibraryStore((s) => s.resetFilters)
+  const isFiltering =
+    filters.search !== "" ||
+    filters.type !== "all" ||
+    filters.ownershipStatus !== "all" ||
+    filters.readingStatus !== "all" ||
+    filters.seriesStatus !== "all" ||
+    filters.hasCover !== "all" ||
+    filters.hasIsbn !== "all" ||
+    filters.tags.length > 0 ||
+    filters.excludeTags.length > 0
+
   if (filteredSeries.length === 0 && filteredUnassignedVolumes.length === 0) {
+    if (isFiltering) {
+      return (
+        <EmptyState
+          icon={BookIcon}
+          title="No results for your current filters"
+          description="Try adjusting or clearing your filters to find what you're looking for"
+          actions={[{ label: "Clear all filters", onClick: resetFilters }]}
+        />
+      )
+    }
     return (
       <EmptyState
         icon={BookIcon}
