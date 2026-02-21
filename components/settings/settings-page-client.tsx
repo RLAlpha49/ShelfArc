@@ -38,7 +38,7 @@ export function SettingsPageClient({
   const syncStatus = useSettingsStore((s) => s.syncStatus)
 
   useEffect(() => {
-    if (syncStatus === "idle") return
+    if (syncStatus !== "saved") return
     const timer = setTimeout(() => {
       useSettingsStore.setState({ syncStatus: "idle" })
     }, 3000)
@@ -75,9 +75,13 @@ export function SettingsPageClient({
             <span className="text-sm font-medium text-green-600">Saved ✓</span>
           )}
           {syncStatus === "failed" && (
-            <span className="text-destructive text-sm font-medium">
-              Sync failed — changes saved locally
-            </span>
+            <button
+              type="button"
+              onClick={() => useSettingsStore.getState().syncToServer()}
+              className="text-destructive hover:text-destructive/80 text-sm font-medium underline-offset-2 hover:underline"
+            >
+              Sync failed — Retry
+            </button>
           )}
         </div>
         <p className="text-muted-foreground mt-2">
