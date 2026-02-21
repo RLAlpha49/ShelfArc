@@ -13,6 +13,7 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 
 import { DashboardContent } from "@/components/dashboard/dashboard-content"
+import { DashboardCustomizeButton } from "@/components/dashboard/dashboard-customize-button"
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import {
   computeCollectionStats,
@@ -54,18 +55,23 @@ export default async function DashboardPage() {
     <div className="dashboard-container mx-auto max-w-7xl px-6 py-10 lg:px-10">
       {/* ── Welcome header (server-rendered, instant) ── */}
       <section className="animate-fade-in-down mb-10">
-        <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
-          Dashboard
-        </span>
-        <h1 className="font-display text-4xl leading-tight font-bold tracking-tight md:text-5xl">
-          Your{" "}
-          <span className="text-gradient from-copper to-gold bg-linear-to-r">
-            collection
-          </span>
-        </h1>
-        <p className="text-muted-foreground mt-2 max-w-lg text-base leading-relaxed">
-          Track, organize, and grow your manga and light novel library.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-muted-foreground mb-1 block text-xs tracking-widest uppercase">
+              Dashboard
+            </span>
+            <h1 className="font-display text-4xl leading-tight font-bold tracking-tight md:text-5xl">
+              Your{" "}
+              <span className="text-gradient from-copper to-gold bg-linear-to-r">
+                collection
+              </span>
+            </h1>
+            <p className="text-muted-foreground mt-2 max-w-lg text-base leading-relaxed">
+              Track, organize, and grow your manga and light novel library.
+            </p>
+          </div>
+          <DashboardCustomizeButton />
+        </div>
       </section>
 
       {/* ── Quick navigation (server-rendered, instant) ── */}
