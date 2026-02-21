@@ -1,58 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+import { recordActivityEvent } from "@/lib/activity/record-event"
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createUserClient } from "@/lib/supabase/server"
+import { SettingsSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
 const MAX_SETTINGS_SIZE = 10_240 // 10 KB
-
-/** Server-side allowlist of permitted settings keys — mirrors the client SYNCABLE_KEYS. */
-const ALLOWED_SETTINGS_KEYS = new Set([
-  "showReadingProgress",
-  "showSeriesProgressBar",
-  "cardSize",
-  "confirmBeforeDelete",
-  "defaultOwnershipStatus",
-  "defaultSearchSource",
-  "defaultScrapeMode",
-  "autoPurchaseDate",
-  "sidebarCollapsed",
-  "enableAnimations",
-  "displayFont",
-  "bodyFont",
-  "dateFormat",
-  "highContrastMode",
-  "fontSizeScale",
-  "focusIndicators",
-  "automatedPriceChecks",
-  "releaseReminders",
-  "releaseReminderDays",
-  "notifyOnImportComplete",
-  "notifyOnScrapeComplete",
-  "notifyOnPriceAlert",
-  "emailNotifications",
-  "defaultSortBy",
-  "defaultSortDir",
-  "hasCompletedOnboarding",
-  "navigationMode",
-  "dashboardLayout",
-  "readingGoal",
-  "lastSyncedAt"
-])
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
-  )
-}
 
 export async function GET(request: NextRequest) {
   const correlationId = getCorrelationId(request)
@@ -126,21 +85,15 @@ export async function PATCH(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    if (!isPlainObject(body.settings)) {
-      return apiError(400, "settings must be a plain object", {
-        correlationId
+    const parsed = SettingsSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
       })
     }
 
-    const incoming = body.settings
-
-    // Reject any keys not in the server-side allowlist
-    const unrecognizedKeys = Object.keys(incoming).filter(
-      (k) => !ALLOWED_SETTINGS_KEYS.has(k)
-    )
-    if (unrecognizedKeys.length > 0) {
-      return apiError(400, "Unrecognized settings keys", { correlationId })
-    }
+    const incoming = parsed.data.settings
 
     // Fetch current settings for shallow merge
     const { data: existing, error: fetchError } = await supabase
@@ -157,7 +110,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     const merged = {
-      ...existing?.settings,
+      ...(existing?.settings && typeof existing.settings === "object"
+        ? existing.settings
+        : {}),
       ...incoming
     }
 
@@ -178,6 +133,14 @@ export async function PATCH(request: NextRequest) {
       })
       return apiError(500, "Failed to update settings", { correlationId })
     }
+
+    void recordActivityEvent(supabase, {
+      userId: user.id,
+      eventType: "settings_updated",
+      entityType: "profile",
+      entityId: user.id,
+      metadata: { changedKeys: Object.keys(incoming) }
+    })
 
     return apiSuccess({ settings: merged }, { correlationId })
   } catch (error) {
