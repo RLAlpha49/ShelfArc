@@ -1,26 +1,11 @@
 import "./globals.css"
 
 import type { Metadata } from "next"
-import {
-  Crimson_Text,
-  DM_Sans,
-  Inter,
-  Lora,
-  Playfair_Display,
-  Plus_Jakarta_Sans,
-  Source_Serif_4
-} from "next/font/google"
+import { Inter, Lora } from "next/font/google"
 
 import { SettingsApplier } from "@/components/settings-applier"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
-
-/** Playfair Display serif font for headings. @source */
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
-  display: "swap"
-})
 
 /** Lora serif font for headings. @source */
 const lora = Lora({
@@ -29,39 +14,10 @@ const lora = Lora({
   display: "swap"
 })
 
-/** Crimson Text serif font for headings. @source */
-const crimsonText = Crimson_Text({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  variable: "--font-crimson-text",
-  display: "swap"
-})
-
-/** Source Serif 4 serif font for headings. @source */
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  variable: "--font-source-serif",
-  display: "swap"
-})
-
-/** Plus Jakarta Sans font for body text. @source */
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-plus-jakarta",
-  display: "swap"
-})
-
 /** Inter sans-serif font for body text. @source */
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-  display: "swap"
-})
-
-/** DM Sans font for body text. @source */
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-dm-sans",
   display: "swap"
 })
 
@@ -85,15 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={[
-        playfair.variable,
-        lora.variable,
-        crimsonText.variable,
-        sourceSerif.variable,
-        plusJakarta.variable,
-        inter.variable,
-        dmSans.variable
-      ].join(" ")}
+      className={[lora.variable, inter.variable].join(" ")}
       data-animations="auto"
       suppressHydrationWarning
     >
@@ -101,7 +49,7 @@ export default function RootLayout({
         {/* Synchronously apply animation setting before hydration to prevent reduced-motion flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var s=JSON.parse(localStorage.getItem('settings-store')||'{}');var e=s&&s.state&&s.state.enableAnimations;if(e===false){document.documentElement.dataset.animations='disabled';document.documentElement.classList.add('no-animations');}else if(typeof e==='boolean'){document.documentElement.dataset.animations='enabled';}}catch(e){}`
+            __html: `try{var s=JSON.parse(localStorage.getItem('shelfarc-settings')||'{}');var e=s&&s.state&&s.state.enableAnimations;if(e===false){document.documentElement.dataset.animations='disabled';document.documentElement.classList.add('no-animations');}else if(typeof e==='boolean'){document.documentElement.dataset.animations='enabled';}var df=s&&s.state&&s.state.displayFont;var bf=s&&s.state&&s.state.bodyFont;var fonts=[];if(df==='playfair')fonts.push('family=Playfair+Display:ital,wght@0,400..900;1,400..900');else if(df==='crimson-text')fonts.push('family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700');else if(df==='source-serif')fonts.push('family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900');if(bf==='plus-jakarta')fonts.push('family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800');else if(bf==='dm-sans')fonts.push('family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000');if(fonts.length>0){var link=document.createElement('link');link.rel='stylesheet';link.href='https://fonts.googleapis.com/css2?'+fonts.join('&')+'&display=swap';document.head.appendChild(link);}}catch(e){}`
           }}
         />
       </head>
