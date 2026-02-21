@@ -11,7 +11,7 @@ const getUserMock = mock(
 const seriesSingleMock = mock(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
-    data: { id: "series-1" },
+    data: { id: "123e4567-e89b-12d3-a456-426614174000" },
     error: null
   })
 )
@@ -75,7 +75,10 @@ beforeEach(() => {
   seriesQb.select.mockClear()
   seriesQb.eq.mockClear()
   seriesSingleMock.mockClear()
-  seriesSingleMock.mockResolvedValue({ data: { id: "series-1" }, error: null })
+  seriesSingleMock.mockResolvedValue({
+    data: { id: "123e4567-e89b-12d3-a456-426614174000" },
+    error: null
+  })
   volumeQb.insert.mockClear()
   volumeSingleMock.mockClear()
   volumeSingleMock.mockResolvedValue({
@@ -180,7 +183,7 @@ describe("POST /api/library/volumes", () => {
         body: JSON.stringify({
           title: "Test Vol",
           volume_number: 1,
-          series_id: "series-1"
+          series_id: "123e4567-e89b-12d3-a456-426614174000"
         }),
         headers: { "Content-Type": "application/json" }
       })
@@ -189,7 +192,7 @@ describe("POST /api/library/volumes", () => {
     expect(response.status).toBe(404)
   })
 
-  it("returns 400 on DB insert error", async () => {
+  it("returns 500 on DB insert error", async () => {
     volumeSingleMock.mockResolvedValueOnce({
       data: null,
       error: { message: "insert error" }
@@ -204,7 +207,7 @@ describe("POST /api/library/volumes", () => {
       })
     )
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(500)
   })
 
   it("creates volume with valid series_id and returns 201", async () => {
@@ -214,7 +217,7 @@ describe("POST /api/library/volumes", () => {
         title: "Test Vol",
         volume_number: 1,
         user_id: "user-1",
-        series_id: "series-1",
+        series_id: "123e4567-e89b-12d3-a456-426614174000",
         purchase_price: null
       },
       error: null
@@ -227,7 +230,7 @@ describe("POST /api/library/volumes", () => {
         body: JSON.stringify({
           title: "Test Vol",
           volume_number: 1,
-          series_id: "series-1"
+          series_id: "123e4567-e89b-12d3-a456-426614174000"
         }),
         headers: { "Content-Type": "application/json" }
       })
@@ -235,6 +238,6 @@ describe("POST /api/library/volumes", () => {
 
     const body = await readJson<{ id: string; series_id: string }>(response)
     expect(response.status).toBe(201)
-    expect(body.series_id).toBe("series-1")
+    expect(body.series_id).toBe("123e4567-e89b-12d3-a456-426614174000")
   })
 })

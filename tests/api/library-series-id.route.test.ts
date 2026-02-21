@@ -256,6 +256,12 @@ describe("PATCH /api/library/series/[id]", () => {
   })
 
   it("returns updated series on success", async () => {
+    // First call: select("tags")
+    singleMock.mockResolvedValueOnce({
+      data: { tags: [] },
+      error: null
+    })
+    // Second call: update().select().single()
     singleMock.mockResolvedValueOnce({
       data: {
         id: "series-1",

@@ -18,8 +18,8 @@ const orderMock = mock(
   async (): Promise<QueryResult> => ({
     data: [
       {
-        id: "alert-1",
-        volume_id: "vol-1",
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        volume_id: "123e4567-e89b-12d3-a456-426614174000",
         target_price: 7.99,
         currency: "USD",
         enabled: true
@@ -32,8 +32,8 @@ const orderMock = mock(
 const singleMock = mock(
   async (): Promise<QueryResult> => ({
     data: {
-      id: "alert-1",
-      volume_id: "vol-1",
+      id: "123e4567-e89b-12d3-a456-426614174000",
+      volume_id: "123e4567-e89b-12d3-a456-426614174000",
       target_price: 7.99,
       currency: "USD"
     },
@@ -91,8 +91,8 @@ beforeEach(() => {
   orderMock.mockResolvedValue({
     data: [
       {
-        id: "alert-1",
-        volume_id: "vol-1",
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        volume_id: "123e4567-e89b-12d3-a456-426614174000",
         target_price: 7.99,
         currency: "USD",
         enabled: true
@@ -102,8 +102,8 @@ beforeEach(() => {
   })
   singleMock.mockResolvedValue({
     data: {
-      id: "alert-1",
-      volume_id: "vol-1",
+      id: "123e4567-e89b-12d3-a456-426614174000",
+      volume_id: "123e4567-e89b-12d3-a456-426614174000",
       target_price: 7.99,
       currency: "USD"
     },
@@ -145,7 +145,7 @@ describe("GET /api/books/price/alerts", () => {
     }>(response)
     expect(response.status).toBe(200)
     expect(body.data).toBeArray()
-    expect(body.data[0].id).toBe("alert-1")
+    expect(body.data[0].id).toBe("123e4567-e89b-12d3-a456-426614174000")
     expect(body.data[0].target_price).toBe(7.99)
   })
 
@@ -188,7 +188,10 @@ describe("POST /api/books/price/alerts", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", targetPrice: 7.99 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          targetPrice: 7.99
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -210,7 +213,7 @@ describe("POST /api/books/price/alerts", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("volumeId is required")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when targetPrice is invalid", async () => {
@@ -218,14 +221,17 @@ describe("POST /api/books/price/alerts", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", targetPrice: -1 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          targetPrice: -1
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("targetPrice must be a positive number")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when targetPrice is zero", async () => {
@@ -233,14 +239,17 @@ describe("POST /api/books/price/alerts", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", targetPrice: 0 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          targetPrice: 0
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("targetPrice must be a positive number")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 for malformed JSON", async () => {
@@ -279,7 +288,7 @@ describe("POST /api/books/price/alerts", () => {
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
         body: JSON.stringify({
-          volumeId: "vol-1",
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
           targetPrice: 7.99,
           currency: "INVALID"
         }),
@@ -289,7 +298,7 @@ describe("POST /api/books/price/alerts", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("currency must be a 3-letter ISO currency code")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when enabled is not a boolean", async () => {
@@ -298,7 +307,7 @@ describe("POST /api/books/price/alerts", () => {
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
         body: JSON.stringify({
-          volumeId: "vol-1",
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
           targetPrice: 7.99,
           enabled: "yes"
         }),
@@ -308,7 +317,7 @@ describe("POST /api/books/price/alerts", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("enabled must be a boolean")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("accepts valid lowercase currency and normalizes to uppercase", async () => {
@@ -317,7 +326,7 @@ describe("POST /api/books/price/alerts", () => {
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
         body: JSON.stringify({
-          volumeId: "vol-1",
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
           targetPrice: 7.99,
           currency: "eur"
         }),
@@ -333,7 +342,10 @@ describe("POST /api/books/price/alerts", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", targetPrice: 7.99 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          targetPrice: 7.99
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -342,12 +354,15 @@ describe("POST /api/books/price/alerts", () => {
       data: { id: string; target_price: number }
     }>(response)
     expect(response.status).toBe(200)
-    expect(body.data.id).toBe("alert-1")
+    expect(body.data.id).toBe("123e4567-e89b-12d3-a456-426614174000")
   })
 
   it("returns 500 on upsert failure", async () => {
     // First single() call is the volume ownership check — must succeed
-    singleMock.mockResolvedValueOnce({ data: { id: "vol-1" }, error: null })
+    singleMock.mockResolvedValueOnce({
+      data: { id: "123e4567-e89b-12d3-a456-426614174000" },
+      error: null
+    })
     // Second single() call is the upsert — simulate failure
     singleMock.mockResolvedValueOnce({
       data: null,
@@ -358,7 +373,10 @@ describe("POST /api/books/price/alerts", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", targetPrice: 7.99 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          targetPrice: 7.99
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -373,7 +391,10 @@ describe("POST /api/books/price/alerts", () => {
     await POST(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", targetPrice: 7.99 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          targetPrice: 7.99
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -393,7 +414,7 @@ describe("PATCH /api/books/price/alerts", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "PATCH",
-        body: JSON.stringify({ id: "alert-1" }),
+        body: JSON.stringify({ id: "123e4567-e89b-12d3-a456-426614174000" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -415,7 +436,7 @@ describe("PATCH /api/books/price/alerts", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("id must be a valid UUID")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 for malformed JSON", async () => {
@@ -438,7 +459,7 @@ describe("PATCH /api/books/price/alerts", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "PATCH",
-        body: JSON.stringify({ id: "00000000-0000-0000-0000-000000000001" }),
+        body: JSON.stringify({ id: "123e4567-e89b-12d3-a456-426614174000" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -447,7 +468,7 @@ describe("PATCH /api/books/price/alerts", () => {
       data: { id: string }
     }>(response)
     expect(response.status).toBe(200)
-    expect(body.data.id).toBe("alert-1")
+    expect(body.data.id).toBe("123e4567-e89b-12d3-a456-426614174000")
   })
 
   it("returns 500 on update failure", async () => {
@@ -460,7 +481,7 @@ describe("PATCH /api/books/price/alerts", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "PATCH",
-        body: JSON.stringify({ id: "00000000-0000-0000-0000-000000000001" }),
+        body: JSON.stringify({ id: "123e4567-e89b-12d3-a456-426614174000" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -475,7 +496,7 @@ describe("PATCH /api/books/price/alerts", () => {
     await PATCH(
       makeNextRequest("http://localhost/api/books/price/alerts", {
         method: "PATCH",
-        body: JSON.stringify({ id: "alert-1" }),
+        body: JSON.stringify({ id: "123e4567-e89b-12d3-a456-426614174000" }),
         headers: { "Content-Type": "application/json" }
       })
     )

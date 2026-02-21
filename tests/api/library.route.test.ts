@@ -21,6 +21,13 @@ qb.not = mock(() => qb)
 qb.or = mock(() => qb)
 qb.contains = mock(() => qb)
 qb.in = mock(() => qb)
+qb.limit = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async (): Promise<any> => ({
+    data: [],
+    error: null
+  })
+)
 qb.range = mock(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({

@@ -19,7 +19,7 @@ const limitMock = mock(
     data: [
       {
         id: "ph-1",
-        volume_id: "vol-1",
+        volume_id: "123e4567-e89b-12d3-a456-426614174000",
         price: 9.99,
         currency: "USD",
         source: "amazon",
@@ -34,7 +34,7 @@ const singleMock = mock(
   async (): Promise<QueryResult> => ({
     data: {
       id: "ph-new",
-      volume_id: "vol-1",
+      volume_id: "123e4567-e89b-12d3-a456-426614174000",
       price: 12.5,
       currency: "USD",
       source: "amazon"
@@ -46,6 +46,7 @@ const singleMock = mock(
 const queryBuilder = {
   select: mock(() => queryBuilder),
   eq: mock(() => queryBuilder),
+  gte: mock(() => queryBuilder),
   order: mock(() => queryBuilder),
   limit: limitMock,
   insert: mock(() => queryBuilder),
@@ -74,6 +75,7 @@ beforeEach(() => {
   enforceSameOriginMock.mockClear()
   queryBuilder.select.mockClear()
   queryBuilder.eq.mockClear()
+  queryBuilder.gte.mockClear()
   queryBuilder.order.mockClear()
   limitMock.mockClear()
   queryBuilder.insert.mockClear()
@@ -84,7 +86,7 @@ beforeEach(() => {
     data: [
       {
         id: "ph-1",
-        volume_id: "vol-1",
+        volume_id: "123e4567-e89b-12d3-a456-426614174000",
         price: 9.99,
         currency: "USD",
         source: "amazon",
@@ -96,7 +98,7 @@ beforeEach(() => {
   singleMock.mockResolvedValue({
     data: {
       id: "ph-new",
-      volume_id: "vol-1",
+      volume_id: "123e4567-e89b-12d3-a456-426614174000",
       price: 12.5,
       currency: "USD",
       source: "amazon"
@@ -112,7 +114,7 @@ afterEach(() => {
     data: [
       {
         id: "ph-1",
-        volume_id: "vol-1",
+        volume_id: "123e4567-e89b-12d3-a456-426614174000",
         price: 9.99,
         currency: "USD",
         source: "amazon",
@@ -188,7 +190,10 @@ describe("POST /api/books/price/history", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", price: 9.99 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          price: 9.99
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -210,7 +215,7 @@ describe("POST /api/books/price/history", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("volumeId is required")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when volumeId is empty", async () => {
@@ -225,7 +230,7 @@ describe("POST /api/books/price/history", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("volumeId is required")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when price is negative", async () => {
@@ -233,14 +238,17 @@ describe("POST /api/books/price/history", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", price: -5 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          price: -5
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("price must be a positive number")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when price is zero", async () => {
@@ -248,14 +256,17 @@ describe("POST /api/books/price/history", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", price: 0 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          price: 0
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("price must be a positive number")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when price is not a number", async () => {
@@ -263,14 +274,17 @@ describe("POST /api/books/price/history", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", price: "abc" }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          price: "abc"
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("price must be a positive number")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 for malformed JSON", async () => {
@@ -309,7 +323,7 @@ describe("POST /api/books/price/history", () => {
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
         body: JSON.stringify({
-          volumeId: "vol-1",
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
           price: 9.99,
           currency: "TOOLONG"
         }),
@@ -319,7 +333,7 @@ describe("POST /api/books/price/history", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("currency must be a 3-letter ISO currency code")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when source is not in allowlist", async () => {
@@ -328,7 +342,7 @@ describe("POST /api/books/price/history", () => {
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
         body: JSON.stringify({
-          volumeId: "vol-1",
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
           price: 9.99,
           source: "x".repeat(51)
         }),
@@ -338,7 +352,7 @@ describe("POST /api/books/price/history", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("source must be one of: amazon, manual, imported")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 for invalid productUrl", async () => {
@@ -347,7 +361,7 @@ describe("POST /api/books/price/history", () => {
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
         body: JSON.stringify({
-          volumeId: "vol-1",
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
           price: 9.99,
           productUrl: "https://evil.com/product"
         }),
@@ -357,15 +371,33 @@ describe("POST /api/books/price/history", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("productUrl must be a valid Amazon URL")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns data on successful insert", async () => {
+    singleMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "not found" }
+    })
+    singleMock.mockResolvedValueOnce({
+      data: {
+        id: "ph-new",
+        volume_id: "123e4567-e89b-12d3-a456-426614174000",
+        price: 12.5,
+        currency: "USD",
+        source: "amazon"
+      } as unknown as Array<Record<string, unknown>>,
+      error: null
+    })
+
     const { POST } = await loadRoute()
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", price: 12.5 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          price: 12.5
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -381,6 +413,10 @@ describe("POST /api/books/price/history", () => {
   it("returns 500 on insert failure", async () => {
     singleMock.mockResolvedValueOnce({
       data: null,
+      error: { message: "not found" }
+    })
+    singleMock.mockResolvedValueOnce({
+      data: null,
       error: { message: "insert failed" }
     })
 
@@ -388,7 +424,10 @@ describe("POST /api/books/price/history", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", price: 9.99 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          price: 9.99
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -399,11 +438,18 @@ describe("POST /api/books/price/history", () => {
   })
 
   it("calls enforceSameOrigin for CSRF protection", async () => {
+    singleMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "not found" }
+    })
     const { POST } = await loadRoute()
     await POST(
       makeNextRequest("http://localhost/api/books/price/history", {
         method: "POST",
-        body: JSON.stringify({ volumeId: "vol-1", price: 9.99 }),
+        body: JSON.stringify({
+          volumeId: "123e4567-e89b-12d3-a456-426614174000",
+          price: 9.99
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )

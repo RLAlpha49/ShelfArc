@@ -8,12 +8,15 @@ const getUserMock = mock(
   })
 )
 
+const VOL_1_ID = "11111111-1111-4111-8111-111111111111"
+const VOL_2_ID = "22222222-2222-4222-8222-222222222222"
+
 const volumesFetchMock = mock(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
     data: [
       {
-        id: "vol-1",
+        id: VOL_1_ID,
         title: "Test Vol",
         volume_number: 1,
         series_id: "s-1",
@@ -107,7 +110,7 @@ beforeEach(() => {
   volumesFetchMock.mockResolvedValue({
     data: [
       {
-        id: "vol-1",
+        id: VOL_1_ID,
         title: "Test Vol",
         volume_number: 1,
         series_id: "s-1",
@@ -138,7 +141,7 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
         method: "POST",
-        body: JSON.stringify({ volumeIds: ["vol-1"], mode: "price" }),
+        body: JSON.stringify({ volumeIds: [VOL_1_ID], mode: "price" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -157,7 +160,7 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
         method: "POST",
-        body: JSON.stringify({ volumeIds: ["vol-1"], mode: "price" }),
+        body: JSON.stringify({ volumeIds: [VOL_1_ID], mode: "price" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -172,7 +175,7 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     await POST(
       makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
         method: "POST",
-        body: JSON.stringify({ volumeIds: ["vol-1"], mode: "price" }),
+        body: JSON.stringify({ volumeIds: [VOL_1_ID], mode: "price" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -198,7 +201,7 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
         method: "POST",
-        body: JSON.stringify({ volumeIds: ["vol-1"], mode: "invalid" }),
+        body: JSON.stringify({ volumeIds: [VOL_1_ID], mode: "invalid" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -207,7 +210,11 @@ describe("POST /api/library/volumes/batch-scrape", () => {
   })
 
   it("returns 400 when volumeIds exceeds 10", async () => {
-    const ids = Array.from({ length: 11 }, (_, i) => `vol-${i}`)
+    const ids = Array.from(
+      { length: 11 },
+      (_, i) =>
+        `11111111-1111-4111-8111-1111111111${i.toString().padStart(2, "0")}`
+    )
 
     const { POST } = await loadRoute()
     const response = await POST(
@@ -228,10 +235,13 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
         method: "POST",
-        body: JSON.stringify({ volumeIds: ["vol-1"], mode: "price" }),
+        body: JSON.stringify({ volumeIds: [VOL_1_ID], mode: "price" }),
         headers: { "Content-Type": "application/json" }
       })
     )
+
+    const body = await readJson(response)
+    console.log(body)
 
     expect(response.status).toBe(404)
   })
@@ -241,7 +251,7 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
         method: "POST",
-        body: JSON.stringify({ volumeIds: ["vol-1"], mode: "price" }),
+        body: JSON.stringify({ volumeIds: [VOL_1_ID], mode: "price" }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -257,12 +267,124 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     expect(body.data.summary.total).toBe(1)
   })
 
+  it("returns 207 when some volumes fail", async () => {
+    volumesFetchMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: VOL_1_ID,
+          title: "Test Vol 1",
+          volume_number: 1,
+          series_id: "s-1",
+          purchase_price: null,
+          cover_image_url: null,
+          series: { id: "s-1", title: "Test Series", type: "manga" }
+        },
+        {
+          id: VOL_2_ID,
+          title: "Test Vol 2",
+          volume_number: 2,
+          series_id: "s-1",
+          purchase_price: null,
+          cover_image_url: null,
+          series: { id: "s-1", title: "Test Series", type: "manga" }
+        }
+      ],
+      error: null
+    })
+
+    // Mock buildFetchPriceParams to fail for the second volume
+    const { buildFetchPriceParams } = await import("@/lib/books/amazon-query")
+    const mockBuild = buildFetchPriceParams as ReturnType<typeof mock>
+    mockBuild
+      .mockReturnValueOnce({
+        params: {
+          title: "Test",
+          volume: 1,
+          binding: "Paperback",
+          domain: "amazon.com",
+          format: null,
+          volumeTitle: null,
+          fallbackToKindle: false
+        }
+      })
+      .mockReturnValueOnce({
+        error: "Failed to build params"
+      })
+
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
+        method: "POST",
+        body: JSON.stringify({
+          volumeIds: [VOL_1_ID, VOL_2_ID],
+          mode: "price"
+        }),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{
+      data: {
+        results: unknown[]
+        summary: { total: number; done: number; failed: number }
+      }
+    }>(response)
+    expect(response.status).toBe(207)
+    expect(body.data.summary.total).toBe(2)
+    expect(body.data.summary.done).toBe(1)
+    expect(body.data.summary.failed).toBe(1)
+  })
+
+  it("returns 422 when all volumes fail", async () => {
+    volumesFetchMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: VOL_1_ID,
+          title: "Test Vol 1",
+          volume_number: 1,
+          series_id: "s-1",
+          purchase_price: null,
+          cover_image_url: null,
+          series: { id: "s-1", title: "Test Series", type: "manga" }
+        }
+      ],
+      error: null
+    })
+
+    // Mock buildFetchPriceParams to fail
+    const { buildFetchPriceParams } = await import("@/lib/books/amazon-query")
+    const mockBuild = buildFetchPriceParams as ReturnType<typeof mock>
+    mockBuild.mockReturnValueOnce({
+      error: "Failed to build params"
+    })
+
+    const { POST } = await loadRoute()
+    const response = await POST(
+      makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
+        method: "POST",
+        body: JSON.stringify({ volumeIds: [VOL_1_ID], mode: "price" }),
+        headers: { "Content-Type": "application/json" }
+      })
+    )
+
+    const body = await readJson<{
+      data: {
+        results: unknown[]
+        summary: { total: number; done: number; failed: number }
+      }
+    }>(response)
+    expect(response.status).toBe(422)
+    expect(body.data.summary.total).toBe(1)
+    expect(body.data.summary.done).toBe(0)
+    expect(body.data.summary.failed).toBe(1)
+  })
+
   it("returns 400 when some volume IDs are not found", async () => {
     // Request 2 IDs but mock only returns 1
     volumesFetchMock.mockResolvedValueOnce({
       data: [
         {
-          id: "vol-1",
+          id: VOL_1_ID,
           title: "Test Vol",
           volume_number: 1,
           series_id: "s-1",
@@ -278,7 +400,10 @@ describe("POST /api/library/volumes/batch-scrape", () => {
     const response = await POST(
       makeNextRequest("http://localhost/api/library/volumes/batch-scrape", {
         method: "POST",
-        body: JSON.stringify({ volumeIds: ["vol-1", "vol-2"], mode: "price" }),
+        body: JSON.stringify({
+          volumeIds: [VOL_1_ID, VOL_2_ID],
+          mode: "price"
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )

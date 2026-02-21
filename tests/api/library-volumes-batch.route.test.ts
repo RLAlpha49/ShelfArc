@@ -11,7 +11,10 @@ const getUserMock = mock(
 const selectIdMock = mock(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async (): Promise<any> => ({
-    data: [{ id: "vol-1" }, { id: "vol-2" }],
+    data: [
+      { id: "123e4567-e89b-12d3-a456-426614174000" },
+      { id: "123e4567-e89b-12d3-a456-426614174001" }
+    ],
     error: null
   })
 )
@@ -73,7 +76,10 @@ beforeEach(() => {
   qb.select.mockClear()
   selectIdMock.mockClear()
   selectIdMock.mockResolvedValue({
-    data: [{ id: "vol-1" }, { id: "vol-2" }],
+    data: [
+      { id: "123e4567-e89b-12d3-a456-426614174000" },
+      { id: "123e4567-e89b-12d3-a456-426614174001" }
+    ],
     error: null
   })
   qb.select.mockImplementation(() => selectIdMock())
@@ -102,7 +108,7 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1"],
+          volume_ids: ["123e4567-e89b-12d3-a456-426614174000"],
           updates: { ownership_status: "owned" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -124,7 +130,7 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1"],
+          volume_ids: ["123e4567-e89b-12d3-a456-426614174000"],
           updates: { ownership_status: "owned" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -142,7 +148,10 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1", "vol-2"],
+          volume_ids: [
+            "123e4567-e89b-12d3-a456-426614174000",
+            "123e4567-e89b-12d3-a456-426614174001"
+          ],
           updates: { ownership_status: "owned" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -152,13 +161,13 @@ describe("PATCH /api/library/volumes/batch", () => {
     expect(enforceSameOriginMock).toHaveBeenCalled()
   })
 
-  it("returns 400 when volumeIds is empty", async () => {
+  it("returns 400 when volume_ids is empty", async () => {
     const { PATCH } = await loadRoute()
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: [],
+          volume_ids: [],
           updates: { ownership_status: "owned" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -168,15 +177,18 @@ describe("PATCH /api/library/volumes/batch", () => {
     expect(response.status).toBe(400)
   })
 
-  it("returns 400 when volumeIds exceeds 200", async () => {
-    const ids = Array.from({ length: 201 }, (_, i) => `vol-${i}`)
+  it("returns 400 when volume_ids exceeds 200", async () => {
+    const ids = Array.from(
+      { length: 201 },
+      (_, i) => `123e4567-e89b-12d3-a456-${i.toString().padStart(12, "0")}`
+    )
 
     const { PATCH } = await loadRoute()
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ids,
+          volume_ids: ids,
           updates: { ownership_status: "owned" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -191,7 +203,9 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1"] }),
+        body: JSON.stringify({
+          volume_ids: ["00000000-0000-0000-0000-000000000001"]
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -205,7 +219,7 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1"],
+          volume_ids: ["123e4567-e89b-12d3-a456-426614174000"],
           updates: { ownership_status: "invalid" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -221,7 +235,7 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1"],
+          volume_ids: ["00000000-0000-0000-0000-000000000001"],
           updates: { reading_status: "invalid" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -236,7 +250,10 @@ describe("PATCH /api/library/volumes/batch", () => {
     const response = await PATCH(
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
-        body: JSON.stringify({ volumeIds: ["vol-1"], updates: { rating: 11 } }),
+        body: JSON.stringify({
+          volume_ids: ["00000000-0000-0000-0000-000000000001"],
+          updates: { rating: 11 }
+        }),
         headers: { "Content-Type": "application/json" }
       })
     )
@@ -250,7 +267,7 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1"],
+          volume_ids: ["00000000-0000-0000-0000-000000000001"],
           updates: { rating: "five" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -266,7 +283,7 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1"],
+          volume_ids: ["00000000-0000-0000-0000-000000000001"],
           updates: { unknown_field: "value" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -282,7 +299,10 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1", "vol-2"],
+          volume_ids: [
+            "123e4567-e89b-12d3-a456-426614174000",
+            "123e4567-e89b-12d3-a456-426614174001"
+          ],
           updates: { ownership_status: "owned" }
         }),
         headers: { "Content-Type": "application/json" }
@@ -311,7 +331,10 @@ describe("PATCH /api/library/volumes/batch", () => {
       makeNextRequest("http://localhost/api/library/volumes/batch", {
         method: "PATCH",
         body: JSON.stringify({
-          volumeIds: ["vol-1", "vol-2"],
+          volume_ids: [
+            "123e4567-e89b-12d3-a456-426614174000",
+            "123e4567-e89b-12d3-a456-426614174001"
+          ],
           updates: { ownership_status: "owned" }
         }),
         headers: { "Content-Type": "application/json" }

@@ -129,7 +129,7 @@ describe("POST /api/library/series", () => {
 
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(400)
-    expect(body.error).toBe("Title is required")
+    expect(body.error).toBe("Validation failed")
   })
 
   it("returns 400 when body is malformed JSON", async () => {
@@ -190,7 +190,7 @@ describe("POST /api/library/series", () => {
     )
 
     const body = await readJson<{ error: string }>(response)
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(500)
     expect(body.error).toBe("Failed to create series")
   })
 
