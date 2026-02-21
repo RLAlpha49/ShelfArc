@@ -2,10 +2,15 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 
-import type { SpendingDataPoint } from "@/lib/library/analytics"
+import {
+  computeMonthlyBars,
+  type MonthlyBar,
+  type SpendingDataPoint
+} from "@/lib/library/analytics"
 
 interface DashboardSpendingChartProps {
   readonly data: SpendingDataPoint[]
+  readonly initialBars: readonly MonthlyBar[]
   readonly priceFormatter: Intl.NumberFormat
   readonly mode?: "spending" | "velocity"
   /** Owned volumes with a price but no purchase date — excluded from this chart but counted in "Invested" */
@@ -40,35 +45,9 @@ function getChartLabel(
   return "Monthly spending"
 }
 
-function computeMonthlyBars(filtered: SpendingDataPoint[], svgWidth: number) {
-  if (filtered.length === 0) return []
-  const maxVal = Math.max(...filtered.map((d) => d.total), 0)
-  const innerW = svgWidth - PAD_SIDE * 2
-  const innerH = CHART_H - PAD_TOP - PAD_BOTTOM
-  const slotW = innerW / filtered.length
-  const barW = Math.min(slotW * 0.65, 40)
-  const maxBarH = innerH * MAX_BAR_FILL
-  const rotate = filtered.length > ROTATE_AT
-
-  return filtered.map((d, i) => {
-    const barH = maxVal > 0 ? (d.total / maxVal) * maxBarH : 0
-    const cx = PAD_SIDE + i * slotW + slotW / 2
-    return {
-      d,
-      x: cx - barW / 2,
-      y: d.total > 0 ? PAD_TOP + innerH - barH : PAD_TOP + innerH - 2,
-      w: barW,
-      h: d.total > 0 ? barH : 2,
-      cx,
-      labelY: CHART_H - PAD_BOTTOM + 14,
-      abbr: d.label.split(" ")[0],
-      rotate
-    }
-  })
-}
-
 export default function DashboardSpendingChart({
   data,
+  initialBars,
   priceFormatter,
   mode = "spending",
   undatedCount,
@@ -177,10 +156,10 @@ export default function DashboardSpendingChart({
     return { total, peak, avg }
   }, [filtered])
 
-  const chartBars = useMemo(
-    () => computeMonthlyBars(filtered, svgWidth),
-    [filtered, svgWidth]
-  )
+  const chartBars = useMemo(() => {
+    if (svgWidth === 600 && range === "1Y") return initialBars
+    return computeMonthlyBars(filtered, svgWidth)
+  }, [filtered, svgWidth, range, initialBars])
 
   const gridLines = useMemo(() => {
     const innerH = CHART_H - PAD_TOP - PAD_BOTTOM

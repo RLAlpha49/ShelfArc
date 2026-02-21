@@ -7,6 +7,7 @@ import {
   ShoppingBag01Icon
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
+import { unstable_cache } from "next/cache"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
@@ -15,6 +16,7 @@ import { DashboardContent } from "@/components/dashboard/dashboard-content"
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import {
   computeCollectionStats,
+  computeMonthlyBars,
   computePriceBreakdown,
   computeRatingDistribution,
   computeReadingVelocity,
@@ -29,6 +31,8 @@ import {
   getRecentVolumes
 } from "@/lib/library/analytics"
 import { computeHealthScore } from "@/lib/library/health-score"
+// eslint-disable-next-line no-restricted-imports -- Admin client required: unstable_cache cannot read cookies
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
@@ -142,22 +146,35 @@ export default async function DashboardPage() {
   )
 }
 
+const fetchDashboardData = (userId: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient({ reason: "Dashboard cache" })
+      const [seriesResult, volumesResult] = await Promise.all([
+        supabase
+          .from("series")
+          .select("id, type, status, tags, total_volumes, created_at")
+          .eq("user_id", userId),
+        supabase
+          .from("volumes")
+          .select(
+            "id, series_id, ownership_status, reading_status, purchase_price, purchase_currency, purchase_date, rating, started_at, finished_at, publish_date, cover_image_url, created_at"
+          )
+          .eq("user_id", userId)
+          .order("volume_number", { ascending: true })
+      ])
+      return { seriesResult, volumesResult }
+    },
+    ["dashboard-data", userId],
+    { tags: ["library", userId], revalidate: 60 }
+  )()
+
 /**
  * Async server component that fetches collection data and computes analytics.
  * Wrapped in Suspense so the page shell streams immediately while data loads.
  */
 async function DashboardDataSection({ userId }: { readonly userId: string }) {
-  const supabase = await createUserClient()
-
-  // Fetch all series + volumes in parallel
-  const [seriesResult, volumesResult] = await Promise.all([
-    supabase.from("series").select("*").eq("user_id", userId),
-    supabase
-      .from("volumes")
-      .select("*")
-      .eq("user_id", userId)
-      .order("volume_number", { ascending: true })
-  ])
+  const { seriesResult, volumesResult } = await fetchDashboardData(userId)
 
   const seriesRows = seriesResult.data ?? []
   const volumeRows = (volumesResult.data ?? []) as Volume[]
@@ -190,7 +207,15 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
   const { upcoming } = computeReleases(series)
   const upcomingReleases = upcoming.flatMap((g) => g.items).slice(0, 5)
   const spendingTimeSeries = computeSpendingTimeSeries(series)
+  const spendingInitialBars = computeMonthlyBars(
+    spendingTimeSeries.slice(-12),
+    600
+  )
   const velocityTimeSeries = computeReadingVelocity(series)
+  const velocityInitialBars = computeMonthlyBars(
+    velocityTimeSeries.slice(-12),
+    600
+  )
   const tagBreakdown = computeTagBreakdown(series)
   const { distribution: ratingDistribution, unratedCount: ratingUnratedCount } =
     computeRatingDistribution(series)
@@ -209,7 +234,9 @@ async function DashboardDataSection({ userId }: { readonly userId: string }) {
       upcomingReleases={upcomingReleases}
       series={series}
       spendingTimeSeries={spendingTimeSeries}
+      spendingInitialBars={spendingInitialBars}
       velocityTimeSeries={velocityTimeSeries}
+      velocityInitialBars={velocityInitialBars}
       tagBreakdown={tagBreakdown}
       ratingDistribution={ratingDistribution}
       ratingUnratedCount={ratingUnratedCount}

@@ -694,6 +694,55 @@ export function computeSpendingTimeSeries(
   )
 }
 
+export interface MonthlyBar {
+  d: SpendingDataPoint
+  x: number
+  y: number
+  w: number
+  h: number
+  cx: number
+  labelY: number
+  abbr: string
+  rotate: boolean
+}
+
+export function computeMonthlyBars(
+  filtered: SpendingDataPoint[],
+  svgWidth: number
+): MonthlyBar[] {
+  if (filtered.length === 0) return []
+  const CHART_H = 160
+  const PAD_TOP = 12
+  const PAD_BOTTOM = 36
+  const PAD_SIDE = 8
+  const MAX_BAR_FILL = 0.8
+  const ROTATE_AT = 9
+
+  const maxVal = Math.max(...filtered.map((d) => d.total), 0)
+  const innerW = svgWidth - PAD_SIDE * 2
+  const innerH = CHART_H - PAD_TOP - PAD_BOTTOM
+  const slotW = innerW / filtered.length
+  const barW = Math.min(slotW * 0.65, 40)
+  const maxBarH = innerH * MAX_BAR_FILL
+  const rotate = filtered.length > ROTATE_AT
+
+  return filtered.map((d, i) => {
+    const barH = maxVal > 0 ? (d.total / maxVal) * maxBarH : 0
+    const cx = PAD_SIDE + i * slotW + slotW / 2
+    return {
+      d,
+      x: cx - barW / 2,
+      y: d.total > 0 ? PAD_TOP + innerH - barH : PAD_TOP + innerH - 2,
+      w: barW,
+      h: d.total > 0 ? barH : 2,
+      cx,
+      labelY: CHART_H - PAD_BOTTOM + 14,
+      abbr: d.label.split(" ")[0],
+      rotate
+    }
+  })
+}
+
 /**
  * Aggregates completed volumes by the month they were finished.
  * Uses `finished_at` when set, falls back to `updated_at`.

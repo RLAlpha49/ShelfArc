@@ -15,6 +15,7 @@ import { usePriceFormatter } from "@/lib/hooks/use-price-formatter"
 import type {
   AugmentedVolume,
   CollectionStats,
+  MonthlyBar,
   PriceBreakdown,
   RatingDistributionPoint,
   ReleaseItem,
@@ -114,6 +115,7 @@ interface ReleasesWidgetProps {
 
 interface SpendingChartWidgetProps {
   readonly spendingTimeSeries: readonly SpendingDataPoint[]
+  readonly initialBars: readonly MonthlyBar[]
   readonly priceFormatter: PriceFormatter
   readonly undatedPricedVolumes: number
   readonly undatedPricedSpent: number
@@ -121,6 +123,7 @@ interface SpendingChartWidgetProps {
 
 interface ReadingVelocityChartWidgetProps {
   readonly velocityTimeSeries: readonly SpendingDataPoint[]
+  readonly initialBars: readonly MonthlyBar[]
   readonly priceFormatter: PriceFormatter
 }
 
@@ -954,6 +957,7 @@ function PriceAlertsWidget() {
 
 function SpendingChartWidget({
   spendingTimeSeries,
+  initialBars,
   priceFormatter,
   undatedPricedVolumes,
   undatedPricedSpent
@@ -969,6 +973,7 @@ function SpendingChartWidget({
       <Suspense fallback={<WidgetSkeleton />}>
         <LazySpendingChart
           data={spendingTimeSeries as SpendingDataPoint[]}
+          initialBars={initialBars as MonthlyBar[]}
           priceFormatter={priceFormatter}
           undatedCount={undatedPricedVolumes}
           undatedSpent={undatedPricedSpent}
@@ -980,6 +985,7 @@ function SpendingChartWidget({
 
 function ReadingVelocityChartWidget({
   velocityTimeSeries,
+  initialBars,
   priceFormatter
 }: ReadingVelocityChartWidgetProps) {
   return (
@@ -995,6 +1001,7 @@ function ReadingVelocityChartWidget({
       <Suspense fallback={<WidgetSkeleton />}>
         <LazySpendingChart
           data={velocityTimeSeries as SpendingDataPoint[]}
+          initialBars={initialBars as MonthlyBar[]}
           priceFormatter={priceFormatter}
           mode="velocity"
         />
@@ -1333,7 +1340,9 @@ export interface DashboardContentProps {
   readonly upcomingReleases: readonly ReleaseItem[]
   readonly series: readonly SeriesWithVolumes[]
   readonly spendingTimeSeries: readonly SpendingDataPoint[]
+  readonly spendingInitialBars: readonly MonthlyBar[]
   readonly velocityTimeSeries: readonly SpendingDataPoint[]
+  readonly velocityInitialBars: readonly MonthlyBar[]
   readonly tagBreakdown: readonly TagBreakdown[]
   readonly ratingDistribution: readonly RatingDistributionPoint[]
   readonly ratingUnratedCount: number
@@ -1359,7 +1368,9 @@ export function DashboardContent({
   upcomingReleases,
   series,
   spendingTimeSeries,
+  spendingInitialBars,
   velocityTimeSeries,
+  velocityInitialBars,
   tagBreakdown,
   ratingDistribution,
   ratingUnratedCount,
@@ -1388,82 +1399,90 @@ export function DashboardContent({
     (id) => widgetColumn(id) === "right" && isVisible(id)
   )
 
-  const widgetRenderers: Record<DashboardWidgetId, React.ReactNode> = {
-    stats: <StatsWidget stats={stats} priceFormatter={priceFormatter} />,
-    "currently-reading": (
+  const widgetRenderers: Partial<Record<DashboardWidgetId, React.ReactNode>> = {
+    stats: isVisible("stats") ? (
+      <StatsWidget stats={stats} priceFormatter={priceFormatter} />
+    ) : null,
+    "currently-reading": isVisible("currently-reading") ? (
       <CurrentlyReadingWidget currentlyReading={currentlyReading} />
-    ),
-    "recently-added": (
+    ) : null,
+    "recently-added": isVisible("recently-added") ? (
       <RecentlyAddedWidget
         recentSeries={recentSeries}
         recentVolumes={recentVolumes}
         priceFormatter={priceFormatter}
         dateFormat={dateFormat}
       />
-    ),
-    recommendations: (
+    ) : null,
+    recommendations: isVisible("recommendations") ? (
       <RecommendationsWidget
         suggestedNextBuys={suggestedNextBuys}
         suggestionCounts={suggestionCounts}
         priceFormatter={priceFormatter}
       />
-    ),
-    breakdown: <BreakdownWidget stats={stats} />,
-    health: <HealthWidget healthScore={healthScore} series={series} />,
-    activity: <ActivityWidget />,
-    progress: <ProgressWidget stats={stats} />,
-    "price-tracking": (
+    ) : null,
+    breakdown: isVisible("breakdown") ? (
+      <BreakdownWidget stats={stats} />
+    ) : null,
+    health: isVisible("health") ? (
+      <HealthWidget healthScore={healthScore} series={series} />
+    ) : null,
+    activity: isVisible("activity") ? <ActivityWidget /> : null,
+    progress: isVisible("progress") ? <ProgressWidget stats={stats} /> : null,
+    "price-tracking": isVisible("price-tracking") ? (
       <PriceTrackingWidget
         priceBreakdown={priceBreakdown}
         ownedVolumes={stats.ownedVolumes}
         priceFormatter={priceFormatter}
       />
-    ),
-    wishlist: (
+    ) : null,
+    wishlist: isVisible("wishlist") ? (
       <WishlistWidget
         wishlistStats={wishlistStats}
         wishlistCount={stats.wishlistCount}
         totalVolumes={stats.totalVolumes}
         priceFormatter={priceFormatter}
       />
-    ),
-    releases: (
+    ) : null,
+    releases: isVisible("releases") ? (
       <ReleasesWidget
         upcomingReleases={upcomingReleases}
         dateFormat={dateFormat}
       />
-    ),
-    "price-alerts": <PriceAlertsWidget />,
-    "spending-chart": (
+    ) : null,
+    "price-alerts": isVisible("price-alerts") ? <PriceAlertsWidget /> : null,
+    "spending-chart": isVisible("spending-chart") ? (
       <SpendingChartWidget
         spendingTimeSeries={spendingTimeSeries}
+        initialBars={spendingInitialBars}
         priceFormatter={priceFormatter}
         undatedPricedVolumes={stats.undatedPricedVolumes}
         undatedPricedSpent={stats.undatedPricedSpent}
       />
-    ),
-    "reading-velocity": (
+    ) : null,
+    "reading-velocity": isVisible("reading-velocity") ? (
       <ReadingVelocityChartWidget
         velocityTimeSeries={velocityTimeSeries}
+        initialBars={velocityInitialBars}
         priceFormatter={priceFormatter}
       />
-    ),
-    "tag-analytics": (
+    ) : null,
+    "tag-analytics": isVisible("tag-analytics") ? (
       <TagAnalyticsWidget
         tagBreakdown={tagBreakdown}
         priceFormatter={priceFormatter}
       />
-    ),
-    "rating-distribution": (
+    ) : null,
+    "rating-distribution": isVisible("rating-distribution") ? (
       <RatingDistributionWidget
         distribution={ratingDistribution}
         unratedCount={ratingUnratedCount}
       />
-    ),
-    backlog: <BacklogWidget stats={stats} />,
-    "reading-goal": (
+    ) : null,
+    backlog: isVisible("backlog") ? <BacklogWidget stats={stats} /> : null,
+    "reading-goal": isVisible("reading-goal") ? (
       <ReadingGoalWidget velocityTimeSeries={velocityTimeSeries} />
-    )
+    ) : null
   }
 
   return (
