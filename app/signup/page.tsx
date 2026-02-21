@@ -23,6 +23,25 @@ function getValidRedirect(raw: string | null): string | null {
   return path
 }
 
+function computePasswordStrength(password: string): number {
+  if (!password) return 0
+  let score = 0
+  if (/[a-z]/.test(password)) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/\d/.test(password)) score++
+  if (password.length >= 8) score++
+  return score
+}
+
+const STRENGTH_CONFIG = [
+  { label: "Weak", color: "bg-red-500", textColor: "text-red-500" },
+  { label: "Fair", color: "bg-orange-500", textColor: "text-orange-500" },
+  { label: "Good", color: "bg-yellow-500", textColor: "text-yellow-500" },
+  { label: "Strong", color: "bg-emerald-500", textColor: "text-emerald-500" }
+] as const
+
+type UsernameStatus = "idle" | "checking" | "available" | "taken"
+
 /**
  * Signup page with email/password/display-name form and decorative side panel.
  * @source
@@ -40,6 +59,10 @@ function SignupContent() {
   const redirectTo = getValidRedirect(searchParams.get("redirect"))
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [passwordValue, setPasswordValue] = useState("")
+  const [confirmValue, setConfirmValue] = useState("")
+  const [usernameValue, setUsernameValue] = useState("")
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle")
   const errorRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -47,6 +70,38 @@ function SignupContent() {
       errorRef.current?.focus()
     }
   }, [error])
+
+  // Debounced username availability check
+  useEffect(() => {
+    if (usernameValue.length < 3) return
+    const timer = setTimeout(async () => {
+      setUsernameStatus("checking")
+      try {
+        const res = await fetch(
+          `/api/username/check?username=${encodeURIComponent(usernameValue)}`
+        )
+        const data = (await res.json()) as { available: boolean }
+        setUsernameStatus(data.available ? "available" : "taken")
+      } catch {
+        setUsernameStatus("idle")
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [usernameValue])
+
+  const passwordStrength = computePasswordStrength(passwordValue)
+  const strengthConfig =
+    passwordStrength > 0 ? STRENGTH_CONFIG[passwordStrength - 1] : null
+
+  const passwordsMismatch =
+    confirmValue.length > 0 && passwordValue !== confirmValue
+
+  // Only gate on username check when the field is long enough to have been checked
+  const isSubmitDisabled =
+    loading ||
+    (usernameValue.length >= 3 && usernameStatus === "checking") ||
+    (usernameValue.length >= 3 && usernameStatus === "taken") ||
+    passwordsMismatch
 
   /** Submits the signup form and surfaces errors without redirect. @source */
   async function handleSubmit(formData: FormData) {
@@ -188,10 +243,23 @@ function SignupContent() {
                 placeholder="Choose a username"
                 required
                 className="h-11 rounded-xl"
+                value={usernameValue}
+                onChange={(e) => setUsernameValue(e.target.value)}
               />
-              <p className="text-muted-foreground text-xs">
-                3-20 characters. Letters, numbers, and underscores only.
-              </p>
+              {usernameValue.length >= 3 && usernameStatus === "checking" && (
+                <p className="text-muted-foreground text-xs">Checking…</p>
+              )}
+              {usernameValue.length >= 3 && usernameStatus === "available" && (
+                <p className="text-xs text-emerald-600">✓ Available</p>
+              )}
+              {usernameValue.length >= 3 && usernameStatus === "taken" && (
+                <p className="text-xs text-red-500">✗ Username already taken</p>
+              )}
+              {(usernameValue.length < 3 || usernameStatus === "idle") && (
+                <p className="text-muted-foreground text-xs">
+                  3–20 characters. Letters, numbers, and underscores only.
+                </p>
+              )}
             </div>
 
             <div
@@ -228,16 +296,66 @@ function SignupContent() {
                 minLength={8}
                 autoComplete="new-password"
                 className="h-11 rounded-xl"
+                value={passwordValue}
+                onChange={(e) => setPasswordValue(e.target.value)}
               />
-              <p className="text-muted-foreground text-xs">
-                Minimum 8 characters with uppercase, lowercase, and a number
-              </p>
+              {passwordValue ? (
+                <div className="space-y-1">
+                  <div className="flex gap-1" aria-hidden="true">
+                    {Array.from({ length: 4 }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`h-1 flex-1 rounded-full transition-colors ${
+                          i < passwordStrength && strengthConfig
+                            ? strengthConfig.color
+                            : "bg-muted"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  {strengthConfig && (
+                    <p
+                      className={`text-xs font-medium ${strengthConfig.textColor}`}
+                    >
+                      {strengthConfig.label}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  Minimum 8 characters with uppercase, lowercase, and a number
+                </p>
+              )}
+            </div>
+
+            {/* Confirm password */}
+            <div
+              className="animate-fade-in-up space-y-2"
+              style={{ animationDelay: "350ms", animationFillMode: "both" }}
+            >
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                Confirm password
+              </Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+                className="h-11 rounded-xl"
+                value={confirmValue}
+                onChange={(e) => setConfirmValue(e.target.value)}
+              />
+              {passwordsMismatch && (
+                <p className="text-xs text-red-500">Passwords do not match</p>
+              )}
             </div>
 
             <Button
               type="submit"
               className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
-              disabled={loading}
+              disabled={isSubmitDisabled}
               style={{ animationDelay: "400ms", animationFillMode: "both" }}
             >
               {loading ? "Creating account..." : "Create Account"}

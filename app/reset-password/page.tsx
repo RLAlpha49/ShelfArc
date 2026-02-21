@@ -11,6 +11,29 @@ import { Label } from "@/components/ui/label"
 import { validatePassword } from "@/lib/auth/validate-password"
 import { createClient } from "@/lib/supabase/client"
 
+function computePasswordStrength(password: string): number {
+  if (!password) return 0
+  let score = 0
+  if (/[a-z]/.test(password)) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/\d/.test(password)) score++
+  if (password.length >= 8) score++
+  return score
+}
+
+const STRENGTH_CONFIG = [
+  { label: "Weak", color: "bg-red-500", textColor: "text-red-500" },
+  { label: "Fair", color: "bg-orange-500", textColor: "text-orange-500" },
+  { label: "Good", color: "bg-yellow-500", textColor: "text-yellow-500" },
+  { label: "Strong", color: "bg-emerald-500", textColor: "text-emerald-500" }
+] as const
+
+function getSubtitleText(ready: boolean, linkExpired: boolean): string {
+  if (ready) return "Enter your new password below"
+  if (linkExpired) return "This link is no longer valid"
+  return "Verifying your reset link…"
+}
+
 /**
  * Reset-password page that handles Supabase PASSWORD_RECOVERY redirect.
  * @source
@@ -26,20 +49,33 @@ export default function ResetPasswordPage() {
 function ResetPasswordContent() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
+  const [linkExpired, setLinkExpired] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [passwordValue, setPasswordValue] = useState("")
   const errorRef = useRef<HTMLDivElement | null>(null)
+
+  const passwordStrength = computePasswordStrength(passwordValue)
+  const strengthConfig =
+    passwordStrength > 0 ? STRENGTH_CONFIG[passwordStrength - 1] : null
 
   useEffect(() => {
     const supabase = createClient()
+    const timer = setTimeout(() => {
+      setLinkExpired(true)
+    }, 10_000)
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
+        clearTimeout(timer)
         setReady(true)
       }
     })
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timer)
+      subscription.unsubscribe()
+    }
   }, [])
 
   useEffect(() => {
@@ -174,13 +210,11 @@ function ResetPasswordContent() {
               New password
             </h1>
             <p className="text-muted-foreground mt-2">
-              {ready
-                ? "Enter your new password below"
-                : "Verifying your reset link\u2026"}
+              {getSubtitleText(ready, linkExpired)}
             </p>
           </div>
 
-          {ready ? (
+          {ready && (
             <form action={handleSubmit} className="space-y-5">
               {error && (
                 <div
@@ -210,7 +244,32 @@ function ResetPasswordContent() {
                   required
                   autoComplete="new-password"
                   className="h-11 rounded-xl"
+                  value={passwordValue}
+                  onChange={(e) => setPasswordValue(e.target.value)}
                 />
+                {passwordValue && (
+                  <div className="space-y-1">
+                    <div className="flex gap-1" aria-hidden="true">
+                      {Array.from({ length: 4 }, (_, i) => (
+                        <div
+                          key={i}
+                          className={`h-1 flex-1 rounded-full transition-colors ${
+                            i < passwordStrength && strengthConfig
+                              ? strengthConfig.color
+                              : "bg-muted"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    {strengthConfig && (
+                      <p
+                        className={`text-xs font-medium ${strengthConfig.textColor}`}
+                      >
+                        {strengthConfig.label}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div
@@ -243,7 +302,22 @@ function ResetPasswordContent() {
                 {loading ? "Updating..." : "Update Password"}
               </Button>
             </form>
-          ) : (
+          )}
+          {!ready && linkExpired && (
+            <div
+              role="alert"
+              className="bg-destructive/10 text-destructive rounded-xl p-4 text-sm"
+            >
+              <p className="font-semibold">Your reset link may have expired.</p>
+              <Link
+                href="/forgot-password"
+                className="text-primary mt-2 inline-block font-semibold hover:underline"
+              >
+                Request a new one →
+              </Link>
+            </div>
+          )}
+          {!ready && !linkExpired && (
             <div className="text-muted-foreground space-y-4 text-sm">
               <p>
                 If the link has expired or is invalid, you can{" "}
