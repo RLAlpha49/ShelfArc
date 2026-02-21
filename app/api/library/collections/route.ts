@@ -10,6 +10,7 @@ import {
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { CreateCollectionSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -77,56 +78,34 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const { id, name, color, isSystem, createdAt, sortOrder } = body as {
-      id?: unknown
-      name?: unknown
-      color?: unknown
-      isSystem?: unknown
-      createdAt?: unknown
-      sortOrder?: unknown
-    }
-
-    if (typeof id !== "string" || !id.trim()) {
-      return apiError(400, "id is required", { correlationId })
-    }
-
-    // Validate id format: must be a UUID (client-generated) or a short system ID
-    // This prevents arbitrary strings from being used as collection IDs
-    const trimmedId = id.trim()
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        trimmedId
-      )
-    const isSystemId = /^[a-z][a-z0-9_-]{0,49}$/.test(trimmedId)
-    if (!isUuid && !isSystemId) {
-      return apiError(400, "id must be a valid UUID or system identifier", {
-        correlationId
+    const parsed = CreateCollectionSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
       })
     }
 
-    const trimmedName = typeof name === "string" ? name.trim() : ""
-    if (!trimmedName || trimmedName.length > 50) {
-      return apiError(400, "Name must be a non-empty string of max 50 chars", {
-        correlationId
-      })
-    }
+    const { id, name, color, isSystem, createdAt, sortOrder } = parsed.data
 
     const { error } = await supabase.from("collections").upsert(
       {
-        id: trimmedId,
+        id,
         user_id: user.id,
-        name: trimmedName,
-        color: typeof color === "string" ? color : "#4682b4",
-        is_system: isSystem === true,
-        created_at:
-          typeof createdAt === "string" ? createdAt : new Date().toISOString(),
-        sort_order: typeof sortOrder === "number" ? sortOrder : 0
+        name,
+        color: color ?? "#4682b4",
+        is_system: isSystem,
+        created_at: createdAt ?? new Date().toISOString(),
+        sort_order: sortOrder
       },
       { onConflict: "id" }
     )
 
     if (error) {
-      log.error("Failed to upsert collection", { error: error.message })
+      log.error("Failed to upsert collection", {
+        error: error.message,
+        code: error.code
+      })
       return apiError(500, "Failed to create collection", { correlationId })
     }
 
