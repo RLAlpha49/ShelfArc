@@ -527,57 +527,31 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
               </Button>
             )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="avatarUrl"
-                className="text-muted-foreground text-xs"
-              >
-                Image URL
-              </Label>
-              {extractStoragePath(avatarUrl) ? (
-                <Input
-                  id="avatarUrl"
-                  value="Uploaded image"
-                  disabled
-                  className="bg-muted max-w-sm"
-                />
-              ) : (
-                <Input
-                  id="avatarUrl"
-                  type="url"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="https://..."
-                />
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="avatarUpload"
-                className="text-muted-foreground text-xs"
-              >
-                Upload file
-              </Label>
-              <Input
-                id="avatarUpload"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    if (file.size <= 0 || file.size > MAX_AVATAR_BYTES) {
-                      toast.error("Avatar must be smaller than 2MB")
-                      e.currentTarget.value = ""
-                      return
-                    }
-                    setCropObjectUrl(URL.createObjectURL(file))
-                    setCropFile(file)
+          <div className="space-y-1.5">
+            <Label
+              htmlFor="avatarUpload"
+              className="text-muted-foreground text-xs"
+            >
+              Upload file
+            </Label>
+            <Input
+              id="avatarUpload"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  if (file.size <= 0 || file.size > MAX_AVATAR_BYTES) {
+                    toast.error("Avatar must be smaller than 2MB")
+                    e.currentTarget.value = ""
+                    return
                   }
-                  e.currentTarget.value = ""
-                }}
-              />
-            </div>
+                  setCropObjectUrl(URL.createObjectURL(file))
+                  setCropFile(file)
+                }
+                e.currentTarget.value = ""
+              }}
+            />
           </div>
         </div>
 
