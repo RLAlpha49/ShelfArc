@@ -1,6 +1,7 @@
 import {
   ArrowRight01Icon,
   BookOpen01Icon,
+  BookOpen02Icon,
   Calendar01Icon,
   Dollar01Icon,
   FavouriteIcon,
@@ -77,6 +78,17 @@ export default async function DashboardPage() {
       {/* ── Quick navigation (server-rendered, instant) ── */}
       <nav className="animate-fade-in-up stagger-2 mb-10 flex flex-wrap gap-2">
         {[
+          {
+            href: "/dashboard/reading",
+            label: "Currently Reading",
+            icon: (
+              <HugeiconsIcon
+                icon={BookOpen02Icon}
+                size={16}
+                strokeWidth={1.5}
+              />
+            )
+          },
           {
             href: "/dashboard/recent",
             label: "Recently Added",
