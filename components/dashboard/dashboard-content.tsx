@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { lazy, Suspense, useState } from "react"
+import { lazy, Suspense, useMemo, useState } from "react"
 
 import { CollectionHealthCard } from "@/components/dashboard/collection-health-card"
 import { DashboardLayoutCustomizer } from "@/components/dashboard/dashboard-layout-customizer"
@@ -1276,6 +1276,21 @@ function ReadingGoalWidget({ velocityTimeSeries }: ReadingGoalWidgetProps) {
   )
 }
 
+// ── Date-range filter helper ─────────────────────────────────────────────
+
+function applyDateRangeFilter<T extends { created_at: string }>(
+  items: readonly T[],
+  range: "all" | "30d" | "this-year"
+): readonly T[] {
+  if (range === "all") return items
+  const now = new Date()
+  const cutoff =
+    range === "30d"
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
+      : new Date(now.getFullYear(), 0, 1)
+  return items.filter((item) => new Date(item.created_at) >= cutoff)
+}
+
 // ── Main dashboard component ──────────────────────────────────────────────
 
 function DashboardEmptyState() {
@@ -1383,6 +1398,18 @@ export function DashboardContent({
   const dateFormat = useSettingsStore((s) => s.dateFormat)
   const layout = useSettingsStore((s) => s.dashboardLayout)
 
+  const [dateRange, setDateRange] = useState<"all" | "30d" | "this-year">("all")
+
+  const filteredRecentSeries = useMemo(
+    () => applyDateRangeFilter(recentSeries, dateRange),
+    [recentSeries, dateRange]
+  )
+
+  const filteredRecentVolumes = useMemo(
+    () => applyDateRangeFilter(recentVolumes, dateRange),
+    [recentVolumes, dateRange]
+  )
+
   if (isEmpty) return <DashboardEmptyState />
 
   const isVisible = (id: DashboardWidgetId) => !layout.hidden.includes(id)
@@ -1408,8 +1435,8 @@ export function DashboardContent({
     ) : null,
     "recently-added": isVisible("recently-added") ? (
       <RecentlyAddedWidget
-        recentSeries={recentSeries}
-        recentVolumes={recentVolumes}
+        recentSeries={filteredRecentSeries}
+        recentVolumes={filteredRecentVolumes}
         priceFormatter={priceFormatter}
         dateFormat={dateFormat}
       />
@@ -1488,7 +1515,33 @@ export function DashboardContent({
   return (
     <>
       {/* Customize bar */}
-      <div className="mb-6 flex items-center justify-end">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1">
+          <span className="text-muted-foreground mr-1 text-xs font-medium">
+            Added:
+          </span>
+          {(
+            [
+              { key: "all", label: "All Time" },
+              { key: "this-year", label: "This Year" },
+              { key: "30d", label: "Last 30 Days" }
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setDateRange(key)}
+              className={
+                dateRange === key
+                  ? "bg-primary/10 text-primary rounded-md px-2.5 py-1 text-xs font-medium"
+                  : "text-muted-foreground hover:text-foreground rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              }
+              aria-pressed={dateRange === key}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <DashboardLayoutCustomizer />
       </div>
 
