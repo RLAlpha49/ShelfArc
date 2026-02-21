@@ -11,6 +11,7 @@ import {
   resolveImageUrl
 } from "@/lib/uploads/resolve-image-url"
 
+import { FollowButton } from "./follow-button"
 import type { PublicSeries } from "./series-grid"
 import { SeriesGrid } from "./series-grid"
 
@@ -64,6 +65,25 @@ export default async function PublicProfilePage({ params }: Props) {
 
   if (!profile?.is_public) {
     notFound()
+  }
+
+  // Fetch follow status and counts for authenticated visitors
+  const isOwnProfile = user?.id === profile.id
+
+  const { count: followerCount } = await admin
+    .from("user_follows")
+    .select("follower_id", { count: "exact", head: true })
+    .eq("following_id", profile.id)
+
+  let isFollowing = false
+  if (user && !isOwnProfile) {
+    const { data: followRow } = await admin
+      .from("user_follows")
+      .select("follower_id")
+      .eq("follower_id", user.id)
+      .eq("following_id", profile.id)
+      .maybeSingle()
+    isFollowing = followRow !== null
   }
 
   // Fetch public series for this user
@@ -165,6 +185,16 @@ export default async function PublicProfilePage({ params }: Props) {
               <p className="text-muted-foreground mt-2 text-sm">
                 Member since {memberSince}
               </p>
+              {/* Follow button — shown to authenticated users viewing someone else's profile */}
+              {user && !isOwnProfile && (
+                <div className="mt-4">
+                  <FollowButton
+                    username={displayName}
+                    initialIsFollowing={isFollowing}
+                    initialFollowerCount={followerCount ?? 0}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

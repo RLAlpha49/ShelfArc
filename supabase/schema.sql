@@ -139,7 +139,8 @@ BEGIN
       'scrape_complete',
       'price_alert',
       'release_reminder',
-      'info'
+      'info',
+      'new_follow'
     );
   END IF;
 END $$;
@@ -517,6 +518,17 @@ CREATE TABLE IF NOT EXISTS automations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_automations_user_id ON automations(user_id);
+
+CREATE TABLE IF NOT EXISTS user_follows (
+  follower_id  UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  following_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  followed_at  TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  PRIMARY KEY (follower_id, following_id),
+  CHECK (follower_id != following_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_follows_follower  ON user_follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
 
 -- -----------------------------------------------------------------------------
 -- Row Level Security (enable + policies grouped per-table)
@@ -943,6 +955,55 @@ BEGIN
         FOR ALL
         USING (user_id = auth.uid())
         WITH CHECK (user_id = auth.uid())
+    $policy$;
+  END IF;
+END $$;
+
+-- RLS: user_follows
+-- Followers can read their own follow relationships; following users can see who follows them.
+-- Writes (insert/delete) are restricted to the authenticated user acting as the follower.
+ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_follows'
+      AND policyname = 'Users can view follows involving them'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "Users can view follows involving them" ON user_follows
+        FOR SELECT
+        USING (
+          follower_id  = (select auth.uid())
+          OR following_id = (select auth.uid())
+        )
+    $policy$;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_follows'
+      AND policyname = 'Users can follow others'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "Users can follow others" ON user_follows
+        FOR INSERT
+        WITH CHECK (follower_id = (select auth.uid()))
+    $policy$;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_follows'
+      AND policyname = 'Users can unfollow others'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "Users can unfollow others" ON user_follows
+        FOR DELETE
+        USING (follower_id = (select auth.uid()))
     $policy$;
   END IF;
 END $$;
