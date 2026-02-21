@@ -42,6 +42,23 @@ import type {
   Volume
 } from "@/lib/types/database"
 
+/** Extend a selection set by range between two IDs in an ordered list. Pure helper. */
+function addRangeToSet(
+  ids: string[],
+  anchorId: string,
+  currentId: string,
+  prev: Set<string>
+): Set<string> {
+  const anchorIdx = ids.indexOf(anchorId)
+  const currentIdx = ids.indexOf(currentId)
+  if (anchorIdx === -1 || currentIdx === -1) return prev
+  const next = new Set(prev)
+  const lo = Math.min(anchorIdx, currentIdx)
+  const hi = Math.max(anchorIdx, currentIdx)
+  for (let i = lo; i <= hi; i++) next.add(ids[i])
+  return next
+}
+
 /** Build scrape targets from current selection. Pure helper, extracted to reduce component complexity. */
 function buildScrapeTargets(
   collectionView: CollectionView,
@@ -163,6 +180,26 @@ export default function LibraryClient({
 
   const libraryHeadingRef = useRef<HTMLHeadingElement>(null)
 
+  // Keyboard multi-select: track modifier keys via document listeners so we
+  // don't need to thread MouseEvents through the card component tree.
+  const isShiftHeldRef = useRef(false)
+  const isCtrlHeldRef = useRef(false)
+  const lastSelectedSeriesIdRef = useRef<string | null>(null)
+  const lastSelectedVolumeIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const onKeyChange = (e: KeyboardEvent) => {
+      isShiftHeldRef.current = e.shiftKey
+      isCtrlHeldRef.current = e.ctrlKey || e.metaKey
+    }
+    document.addEventListener("keydown", onKeyChange)
+    document.addEventListener("keyup", onKeyChange)
+    return () => {
+      document.removeEventListener("keydown", onKeyChange)
+      document.removeEventListener("keyup", onKeyChange)
+    }
+  }, [])
+
   const {
     searchDialogOpen,
     setSearchDialogOpen,
@@ -237,6 +274,8 @@ export default function LibraryClient({
   const clearSelection = useCallback(() => {
     setSelectedSeriesIds(new Set())
     setSelectedVolumeIds(new Set())
+    lastSelectedSeriesIdRef.current = null
+    lastSelectedVolumeIdRef.current = null
   }, [])
 
   const existingEntries = useMemo(() => {
@@ -702,24 +741,58 @@ export default function LibraryClient({
 
   const handleSeriesItemClick = useCallback(
     (seriesItem: SeriesWithVolumes) => {
-      if (selectedSeriesIds.size > 0) {
-        toggleSeriesSelection(seriesItem.id)
+      const anchor = lastSelectedSeriesIdRef.current
+      if (isShiftHeldRef.current && anchor) {
+        const ids = filteredSeries.map((s) => s.id)
+        setSelectedSeriesIds((prev) =>
+          addRangeToSet(ids, anchor, seriesItem.id, prev)
+        )
         return
       }
+      if (isCtrlHeldRef.current || selectedSeriesIds.size > 0) {
+        toggleSeriesSelection(seriesItem.id)
+        lastSelectedSeriesIdRef.current = seriesItem.id
+        return
+      }
+      lastSelectedSeriesIdRef.current = seriesItem.id
       handleSeriesClick(seriesItem)
     },
-    [selectedSeriesIds.size, toggleSeriesSelection, handleSeriesClick]
+    [
+      selectedSeriesIds.size,
+      toggleSeriesSelection,
+      handleSeriesClick,
+      filteredSeries
+    ]
   )
 
   const handleVolumeItemClick = useCallback(
     (volumeId: string) => {
-      if (selectedVolumeIds.size > 0) {
-        toggleVolumeSelection(volumeId)
+      const anchor = lastSelectedVolumeIdRef.current
+      if (isShiftHeldRef.current && anchor) {
+        const ids = [
+          ...filteredVolumes.map((item) => item.volume.id),
+          ...filteredUnassignedVolumes.map((v) => v.id)
+        ]
+        setSelectedVolumeIds((prev) =>
+          addRangeToSet(ids, anchor, volumeId, prev)
+        )
         return
       }
+      if (isCtrlHeldRef.current || selectedVolumeIds.size > 0) {
+        toggleVolumeSelection(volumeId)
+        lastSelectedVolumeIdRef.current = volumeId
+        return
+      }
+      lastSelectedVolumeIdRef.current = volumeId
       handleVolumeClick(volumeId)
     },
-    [selectedVolumeIds.size, toggleVolumeSelection, handleVolumeClick]
+    [
+      selectedVolumeIds.size,
+      toggleVolumeSelection,
+      handleVolumeClick,
+      filteredVolumes,
+      filteredUnassignedVolumes
+    ]
   )
 
   const { handleToggleRead, handleToggleWishlist, handleSetRating } =
