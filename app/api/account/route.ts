@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
+import { DeleteAccountSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -55,21 +56,6 @@ async function cleanupUserStorage(
   }
 }
 
-function validateDeleteBody(
-  body: Record<string, unknown>,
-  correlationId: string
-) {
-  const confirmText =
-    typeof body.confirmText === "string" ? body.confirmText : ""
-  if (confirmText !== "DELETE") {
-    return apiError(400, 'You must type "DELETE" to confirm', { correlationId })
-  }
-  if (typeof body.password !== "string" || body.password.length === 0) {
-    return apiError(400, "Password is required", { correlationId })
-  }
-  return null
-}
-
 export async function DELETE(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
@@ -98,8 +84,13 @@ export async function DELETE(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const validationError = validateDeleteBody(body, correlationId)
-    if (validationError) return validationError
+    const parsed = DeleteAccountSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
+    }
 
     const email = user.email
     if (!email) {
@@ -108,7 +99,7 @@ export async function DELETE(request: NextRequest) {
 
     const { error: authError } = await supabase.auth.signInWithPassword({
       email,
-      password: body.password as string
+      password: parsed.data.password
     })
     if (authError) {
       return apiError(403, "Incorrect password", { correlationId })
