@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useRef, useState } from "react"
 
 import { signup } from "@/app/auth/actions"
+import { OAuthButtons } from "@/components/auth/oauth-buttons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -80,8 +81,8 @@ function SignupContent() {
         const res = await fetch(
           `/api/username/check?username=${encodeURIComponent(usernameValue)}`
         )
-        const data = (await res.json()) as { available: boolean }
-        setUsernameStatus(data.available ? "available" : "taken")
+        const json = (await res.json()) as { data: { available: boolean } }
+        setUsernameStatus(json.data.available ? "available" : "taken")
       } catch {
         setUsernameStatus("idle")
       }
@@ -210,6 +211,26 @@ function SignupContent() {
             <p className="text-muted-foreground mt-2">
               Start tracking your light novel and manga collection
             </p>
+          </div>
+
+          {/* OAuth provider buttons */}
+          <div
+            className="animate-fade-in-up mb-6"
+            style={{ animationDelay: "50ms", animationFillMode: "both" }}
+          >
+            <OAuthButtons redirectTo={redirectTo} disabled={loading} />
+          </div>
+
+          {/* Divider */}
+          <div
+            className="animate-fade-in-up relative mb-6 flex items-center"
+            style={{ animationDelay: "80ms", animationFillMode: "both" }}
+          >
+            <div className="border-border flex-1 border-t" />
+            <span className="text-muted-foreground bg-background mx-3 text-xs tracking-widest uppercase">
+              or
+            </span>
+            <div className="border-border flex-1 border-t" />
           </div>
 
           <form action={handleSubmit} className="space-y-5">

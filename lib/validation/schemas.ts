@@ -481,6 +481,7 @@ export const DeleteAccountSchema = z
     confirmText: z.literal("DELETE", {
       message: 'You must type "DELETE" to confirm'
     }),
-    password: z.string().min(1, "Password is required")
+    // Optional: required only for users with email/password auth; omitted for OAuth-only accounts.
+    password: z.string().optional()
   })
   .strip()

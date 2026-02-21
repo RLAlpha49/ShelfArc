@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { cloneElement, isValidElement, useState } from "react"
+import { cloneElement, isValidElement, useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { createClient } from "@/lib/supabase/client"
 
 interface AccountDeleteDialogProps {
   readonly trigger: React.ReactNode
@@ -29,8 +30,30 @@ export function AccountDeleteDialog({
   const [confirmText, setConfirmText] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  // Null means "not yet determined"
+  const [isOAuthOnly, setIsOAuthOnly] = useState<boolean | null>(null)
 
-  const canSubmit = confirmText === "DELETE" && password.length > 0 && !loading
+  useEffect(() => {
+    if (!open || isOAuthOnly !== null) return
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        const identities = data.user?.identities ?? []
+        setIsOAuthOnly(!identities.some((id) => id.provider === "email"))
+      })
+      .catch(() => {
+        // Default to showing the password field on error so we don't lock out
+        // email/password users if the identity fetch fails.
+        setIsOAuthOnly(false)
+      })
+  }, [open, isOAuthOnly])
+
+  const needsPassword = isOAuthOnly === false
+
+  const canSubmit =
+    confirmText === "DELETE" &&
+    (!needsPassword || password.length > 0) &&
+    !loading
 
   const resetForm = () => {
     setPassword("")
@@ -44,10 +67,13 @@ export function AccountDeleteDialog({
     setLoading(true)
 
     try {
+      const body: Record<string, string> = { confirmText }
+      if (needsPassword) body.password = password
+
       const res = await fetch("/api/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, confirmText })
+        body: JSON.stringify(body)
       })
 
       if (res.ok) {
@@ -111,20 +137,22 @@ export function AccountDeleteDialog({
           </p>
 
           <div className="space-y-3 pt-1">
-            <div className="space-y-1.5">
-              <Label htmlFor="delete-password" className="text-sm">
-                Password
-              </Label>
-              <Input
-                id="delete-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                disabled={loading}
-              />
-            </div>
+            {needsPassword && (
+              <div className="space-y-1.5">
+                <Label htmlFor="delete-password" className="text-sm">
+                  Password
+                </Label>
+                <Input
+                  id="delete-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  disabled={loading}
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="delete-confirm" className="text-sm">
                 Type <span className="font-mono font-semibold">DELETE</span> to

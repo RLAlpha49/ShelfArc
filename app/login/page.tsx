@@ -4,7 +4,8 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useRef, useState } from "react"
 
-import { login } from "@/app/auth/actions"
+import { login, loginWithMagicLink } from "@/app/auth/actions"
+import { OAuthButtons } from "@/components/auth/oauth-buttons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,8 +40,11 @@ function LoginContent() {
   const searchParams = useSearchParams()
   const redirectTo = getValidRedirect(searchParams.get("redirect"))
   const [error, setError] = useState<string | null>(null)
+  const [magicLinkSuccess, setMagicLinkSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [useMagicLink, setUseMagicLink] = useState(false)
   const errorRef = useRef<HTMLDivElement | null>(null)
+  const successRef = useRef<HTMLOutputElement | null>(null)
 
   useEffect(() => {
     if (error) {
@@ -48,7 +52,13 @@ function LoginContent() {
     }
   }, [error])
 
-  /** Submits the login form and surfaces errors without redirect. @source */
+  useEffect(() => {
+    if (magicLinkSuccess) {
+      successRef.current?.focus()
+    }
+  }, [magicLinkSuccess])
+
+  /** Submits the password login form and surfaces errors without redirect. @source */
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     setError(null)
@@ -59,6 +69,22 @@ function LoginContent() {
       setError(result.error)
       setLoading(false)
     }
+  }
+
+  /** Submits the magic-link form. @source */
+  async function handleMagicLink(formData: FormData) {
+    setLoading(true)
+    setError(null)
+    setMagicLinkSuccess(null)
+
+    const result = await loginWithMagicLink(formData)
+
+    if (result?.error) {
+      setError(result.error)
+    } else if (result?.success) {
+      setMagicLinkSuccess(result.success)
+    }
+    setLoading(false)
   }
 
   return (
@@ -152,84 +178,183 @@ function LoginContent() {
               Sign in
             </h1>
             <p className="text-muted-foreground mt-2">
-              Enter your credentials to access your collection
+              {useMagicLink
+                ? "Enter your email to receive a sign-in link"
+                : "Enter your credentials to access your collection"}
             </p>
           </div>
 
-          <form action={handleSubmit} className="space-y-5">
-            {redirectTo && (
-              <input type="hidden" name="redirectTo" value={redirectTo} />
-            )}
-            {error && (
+          {/* OAuth provider buttons */}
+          <div
+            className="animate-fade-in-up mb-6"
+            style={{ animationDelay: "50ms", animationFillMode: "both" }}
+          >
+            <OAuthButtons redirectTo={redirectTo} disabled={loading} />
+          </div>
+
+          {/* Divider */}
+          <div
+            className="animate-fade-in-up relative mb-6 flex items-center"
+            style={{ animationDelay: "80ms", animationFillMode: "both" }}
+          >
+            <div className="border-border flex-1 border-t" />
+            <span className="text-muted-foreground bg-background mx-3 text-xs tracking-widest uppercase">
+              or
+            </span>
+            <div className="border-border flex-1 border-t" />
+          </div>
+
+          {/* Error / success feedback */}
+          {error && (
+            <div
+              ref={errorRef}
+              tabIndex={-1}
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+              className="text-destructive focus-visible:ring-ring focus-visible:ring-offset-background bg-destructive/10 mb-5 rounded-xl p-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              {error}
+            </div>
+          )}
+          {magicLinkSuccess && (
+            <output
+              ref={successRef}
+              tabIndex={-1}
+              aria-live="polite"
+              aria-atomic="true"
+              className="focus-visible:ring-ring focus-visible:ring-offset-background mb-5 block rounded-xl bg-emerald-500/10 p-4 text-sm text-emerald-700 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-emerald-400"
+            >
+              {magicLinkSuccess}
+            </output>
+          )}
+
+          {useMagicLink ? (
+            /* Magic-link form */
+            <form action={handleMagicLink} className="space-y-5">
+              {redirectTo && (
+                <input type="hidden" name="redirectTo" value={redirectTo} />
+              )}
+
               <div
-                ref={errorRef}
-                tabIndex={-1}
-                role="alert"
-                aria-live="assertive"
-                aria-atomic="true"
-                className="text-destructive focus-visible:ring-ring focus-visible:ring-offset-background bg-destructive/10 rounded-xl p-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="animate-fade-in-up space-y-2"
+                style={{ animationDelay: "100ms", animationFillMode: "both" }}
               >
-                {error}
+                <Label htmlFor="magic-email" className="text-sm font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="magic-email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                  className="h-11 rounded-xl"
+                />
               </div>
-            )}
 
-            <div
-              className="animate-fade-in-up space-y-2"
-              style={{ animationDelay: "100ms", animationFillMode: "both" }}
-            >
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                className="h-11 rounded-xl"
-              />
-            </div>
-
-            <div
-              className="animate-fade-in-up space-y-2"
-              style={{ animationDelay: "200ms", animationFillMode: "both" }}
-            >
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                autoComplete="current-password"
-                className="h-11 rounded-xl"
-              />
-            </div>
-
-            <div
-              className="animate-fade-in-up flex justify-end"
-              style={{ animationDelay: "250ms", animationFillMode: "both" }}
-            >
-              <Link
-                href="/forgot-password"
-                className="text-primary text-sm hover:underline"
+              <Button
+                type="submit"
+                className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
+                disabled={loading || !!magicLinkSuccess}
+                style={{ animationDelay: "200ms", animationFillMode: "both" }}
               >
-                Forgot your password?
-              </Link>
-            </div>
+                {loading ? "Sending…" : "Send sign-in link"}
+              </Button>
 
-            <Button
-              type="submit"
-              className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
-              disabled={loading}
-              style={{ animationDelay: "300ms", animationFillMode: "both" }}
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
+              <p
+                className="animate-fade-in-up text-center text-sm"
+                style={{ animationDelay: "250ms", animationFillMode: "both" }}
+              >
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => {
+                    setUseMagicLink(false)
+                    setError(null)
+                    setMagicLinkSuccess(null)
+                  }}
+                >
+                  Sign in with password instead
+                </button>
+              </p>
+            </form>
+          ) : (
+            /* Password form */
+            <form action={handleSubmit} className="space-y-5">
+              {redirectTo && (
+                <input type="hidden" name="redirectTo" value={redirectTo} />
+              )}
+
+              <div
+                className="animate-fade-in-up space-y-2"
+                style={{ animationDelay: "100ms", animationFillMode: "both" }}
+              >
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                  className="h-11 rounded-xl"
+                />
+              </div>
+
+              <div
+                className="animate-fade-in-up space-y-2"
+                style={{ animationDelay: "200ms", animationFillMode: "both" }}
+              >
+                <Label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                  className="h-11 rounded-xl"
+                />
+              </div>
+
+              <div
+                className="animate-fade-in-up flex justify-between"
+                style={{ animationDelay: "250ms", animationFillMode: "both" }}
+              >
+                <button
+                  type="button"
+                  className="text-muted-foreground text-sm hover:underline"
+                  onClick={() => {
+                    setUseMagicLink(true)
+                    setError(null)
+                  }}
+                >
+                  Sign in with email link
+                </button>
+                <Link
+                  href="/forgot-password"
+                  className="text-primary text-sm hover:underline"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+
+              <Button
+                type="submit"
+                className="animate-fade-in-up h-11 w-full rounded-xl text-base font-semibold"
+                disabled={loading}
+                style={{ animationDelay: "300ms", animationFillMode: "both" }}
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </Button>
+            </form>
+          )}
 
           <p className="text-muted-foreground animate-fade-in stagger-4 mt-8 text-center text-sm">
             Don&apos;t have an account?{" "}

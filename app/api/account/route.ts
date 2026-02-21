@@ -56,6 +56,33 @@ async function cleanupUserStorage(
   }
 }
 
+/**
+ * Verifies password for email/password accounts. OAuth-only accounts have no
+ * email identity entry, so no password check is performed for them — the
+ * active JWT session validated by createUserClient is sufficient.
+ * Returns a NextResponse error on failure, or null on success.
+ */
+async function verifyPasswordIfRequired(
+  supabase: Awaited<ReturnType<typeof createUserClient>>,
+  identities: Array<{ provider: string }> | undefined,
+  email: string,
+  password: string | undefined,
+  correlationId: string
+): Promise<NextResponse | null> {
+  const hasEmailIdentity =
+    identities?.some((id) => id.provider === "email") ?? false
+  if (!hasEmailIdentity) return null
+
+  if (!password) {
+    return apiError(400, "Password is required", { correlationId })
+  }
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) {
+    return apiError(403, "Incorrect password", { correlationId })
+  }
+  return null
+}
+
 export async function DELETE(request: NextRequest) {
   const csrfResult = enforceSameOrigin(request)
   if (csrfResult) return csrfResult
@@ -97,13 +124,14 @@ export async function DELETE(request: NextRequest) {
       return apiError(400, "Unable to verify identity", { correlationId })
     }
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const authCheck = await verifyPasswordIfRequired(
+      supabase,
+      user.identities,
       email,
-      password: parsed.data.password
-    })
-    if (authError) {
-      return apiError(403, "Incorrect password", { correlationId })
-    }
+      parsed.data.password,
+      correlationId
+    )
+    if (authCheck) return authCheck
 
     const admin = createAdminClient({
       reason: "Account deletion",

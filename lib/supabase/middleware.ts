@@ -8,7 +8,8 @@ const PROTECTED_ROUTES = [
   "/dashboard",
   "/library",
   "/settings",
-  "/activity"
+  "/activity",
+  "/auth/complete-profile"
 ] as const
 
 /** Authentication pages where logged-in users should be redirected away. @source */
