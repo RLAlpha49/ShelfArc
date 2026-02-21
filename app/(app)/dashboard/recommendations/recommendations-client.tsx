@@ -39,6 +39,7 @@ export function RecommendationsClient({
   const series = useLibraryStore(selectAllSeries)
   const isLoaded = useLibraryStore((s) => s.lastFetchedAt !== null)
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
+  const dismissedSuggestions = useLibraryStore((s) => s.dismissedSuggestions)
 
   const [formatFilter, setFormatFilter] = useState<FormatFilter>("all")
   const [wishlistFilter, setWishlistFilter] = useState<WishlistFilter>("all")
@@ -46,10 +47,15 @@ export function RecommendationsClient({
 
   const priceFormatter = usePriceFormatter(priceDisplayCurrency)
 
+  const dismissedSet = useMemo(
+    () => new Set(dismissedSuggestions),
+    [dismissedSuggestions]
+  )
+
   const allSuggestions = useMemo(() => {
-    if (isLoaded) return computeSuggestedBuys(series)
-    return initialSuggestions
-  }, [isLoaded, series, initialSuggestions])
+    if (isLoaded) return computeSuggestedBuys(series, undefined, dismissedSet)
+    return initialSuggestions.filter((s) => !dismissedSet.has(s.seriesId))
+  }, [isLoaded, series, initialSuggestions, dismissedSet])
 
   // Filtered by format/wishlist only (not by active tab) — used for tab badge counts
   // so that selecting a tab doesn't zero out the other tab badges.

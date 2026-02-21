@@ -5,6 +5,7 @@ import { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import type { SuggestedBuy, SuggestionCategory } from "@/lib/library/analytics"
+import { useLibraryStore } from "@/lib/store/library-store"
 import { resolveImageUrl } from "@/lib/uploads/resolve-image-url"
 
 const CATEGORY_CONFIG: Record<
@@ -44,11 +45,22 @@ export function RecommendationsCard({
 }: RecommendationsCardProps) {
   const cat = CATEGORY_CONFIG[suggestion.category]
   const coverUrl = resolveImageUrl(suggestion.coverImageUrl ?? "")
+  const [isDismissed, setIsDismissed] = useState(false)
+  const dismissSuggestion = useLibraryStore((s) => s.dismissSuggestion)
   const [isWishlisted, setIsWishlisted] = useState(suggestion.isWishlisted)
   const [wishlistVolumeId, setWishlistVolumeId] = useState(
     suggestion.wishlistVolumeId
   )
   const [isPending, setIsPending] = useState(false)
+
+  if (isDismissed) return null
+
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDismissed(true)
+    dismissSuggestion(suggestion.seriesId)
+  }
 
   const handleWishlistToggle = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -97,7 +109,7 @@ export function RecommendationsCard({
     <div className="glass-card group relative rounded-xl transition-all hover:shadow-md">
       <Link
         href={`/library/series/${suggestion.seriesId}`}
-        className="block p-4 pr-10"
+        className="block p-4 pr-10 pb-8"
       >
         <div className="flex items-center gap-3">
           {coverUrl && (
@@ -166,6 +178,25 @@ export function RecommendationsCard({
           className="h-4 w-4"
         >
           <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={handleDismiss}
+        className="text-muted-foreground/30 hover:text-destructive absolute right-3 bottom-3 flex h-6 w-6 items-center justify-center rounded-md transition-colors"
+        aria-label="Not interested"
+        title="Not interested"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="h-3.5 w-3.5"
+        >
+          <line x1="18" x2="6" y1="6" y2="18" />
+          <line x1="6" x2="18" y1="6" y2="18" />
         </svg>
       </button>
     </div>

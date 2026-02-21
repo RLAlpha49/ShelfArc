@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/empty-state"
 import { LoadingSkeleton } from "@/components/library/library-skeleton"
 import { SeriesCard } from "@/components/library/series-card"
 import { SeriesListItem } from "@/components/library/series-list-item"
+import { ShelfView } from "@/components/library/shelf-view"
 import {
   VirtualizedWindowGrid,
   VirtualizedWindowList
@@ -20,7 +21,7 @@ import {
   getGridClasses,
   VIRTUALIZE_THRESHOLD
 } from "@/lib/library/grid-utils"
-import { useLibraryStore } from "@/lib/store/library-store"
+import { useLibraryStore, type ViewMode } from "@/lib/store/library-store"
 import type { CardSize } from "@/lib/store/settings-store"
 import type { SeriesWithVolumes, Volume } from "@/lib/types/database"
 
@@ -29,7 +30,7 @@ interface LibraryContentProps {
   readonly filteredVolumes: VolumeWithSeries[]
   readonly filteredUnassignedVolumes: Volume[]
   readonly isLoading: boolean
-  readonly viewMode: "grid" | "list"
+  readonly viewMode: ViewMode
   readonly collectionView: "series" | "volumes"
   readonly cardSize: CardSize
   readonly gridColumnCount: number
@@ -75,14 +76,16 @@ export const LibraryContent = memo(function LibraryContent(
   } = props
 
   if (isLoading) {
-    return <LoadingSkeleton viewMode={viewMode} />
+    return (
+      <LoadingSkeleton viewMode={viewMode === "shelf" ? "grid" : viewMode} />
+    )
   }
 
   return collectionView === "volumes" ? (
     <VolumesView
       filteredVolumes={filteredVolumes}
       filteredUnassignedVolumes={filteredUnassignedVolumes}
-      viewMode={viewMode}
+      viewMode={viewMode === "shelf" ? "grid" : viewMode}
       cardSize={cardSize}
       gridColumnCount={gridColumnCount}
       gridGapPx={gridGapPx}
@@ -398,7 +401,7 @@ function VolumesView({
 interface SeriesViewProps {
   readonly filteredSeries: SeriesWithVolumes[]
   readonly filteredUnassignedVolumes: Volume[]
-  readonly viewMode: "grid" | "list"
+  readonly viewMode: ViewMode
   readonly cardSize: CardSize
   readonly gridColumnCount: number
   readonly gridGapPx: number
@@ -456,6 +459,25 @@ function SeriesView({
         actions={[{ label: "Add Book", onClick: onAddBook }]}
         tip="Books are automatically grouped into series when added"
       />
+    )
+  }
+
+  if (viewMode === "shelf") {
+    return (
+      <div className="space-y-8">
+        <ShelfView
+          filteredSeries={filteredSeries}
+          cardSize={cardSize}
+          selectedSeriesIds={selectedSeriesIds}
+        />
+        <UnassignedSection
+          filteredUnassignedVolumes={filteredUnassignedVolumes}
+          cardSize={cardSize}
+          gridColumnCount={gridColumnCount}
+          gridGapPx={gridGapPx}
+          selectedVolumeIds={selectedVolumeIds}
+        />
+      </div>
     )
   }
 

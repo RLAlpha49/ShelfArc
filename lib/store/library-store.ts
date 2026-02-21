@@ -25,7 +25,7 @@ export type SortField =
 /** Sort direction. @source */
 export type SortOrder = "asc" | "desc"
 /** Display mode for the library grid. @source */
-export type ViewMode = "grid" | "list"
+export type ViewMode = "grid" | "list" | "shelf"
 /** Top-level collection grouping. @source */
 export type CollectionView = "series" | "volumes"
 /** Supported external price source. @source */
@@ -155,6 +155,7 @@ interface LibraryState {
   amazonFallbackToKindle: boolean
   priceDisplayCurrency: CurrencyCode
   showAmazonDisclaimer: boolean
+  dismissedSuggestions: string[]
   isLoading: boolean
   lastFetchedAt: number | null
 
@@ -208,6 +209,7 @@ interface LibraryState {
   setShowAmazonDisclaimer: (value: boolean) => void
   setIsLoading: (loading: boolean) => void
   setLastFetchedAt: (ts: number | null) => void
+  dismissSuggestion: (seriesId: string) => void
 }
 
 /** Default filter state with no active filters. @source */
@@ -276,6 +278,7 @@ export const useLibraryStore = create<LibraryState>()(
       amazonFallbackToKindle: false,
       priceDisplayCurrency: "USD",
       showAmazonDisclaimer: true,
+      dismissedSuggestions: [],
       isLoading: false,
       lastFetchedAt: null,
 
@@ -621,7 +624,13 @@ export const useLibraryStore = create<LibraryState>()(
       setPriceDisplayCurrency: (value) => set({ priceDisplayCurrency: value }),
       setShowAmazonDisclaimer: (value) => set({ showAmazonDisclaimer: value }),
       setIsLoading: (loading) => set({ isLoading: loading }),
-      setLastFetchedAt: (ts) => set({ lastFetchedAt: ts })
+      setLastFetchedAt: (ts) => set({ lastFetchedAt: ts }),
+      dismissSuggestion: (seriesId) =>
+        set((state) => ({
+          dismissedSuggestions: state.dismissedSuggestions.includes(seriesId)
+            ? state.dismissedSuggestions
+            : [...state.dismissedSuggestions, seriesId]
+        }))
     }),
     {
       name: "shelfarc-library",
@@ -644,7 +653,8 @@ export const useLibraryStore = create<LibraryState>()(
         amazonPreferKindle: state.amazonPreferKindle,
         amazonFallbackToKindle: state.amazonFallbackToKindle,
         priceDisplayCurrency: state.priceDisplayCurrency,
-        showAmazonDisclaimer: state.showAmazonDisclaimer
+        showAmazonDisclaimer: state.showAmazonDisclaimer,
+        dismissedSuggestions: state.dismissedSuggestions
       })
     }
   )

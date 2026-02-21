@@ -436,7 +436,8 @@ export function computeWishlistStats(
 
 export function computeSuggestedBuys(
   series: SeriesWithVolumes[],
-  limit?: number
+  limit?: number,
+  dismissed?: ReadonlySet<string>
 ): SuggestedBuy[] {
   const suggestions: SuggestedBuy[] = []
 
@@ -497,7 +498,11 @@ export function computeSuggestedBuys(
     }
   }
 
-  for (const s of series) {
+  const seriesSource = dismissed
+    ? series.filter((s) => !dismissed.has(s.id))
+    : series
+
+  for (const s of seriesSource) {
     const ownedVolumes = s.volumes.filter((v) => v.ownership_status === "owned")
     if (ownedVolumes.length === 0) continue
 
@@ -509,10 +514,9 @@ export function computeSuggestedBuys(
     )
     const isReading = s.volumes.some((v) => v.reading_status === "reading")
     const maxOwned = Math.max(...ownedNumbers)
-    const ownershipRatio =
-      s.total_volumes && s.total_volumes > 0
-        ? ownedVolumes.length / s.total_volumes
-        : 0
+    const ownershipRatio = s.total_volumes
+      ? ownedVolumes.length / s.total_volumes
+      : 0
 
     for (let i = 1; i < maxOwned; i++) {
       if (!ownedNumbers.has(i)) {

@@ -611,8 +611,8 @@ export function LibraryToolbar({
               </button>
             </fieldset>
 
-            {/* Card Size (grid only) */}
-            {viewMode === "grid" && (
+            {/* Card Size (grid and shelf) */}
+            {(viewMode === "grid" || viewMode === "shelf") && (
               <fieldset className="border-input flex items-center overflow-hidden rounded-xl border">
                 <legend className="sr-only">Card size</legend>
                 {(["compact", "default", "large"] as const).map((size) => {
@@ -691,6 +691,27 @@ export function LibraryToolbar({
                   <line x1="3" x2="3.01" y1="6" y2="6" />
                   <line x1="3" x2="3.01" y1="12" y2="12" />
                   <line x1="3" x2="3.01" y1="18" y2="18" />
+                </svg>
+              </button>
+              <button
+                className={`focus-visible:ring-ring focus-visible:ring-offset-background p-1.5 transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${viewMode === "shelf" ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-foreground"}`}
+                onClick={() => setViewMode("shelf")}
+                aria-label="Shelf view"
+                aria-pressed={viewMode === "shelf"}
+                type="button"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3.5 w-3.5"
+                >
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                 </svg>
               </button>
             </fieldset>
