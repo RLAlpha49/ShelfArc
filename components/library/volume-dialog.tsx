@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { CoverImage } from "@/components/library/cover-image"
+import { IsbnScannerButton } from "@/components/library/isbn-scanner"
 import { SeriesPicker } from "@/components/library/series-picker"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -917,12 +918,19 @@ export function VolumeDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="isbn">ISBN</Label>
-                    <Input
-                      id="isbn"
-                      placeholder="978-..."
-                      value={formData.isbn}
-                      onChange={(e) => updateField("isbn", e.target.value)}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="isbn"
+                        placeholder="978-..."
+                        value={formData.isbn}
+                        onChange={(e) => updateField("isbn", e.target.value)}
+                        className="flex-1"
+                      />
+                      <IsbnScannerButton
+                        onScan={(isbn) => updateField("isbn", isbn)}
+                        disabled={isBusy}
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="page_count">Total Pages</Label>
