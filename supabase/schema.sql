@@ -262,7 +262,6 @@ CREATE INDEX IF NOT EXISTS idx_series_author_trgm ON series USING gin (author gi
 CREATE INDEX IF NOT EXISTS idx_series_publisher_trgm ON series USING GIN (publisher gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_series_tags ON series USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_series_title_trgm ON series USING gin (title gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_series_user_id ON public.series USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
 CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
 CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
@@ -310,7 +309,6 @@ CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder
   WHERE publish_date IS NOT NULL AND release_reminder = TRUE;
 CREATE INDEX IF NOT EXISTS idx_volumes_series_id ON volumes(series_id);
 CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
-CREATE INDEX IF NOT EXISTS idx_volumes_user_id ON volumes(user_id);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_isbn ON volumes(user_id, isbn);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_ownership ON volumes(user_id, ownership_status);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_publish_date ON volumes(user_id, publish_date DESC);
@@ -318,7 +316,6 @@ CREATE INDEX IF NOT EXISTS idx_volumes_user_purchase_date ON volumes(user_id, pu
 CREATE INDEX IF NOT EXISTS idx_volumes_user_reading ON volumes(user_id, reading_status);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_series ON volumes(user_id, series_id);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_updated ON volumes(user_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_volumes_volume_number ON public.volumes USING btree (volume_number);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_volumes_unique_null_edition
   ON volumes(series_id, volume_number)
   WHERE edition IS NULL;
@@ -392,7 +389,6 @@ CREATE TABLE IF NOT EXISTS price_history (
   scraped_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_price_history_user_id ON price_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_user_scraped
   ON price_history(user_id, scraped_at DESC);
 CREATE INDEX IF NOT EXISTS idx_price_history_volume_id ON price_history(volume_id);
@@ -417,7 +413,6 @@ CREATE TABLE IF NOT EXISTS price_alerts (
 CREATE INDEX IF NOT EXISTS idx_price_alerts_enabled_volume
   ON price_alerts(user_id, volume_id)
   WHERE enabled = TRUE;
-CREATE INDEX IF NOT EXISTS idx_price_alerts_user_id ON price_alerts(user_id);
 CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id);
 
 -- Activity events table (append-only timeline)
