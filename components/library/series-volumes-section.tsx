@@ -7,7 +7,7 @@ import { VirtualizedWindowGrid } from "@/components/library/virtualized-window"
 import { VolumeCard } from "@/components/library/volume-card"
 import { VolumeSelectionBar } from "@/components/library/volume-selection-bar"
 import { Button } from "@/components/ui/button"
-import { useWindowWidth } from "@/lib/hooks/use-window-width"
+import { useBreakpoint } from "@/lib/hooks/use-window-width"
 import type {
   OwnershipStatus,
   ReadingStatus,
@@ -70,13 +70,13 @@ export function SeriesVolumesSection({
   readonly onMarkAllAboveAsRead: (volume: Volume) => void
   readonly onGapCardClick: (volumeNumber: number) => void
 }) {
-  const windowWidth = useWindowWidth()
+  const bp = useBreakpoint()
   const columnCount = useMemo(() => {
-    if (windowWidth >= 1024) return 6
-    if (windowWidth >= 768) return 4
-    if (windowWidth >= 640) return 3
+    if (bp === "xl" || bp === "lg") return 6
+    if (bp === "md") return 4
+    if (bp === "sm") return 3
     return 2
-  }, [windowWidth])
+  }, [bp])
 
   const sortedVolumes = useMemo(() => {
     return currentSeries.volumes.toSorted(

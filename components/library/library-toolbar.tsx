@@ -21,7 +21,7 @@ import {
   SheetHeader,
   SheetTitle
 } from "@/components/ui/sheet"
-import { useWindowWidth } from "@/lib/hooks/use-window-width"
+import { useBreakpoint } from "@/lib/hooks/use-window-width"
 import type { SortField } from "@/lib/store/library-store"
 import { selectAllSeries, useLibraryStore } from "@/lib/store/library-store"
 import { useSettingsStore } from "@/lib/store/settings-store"
@@ -341,8 +341,8 @@ export function LibraryToolbar({
   } = useLibraryStore()
   const { cardSize, setCardSize } = useSettingsStore()
 
-  const windowWidth = useWindowWidth()
-  const isMobile = windowWidth > 0 && windowWidth < 768
+  const bp = useBreakpoint()
+  const isMobile = bp === "xs" || bp === "sm"
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const isMac = useSyncExternalStore(noopSubscribe, getIsMac, getIsMacServer)

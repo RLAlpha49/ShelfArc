@@ -18,10 +18,7 @@ import {
   SheetHeader,
   SheetTitle
 } from "@/components/ui/sheet"
-import { useWindowWidth } from "@/lib/hooks/use-window-width"
-
-/** Breakpoint below which the sheet layout is used. */
-const MOBILE_BREAKPOINT = 640
+import { useBreakpoint } from "@/lib/hooks/use-window-width"
 
 /** Props for the {@link ResponsiveDialog} component. @source */
 export interface ResponsiveDialogProps {
@@ -54,8 +51,8 @@ export function ResponsiveDialog({
   className,
   showCloseButton = true
 }: ResponsiveDialogProps) {
-  const width = useWindowWidth()
-  const isMobile = width > 0 && width < MOBILE_BREAKPOINT
+  const bp = useBreakpoint()
+  const isMobile = bp === "xs"
 
   if (isMobile) {
     return (
@@ -129,8 +126,8 @@ export function ResponsiveDialogRaw({
   contentClassName,
   showCloseButton = true
 }: ResponsiveDialogRawProps) {
-  const width = useWindowWidth()
-  const isMobile = width > 0 && width < MOBILE_BREAKPOINT
+  const bp = useBreakpoint()
+  const isMobile = bp === "xs"
 
   if (isMobile) {
     return (

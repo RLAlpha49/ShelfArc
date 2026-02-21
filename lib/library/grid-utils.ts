@@ -1,3 +1,4 @@
+import type { Breakpoint } from "@/lib/hooks/use-window-width"
 import type { CardSize } from "@/lib/store/settings-store"
 
 /**
@@ -26,16 +27,16 @@ export const GRID_COLUMNS_BY_CARD_SIZE: Record<CardSize, readonly number[]> = {
   large: [1, 2, 3, 4, 5]
 }
 
-export function getBreakpointTier(width: number) {
-  if (width >= 1280) return 4
-  if (width >= 1024) return 3
-  if (width >= 768) return 2
-  if (width >= 640) return 1
+export function getBreakpointTier(bp: Breakpoint) {
+  if (bp === "xl") return 4
+  if (bp === "lg") return 3
+  if (bp === "md") return 2
+  if (bp === "sm") return 1
   return 0
 }
 
-export function getGridColumnCount(cardSize: CardSize, width: number) {
-  const tier = getBreakpointTier(width)
+export function getGridColumnCount(cardSize: CardSize, bp: Breakpoint) {
+  const tier = getBreakpointTier(bp)
   return GRID_COLUMNS_BY_CARD_SIZE[cardSize][tier] ?? 2
 }
 
