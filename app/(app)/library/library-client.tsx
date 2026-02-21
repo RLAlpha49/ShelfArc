@@ -1,7 +1,14 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react"
 import { toast } from "sonner"
 
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -199,16 +206,21 @@ export default function LibraryClient({
     () => new Set()
   )
 
+  const initialDataRef = useRef(initialData)
   const initialized = useRef(false)
-  if (!initialized.current) {
+  // Seed the store with SSR data exactly once on mount. We capture initialData
+  // in a ref so the layout effect has no reactive deps but still reads the
+  // correct snapshot without triggering a Zustand update during render.
+  useLayoutEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
     const state = useLibraryStore.getState()
     if (state.seriesIds.length === 0) {
-      state.setSeries(initialData.series)
-      state.setUnassignedVolumes(initialData.unassignedVolumes)
+      state.setSeries(initialDataRef.current.series)
+      state.setUnassignedVolumes(initialDataRef.current.unassignedVolumes)
       state.setLastFetchedAt(Date.now())
     }
-    initialized.current = true
-  }
+  }, [])
 
   useEffect(() => {
     fetchSeries()
