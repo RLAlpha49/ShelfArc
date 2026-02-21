@@ -185,6 +185,66 @@ function RecentImportsCard() {
   )
 }
 
+function CalendarExportCard() {
+  return (
+    <div className="bg-muted/30 rounded-2xl border p-5">
+      <div className="bg-primary/8 text-primary mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-5 w-5"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      </div>
+      <h3 className="font-display mb-1 text-base font-semibold">
+        Calendar Export
+      </h3>
+      <p className="text-muted-foreground mb-4 text-sm leading-relaxed">
+        Export upcoming release dates as an .ics file for Google Calendar, Apple
+        Calendar, or Outlook. You can also subscribe to a live feed.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href="/library/releases"
+          className="hover:bg-accent text-muted-foreground inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+        >
+          View releases
+        </Link>
+        <a
+          href="/api/library/export/ical"
+          download="shelfarc-releases.ics"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download .ics
+        </a>
+      </div>
+    </div>
+  )
+}
+
 export function DataSection() {
   return (
     <section
@@ -269,6 +329,7 @@ export function DataSection() {
             </p>
           </div>
         </Link>
+        <CalendarExportCard />
         <StorageUsageCard />
         <RecentImportsCard />
       </div>
