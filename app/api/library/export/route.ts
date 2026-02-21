@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { type NextRequest } from "next/server"
 
 import { protectedRoute } from "@/lib/api/protected-route"
@@ -106,8 +107,8 @@ function csvColumnValue(
   return csvEscape(vol[col])
 }
 
-function buildCsv(series: Record<string, unknown>[]): string {
-  const rows: string[] = [CSV_COLUMNS.join(",")]
+function buildCsvChunk(series: Record<string, unknown>[]): string {
+  const rows: string[] = []
 
   for (const s of series) {
     const volumes = Array.isArray(s.volumes)
@@ -119,6 +120,87 @@ function buildCsv(series: Record<string, unknown>[]): string {
   }
 
   return rows.join("\n")
+}
+
+async function* fetchSeriesBatches(
+  supabase: SupabaseClient,
+  userId: string,
+  scope: ExportScope,
+  ids: string[] | undefined,
+  batchSize: number
+) {
+  let offset = 0
+  while (true) {
+    let query = supabase
+      .from("series")
+      .select("*, volumes(*)")
+      .eq("user_id", userId)
+      .range(offset, offset + batchSize - 1)
+
+    if (scope === "selected" && ids) {
+      query = query.in("id", ids)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    if (!data || data.length === 0) break
+
+    yield data
+    if (data.length < batchSize) break
+    offset += batchSize
+  }
+}
+
+async function handleExportStream(
+  controller: ReadableStreamDefaultController,
+  supabase: SupabaseClient,
+  userId: string,
+  scope: ExportScope,
+  ids: string[] | undefined,
+  format: ExportFormat,
+  log: ReturnType<typeof logger.withCorrelationId>
+) {
+  try {
+    if (format === "csv") {
+      controller.enqueue(new TextEncoder().encode(CSV_COLUMNS.join(",") + "\n"))
+    } else {
+      controller.enqueue(new TextEncoder().encode('{"series":['))
+    }
+
+    let firstBatch = true
+    for await (const batch of fetchSeriesBatches(
+      supabase,
+      userId,
+      scope,
+      ids,
+      100
+    )) {
+      if (format === "csv") {
+        const chunk = buildCsvChunk(batch)
+        if (chunk) {
+          controller.enqueue(new TextEncoder().encode(chunk + "\n"))
+        }
+      } else {
+        const jsonStr = JSON.stringify(batch)
+        const innerJson = jsonStr.slice(1, -1)
+        if (innerJson) {
+          const prefix = firstBatch ? "" : ","
+          controller.enqueue(new TextEncoder().encode(prefix + innerJson))
+          firstBatch = false
+        }
+      }
+    }
+
+    if (format === "json") {
+      controller.enqueue(new TextEncoder().encode("]}"))
+    }
+    controller.close()
+  } catch (err) {
+    log.error("Export stream failed", {
+      error: getErrorMessage(err, "Unknown error")
+    })
+    controller.error(err)
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -140,32 +222,28 @@ export async function POST(request: NextRequest) {
     if (validated instanceof Response) return validated
     const { format, scope, ids } = validated
 
-    let query = supabase
-      .from("series")
-      .select("*, volumes(*)")
+    // Check total volumes to prevent massive exports
+    let countQuery = supabase
+      .from("volumes")
+      .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
 
     if (scope === "selected" && ids) {
-      query = query.in("id", ids)
+      countQuery = countQuery.in("series_id", ids)
     }
 
-    const { data: series, error } = await query
+    const { count, error: countError } = await countQuery
 
-    if (error) {
-      log.error("Export query failed", { error: error.message })
+    if (countError) {
+      log.error("Export count query failed", { error: countError.message })
       return apiError(500, "Failed to fetch library data", { correlationId })
     }
 
-    if (!series || series.length === 0) {
+    if (count === 0) {
       return apiError(404, "No data to export", { correlationId })
     }
 
-    const totalVolumes = series.reduce(
-      (sum: number, s: Record<string, unknown>) =>
-        sum + (Array.isArray(s.volumes) ? s.volumes.length : 0),
-      0
-    )
-    if (totalVolumes > 10_000) {
+    if (count && count > 10_000) {
       return apiError(400, "Export too large: maximum 10,000 volumes", {
         correlationId
       })
@@ -178,14 +256,26 @@ export async function POST(request: NextRequest) {
       ...(correlationId ? { "x-correlation-id": correlationId } : {})
     }
 
-    if (format === "json") {
-      return new Response(JSON.stringify(series, null, 2), {
-        headers: { ...baseHeaders, "Content-Type": "application/json" }
-      })
-    }
+    const stream = new ReadableStream({
+      start(controller) {
+        return handleExportStream(
+          controller,
+          supabase,
+          user.id,
+          scope,
+          ids,
+          format,
+          log
+        )
+      }
+    })
 
-    return new Response(buildCsv(series as Record<string, unknown>[]), {
-      headers: { ...baseHeaders, "Content-Type": "text/csv; charset=utf-8" }
+    return new Response(stream, {
+      headers: {
+        ...baseHeaders,
+        "Content-Type":
+          format === "json" ? "application/json" : "text/csv; charset=utf-8"
+      }
     })
   } catch (err) {
     log.error("POST /api/library/export failed", {
