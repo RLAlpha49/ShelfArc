@@ -22,11 +22,11 @@ import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
 import type { Database } from "@/lib/types/database"
 import { AMAZON_DOMAINS } from "@/lib/validation"
+import { BatchScrapeSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
-const VALID_MODES = ["price", "image", "both"] as const
-type ScrapeMode = (typeof VALID_MODES)[number]
+type ScrapeMode = "price" | "image" | "both"
 
 const VALID_BINDINGS = [
   "Paperback",
@@ -100,43 +100,27 @@ function validateBody(
   body: Record<string, unknown>,
   correlationId: string
 ): ValidatedBody | Response {
-  const volumeIds = body.volumeIds
-  if (
-    !Array.isArray(volumeIds) ||
-    volumeIds.length === 0 ||
-    !volumeIds.every((id: unknown) => typeof id === "string")
-  ) {
-    return apiError(400, "volumeIds must be a non-empty array of strings", {
-      correlationId
+  const parsed = BatchScrapeSchema.safeParse(body)
+  if (!parsed.success) {
+    return apiError(400, "Validation failed", {
+      correlationId,
+      details: parsed.error.issues
     })
-  }
-  if (volumeIds.length > 10) {
-    return apiError(400, "Maximum 10 volumes per batch", { correlationId })
   }
 
-  const mode = body.mode
-  if (!VALID_MODES.includes(mode as ScrapeMode)) {
-    return apiError(400, "Mode must be one of: price, image, both", {
-      correlationId
-    })
-  }
-  const scrapeMode = mode as ScrapeMode
+  const data = parsed.data
+  const scrapeMode = data.mode as ScrapeMode
 
   return {
-    volumeIds,
+    volumeIds: data.volumeIds,
     mode: scrapeMode,
-    skipExisting:
-      typeof body.skipExisting === "boolean" ? body.skipExisting : false,
+    skipExisting: data.skipExisting,
     domain: (() => {
-      const raw =
-        typeof body.domain === "string" && body.domain.trim()
-          ? body.domain.trim()
-          : "amazon.com"
+      const raw = data.domain.trim()
       return AMAZON_DOMAINS.has(raw) ? raw : "amazon.com"
     })(),
     binding: (() => {
-      const rawBinding =
-        typeof body.binding === "string" ? body.binding.trim() : ""
+      const rawBinding = data.binding.trim()
       return (VALID_BINDINGS as readonly string[]).includes(rawBinding)
         ? (rawBinding as ValidBinding)
         : "Paperback"
@@ -364,7 +348,7 @@ export async function POST(request: NextRequest) {
 
     void recordActivityEvent(supabase, {
       userId: user.id,
-      eventType: "scrape_completed",
+      eventType: "bulk_scrape_completed",
       entityType: "batch",
       entityId: null,
       metadata: summary
@@ -372,7 +356,16 @@ export async function POST(request: NextRequest) {
 
     log.info("Batch scrape completed", summary)
 
-    return apiSuccess({ data: { results, summary } }, { correlationId })
+    let status = 200
+    if (summary.failed > 0) {
+      if (summary.failed === summary.total) {
+        status = 422
+      } else {
+        status = 207
+      }
+    }
+
+    return apiSuccess({ data: { results, summary } }, { status, correlationId })
   } catch (err) {
     log.error("POST /api/library/volumes/batch-scrape failed", {
       error: getErrorMessage(err, "Unknown error")
