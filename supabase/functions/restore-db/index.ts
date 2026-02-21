@@ -21,6 +21,7 @@ type BackupPayload = {
 /**
  * Defines the order in which tables must be restored to satisfy foreign key constraints.
  * Tables listed earlier are restored first; unlisted tables are restored after all listed ones.
+ * series and volumes are handled atomically via the restore_user_library RPC (DB-18).
  * @source
  */
 const TABLE_RESTORE_ORDER = [
@@ -32,6 +33,12 @@ const TABLE_RESTORE_ORDER = [
   "price_alerts",
   "activity_events"
 ]
+
+/**
+ * Tables restored atomically via the restore_user_library RPC.
+ * These must be excluded from the sequential restoreTable loop.
+ */
+const ATOMIC_RESTORE_TABLES = new Set(["series", "volumes"])
 
 /**
  * Creates a JSON Response with the given status and body.
@@ -214,6 +221,43 @@ const sortTablesForRestore = (tables: string[]): string[] => {
 type MutationResult = { error: { message: string } | null }
 
 /**
+ * Atomically restores series and volumes via the restore_user_library DB stored procedure.
+ * Because this call is a single RPC, PostgreSQL executes it inside one transaction —
+ * if any step fails the entire restore is rolled back (DB-18).
+ * @param supabase - Supabase client (service role).
+ * @param userId - The user whose library is being restored.
+ * @param seriesRows - All series rows from the backup.
+ * @param volumeRows - All volume rows from the backup.
+ * @returns Restored row counts or an error message.
+ * @source
+ */
+const restoreLibraryAtomic = async (
+  supabase: SupabaseClient,
+  userId: string,
+  seriesRows: unknown[],
+  volumeRows: unknown[]
+): Promise<{ seriesCount: number; volumesCount: number; error?: string }> => {
+  const { data, error } = await supabase.rpc("restore_user_library", {
+    p_user_id: userId,
+    p_series: JSON.stringify(seriesRows),
+    p_volumes: JSON.stringify(volumeRows)
+  })
+
+  if (error) {
+    return { seriesCount: 0, volumesCount: 0, error: error.message }
+  }
+
+  const result = data as {
+    series_restored: number
+    volumes_restored: number
+  } | null
+  return {
+    seriesCount: result?.series_restored ?? 0,
+    volumesCount: result?.volumes_restored ?? 0
+  }
+}
+
+/**
  * Restores a single table by deleting existing rows and inserting backed-up rows.
  * Inserts in batches to avoid exceeding payload limits.
  * @param supabase - Supabase client (service role).
@@ -269,6 +313,66 @@ const restoreTable = async (
   }
 
   return { rowCount: inserted }
+}
+
+/**
+ * Executes the full restore: atomically restores series+volumes via RPC,
+ * then sequentially restores all remaining tables.
+ * @source
+ */
+const performRestore = async (
+  supabase: SupabaseClient,
+  payload: BackupPayload,
+  sortedTables: string[]
+): Promise<{ restoredCounts: Record<string, number>; errors: string[] }> => {
+  const restoredCounts: Record<string, number> = {}
+  const errors: string[] = []
+
+  // [DB-18] Restore series + volumes atomically via restore_user_library RPC.
+  const seriesRows = payload.tables["series"]
+  const volumeRows = payload.tables["volumes"]
+
+  if (Array.isArray(seriesRows) && Array.isArray(volumeRows)) {
+    const userId = (seriesRows[0] as Record<string, unknown>)?.user_id as
+      | string
+      | undefined
+
+    if (userId) {
+      const atomicResult = await restoreLibraryAtomic(
+        supabase,
+        userId,
+        seriesRows,
+        volumeRows
+      )
+      restoredCounts["series"] = atomicResult.seriesCount
+      restoredCounts["volumes"] = atomicResult.volumesCount
+      if (atomicResult.error) {
+        errors.push(
+          `Atomic restore of series/volumes failed: ${atomicResult.error}`
+        )
+      }
+    } else {
+      errors.push(
+        "Could not determine user_id from backup series rows; skipping atomic restore."
+      )
+    }
+  }
+
+  for (const table of sortedTables) {
+    if (ATOMIC_RESTORE_TABLES.has(table)) continue
+
+    const rows = payload.tables[table]
+    if (!Array.isArray(rows)) {
+      errors.push(`Skipped ${table}: data is not an array.`)
+      continue
+    }
+
+    const result = await restoreTable(supabase, table, rows)
+    restoredCounts[table] = result.rowCount
+    if (result.error) errors.push(result.error)
+  }
+
+  return { restoredCounts, errors }
 }
 
 /**
@@ -342,23 +446,11 @@ serve(async (request: Request) => {
   const tableNames = Object.keys(payload.tables)
   const sortedTables = sortTablesForRestore(tableNames)
 
-  const restoredCounts: Record<string, number> = {}
-  const errors: string[] = []
-
-  for (const table of sortedTables) {
-    const rows = payload.tables[table]
-    if (!Array.isArray(rows)) {
-      errors.push(`Skipped ${table}: data is not an array.`)
-      continue
-    }
-
-    const result = await restoreTable(supabase, table, rows)
-    restoredCounts[table] = result.rowCount
-
-    if (result.error) {
-      errors.push(result.error)
-    }
-  }
+  const { restoredCounts, errors } = await performRestore(
+    supabase,
+    payload,
+    sortedTables
+  )
 
   const hasErrors = errors.length > 0
 
