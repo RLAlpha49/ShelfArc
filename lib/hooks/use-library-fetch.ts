@@ -73,7 +73,8 @@ export function useLibraryFetch() {
 
       const firstSeriesResponse = (await fetchLibrary({
         view: "series",
-        page: 1,
+        cursor: null,
+        includeCount: true,
         limit: API_PAGE_LIMIT,
         sortField,
         sortOrder
@@ -87,18 +88,20 @@ export function useLibraryFetch() {
       // Stop blocking render after first page; keep loading the rest in background.
       if (showLoadingSkeleton) setIsLoading(false)
 
-      const { totalPages, total: seriesTotal } = firstSeriesResponse.pagination
+      let nextCursor = firstSeriesResponse.pagination.nextCursor
+      let hasMore = firstSeriesResponse.pagination.hasMore
+      const seriesTotal = firstSeriesResponse.pagination.total
 
       // Show progress indicator only when there are more pages to fetch.
-      if (totalPages > 1) {
+      if (hasMore && seriesTotal) {
         setSeriesProgress({ loaded: seriesData.length, total: seriesTotal })
       }
 
       const loadRemainingSeriesPages = async () => {
-        for (let page = 2; page <= totalPages; page += 1) {
+        while (hasMore && nextCursor) {
           const response = (await fetchLibrary({
             view: "series",
-            page,
+            cursor: nextCursor,
             limit: API_PAGE_LIMIT,
             sortField,
             sortOrder
@@ -108,18 +111,22 @@ export function useLibraryFetch() {
 
           seriesData.push(...response.data)
           commitProgress()
-          setSeriesProgress({ loaded: seriesData.length, total: seriesTotal })
+          if (seriesTotal) {
+            setSeriesProgress({ loaded: seriesData.length, total: seriesTotal })
+          }
+          nextCursor = response.pagination.nextCursor
+          hasMore = response.pagination.hasMore
         }
       }
 
       const loadVolumePages = async () => {
-        let page = 1
-        let totalPages = 1
+        let cursor: string | null = null
+        let hasMoreVolumes = true
 
         do {
           const response = (await fetchLibrary({
             view: "volumes",
-            page,
+            cursor: cursor ?? undefined,
             limit: API_PAGE_LIMIT,
             sortField: "volume_count",
             sortOrder: "asc"
@@ -132,10 +139,10 @@ export function useLibraryFetch() {
             .filter((volume) => !volume.series_id)
 
           unassignedVolumes.push(...pageUnassigned)
-          totalPages = response.pagination.totalPages
-          page += 1
+          cursor = response.pagination.nextCursor ?? null
+          hasMoreVolumes = response.pagination.hasMore ?? false
           commitProgress()
-        } while (page <= totalPages)
+        } while (hasMoreVolumes && cursor)
       }
 
       await Promise.all([loadRemainingSeriesPages(), loadVolumePages()])

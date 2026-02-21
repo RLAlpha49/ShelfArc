@@ -54,7 +54,8 @@ const ALLOWED = {
 
 /** Parsed and validated library query parameters. @source */
 interface LibraryQueryParams {
-  page: number
+  cursor: string | null
+  includeCount: boolean
   limit: number
   sortField: string
   sortOrder: "asc" | "desc"
@@ -114,8 +115,8 @@ function parseLibraryParams(
   const readingStatus = searchParams.get("readingStatus") || null
   const view = searchParams.get("view") ?? "series"
 
-  const page = parseIntParam(searchParams.get("page"), 1)
-  if (Number.isNaN(page) || page < 1) return "page must be a positive integer"
+  const cursor = searchParams.get("cursor") || null
+  const includeCount = searchParams.get("includeCount") === "true"
 
   const limit = parseIntParam(searchParams.get("limit"), DEFAULT_LIMIT)
   if (Number.isNaN(limit) || limit < 1 || limit > MAX_LIMIT)
@@ -135,7 +136,8 @@ function parseLibraryParams(
   if (enumError) return enumError
 
   return {
-    page,
+    cursor,
+    includeCount,
     limit,
     sortField,
     sortOrder: sortOrder as "asc" | "desc",
@@ -153,6 +155,67 @@ function parseLibraryParams(
 function buildSearchFilter(search: string): string {
   const pattern = `%${search}%`
   return `title.ilike.${pattern},author.ilike.${pattern},description.ilike.${pattern}`
+}
+
+function encodeCursor(sortValue: unknown, id: string): string {
+  return Buffer.from(JSON.stringify([sortValue, id])).toString("base64url")
+}
+
+function decodeCursor(cursor: string): [unknown, string] | null {
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(cursor, "base64url").toString("utf-8")
+    )
+    if (Array.isArray(parsed) && parsed.length === 2) {
+      return parsed as [unknown, string]
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+function formatPostgrestValue(val: unknown): string {
+  if (val === null) return "null"
+  const str = String(val)
+  if (str.includes(",") || str.includes("(") || str.includes(")")) {
+    return `"${str.replaceAll('"', '""')}"`
+  }
+  return str
+}
+
+function applyCursorFilter(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  sortColumn: string,
+  ascending: boolean,
+  nullsFirst: boolean | undefined,
+  cursorSortVal: unknown,
+  cursorId: string
+) {
+  const isNull = cursorSortVal === null
+  const safeVal = formatPostgrestValue(cursorSortVal)
+  const safeId = formatPostgrestValue(cursorId)
+
+  if (isNull) {
+    const idOp = ascending ? "gt" : "lt"
+    return query.or(`and(${sortColumn}.is.null,id.${idOp}.${safeId})`)
+  } else {
+    const op = ascending ? "gt" : "lt"
+    const idOp = ascending ? "gt" : "lt"
+
+    const parts = [
+      `${sortColumn}.${op}.${safeVal}`,
+      `and(${sortColumn}.eq.${safeVal},id.${idOp}.${safeId})`
+    ]
+
+    const isNullsLast = nullsFirst === undefined ? ascending : !nullsFirst
+    if (isNullsLast) {
+      parts.push(`${sortColumn}.is.null`)
+    }
+
+    return query.or(parts.join(","))
+  }
 }
 
 /** Maps a sort field name to the actual column to order by (series view). @source */
@@ -223,7 +286,16 @@ async function handleSeriesView(
   userId: string,
   params: LibraryQueryParams
 ): Promise<FetchLibrarySeriesResponse> {
-  const { page, limit, sortField, sortOrder, search, type, tags } = params
+  const {
+    cursor,
+    includeCount,
+    limit,
+    sortField,
+    sortOrder,
+    search,
+    type,
+    tags
+  } = params
 
   // Pre-filter series IDs by volume ownership/reading status at DB level
   const statusSeriesIds = await resolveVolumeStatusFilter(
@@ -235,7 +307,7 @@ async function handleSeriesView(
 
   // If status filter is active but no series match, return empty
   if (statusSeriesIds?.length === 0) {
-    return { data: [], pagination: { page, limit, total: 0, totalPages: 1 } }
+    return { data: [], pagination: { limit, total: 0, hasMore: false } }
   }
 
   let countQuery = supabase
@@ -280,20 +352,37 @@ async function handleSeriesView(
   const ascending = sortOrder === "asc"
   const sortColumn = resolveSeriesSortColumn(sortField)
   dataQuery = dataQuery.order(sortColumn, { ascending })
+  dataQuery = dataQuery.order("id", { ascending }) // Tie-breaker
 
-  const { count, error: countError } = await countQuery
-  if (countError) throw new Error(`Count query failed: ${countError.message}`)
+  if (cursor) {
+    const decoded = decodeCursor(cursor)
+    if (decoded) {
+      const [cursorSortVal, cursorId] = decoded
+      dataQuery = applyCursorFilter(
+        dataQuery,
+        sortColumn,
+        ascending,
+        undefined,
+        cursorSortVal,
+        cursorId
+      )
+    }
+  }
 
-  const total = count ?? 0
-  const offset = (page - 1) * limit
+  let total = 0
+  if (includeCount) {
+    const { count, error: countError } = await countQuery
+    if (countError) throw new Error(`Count query failed: ${countError.message}`)
+    total = count ?? 0
+  }
 
-  const { data: seriesData, error: dataError } = await dataQuery.range(
-    offset,
-    offset + limit - 1
+  const { data: seriesData, error: dataError } = await dataQuery.limit(
+    limit + 1
   )
   if (dataError) throw new Error(`Data query failed: ${dataError.message}`)
 
-  const seriesList = (seriesData ?? []) as Array<
+  const hasMore = (seriesData?.length ?? 0) > limit
+  const seriesList = (seriesData?.slice(0, limit) ?? []) as Array<
     Record<string, unknown> & { volumes: Array<Record<string, unknown>> }
   >
 
@@ -319,14 +408,21 @@ async function handleSeriesView(
 
   // ExcludeTags stays as post-filter (tag array exclusion not supported in PostgREST)
   const filtered = applyExcludeTagsFilter(merged, params.excludeTags)
-  const adjustedTotal = params.excludeTags.length > 0 ? filtered.length : total
+  const adjustedTotal =
+    params.excludeTags.length > 0 && includeCount ? filtered.length : total
 
-  const totalPages = Math.max(1, Math.ceil(adjustedTotal / limit))
+  let nextCursor: string | null = null
+  if (hasMore && filtered.length > 0) {
+    const lastItem = filtered.at(-1)!
+    const sortVal = lastItem[sortColumn as keyof typeof lastItem]
+    nextCursor = encodeCursor(sortVal, lastItem.id)
+  }
+
   const pagination: PaginationMeta = {
-    page,
     limit,
-    total: adjustedTotal,
-    totalPages
+    total: includeCount ? adjustedTotal : undefined,
+    nextCursor,
+    hasMore
   }
 
   return { data: filtered, pagination }
@@ -444,11 +540,11 @@ async function handleVolumesView(
   userId: string,
   params: LibraryQueryParams
 ): Promise<FetchLibraryVolumesResponse> {
-  const { page, limit, sortOrder } = params
+  const { cursor, includeCount, limit, sortOrder } = params
 
   const seriesIdFilter = await resolveSeriesIdFilter(supabase, userId, params)
   if (seriesIdFilter?.length === 0) {
-    return { data: [], pagination: { page, limit, total: 0, totalPages: 1 } }
+    return { data: [], pagination: { limit, total: 0, hasMore: false } }
   }
 
   let countQuery = supabase
@@ -489,27 +585,58 @@ async function handleVolumesView(
     ascending,
     ...(sort.nullsFirst === undefined ? {} : { nullsFirst: sort.nullsFirst })
   })
+  dataQuery = dataQuery.order("id", { ascending }) // Tie-breaker
 
-  const { count, error: countError } = await countQuery
-  if (countError) throw new Error(`Count query failed: ${countError.message}`)
+  if (cursor) {
+    const decoded = decodeCursor(cursor)
+    if (decoded) {
+      const [cursorSortVal, cursorId] = decoded
+      dataQuery = applyCursorFilter(
+        dataQuery,
+        sort.column,
+        ascending,
+        sort.nullsFirst,
+        cursorSortVal,
+        cursorId
+      )
+    }
+  }
 
-  const total = count ?? 0
-  const offset = (page - 1) * limit
+  let total = 0
+  if (includeCount) {
+    const { count, error: countError } = await countQuery
+    if (countError) throw new Error(`Count query failed: ${countError.message}`)
+    total = count ?? 0
+  }
 
-  const { data: volumeData, error: dataError } = await dataQuery.range(
-    offset,
-    offset + limit - 1
+  const { data: volumeData, error: dataError } = await dataQuery.limit(
+    limit + 1
   )
   if (dataError) throw new Error(`Data query failed: ${dataError.message}`)
 
-  const volumes = volumeData ?? []
+  const hasMore = (volumeData?.length ?? 0) > limit
+  const volumes = (volumeData?.slice(0, limit) ?? []) as Array<
+    Record<string, unknown> & { id: string; series_id: string | null }
+  >
   const seriesIds = [
     ...new Set(volumes.map((v) => v.series_id).filter(Boolean))
   ] as string[]
 
   const seriesMap = await fetchSeriesMap(supabase, seriesIds)
-  const totalPages = Math.max(1, Math.ceil(total / limit))
-  const pagination: PaginationMeta = { page, limit, total, totalPages }
+
+  let nextCursor: string | null = null
+  if (hasMore && volumes.length > 0) {
+    const lastItem = volumes.at(-1)!
+    const sortVal = lastItem[sort.column]
+    nextCursor = encodeCursor(sortVal, lastItem.id)
+  }
+
+  const pagination: PaginationMeta = {
+    limit,
+    total: includeCount ? total : undefined,
+    nextCursor,
+    hasMore
+  }
 
   const defaultSeries = {
     id: "",
@@ -555,7 +682,7 @@ export async function GET(request: NextRequest) {
 
     log.info("Library fetch", {
       view: params.view,
-      page: params.page,
+      cursor: params.cursor,
       limit: params.limit,
       sortField: params.sortField,
       search: params.search ?? undefined

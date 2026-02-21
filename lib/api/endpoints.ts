@@ -79,7 +79,8 @@ export function fetchLibrary(
   options?: { signal?: AbortSignal }
 ): Promise<FetchLibrarySeriesResponse | FetchLibraryVolumesResponse> {
   const searchParams = new URLSearchParams()
-  if (params.page) searchParams.set("page", String(params.page))
+  if (params.cursor) searchParams.set("cursor", params.cursor)
+  if (params.includeCount) searchParams.set("includeCount", "true")
   if (params.limit) searchParams.set("limit", String(params.limit))
   if (params.sortField) searchParams.set("sortField", params.sortField)
   if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder)

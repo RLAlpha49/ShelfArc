@@ -90,7 +90,8 @@ export interface FetchAnalyticsResponse {
 
 /** Query parameters for paginated library data. @source */
 export interface FetchLibraryParams {
-  page?: number
+  cursor?: string | null
+  includeCount?: boolean
   limit?: number
   sortField?: string
   sortOrder?: "asc" | "desc"
@@ -105,10 +106,10 @@ export interface FetchLibraryParams {
 
 /** Pagination metadata. @source */
 export interface PaginationMeta {
-  page: number
   limit: number
-  total: number
-  totalPages: number
+  total?: number
+  nextCursor?: string | null
+  hasMore: boolean
 }
 
 /** Paginated library series response. @source */
