@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { TypeBadge } from "@/components/ui/status-badge"
+import { SeriesStatusBadge, TypeBadge } from "@/components/ui/status-badge"
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { SeriesWithVolumes } from "@/lib/types/database"
 
@@ -143,6 +143,7 @@ export function SeriesCard({
 
           <div className="mt-2 flex flex-wrap gap-1">
             <TypeBadge type={series.type} short />
+            {series.status && <SeriesStatusBadge status={series.status} />}
 
             {series.tags.slice(0, 2).map((tag) => (
               <Badge
