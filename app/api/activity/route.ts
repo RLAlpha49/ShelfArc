@@ -20,10 +20,23 @@ const VALID_EVENT_TYPES = new Set<ActivityEventType>([
   "series_deleted",
   "price_alert_triggered",
   "import_completed",
-  "scrape_completed"
+  "scrape_completed",
+  "bulk_scrape_completed",
+  "reading_status_changed",
+  "settings_updated",
+  "session_revoked",
+  "tag_added",
+  "tag_removed",
+  "volume_merged"
 ])
 
-const VALID_ENTITY_TYPES = new Set(["volume", "series", "batch"])
+const VALID_ENTITY_TYPES = new Set([
+  "volume",
+  "series",
+  "batch",
+  "profile",
+  "session"
+])
 
 function isValidDateParam(value: string | null): boolean {
   return value === null || !Number.isNaN(Date.parse(value))
@@ -32,12 +45,14 @@ function isValidDateParam(value: string | null): boolean {
 function parseActivityFilters(searchParams: URLSearchParams): {
   eventType: string | null
   entityType: string | null
+  entityId: string | null
   afterDate: string | null
   beforeDate: string | null
 } {
   return {
     eventType: searchParams.get("eventType"),
     entityType: searchParams.get("entityType"),
+    entityId: searchParams.get("entityId"),
     afterDate: searchParams.get("afterDate"),
     beforeDate: searchParams.get("beforeDate")
   }
@@ -83,12 +98,13 @@ export async function GET(request: NextRequest) {
       defaultLimit: 20,
       maxLimit: 100
     })
-    const { eventType, entityType, afterDate, beforeDate } =
+    const { eventType, entityType, entityId, afterDate, beforeDate } =
       parseActivityFilters(searchParams)
 
     const filterError = validateActivityFilters({
       eventType,
       entityType,
+      entityId,
       afterDate,
       beforeDate
     })
@@ -102,6 +118,7 @@ export async function GET(request: NextRequest) {
     if (eventType)
       query = query.eq("event_type", eventType as ActivityEventType)
     if (entityType) query = query.eq("entity_type", entityType)
+    if (entityId) query = query.eq("entity_id", entityId)
     if (afterDate) query = query.gte("created_at", afterDate)
     if (beforeDate) query = query.lte("created_at", beforeDate)
 
