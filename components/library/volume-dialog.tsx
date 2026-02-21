@@ -1,11 +1,13 @@
 "use client"
 
+import { format } from "date-fns"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { CoverImage } from "@/components/library/cover-image"
 import { SeriesPicker } from "@/components/library/series-picker"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import {
   DialogDescription,
   DialogFooter,
@@ -20,6 +22,11 @@ import {
   InputGroupText
 } from "@/components/ui/input-group"
 import { Label } from "@/components/ui/label"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover"
 import { ResponsiveDialogRaw } from "@/components/ui/responsive-dialog"
 import {
   Select,
@@ -57,6 +64,7 @@ import {
   resolveImageUrl
 } from "@/lib/uploads/resolve-image-url"
 import { uploadImage } from "@/lib/uploads/upload-image"
+import { cn } from "@/lib/utils"
 
 /** Props for the {@link VolumeDialog} component. @source */
 interface VolumeDialogProps {
@@ -111,7 +119,8 @@ const defaultFormData = {
   format: "",
   amazon_url: "",
   started_at: "",
-  finished_at: ""
+  finished_at: "",
+  current_page: ""
 }
 
 /**
@@ -145,6 +154,75 @@ const MAX_COVER_SIZE_BYTES = 5 * 1024 * 1024
 /** Converts an ISO timestamp or date string to an HTML date input value (YYYY-MM-DD). @source */
 function isoToDateInput(value: string | null | undefined): string {
   return value ? value.split("T")[0] : ""
+}
+
+/** Parses a YYYY-MM-DD string to a local-time Date, avoiding UTC offset issues. @source */
+function parseDateString(value: string): Date | undefined {
+  if (!value) return undefined
+  const parts = value.split("-").map(Number)
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return undefined
+  const [year, month, day] = parts
+  return new Date(year, month - 1, day)
+}
+
+/**
+ * Calendar-based date picker backed by a YYYY-MM-DD string value.
+ * @source
+ */
+function DatePickerField({
+  id,
+  value,
+  onChange,
+  placeholder = "Pick a date"
+}: {
+  readonly id: string
+  readonly value: string
+  readonly onChange: (value: string) => void
+  readonly placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = useMemo(() => parseDateString(value), [value])
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        id={id}
+        type="button"
+        data-prevent-enter-submit="true"
+        className={cn(
+          "border-input bg-background hover:bg-accent hover:text-accent-foreground flex h-9 w-full items-center justify-start gap-2 rounded-md border px-3 py-2 text-left text-sm font-normal transition-colors",
+          !value && "text-muted-foreground"
+        )}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-4 w-4 shrink-0"
+        >
+          <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+          <line x1="16" x2="16" y1="2" y2="6" />
+          <line x1="8" x2="8" y1="2" y2="6" />
+          <line x1="3" x2="21" y1="10" y2="10" />
+        </svg>
+        {selected ? format(selected, "yyyy-MM-dd") : placeholder}
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(date) => {
+            onChange(date ? format(date, "yyyy-MM-dd") : "")
+            setOpen(false)
+          }}
+          autoFocus
+        />
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 /** Tracks the active Amazon async operation in {@link VolumeDialog}. @source */
@@ -323,7 +401,8 @@ export function VolumeDialog({
         format: volume.format || "",
         amazon_url: volume.amazon_url || "",
         started_at: isoToDateInput(volume.started_at),
-        finished_at: isoToDateInput(volume.finished_at)
+        finished_at: isoToDateInput(volume.finished_at),
+        current_page: volume.current_page?.toString() ?? ""
       })
     } else {
       setFormData({
@@ -372,6 +451,16 @@ export function VolumeDialog({
     const pageCount = formData.page_count
       ? Number.parseInt(formData.page_count)
       : null
+    let currentPageValue: number | null = null
+    if (formData.current_page) {
+      currentPageValue = Number.parseInt(formData.current_page)
+    } else if (
+      formData.reading_status === "completed" &&
+      pageCount &&
+      pageCount > 0
+    ) {
+      currentPageValue = pageCount
+    }
     try {
       await onSubmit({
         volume_number: formData.volume_number,
@@ -382,11 +471,7 @@ export function VolumeDialog({
         ownership_status: formData.ownership_status,
         reading_status: formData.reading_status,
         page_count: pageCount,
-        ...(formData.reading_status === "completed" &&
-        pageCount &&
-        pageCount > 0
-          ? { current_page: pageCount }
-          : {}),
+        current_page: currentPageValue,
         rating:
           formData.rating === "" ? null : Number.parseInt(formData.rating),
         notes: formData.notes || null,
@@ -855,13 +940,11 @@ export function VolumeDialog({
 
                 <div className="space-y-2">
                   <Label htmlFor="publish_date">Publish Date</Label>
-                  <Input
+                  <DatePickerField
                     id="publish_date"
-                    type="date"
                     value={formData.publish_date}
-                    onChange={(e) =>
-                      updateField("publish_date", e.target.value)
-                    }
+                    onChange={(val) => updateField("publish_date", val)}
+                    placeholder="Select publish date"
                   />
                 </div>
 
@@ -948,17 +1031,33 @@ export function VolumeDialog({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="rating">Rating (0–10)</Label>
-                  <Input
-                    id="rating"
-                    type="number"
-                    min={0}
-                    max={10}
-                    step={1}
-                    value={formData.rating}
-                    onChange={(e) => updateField("rating", e.target.value)}
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="rating">Rating (0–10)</Label>
+                    <Input
+                      id="rating"
+                      type="number"
+                      min={0}
+                      max={10}
+                      step={1}
+                      value={formData.rating}
+                      onChange={(e) => updateField("rating", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="current_page">Current Page</Label>
+                    <Input
+                      id="current_page"
+                      type="number"
+                      min={0}
+                      value={formData.current_page}
+                      onChange={(e) =>
+                        updateField("current_page", e.target.value)
+                      }
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -1003,13 +1102,11 @@ export function VolumeDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="purchase_date">Purchase Date</Label>
-                    <Input
+                    <DatePickerField
                       id="purchase_date"
-                      type="date"
                       value={formData.purchase_date}
-                      onChange={(e) =>
-                        updateField("purchase_date", e.target.value)
-                      }
+                      onChange={(val) => updateField("purchase_date", val)}
+                      placeholder="Select purchase date"
                     />
                   </div>
                   <div className="space-y-2">
