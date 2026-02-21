@@ -10,6 +10,7 @@ import {
 } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
+import { UpdateCollectionSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -32,13 +33,15 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const body = await parseJsonBody(request)
     if (body instanceof Response) return body
 
-    const update: Record<string, string> = {}
-    if (typeof body.name === "string" && body.name.trim()) {
-      update.name = body.name.trim().slice(0, 50)
+    const parsed = UpdateCollectionSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
     }
-    if (typeof body.color === "string") {
-      update.color = body.color
-    }
+
+    const update = parsed.data
 
     if (Object.keys(update).length === 0) {
       return apiError(400, "No valid fields to update", { correlationId })
@@ -51,7 +54,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       .eq("user_id", user.id)
 
     if (error) {
-      log.error("Failed to update collection", { error: error.message })
+      log.error("Failed to update collection", {
+        error: error.message,
+        code: error.code
+      })
       return apiError(500, "Failed to update collection", { correlationId })
     }
 
