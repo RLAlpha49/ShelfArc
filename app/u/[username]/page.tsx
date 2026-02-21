@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ShareButton } from "@/components/ui/share-button"
+import { ACHIEVEMENTS } from "@/lib/achievements/definitions"
 import { getPublicProfileUrl } from "@/lib/share-url"
 // eslint-disable-next-line no-restricted-imports -- Admin client required: public page needs RLS bypass for unauthenticated visitors
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -127,6 +128,13 @@ export default async function PublicProfilePage({ params }: Props) {
       ? Math.round((totalCompletedVolumes / totalVolumes) * 100)
       : 0
 
+  // Fetch earned achievements (displayed only when public_stats is enabled)
+  const { data: earnedAchievements } = await admin
+    .from("user_achievements")
+    .select("achievement_id, earned_at")
+    .eq("user_id", profile.id)
+    .order("earned_at", { ascending: true })
+
   // For public profiles, use a short-lived signed URL so unauthenticated visitors
   // can see the avatar without accessing the authenticated storage proxy.
   let resolvedAvatar: string | undefined
@@ -217,6 +225,36 @@ export default async function PublicProfilePage({ params }: Props) {
               </div>
             </div>
           )}
+
+          {/* Achievements */}
+          {profile.public_stats &&
+            earnedAchievements &&
+            earnedAchievements.length > 0 && (
+              <div className="mt-6">
+                <h2 className="text-muted-foreground mb-3 text-sm font-medium">
+                  Achievements
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {earnedAchievements.map((a) => {
+                    const def =
+                      ACHIEVEMENTS[
+                        a.achievement_id as keyof typeof ACHIEVEMENTS
+                      ]
+                    if (!def) return null
+                    return (
+                      <div
+                        key={a.achievement_id}
+                        title={def.description}
+                        className="bg-card/80 flex items-center gap-1.5 rounded-full border border-amber-500/20 px-3 py-1.5 text-sm backdrop-blur-sm"
+                      >
+                        <span aria-hidden="true">{def.emoji}</span>
+                        <span className="font-medium">{def.title}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
         </div>
       </header>
 

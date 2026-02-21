@@ -504,6 +504,18 @@ CREATE TABLE IF NOT EXISTS import_events (
 
 CREATE INDEX IF NOT EXISTS idx_import_events_user_id ON import_events(user_id, imported_at DESC);
 
+-- User Achievements table (earned badges / milestones)
+CREATE TABLE IF NOT EXISTS user_achievements (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  achievement_id TEXT        NOT NULL,
+  earned_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, achievement_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user
+  ON user_achievements(user_id, earned_at DESC);
+
 CREATE TABLE IF NOT EXISTS automations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -937,6 +949,28 @@ BEGIN
       AND policyname = 'Users can insert their own import events'
   ) THEN
     EXECUTE 'CREATE POLICY "Users can insert their own import events" ON public.import_events FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
+  END IF;
+END $$;
+
+ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_achievements'
+      AND policyname = 'Users can view their own achievements'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can view their own achievements" ON public.user_achievements FOR SELECT USING ((select auth.uid()) = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_achievements'
+      AND policyname = 'Users can insert their own achievements'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert their own achievements" ON public.user_achievements FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 

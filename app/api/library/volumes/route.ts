@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 
+import { checkAchievements } from "@/lib/achievements/check-achievements"
 import { recordActivityEvent } from "@/lib/activity/record-event"
 import { protectedRoute } from "@/lib/api/protected-route"
 import { RATE_LIMITS } from "@/lib/api/rate-limit-presets"
@@ -112,6 +113,8 @@ export async function POST(request: NextRequest) {
         volumeNumber: data.volume_number
       }
     })
+
+    void checkAchievements(supabase, user.id)
 
     return apiSuccess(data, { correlationId, status: 201 })
   } catch (err) {
