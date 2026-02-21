@@ -31,13 +31,15 @@ import { createUserClient } from "@/lib/supabase/server"
 /** Forces dynamic (uncached) rendering for this route. @source */
 export const dynamic = "force-dynamic"
 
+export const maxDuration = 10
+
 // NOTE: detailed scoring debug is controlled in the lib module.
 
 /** Rate-limit key identifying the Amazon scrape circuit breaker. @source */
 const RATE_LIMIT_KEY = "amazon-scrape"
 
 /** Maximum total time for the fetch + parse pipeline before aborting. @source */
-const PIPELINE_TIMEOUT_MS = 18_000
+const PIPELINE_TIMEOUT_MS = 8_000
 
 /** Rate-limit configuration for Amazon anti-bot cooldowns. @source */
 const RATE_LIMIT_CONFIG = {
