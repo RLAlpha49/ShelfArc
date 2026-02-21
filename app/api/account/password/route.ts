@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
+import { ChangePasswordSchema } from "@/lib/validation/schemas"
 
 export const dynamic = "force-dynamic"
 
@@ -40,14 +41,15 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request)
     if (body instanceof NextResponse) return body
 
-    const currentPassword =
-      typeof body.currentPassword === "string" ? body.currentPassword : ""
-    const newPassword =
-      typeof body.newPassword === "string" ? body.newPassword : ""
-
-    if (!currentPassword) {
-      return apiError(400, "Current password is required", { correlationId })
+    const parsed = ChangePasswordSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiError(400, "Validation failed", {
+        correlationId,
+        details: parsed.error.issues
+      })
     }
+
+    const { currentPassword, newPassword } = parsed.data
 
     const passwordError = validatePassword(newPassword)
     if (passwordError) {
