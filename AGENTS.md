@@ -4,8 +4,9 @@
 
 1. **Always** Activate: `mcp_oraios_serena_activate_project "ShelfArc"`.
 2. **Always** set mode based on task size/complexity (use `mcp_oraios_serena_switch_modes` with appropriate mode array from Modes section). Example: `mcp_oraios_serena_switch_modes(["planning", "editing"])`
-3. Use Serena exploration tools for discovery: `get_symbols_overview`, `find_symbol`, `search_for_pattern`, `list_dir`. This does not require switching to plan agent.
-4. Prefer symbolic tools over reading files unless necessary.
+3. Read all relevant instructions and skills.
+4. Use Serena exploration tools for discovery: `get_symbols_overview`, `find_symbol`, `search_for_pattern`, `list_dir`. This does not require switching to plan agent.
+5. Prefer symbolic tools over reading files unless necessary.
 
 At any point, use the `ask_questions` tool (see dedicated section below) to clarify ambiguous requirements or confirm high-risk decisions.
 
@@ -23,6 +24,7 @@ At any point, use the `ask_questions` tool (see dedicated section below) to clar
 - **Important**: Be **VERY** thorough when providing context to subagents. The more context you provide, the better the subagent's output will be.
 - Keep subagent prompts focused and bounded — each `runSubagent` should have a clear deliverable.
 - Common agents: Plan, Accessibility Expert, Expert Next.js Developer, Expert React Frontend Engineer, Janitor (performs cleanup, review, and simplification).
+- Every subagent should read the relevant instructions and skills. Do not assume the subagent has any prior knowledge and should be told to read them.
 - **Important**: When a subagent reports back such as any changes made, **believe** and if needed read the changes to update your context. Do not assume the subagent's output is incorrect without checking the actual changes.
 
 ### Plan subagent (authoritative)
