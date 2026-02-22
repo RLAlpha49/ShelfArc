@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { recordActivityEvent } from "@/lib/activity/record-event"
 import { fetchBookVolume } from "@/lib/api/endpoints"
@@ -31,7 +32,7 @@ export function useLibraryImport() {
     updateSeriesTypeIfMissing
   } = useLibraryMutations()
 
-  const series = useLibraryStore(selectAllSeries)
+  const series = useLibraryStore(useShallow(selectAllSeries))
 
   const fetchGoogleVolumeDetails = useCallback(async (volumeId: string) => {
     const { data } = await fetchBookVolume(volumeId)

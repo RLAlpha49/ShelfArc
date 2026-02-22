@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { selectAllSeries, useLibraryStore } from "@/lib/store/library-store"
 
@@ -16,7 +17,7 @@ import { useLibraryFetch } from "./use-library-fetch"
  * @source
  */
 export function useEnsureLibraryLoaded() {
-  const series = useLibraryStore(selectAllSeries)
+  const series = useLibraryStore(useShallow(selectAllSeries))
   const { fetchSeries, isLoading } = useLibraryFetch()
 
   useEffect(() => {

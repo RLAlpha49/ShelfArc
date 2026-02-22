@@ -1,5 +1,7 @@
 "use client"
 
+import { useShallow } from "zustand/react/shallow"
+
 import {
   selectAllSeries,
   selectAllUnassignedVolumes,
@@ -19,8 +21,10 @@ export type { VolumeWithSeries } from "./use-library-filters"
  * @source
  */
 export function useLibrary() {
-  const series = useLibraryStore(selectAllSeries)
-  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
+  const series = useLibraryStore(useShallow(selectAllSeries))
+  const unassignedVolumes = useLibraryStore(
+    useShallow(selectAllUnassignedVolumes)
+  )
   const { fetchSeries, isLoading, seriesProgress } = useLibraryFetch()
   const mutations = useLibraryApiMutations()
   const filters = useLibraryFilters()

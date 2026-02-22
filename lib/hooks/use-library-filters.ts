@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useMemo } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { useCollectionsStore } from "@/lib/store/collections-store"
 import {
@@ -204,8 +205,10 @@ function matchesSeriesFilters(
 }
 
 export function useLibraryFilters() {
-  const series = useLibraryStore(selectAllSeries)
-  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
+  const series = useLibraryStore(useShallow(selectAllSeries))
+  const unassignedVolumes = useLibraryStore(
+    useShallow(selectAllUnassignedVolumes)
+  )
   const { filters, sortField, sortOrder } = useLibraryStore()
   const { activeCollectionIds, collections } = useCollectionsStore()
 
