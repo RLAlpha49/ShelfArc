@@ -1,20 +1,35 @@
 import Link from "next/link"
 
+import { AuthCTA } from "@/components/landing/auth-cta"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { createUserClient } from "@/lib/supabase/server"
 
 /**
  * Public landing page with hero, features, and CTA sections.
  * @source
  */
-export default async function HomePage() {
-  const supabase = await createUserClient()
-  const {
-    data: { user }
-  } = await supabase.auth.getUser()
+export default function HomePage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "ShelfArc",
+    url: "https://shelfarc.app",
+    description:
+      "Track, organize, and celebrate your light novel and manga collection with a beautifully crafted personal library manager.",
+    applicationCategory: "LibraryApplication",
+    operatingSystem: "Web",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD"
+    }
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Atmospheric background */}
       <div className="bg-hero-mesh fixed inset-0 -z-10" />
       <div className="noise-overlay pointer-events-none fixed inset-0 -z-10" />
@@ -44,29 +59,7 @@ export default async function HomePage() {
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            {user ? (
-              <Link
-                href="/library"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 glow-ring inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
-              >
-                Go to Library
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="text-foreground/70 hover:text-foreground inline-flex h-10 items-center justify-center px-4 text-sm font-medium transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 glow-ring inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm transition-all hover:shadow-md"
-                >
-                  Get Started
-                </Link>
-              </>
-            )}
+            <AuthCTA variant="nav" />
           </div>
         </div>
       </nav>
@@ -92,55 +85,7 @@ export default async function HomePage() {
                 </p>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  {user ? (
-                    <Link
-                      href="/library"
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-12 items-center justify-center rounded-xl px-8 text-sm font-semibold shadow-lg transition-all hover:shadow-xl active:scale-[0.98]"
-                    >
-                      Open My Library
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="ml-2 h-4 w-4"
-                      >
-                        <path d="M5 12h14" />
-                        <path d="m12 5 7 7-7 7" />
-                      </svg>
-                    </Link>
-                  ) : (
-                    <>
-                      <Link
-                        href="/signup"
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-12 items-center justify-center rounded-xl px-8 text-sm font-semibold shadow-lg transition-all hover:shadow-xl active:scale-[0.98]"
-                      >
-                        Start your collection
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="ml-2 h-4 w-4"
-                        >
-                          <path d="M5 12h14" />
-                          <path d="m12 5 7 7-7 7" />
-                        </svg>
-                      </Link>
-                      <Link
-                        href="/login"
-                        className="text-muted-foreground hover:text-foreground inline-flex h-12 items-center justify-center px-4 text-sm font-medium transition-colors"
-                      >
-                        Sign in to your library
-                      </Link>
-                    </>
-                  )}
+                  <AuthCTA variant="hero" />
                 </div>
               </div>
             </div>
