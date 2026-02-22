@@ -49,7 +49,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Upload Next build
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: next-build
           path: .next
@@ -103,7 +103,7 @@ jobs:
 
       - name: Download Next build
         if: ${{ steps.check-lhci-secrets.outputs.has_secrets == 'true' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: next-build
           path: .next
