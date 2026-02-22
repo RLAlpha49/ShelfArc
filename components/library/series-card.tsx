@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { memo, useMemo } from "react"
 
 import { CoverImage } from "@/components/library/cover-image"
 import { Badge } from "@/components/ui/badge"
@@ -33,7 +33,7 @@ interface SeriesCardProps {
  * @param props - {@link SeriesCardProps}
  * @source
  */
-export function SeriesCard({
+export const SeriesCard = memo(function SeriesCard({
   series,
   onEdit,
   onDelete,
@@ -253,4 +253,4 @@ export function SeriesCard({
       </div>
     </div>
   )
-}
+})

@@ -1,5 +1,7 @@
 "use client"
 
+import { memo } from "react"
+
 import { CoverImage } from "@/components/library/cover-image"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -45,7 +47,7 @@ interface VolumeCardProps {
  * @param props - {@link VolumeCardProps}
  * @source
  */
-export function VolumeCard({
+export const VolumeCard = memo(function VolumeCard({
   volume,
   seriesTitle,
   onClick,
@@ -451,4 +453,4 @@ export function VolumeCard({
       </div>
     </div>
   )
-}
+})
