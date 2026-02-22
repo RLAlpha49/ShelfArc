@@ -26,9 +26,9 @@ export default function VerifyEmailPage() {
   const [resendError, setResendError] = useState<string | null>(null)
   const [resendCountdown, setResendCountdown] = useState(0)
 
-  const supabase = createClient()
-
   useEffect(() => {
+    const supabase = createClient()
+
     async function checkVerification() {
       const {
         data: { user }
@@ -58,7 +58,7 @@ export default function VerifyEmailPage() {
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase, router])
+  }, [router])
 
   // Countdown timer: tick down 1s at a time using setTimeout
   useEffect(() => {
