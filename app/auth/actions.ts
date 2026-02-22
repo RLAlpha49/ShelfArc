@@ -5,7 +5,10 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { ALLOWED_REDIRECT_PREFIXES } from "@/lib/auth/constants"
-import { validatePassword } from "@/lib/auth/validate-password"
+import {
+  checkPasswordStrength,
+  validatePassword
+} from "@/lib/auth/validate-password"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { sanitizePlainText } from "@/lib/sanitize-html"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -130,6 +133,11 @@ export async function signup(formData: FormData) {
   const passwordError = validatePassword(password)
   if (passwordError) {
     return { error: passwordError }
+  }
+
+  const strengthError = checkPasswordStrength(password)
+  if (strengthError) {
+    return { error: strengthError }
   }
 
   const username = sanitizePlainText(rawUsername || "", 20)

@@ -1,3 +1,5 @@
+import zxcvbn from "zxcvbn"
+
 /**
  * Validates password strength against security requirements.
  * @param password - The password to validate.
@@ -16,6 +18,26 @@ export function validatePassword(password: string): string | null {
   }
   if (!/\d/.test(password)) {
     return "Password must include a number"
+  }
+  return null
+}
+
+/**
+ * Checks password strength using zxcvbn. Rejects passwords that are too
+ * predictable (score < 2 on a 0–4 scale) and surfaces actionable feedback.
+ *
+ * Returns an error message string if the password is too weak, or `null` if
+ * the password passes the strength threshold.
+ * @source
+ */
+export function checkPasswordStrength(password: string): string | null {
+  const result = zxcvbn(password)
+  if (result.score < 2) {
+    const warning = result.feedback.warning
+    const suggestion = result.feedback.suggestions[0]
+    if (warning) return warning
+    if (suggestion) return suggestion
+    return "Password is too weak. Please choose a stronger password."
   }
   return null
 }

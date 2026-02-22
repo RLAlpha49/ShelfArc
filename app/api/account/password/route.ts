@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
-import { validatePassword } from "@/lib/auth/validate-password"
+import {
+  checkPasswordStrength,
+  validatePassword
+} from "@/lib/auth/validate-password"
 import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
@@ -54,6 +57,11 @@ export async function POST(request: NextRequest) {
     const passwordError = validatePassword(newPassword)
     if (passwordError) {
       return apiError(400, passwordError, { correlationId })
+    }
+
+    const strengthError = checkPasswordStrength(newPassword)
+    if (strengthError) {
+      return apiError(400, strengthError, { correlationId })
     }
 
     // Enforce re-authentication server-side

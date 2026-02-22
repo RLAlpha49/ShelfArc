@@ -8,7 +8,10 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { validatePassword } from "@/lib/auth/validate-password"
+import {
+  checkPasswordStrength,
+  validatePassword
+} from "@/lib/auth/validate-password"
 import { createClient } from "@/lib/supabase/client"
 
 function computePasswordStrength(password: string): number {
@@ -94,6 +97,13 @@ function ResetPasswordContent() {
     const passwordError = validatePassword(password)
     if (passwordError) {
       setError(passwordError)
+      setLoading(false)
+      return
+    }
+
+    const strengthError = checkPasswordStrength(password)
+    if (strengthError) {
+      setError(strengthError)
       setLoading(false)
       return
     }

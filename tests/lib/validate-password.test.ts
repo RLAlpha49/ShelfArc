@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test"
 
-import { validatePassword } from "@/lib/auth/validate-password"
+import {
+  checkPasswordStrength,
+  validatePassword
+} from "@/lib/auth/validate-password"
 
 describe("validatePassword", () => {
   it("rejects empty password", () => {
@@ -43,5 +46,30 @@ describe("validatePassword", () => {
   it("accepts passwords at exactly 128 characters", () => {
     const pwd = "Aa1" + "x".repeat(125)
     expect(validatePassword(pwd)).toBeNull()
+  })
+})
+
+describe("checkPasswordStrength", () => {
+  it("rejects very weak passwords (score 0)", () => {
+    expect(checkPasswordStrength("password")).not.toBeNull()
+  })
+
+  it("rejects common dictionary-based passwords (score 1)", () => {
+    expect(checkPasswordStrength("qwerty123")).not.toBeNull()
+  })
+
+  it("accepts adequately strong passwords (score >= 2)", () => {
+    // Uncommon phrase with mixed case, number, and special char
+    expect(checkPasswordStrength("Tr0ub4dor&3")).toBeNull()
+  })
+
+  it("accepts high-entropy passwords", () => {
+    expect(checkPasswordStrength("correct horse battery staple")).toBeNull()
+  })
+
+  it("returns a string message for weak passwords", () => {
+    const result = checkPasswordStrength("123456")
+    expect(typeof result).toBe("string")
+    expect((result ?? "").length).toBeGreaterThan(0)
   })
 })

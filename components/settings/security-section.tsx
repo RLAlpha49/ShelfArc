@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { validatePassword } from "@/lib/auth/validate-password"
+import {
+  checkPasswordStrength,
+  validatePassword
+} from "@/lib/auth/validate-password"
 import { createClient } from "@/lib/supabase/client"
 
 interface SessionInfo {
@@ -88,6 +91,12 @@ export function SecuritySection() {
     const passwordError = validatePassword(newPassword)
     if (passwordError) {
       toast.error(passwordError)
+      return
+    }
+
+    const strengthError = checkPasswordStrength(newPassword)
+    if (strengthError) {
+      toast.error(strengthError)
       return
     }
 
