@@ -2,7 +2,6 @@ import { type NextRequest } from "next/server"
 
 import { apiError, apiSuccess } from "@/lib/api-response"
 import { getCorrelationId } from "@/lib/correlation"
-import { isRateLimited } from "@/lib/rate-limit"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createUserClient } from "@/lib/supabase/server"
@@ -61,13 +60,6 @@ export async function GET(request: NextRequest) {
     return apiError(429, "Too many requests", {
       extra: { retryAfterMs: distributed.retryAfterMs }
     })
-  }
-
-  const rateLimitKey = `username-check:${user.id}`
-  if (!distributed) {
-    if (isRateLimited(rateLimitKey, USERNAME_CHECK_RATE_LIMIT)) {
-      return apiError(429, "Too many requests")
-    }
   }
 
   const admin = createAdminClient({
