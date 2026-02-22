@@ -20,11 +20,6 @@ import {
 } from "@/lib/concurrency/limiter"
 import { getCorrelationId } from "@/lib/correlation"
 import { logger } from "@/lib/logger"
-import {
-  getCooldownRemaining,
-  isRateLimited,
-  recordFailure
-} from "@/lib/rate-limit"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
 import { createUserClient } from "@/lib/supabase/server"
 
@@ -54,6 +49,58 @@ const REQUEST_LIMIT_CONFIG = {
   failureWindowMs: 60_000,
   cooldownMs: 60_000
 } as const
+
+// ---------------------------------------------------------------------------
+// Instance-local circuit breaker for Amazon anti-bot detection.
+// Per-instance state is intentional: each serverless instance independently
+// protects itself from triggering captcha loops in the same invocation window.
+// ---------------------------------------------------------------------------
+
+interface CircuitBreakerState {
+  failures: number[]
+  cooldownUntil: number
+}
+const circuitBreakerStore = new Map<string, CircuitBreakerState>()
+
+function cbIsTripped(
+  key: string,
+  config: { maxFailures: number; failureWindowMs: number; cooldownMs: number }
+): boolean {
+  const now = Date.now()
+  const state = circuitBreakerStore.get(key)
+  if (!state) return false
+  if (state.cooldownUntil > now) return true
+  state.failures = state.failures.filter(
+    (ts) => now - ts < config.failureWindowMs
+  )
+  return false
+}
+
+function cbGetRemainingMs(key: string): number {
+  const state = circuitBreakerStore.get(key)
+  if (!state) return 0
+  return Math.max(0, state.cooldownUntil - Date.now())
+}
+
+function cbRecordFailure(
+  key: string,
+  config: { maxFailures: number; failureWindowMs: number; cooldownMs: number }
+): void {
+  const now = Date.now()
+  let state = circuitBreakerStore.get(key)
+  if (!state) {
+    state = { failures: [], cooldownUntil: 0 }
+    circuitBreakerStore.set(key, state)
+  }
+  state.failures = state.failures.filter(
+    (ts) => now - ts < config.failureWindowMs
+  )
+  state.failures.push(now)
+  if (state.failures.length >= config.maxFailures) {
+    state.cooldownUntil = now + config.cooldownMs
+    state.failures = []
+  }
+}
 
 /** Limits concurrent Amazon scrapes per instance to reduce overload. @source */
 const amazonLimiter = new ConcurrencyLimiter({
@@ -116,11 +163,11 @@ const jsonError = (error: ApiError) => {
  * @source
  */
 const checkGlobalCooldown = () => {
-  if (!isRateLimited(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)) {
+  if (!cbIsTripped(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)) {
     return null
   }
 
-  const remaining = getCooldownRemaining(RATE_LIMIT_KEY)
+  const remaining = cbGetRemainingMs(RATE_LIMIT_KEY)
   const minutes = Math.ceil(remaining / 60_000)
   return apiError(
     429,
@@ -143,23 +190,12 @@ const enforceRequestRateLimit = async (requestLimitKey: string) => {
     reason: "Rate limit price scraping"
   })
 
-  if (distributed) {
-    if (!distributed.allowed) {
-      return apiError(429, "Too many requests", {
-        extra: { retryAfterMs: distributed.retryAfterMs }
-      })
-    }
-    return null
-  }
-
-  if (isRateLimited(requestLimitKey, REQUEST_LIMIT_CONFIG)) {
-    const remaining = getCooldownRemaining(requestLimitKey)
+  if (distributed && !distributed.allowed) {
     return apiError(429, "Too many requests", {
-      extra: { cooldownMs: remaining }
+      extra: { retryAfterMs: distributed.retryAfterMs }
     })
   }
 
-  recordFailure(requestLimitKey, REQUEST_LIMIT_CONFIG)
   return null
 }
 
@@ -477,7 +513,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof ApiError) {
       // Record captcha / bot-gate failures toward cooldown
       if (error.status === 429) {
-        recordFailure(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)
+        cbRecordFailure(RATE_LIMIT_KEY, RATE_LIMIT_CONFIG)
       }
       log.info("Price pipeline error", {
         pipelineMs,
