@@ -6,7 +6,8 @@ import {
   DollarCircleIcon,
   FileValidationIcon,
   InformationCircleIcon,
-  SearchIcon
+  SearchIcon,
+  UserAdd01Icon
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { useRouter } from "next/navigation"
@@ -29,6 +30,7 @@ const typeConfig: Record<
     icon: InformationCircleIcon,
     className: "text-violet-500"
   },
+  new_follow: { icon: UserAdd01Icon, className: "text-sky-500" },
   info: { icon: InformationCircleIcon, className: "text-muted-foreground" }
 }
 
@@ -37,6 +39,7 @@ const typeGroupLabel: Record<NotificationType, string> = {
   scrape_complete: "scrape complete",
   price_alert: "price alerts",
   release_reminder: "release reminders",
+  new_follow: "new followers",
   info: "notifications"
 }
 
