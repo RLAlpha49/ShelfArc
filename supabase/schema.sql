@@ -1487,7 +1487,6 @@ BEGIN
         SELECT COUNT(*) FROM public.volumes
         WHERE series_id = OLD.series_id
           AND ownership_status = 'owned'
-          AND deleted_at IS NULL
       )
       WHERE id = OLD.series_id;
     END IF;
@@ -1500,7 +1499,6 @@ BEGIN
       SELECT COUNT(*) FROM public.volumes
       WHERE series_id = v_series_id
         AND ownership_status = 'owned'
-        AND deleted_at IS NULL
     )
     WHERE id = v_series_id;
   END IF;
