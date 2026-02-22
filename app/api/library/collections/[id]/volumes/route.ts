@@ -24,6 +24,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   try {
     const result = await protectedRoute(request, {
+      csrf: true,
       rateLimit: RATE_LIMITS.mutationWrite
     })
     if (!result.ok) return result.error
@@ -79,6 +80,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
 
   try {
     const result = await protectedRoute(request, {
+      csrf: true,
       rateLimit: RATE_LIMITS.mutationWrite
     })
     if (!result.ok) return result.error

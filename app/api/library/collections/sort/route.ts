@@ -14,6 +14,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const result = await protectedRoute(request, {
+      csrf: true,
       rateLimit: RATE_LIMITS.mutationWrite
     })
     if (!result.ok) return result.error
