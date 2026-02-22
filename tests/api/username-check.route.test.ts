@@ -117,7 +117,9 @@ describe("GET /api/username/check", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    rateLimitMocks.isRateLimited.mockReturnValue(true)
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false, retryAfterMs: 0 } as unknown as null
+    )
 
     const { GET } = await loadRoute()
     const response = await GET(
@@ -127,7 +129,6 @@ describe("GET /api/username/check", () => {
     const body = await readJson<{ error: string }>(response)
     expect(response.status).toBe(429)
     expect(body.error).toBe("Too many requests")
-    expect(rateLimitMocks.recordFailure).toHaveBeenCalledTimes(0)
   })
 
   it("returns 500 when admin query fails", async () => {

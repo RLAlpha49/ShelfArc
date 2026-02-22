@@ -157,11 +157,13 @@ describe("GET /api/books/price", () => {
   })
 
   it("returns 429 when rate limited", async () => {
-    registerRateLimitMocks({
-      isRateLimited: mock(() => true),
-      getCooldownRemaining: mock(() => 120_000)
+    registerRateLimitMocks()
+    registerDistributedRateLimitMocks({
+      consumeDistributedRateLimit: mock(async () => ({
+        allowed: false,
+        retryAfterMs: 120_000
+      }))
     })
-    registerDistributedRateLimitMocks()
     registerAmazonPriceMocks()
 
     const { GET } = await loadRoute()
@@ -170,10 +172,12 @@ describe("GET /api/books/price", () => {
       makeNextRequest("http://localhost/api/books/price?title=My%20Book")
     )
 
-    const body = await readJson<{ error: string; cooldownMs: number }>(response)
+    const body = await readJson<{ error: string; retryAfterMs: number }>(
+      response
+    )
     expect(response.status).toBe(429)
-    expect(body.cooldownMs).toBe(120_000)
-    expect(body.error).toContain("Amazon scraping is temporarily disabled")
+    expect(body.retryAfterMs).toBe(120_000)
+    expect(body.error).toBe("Too many requests")
   })
 
   it("returns parsed Amazon result payload", async () => {
