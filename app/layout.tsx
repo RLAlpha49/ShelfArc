@@ -1,6 +1,6 @@
 import "./globals.css"
 
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter, Lora } from "next/font/google"
 
 import { SettingsApplier } from "@/components/settings-applier"
@@ -20,14 +20,52 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
-  preload: false
+  preload: true
 })
 
 /** Global page metadata for ShelfArc. @source */
 export const metadata: Metadata = {
+  metadataBase: new URL("https://shelfarc.app"),
   title: "ShelfArc — Your Personal Library, Beautifully Organized",
   description:
-    "Track, organize, and celebrate your light novel and manga collection with a beautifully crafted personal library manager."
+    "Track, organize, and celebrate your light novel and manga collection with a beautifully crafted personal library manager.",
+  openGraph: {
+    type: "website",
+    url: "https://shelfarc.app",
+    siteName: "ShelfArc",
+    title: "ShelfArc — Your Personal Library, Beautifully Organized",
+    description:
+      "Track, organize, and celebrate your light novel and manga collection with a beautifully crafted personal library manager.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ShelfArc — Your Personal Library, Beautifully Organized"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ShelfArc — Your Personal Library, Beautifully Organized",
+    description:
+      "Track, organize, and celebrate your light novel and manga collection with a beautifully crafted personal library manager.",
+    images: ["/og-image.png"]
+  },
+  robots: {
+    index: true,
+    follow: true
+  }
+}
+
+/** Viewport configuration for responsive display and theme colors. @source */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" }
+  ]
 }
 
 /**
