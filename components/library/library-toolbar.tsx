@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useSyncExternalStore } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { FilterPresetsControl } from "@/components/library/filter-presets-control"
 import { TagFilterControl } from "@/components/library/tag-filter-control"
@@ -65,7 +66,7 @@ interface FilterControlsProps {
 }
 
 function FilterControls({ layout = "horizontal" }: FilterControlsProps) {
-  const series = useLibraryStore(selectAllSeries)
+  const series = useLibraryStore(useShallow(selectAllSeries))
   const { filters, setFilters, resetFilters } = useLibraryStore()
 
   const availableTags = useMemo(() => {

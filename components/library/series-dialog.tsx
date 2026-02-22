@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
+import { useShallow } from "zustand/react/shallow"
 
 import { CoverImage } from "@/components/library/cover-image"
 import { Button } from "@/components/ui/button"
@@ -163,7 +164,7 @@ export function SeriesDialog({
   const wasOpenRef = useRef(false)
   const isEditing = Boolean(series)
 
-  const allSeries = useLibraryStore(selectAllSeries)
+  const allSeries = useLibraryStore(useShallow(selectAllSeries))
   const allLibraryTags = useMemo(() => {
     const tagSet = new Set<string>()
     for (const s of allSeries) {

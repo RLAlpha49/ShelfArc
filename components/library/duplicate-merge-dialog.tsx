@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { useShallow } from "zustand/react/shallow"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -308,8 +309,10 @@ export function DuplicateMergeDialog({
   readonly onOpenChange: (open: boolean) => void
 }) {
   const { fetchSeries, editVolume, removeVolume } = useLibrary()
-  const series = useLibraryStore(selectAllSeries)
-  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
+  const series = useLibraryStore(useShallow(selectAllSeries))
+  const unassignedVolumes = useLibraryStore(
+    useShallow(selectAllUnassignedVolumes)
+  )
 
   const groups = useMemo(() => {
     return buildDuplicateGroups(series, unassignedVolumes)

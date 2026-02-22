@@ -9,6 +9,7 @@ import {
   useRef,
   useState
 } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { CoverImage } from "@/components/library/cover-image"
 import {
@@ -156,8 +157,10 @@ export function BookSearchDialog({
     (s) => s.defaultOwnershipStatus
   )
   const defaultSearchSource = useSettingsStore((s) => s.defaultSearchSource)
-  const librarySeries = useLibraryStore(selectAllSeries)
-  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
+  const librarySeries = useLibraryStore(useShallow(selectAllSeries))
+  const unassignedVolumes = useLibraryStore(
+    useShallow(selectAllUnassignedVolumes)
+  )
 
   const [query, setQuery] = useState(initialQuery)
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)

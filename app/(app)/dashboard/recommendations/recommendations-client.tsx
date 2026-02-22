@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { RecommendationsCard } from "@/components/library/recommendations-card"
 import {
@@ -36,7 +37,7 @@ export function RecommendationsClient({
 }: {
   readonly initialSuggestions: SuggestedBuy[]
 }) {
-  const series = useLibraryStore(selectAllSeries)
+  const series = useLibraryStore(useShallow(selectAllSeries))
   const isLoaded = useLibraryStore((s) => s.lastFetchedAt !== null)
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const dismissedSuggestions = useLibraryStore((s) => s.dismissedSuggestions)

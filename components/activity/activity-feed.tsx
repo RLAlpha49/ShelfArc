@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { ActivityEventItem } from "@/components/activity/activity-event-item"
 import {
@@ -96,7 +97,7 @@ export function ActivityFeed() {
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | undefined>(
     undefined
   )
-  const allSeries = useLibraryStore(selectAllSeries)
+  const allSeries = useLibraryStore(useShallow(selectAllSeries))
 
   useEffect(() => {
     const afterDate = getAfterDate(dateRange)

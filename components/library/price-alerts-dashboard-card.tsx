@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { fetchPriceAlerts } from "@/lib/api/endpoints"
@@ -18,7 +19,7 @@ interface AlertWithInfo extends PriceAlert {
 export function PriceAlertsDashboardCard() {
   const [alerts, setAlerts] = useState<PriceAlert[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const series = useLibraryStore(selectAllSeries)
+  const series = useLibraryStore(useShallow(selectAllSeries))
   const priceDisplayCurrency = useLibraryStore((s) => s.priceDisplayCurrency)
   const dateFormat = useSettingsStore((s) => s.dateFormat)
 

@@ -9,6 +9,7 @@ import {
   useState,
   useSyncExternalStore
 } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import {
   Command,
@@ -356,8 +357,10 @@ export function CommandPalette() {
   const setViewMode = useLibraryStore((s) => s.setViewMode)
   const setNavigationMode = useSettingsStore((s) => s.setNavigationMode)
 
-  const series = useLibraryStore(selectAllSeries)
-  const unassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
+  const series = useLibraryStore(useShallow(selectAllSeries))
+  const unassignedVolumes = useLibraryStore(
+    useShallow(selectAllUnassignedVolumes)
+  )
   const recentEntries = useRecentlyVisitedStore((s) => s.entries)
 
   const { fetchSeries, isLoading } = useLibraryFetch()

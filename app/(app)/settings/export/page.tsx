@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { useShallow } from "zustand/react/shallow"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -58,8 +59,10 @@ function csvEscape(value: unknown): string {
 /** Export page allowing users to download their library as JSON or CSV. @source */
 export default function ExportPage() {
   const { series, isLoading, fetchSeries } = useLibrary()
-  const storeSeries = useLibraryStore(selectAllSeries)
-  const storeUnassignedVolumes = useLibraryStore(selectAllUnassignedVolumes)
+  const storeSeries = useLibraryStore(useShallow(selectAllSeries))
+  const storeUnassignedVolumes = useLibraryStore(
+    useShallow(selectAllUnassignedVolumes)
+  )
 
   useEffect(() => {
     if (series.length === 0) fetchSeries()
