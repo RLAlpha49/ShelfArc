@@ -105,6 +105,9 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
   const resolvedAvatarUrl = resolveImageUrl(avatarUrl)
   const avatarPreview = avatarPreviewUrl || resolvedAvatarUrl
+  // Only expose the object URL when it is genuinely a browser-created blob URL,
+  // preventing any tainted value from reaching the DOM as an image source.
+  const safeCropUrl = cropObjectUrl?.startsWith("blob:") ? cropObjectUrl : null
 
   useEffect(() => {
     setAvatarPreviewError(false)
@@ -629,7 +632,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
       </div>
 
       {/* Avatar crop modal */}
-      {cropFile && cropObjectUrl && cropObjectUrl.startsWith("blob:") && (
+      {cropFile && safeCropUrl && (
         <dialog
           open
           className="bg-background/80 fixed inset-0 z-50 m-0 flex h-full w-full max-w-none items-center justify-center border-none p-0 backdrop-blur-sm"
@@ -641,11 +644,11 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
             </h2>
             <p className="text-muted-foreground mb-4 text-center text-xs">
               Your image will be center-cropped to a 1:1 square and resized to
-              512\u00d7512.
+              512×512.
             </p>
             <div className="flex justify-center">
               <img
-                src={cropObjectUrl}
+                src={safeCropUrl}
                 alt="Crop preview"
                 style={{ width: 200, height: 200, objectFit: "cover" }}
                 className="ring-primary rounded-full ring-4"
