@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("price_history")
-      .select("*")
+      .select("id, volume_id, price, currency, source, product_url, scraped_at")
       .eq("volume_id", volumeId)
       .eq("user_id", user.id)
       .order("scraped_at", { ascending: false })
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const today = new Date().toISOString().split("T")[0]
     const { data: existing } = await supabase
       .from("price_history")
-      .select("*")
+      .select("id, volume_id, price, currency, source, product_url, scraped_at")
       .eq("volume_id", validated.volumeId)
       .eq("user_id", user.id)
       .gte("scraped_at", today)

@@ -37,7 +37,12 @@ export async function GET(request: NextRequest) {
 
     const volumeId = request.nextUrl.searchParams.get("volumeId")
 
-    let query = supabase.from("price_alerts").select("*").eq("user_id", user.id)
+    let query = supabase
+      .from("price_alerts")
+      .select(
+        "id, volume_id, user_id, target_price, currency, enabled, triggered_at, snoozed_until, created_at, updated_at"
+      )
+      .eq("user_id", user.id)
 
     if (volumeId) {
       query = query.eq("volume_id", volumeId)

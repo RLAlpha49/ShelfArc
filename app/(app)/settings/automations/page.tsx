@@ -14,7 +14,9 @@ export default async function AutomationsSettingsPage() {
 
   const { data: automations } = await supabase
     .from("automations")
-    .select("*")
+    .select(
+      "id, name, trigger_type, conditions, actions, enabled, last_triggered_at, created_at, updated_at"
+    )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 
