@@ -45,7 +45,10 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+              // The boot script in app/layout.tsx is allow-listed by its SHA-256 hash. In development we re-add 'unsafe-inline' + 'unsafe-eval' for HMR.
+              `script-src 'self' 'sha256-+YuD4zenI3s0uiWlxRjPVUd5/ufKvohFmCZOdVx71cg='${process.env.NODE_ENV === "development" ? " 'unsafe-inline' 'unsafe-eval'" : ""}`,
+              // 'unsafe-inline' is intentionally kept for style-src: it is required by Tailwind's
+              // runtime class generation and CSS-in-JS patterns and carries lower XSS risk.
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: blob: https:",
               "font-src 'self' https://fonts.gstatic.com",
