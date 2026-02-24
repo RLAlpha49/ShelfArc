@@ -39,7 +39,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
     const { data: series, error } = await supabase
       .from("series")
-      .select("*")
+      .select(
+        "id, title, original_title, description, notes, author, artist, publisher, cover_image_url, type, total_volumes, owned_volume_count, status, tags, is_public, created_at, updated_at"
+      )
       .eq("id", id)
       .eq("user_id", user.id)
       .single()
@@ -50,7 +52,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
     const { data: volumes } = await supabase
       .from("volumes")
-      .select("*")
+      .select(
+        "id, series_id, volume_number, title, description, isbn, cover_image_url, edition, format, page_count, publish_date, purchase_date, purchase_price, purchase_currency, ownership_status, reading_status, current_page, amazon_url, rating, notes, started_at, finished_at, created_at, updated_at, release_reminder"
+      )
       .eq("series_id", id)
       .eq("user_id", user.id)
       .order("volume_number", { ascending: true })

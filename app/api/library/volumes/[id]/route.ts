@@ -84,7 +84,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
     const { data: volume, error } = await supabase
       .from("volumes")
-      .select("*")
+      .select(
+        "id, series_id, volume_number, title, description, isbn, cover_image_url, edition, format, page_count, publish_date, purchase_date, purchase_price, purchase_currency, ownership_status, reading_status, current_page, amazon_url, rating, notes, started_at, finished_at, created_at, updated_at, release_reminder"
+      )
       .eq("id", id)
       .eq("user_id", user.id)
       .single()

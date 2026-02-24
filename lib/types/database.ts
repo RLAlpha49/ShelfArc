@@ -124,6 +124,7 @@ export interface Database {
           cover_image_url: string | null
           type: TitleType
           total_volumes: number | null
+          owned_volume_count: number
           status: SeriesStatus | null
           tags: string[]
           is_public: boolean
@@ -143,6 +144,7 @@ export interface Database {
           cover_image_url?: string | null
           type?: TitleType
           total_volumes?: number | null
+          owned_volume_count?: number
           status?: SeriesStatus | null
           tags?: string[]
           is_public?: boolean
@@ -162,6 +164,7 @@ export interface Database {
           cover_image_url?: string | null
           type?: TitleType
           total_volumes?: number | null
+          owned_volume_count?: number
           status?: SeriesStatus | null
           tags?: string[]
           is_public?: boolean
