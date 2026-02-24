@@ -652,6 +652,30 @@ function ImportProgress({
 }
 
 /**
+ * Computes updated phase statuses when advancing to a new import phase.
+ * @param prev - Current phase array.
+ * @param index - Index of the newly active phase.
+ * @param label - Optional label override for the active phase.
+ * @returns Updated phase array.
+ */
+function mapImportPhaseUpdate(
+  prev: ImportPhase[],
+  index: number,
+  label?: string
+): ImportPhase[] {
+  return prev.map((p, i) => {
+    let status: ImportPhase["status"] = "pending"
+    if (i < index) status = "complete"
+    else if (i === index) status = "active"
+    return {
+      ...p,
+      label: i === index && label ? label : p.label,
+      status
+    }
+  })
+}
+
+/**
  * JSON import form for restoring a ShelfArc backup (merge or replace mode).
  * @source
  */
@@ -763,18 +787,7 @@ export function JsonImport() {
     )
 
     const onPhase = (index: number, label?: string) => {
-      setImportPhases((prev) =>
-        prev.map((p, i) => {
-          let status: ImportPhase["status"] = "pending"
-          if (i < index) status = "complete"
-          else if (i === index) status = "active"
-          return {
-            ...p,
-            label: i === index && label ? label : p.label,
-            status
-          }
-        })
-      )
+      setImportPhases((prev) => mapImportPhaseUpdate(prev, index, label))
     }
 
     try {
