@@ -1283,58 +1283,52 @@ export function DashboardContent({
   )
 
   const widgetRenderers: Partial<Record<DashboardWidgetId, React.ReactNode>> = {
-    stats: isVisible("stats") ? (
-      <StatsWidget stats={stats} priceFormatter={priceFormatter} />
-    ) : null,
-    "currently-reading": isVisible("currently-reading") ? (
+    stats: <StatsWidget stats={stats} priceFormatter={priceFormatter} />,
+    "currently-reading": (
       <CurrentlyReadingWidget currentlyReading={currentlyReading} />
-    ) : null,
-    "recently-added": isVisible("recently-added") ? (
+    ),
+    "recently-added": (
       <RecentlyAddedWidget
         recentSeries={filteredRecentSeries}
         recentVolumes={filteredRecentVolumes}
         priceFormatter={priceFormatter}
         dateFormat={dateFormat}
       />
-    ) : null,
-    recommendations: isVisible("recommendations") ? (
+    ),
+    recommendations: (
       <RecommendationsWidget
         suggestedNextBuys={suggestedNextBuys}
         suggestionCounts={suggestionCounts}
         priceFormatter={priceFormatter}
       />
-    ) : null,
-    breakdown: isVisible("breakdown") ? (
-      <BreakdownWidget stats={stats} />
-    ) : null,
-    health: isVisible("health") ? (
-      <HealthWidget healthScore={healthScore} series={series} />
-    ) : null,
-    activity: isVisible("activity") ? <ActivityWidget /> : null,
-    progress: isVisible("progress") ? <ProgressWidget stats={stats} /> : null,
-    "price-tracking": isVisible("price-tracking") ? (
+    ),
+    breakdown: <BreakdownWidget stats={stats} />,
+    health: <HealthWidget healthScore={healthScore} series={series} />,
+    activity: <ActivityWidget />,
+    progress: <ProgressWidget stats={stats} />,
+    "price-tracking": (
       <PriceTrackingWidget
         priceBreakdown={priceBreakdown}
         ownedVolumes={stats.ownedVolumes}
         priceFormatter={priceFormatter}
       />
-    ) : null,
-    wishlist: isVisible("wishlist") ? (
+    ),
+    wishlist: (
       <WishlistWidget
         wishlistStats={wishlistStats}
         wishlistCount={stats.wishlistCount}
         totalVolumes={stats.totalVolumes}
         priceFormatter={priceFormatter}
       />
-    ) : null,
-    releases: isVisible("releases") ? (
+    ),
+    releases: (
       <ReleasesWidget
         upcomingReleases={upcomingReleases}
         dateFormat={dateFormat}
       />
-    ) : null,
-    "price-alerts": isVisible("price-alerts") ? <PriceAlertsWidget /> : null,
-    "spending-chart": isVisible("spending-chart") ? (
+    ),
+    "price-alerts": <PriceAlertsWidget />,
+    "spending-chart": (
       <SpendingChartWidget
         spendingTimeSeries={spendingTimeSeries}
         initialBars={spendingInitialBars}
@@ -1342,27 +1336,27 @@ export function DashboardContent({
         undatedPricedVolumes={stats.undatedPricedVolumes}
         undatedPricedSpent={stats.undatedPricedSpent}
       />
-    ) : null,
-    "reading-velocity": isVisible("reading-velocity") ? (
+    ),
+    "reading-velocity": (
       <ReadingVelocityChartWidget
         velocityTimeSeries={velocityTimeSeries}
         initialBars={velocityInitialBars}
         priceFormatter={priceFormatter}
       />
-    ) : null,
-    "tag-analytics": isVisible("tag-analytics") ? (
+    ),
+    "tag-analytics": (
       <TagAnalyticsWidget
         tagBreakdown={tagBreakdown}
         priceFormatter={priceFormatter}
       />
-    ) : null,
-    "rating-distribution": isVisible("rating-distribution") ? (
+    ),
+    "rating-distribution": (
       <RatingDistributionWidget
         distribution={ratingDistribution}
         unratedCount={ratingUnratedCount}
       />
-    ) : null,
-    backlog: isVisible("backlog") ? <BacklogWidget stats={stats} /> : null
+    ),
+    backlog: <BacklogWidget stats={stats} />
   }
 
   return (
