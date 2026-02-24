@@ -146,7 +146,7 @@ export async function PATCH(request: NextRequest) {
       return apiError(500, "Failed to update profile", { correlationId })
     }
 
-    await supabase.auth.updateUser({
+    const { error: metaError } = await supabase.auth.updateUser({
       data: {
         ...(fields.username !== undefined && {
           username: fields.username,
@@ -157,6 +157,16 @@ export async function PATCH(request: NextRequest) {
         })
       }
     })
+    if (metaError) {
+      log.warn("Failed to sync auth user metadata after profile update", {
+        error: metaError.message
+      })
+      return apiError(
+        500,
+        "Profile updated but metadata sync failed; please retry.",
+        { correlationId }
+      )
+    }
 
     log.info("Profile updated", { userId: user.id })
     return apiSuccess({ updated: true }, { correlationId })
