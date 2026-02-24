@@ -29,6 +29,46 @@ const COLUMN_ABBR: Record<DashboardWidgetColumn, string> = {
   right: "R"
 }
 
+interface ColumnButtonsProps {
+  readonly widget: DashboardWidgetMeta
+  readonly activeColumn: DashboardWidgetColumn
+  readonly onSetColumn: (col: DashboardWidgetColumn) => void
+}
+
+/**
+ * Renders the L/R/F column selector buttons for a single dashboard widget row.
+ * @source
+ */
+function ColumnButtons({
+  widget,
+  activeColumn,
+  onSetColumn
+}: ColumnButtonsProps) {
+  return (
+    <>
+      {(["left", "right", "full"] as const).map((col) => {
+        const isActive = activeColumn === col
+        return (
+          <button
+            key={col}
+            type="button"
+            onClick={() => onSetColumn(col)}
+            className={
+              isActive
+                ? "bg-primary/10 text-primary rounded px-1 py-0.5 text-[9px] font-semibold"
+                : "text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-[9px] font-medium transition-colors"
+            }
+            aria-label={`Set ${widget.label} to ${col} column`}
+            aria-pressed={isActive}
+          >
+            {COLUMN_ABBR[col]}
+          </button>
+        )
+      })}
+    </>
+  )
+}
+
 /**
  * Standalone panel content — embed in a Sheet, Dialog, or other container.
  * @source
@@ -159,27 +199,15 @@ export function DashboardLayoutCustomizerContent() {
                         {widget.label}
                       </label>
                       <div className="flex shrink-0 items-center gap-0.5">
-                        {(["left", "right", "full"] as const).map((col) => {
-                          const isActive =
-                            (layout.columns?.[widget.id] ?? widget.column) ===
-                            col
-                          return (
-                            <button
-                              key={col}
-                              type="button"
-                              onClick={() => setColumnOverride(widget.id, col)}
-                              className={
-                                isActive
-                                  ? "bg-primary/10 text-primary rounded px-1 py-0.5 text-[9px] font-semibold"
-                                  : "text-muted-foreground hover:text-foreground rounded px-1 py-0.5 text-[9px] font-medium transition-colors"
-                              }
-                              aria-label={`Set ${widget.label} to ${col} column`}
-                              aria-pressed={isActive}
-                            >
-                              {COLUMN_ABBR[col]}
-                            </button>
-                          )
-                        })}
+                        <ColumnButtons
+                          widget={widget}
+                          activeColumn={
+                            layout.columns?.[widget.id] ?? widget.column
+                          }
+                          onSetColumn={(col) =>
+                            setColumnOverride(widget.id, col)
+                          }
+                        />
                         <button
                           type="button"
                           onClick={() => moveWidget(widget.id, "up")}
