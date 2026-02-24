@@ -68,10 +68,17 @@ export function AppShell({ children, user }: AppShellProps) {
     return unsub
   }, [])
 
-  // Load settings from server on mount (non-blocking)
+  // Load settings from server on mount (non-blocking), skipping if data is fresh
   useEffect(() => {
-    useSettingsStore.getState().loadFromServer()
-    useNotificationStore.getState().loadFromServer()
+    const STALE_MS = 5 * 60 * 1000
+    const settingsLastSynced = useSettingsStore.getState().lastSyncedAt
+    if (!settingsLastSynced || Date.now() - settingsLastSynced > STALE_MS) {
+      useSettingsStore.getState().loadFromServer()
+    }
+    const notifLastSynced = useNotificationStore.getState().lastSyncedAt
+    if (!notifLastSynced || Date.now() - notifLastSynced > STALE_MS) {
+      useNotificationStore.getState().loadFromServer()
+    }
   }, [])
 
   const handleOnboardingOpenChange = useCallback(
