@@ -97,6 +97,88 @@ function toastBatchOp(
 }
 
 /**
+ * Builds a flat lookup map from volume ID to Volume across all series and unassigned volumes.
+ * @param series - All series with their volumes.
+ * @param unassignedVolumes - Volumes not assigned to any series.
+ * @returns Map of volume ID → Volume.
+ */
+function buildVolumeLookup(
+  series: SeriesWithVolumes[],
+  unassignedVolumes: Volume[]
+): Map<string, Volume> {
+  const map = new Map<string, Volume>()
+  for (const seriesItem of series) {
+    for (const volume of seriesItem.volumes) {
+      map.set(volume.id, volume)
+    }
+  }
+  for (const volume of unassignedVolumes) {
+    map.set(volume.id, volume)
+  }
+  return map
+}
+
+/**
+ * Returns the next sequential volume number for a series.
+ * Falls back to 1 when the series cannot be found.
+ * @param seriesId - The target series ID, or null for unassigned.
+ * @param series - Full series list.
+ * @returns Suggested next volume number.
+ */
+function computeNextVolumeNumber(
+  seriesId: string | null,
+  series: SeriesWithVolumes[]
+): number {
+  if (!seriesId) return 1
+  const targetSeries = series.find((item) => item.id === seriesId)
+  if (!targetSeries) return 1
+  const maxVolume = targetSeries.volumes.reduce(
+    (max, volume) => Math.max(max, volume.volume_number),
+    0
+  )
+  return maxVolume + 1
+}
+
+/** Animated pull-to-refresh indicator shown at the top of the page. */
+function PullToRefreshIndicator({
+  isPulling,
+  isRefreshing,
+  pullDistance
+}: {
+  readonly isPulling: boolean
+  readonly isRefreshing: boolean
+  readonly pullDistance: number
+}) {
+  if (!isPulling && !isRefreshing) return null
+  return (
+    <div
+      className="pointer-events-none fixed top-0 right-0 left-0 z-50 flex justify-center"
+      style={{
+        transform: isRefreshing
+          ? "translateY(0)"
+          : `translateY(${Math.min(pullDistance - 40, 20)}px)`,
+        opacity: isRefreshing ? 1 : Math.min(pullDistance / 80, 1),
+        transition: isRefreshing ? "transform 0.2s ease" : "none"
+      }}
+    >
+      <div className="bg-background/90 mt-2 rounded-full border p-2 shadow-lg backdrop-blur-sm">
+        <svg
+          className={`text-copper h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+/**
  * Main library page for browsing, filtering, and managing the user's series and volume collection.
  * @source
  */
@@ -247,18 +329,10 @@ export default function LibraryClient({
     return Array.from(new Set(normalized))
   }, [existingEntries])
 
-  const volumeLookup = useMemo(() => {
-    const map = new Map<string, Volume>()
-    for (const seriesItem of series) {
-      for (const volume of seriesItem.volumes) {
-        map.set(volume.id, volume)
-      }
-    }
-    for (const volume of unassignedVolumes) {
-      map.set(volume.id, volume)
-    }
-    return map
-  }, [series, unassignedVolumes])
+  const volumeLookup = useMemo(
+    () => buildVolumeLookup(series, unassignedVolumes),
+    [series, unassignedVolumes]
+  )
 
   const handleSeriesNavigate = useCallback(
     (seriesItem: SeriesWithVolumes) => {
@@ -302,16 +376,7 @@ export default function LibraryClient({
   })
 
   const getNextVolumeNumber = useCallback(
-    (seriesId: string | null) => {
-      if (!seriesId) return 1
-      const targetSeries = series.find((item) => item.id === seriesId)
-      if (!targetSeries) return 1
-      const maxVolume = targetSeries.volumes.reduce(
-        (max, volume) => Math.max(max, volume.volume_number),
-        0
-      )
-      return maxVolume + 1
-    },
+    (seriesId: string | null) => computeNextVolumeNumber(seriesId, series),
     [series]
   )
 
@@ -788,32 +853,11 @@ export default function LibraryClient({
       className={`relative px-6 py-8 lg:px-10 ${selectedCount > 0 ? "pb-20" : ""}`}
     >
       {/* Pull-to-refresh indicator */}
-      {(isPulling || isRefreshing) && (
-        <div
-          className="pointer-events-none fixed top-0 right-0 left-0 z-50 flex justify-center"
-          style={{
-            transform: isRefreshing
-              ? "translateY(0)"
-              : `translateY(${Math.min(pullDistance - 40, 20)}px)`,
-            opacity: isRefreshing ? 1 : Math.min(pullDistance / 80, 1),
-            transition: isRefreshing ? "transform 0.2s ease" : "none"
-          }}
-        >
-          <div className="bg-background/90 mt-2 rounded-full border p-2 shadow-lg backdrop-blur-sm">
-            <svg
-              className={`text-copper h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-          </div>
-        </div>
-      )}
+      <PullToRefreshIndicator
+        isPulling={isPulling}
+        isRefreshing={isRefreshing}
+        pullDistance={pullDistance}
+      />
 
       {/* Atmospheric background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--warm-glow-strong),transparent_70%)]" />
