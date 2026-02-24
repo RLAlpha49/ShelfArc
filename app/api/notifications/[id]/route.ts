@@ -112,20 +112,17 @@ export async function DELETE(
       return apiError(400, "Invalid notification id", { correlationId })
     }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("notifications")
       .delete()
       .eq("id", id)
       .eq("user_id", user.id)
-      .select()
-      .single()
 
     if (error) {
       log.error("Failed to delete notification", { error: error.message })
       return apiError(404, "Notification not found", { correlationId })
     }
 
-    void data
     return new NextResponse(null, {
       status: 204,
       headers: { [CORRELATION_HEADER]: correlationId }
