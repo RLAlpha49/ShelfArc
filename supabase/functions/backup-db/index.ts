@@ -115,52 +115,32 @@ const gzipJson = async (json: string) => {
 }
 
 /**
- * Validates the request using either a shared secret header or a JWT Bearer token.
+ * Validates the request by requiring the BACKUP_SECRET header.
+ * JWT Bearer tokens are not accepted — this endpoint is admin-only.
  * @param request - Incoming HTTP request.
- * @param supabase - Supabase client for JWT verification.
  * @returns An object with `ok: true` on success, or `ok: false` with a `reason` string.
  * @source
  */
-const requireAuthorization = async (
-  request: Request,
-  supabase: SupabaseClient
-) => {
+const requireAuthorization = (request: Request) => {
   const requiredSecret = getEnv("BACKUP_SECRET")
-  if (requiredSecret) {
-    const providedSecret = request.headers.get("x-backup-secret") ?? ""
-    if (providedSecret !== requiredSecret) {
-      return {
-        ok: false,
-        reason: "Missing or invalid x-backup-secret header."
-      }
-    }
-    return { ok: true }
-  }
-
-  const authHeader = request.headers.get("authorization") ?? ""
-  const tokenMatch = /^Bearer\s+(.+)$/i.exec(authHeader)
-  if (!tokenMatch) {
+  if (!requiredSecret) {
+    console.error(
+      "[backup-db] BACKUP_SECRET is not configured; denying all requests."
+    )
     return {
       ok: false,
-      reason:
-        "Missing Authorization header. Provide a JWT or set BACKUP_SECRET for header-based auth."
+      reason: "Backup endpoint is not configured."
     }
   }
 
-  const token = tokenMatch[1]?.trim()
-  if (!token) {
+  const providedSecret = request.headers.get("x-backup-secret") ?? ""
+  if (providedSecret !== requiredSecret) {
+    console.warn(
+      "[backup-db] Unauthorized backup attempt — invalid x-backup-secret header."
+    )
     return {
       ok: false,
-      reason:
-        "Missing JWT in Authorization header. Provide a Bearer token or set BACKUP_SECRET."
-    }
-  }
-
-  const { data, error } = await supabase.auth.getUser(token)
-  if (error || !data?.user) {
-    return {
-      ok: false,
-      reason: error?.message ?? "Invalid or expired JWT."
+      reason: "Missing or invalid x-backup-secret header."
     }
   }
 
@@ -746,7 +726,7 @@ serve(async (request: Request) => {
     }
   })
 
-  const authCheck = await requireAuthorization(request, supabase)
+  const authCheck = requireAuthorization(request)
   if (!authCheck.ok) {
     return jsonResponse(401, { error: authCheck.reason })
   }
