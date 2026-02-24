@@ -42,6 +42,7 @@ const REQUEST_LIMIT_CONFIG = {
 
 // ---------------------------------------------------------------------------
 // Instance-local circuit breaker for Amazon anti-bot detection.
+//
 // Per-instance state is intentional: each serverless instance independently
 // protects itself from triggering captcha loops in the same invocation window.
 // ---------------------------------------------------------------------------
@@ -89,7 +90,36 @@ function cbRecordFailure(
   if (state.failures.length >= config.maxFailures) {
     state.cooldownUntil = now + config.cooldownMs
     state.failures = []
+    logger.warn("Circuit breaker tripped", {
+      key,
+      cooldownUntil: new Date(state.cooldownUntil).toISOString(),
+      cooldownMs: config.cooldownMs
+    })
   }
+}
+
+/**
+ * Returns a snapshot of all tracked circuit breaker states.
+ * Suitable for use by a monitoring endpoint or health check.
+ * @source
+ */
+export function getCircuitBreakerStatus(): Record<
+  string,
+  { tripped: boolean; cooldownUntil: number; pendingFailures: number }
+> {
+  const now = Date.now()
+  const result: Record<
+    string,
+    { tripped: boolean; cooldownUntil: number; pendingFailures: number }
+  > = {}
+  for (const [key, state] of circuitBreakerStore.entries()) {
+    result[key] = {
+      tripped: state.cooldownUntil > now,
+      cooldownUntil: state.cooldownUntil,
+      pendingFailures: state.failures.length
+    }
+  }
+  return result
 }
 
 /** Limits concurrent Amazon scrapes per instance to reduce overload. @source */
