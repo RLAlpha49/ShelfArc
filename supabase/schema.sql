@@ -69,9 +69,13 @@
 -- DROP FUNCTION IF EXISTS public.restore_user_library(UUID, JSONB, JSONB);
 -- DROP FUNCTION IF EXISTS public.update_series_owned_volume_count();
 -- DROP FUNCTION IF EXISTS public.cleanup_price_history();
+-- DROP FUNCTION IF EXISTS public.update_automations_updated_at();
 --
--- DROP TABLE IF EXISTS public.collection_volumes CASCADE;
+-- DROP TABLE IF EXISTS public.user_follows CASCADE;
+-- DROP TABLE IF EXISTS public.automations CASCADE;
+-- DROP TABLE IF EXISTS public.user_achievements CASCADE;
 -- DROP TABLE IF EXISTS public.import_events CASCADE;
+-- DROP TABLE IF EXISTS public.collection_volumes CASCADE;
 -- DROP TABLE IF EXISTS public.notifications CASCADE;
 -- DROP TABLE IF EXISTS public.activity_events CASCADE;
 -- DROP TABLE IF EXISTS public.price_alerts CASCADE;
@@ -997,8 +1001,8 @@ BEGIN
     EXECUTE $policy$
       CREATE POLICY "users manage own automations" ON automations
         FOR ALL
-        USING (user_id = auth.uid())
-        WITH CHECK (user_id = auth.uid())
+        USING (user_id = (select auth.uid()))
+        WITH CHECK (user_id = (select auth.uid()))
     $policy$;
   END IF;
 END $$;
@@ -1077,66 +1081,6 @@ BEGIN
     $policy$;
   END IF;
 END $$;
-
--- ---------------------------------------------------------------------------
--- Public-safe read views (least-privilege projections for public sharing)
--- ---------------------------------------------------------------------------
-
--- Only expose non-sensitive profile columns for public readers
-CREATE OR REPLACE VIEW public.public_profiles AS
-  SELECT
-    id,
-    username,
-    display_name,
-    bio,
-    avatar_url,
-    is_public,
-    created_at
-  FROM public.profiles
-  WHERE is_public = TRUE;
-
-GRANT SELECT ON public.public_profiles TO anon, authenticated;
-
--- Only expose non-sensitive series columns for public readers
-CREATE OR REPLACE VIEW public.public_series AS
-  SELECT
-    id,
-    user_id,
-    title,
-    author,
-    publisher,
-    genre,
-    tags,
-    cover_image_url,
-    total_volumes,
-    status,
-    is_public,
-    created_at,
-    updated_at
-  FROM public.series
-  WHERE is_public = TRUE;
-
-GRANT SELECT ON public.public_series TO anon, authenticated;
-
--- Only expose non-sensitive volume columns for public readers
-CREATE OR REPLACE VIEW public.public_volumes AS
-  SELECT
-    v.id,
-    v.series_id,
-    v.user_id,
-    v.volume_number,
-    v.title,
-    v.cover_image_url,
-    v.ownership_status,
-    v.release_date,
-    v.isbn,
-    v.created_at,
-    v.updated_at
-  FROM public.volumes v
-  JOIN public.series s ON s.id = v.series_id
-  WHERE s.is_public = TRUE;
-
-GRANT SELECT ON public.public_volumes TO anon, authenticated;
 
 -- -----------------------------------------------------------------------------
 -- Functions
