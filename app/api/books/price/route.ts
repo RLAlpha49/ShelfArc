@@ -136,18 +136,6 @@ const resolveClientIdentity = (request: NextRequest) => {
 }
 
 /**
- * Serializes an `ApiError` into a JSON `NextResponse`.
- * @param error - The API error to serialize.
- * @returns A `NextResponse` with the error payload.
- * @source
- */
-const jsonError = (error: ApiError) => {
-  return apiError(error.status, error.message, {
-    extra: error.details
-  })
-}
-
-/**
  * Checks the global anti-bot cooldown (captcha circuit breaker).
  * @returns A response when blocked, otherwise `null`.
  * @source
@@ -461,7 +449,7 @@ export async function GET(request: NextRequest) {
       data: { user }
     } = await supabase.auth.getUser()
     if (!user) {
-      return apiError(401, "Authentication required")
+      return apiError(401, "Authentication required", { correlationId })
     }
 
     const source = request.nextUrl.searchParams.get("source") ?? "amazon"
@@ -517,7 +505,10 @@ export async function GET(request: NextRequest) {
         status: error.status,
         error: error.message
       })
-      return jsonError(error)
+      return apiError(error.status, error.message, {
+        correlationId,
+        extra: error.details
+      })
     }
 
     log.error("Price lookup failed", {
