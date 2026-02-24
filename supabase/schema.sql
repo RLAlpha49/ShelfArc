@@ -314,6 +314,10 @@ CREATE TABLE IF NOT EXISTS volumes (
 CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder
   ON volumes(user_id, publish_date)
   WHERE publish_date IS NOT NULL AND release_reminder = TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_volumes_wishlist_release_reminder
+  ON public.volumes (publish_date, user_id)
+  WHERE ownership_status = 'wishlist' AND release_reminder = TRUE AND publish_date IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_volumes_series_id ON volumes(series_id);
 CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_isbn ON volumes(user_id, isbn);
@@ -421,6 +425,10 @@ CREATE INDEX IF NOT EXISTS idx_price_alerts_enabled_volume
   ON price_alerts(user_id, volume_id)
   WHERE enabled = TRUE;
 CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id);
+
+CREATE INDEX IF NOT EXISTS idx_price_alerts_active_queue
+  ON public.price_alerts (snoozed_until, created_at)
+  WHERE enabled = TRUE;
 
 -- Activity events table (append-only timeline)
 CREATE TABLE IF NOT EXISTS activity_events (
@@ -1812,5 +1820,35 @@ BEGIN
     CREATE TRIGGER automations_updated_at_trigger
       BEFORE UPDATE ON public.automations
       FOR EACH ROW EXECUTE FUNCTION update_automations_updated_at();
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.import_events') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'trg_cleanup_import_events'
+         AND tgrelid = to_regclass('public.import_events')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER trg_cleanup_import_events
+      AFTER INSERT ON public.import_events
+      FOR EACH ROW EXECUTE FUNCTION public.cleanup_old_import_events();
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.price_history') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'trg_cleanup_price_history'
+         AND tgrelid = to_regclass('public.price_history')
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER trg_cleanup_price_history
+      AFTER INSERT ON public.price_history
+      FOR EACH ROW EXECUTE FUNCTION public.cleanup_price_history();
   END IF;
 END $$;
