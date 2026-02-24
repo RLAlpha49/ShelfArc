@@ -74,7 +74,7 @@ export async function login(formData: FormData) {
     reason: "Login rate limit"
   })
 
-  if (rateLimitResult && !rateLimitResult.allowed) {
+  if (!rateLimitResult?.allowed) {
     return { error: "Too many login attempts. Please try again later." }
   }
 
@@ -87,7 +87,7 @@ export async function login(formData: FormData) {
     reason: "Login email rate limit"
   })
 
-  if (emailRateLimitResult && !emailRateLimitResult.allowed) {
+  if (!emailRateLimitResult?.allowed) {
     return { error: "Too many login attempts. Please try again later." }
   }
 
@@ -160,7 +160,7 @@ export async function signup(formData: FormData) {
     reason: "Signup rate limit"
   })
 
-  if (rateLimitResult && !rateLimitResult.allowed) {
+  if (!rateLimitResult?.allowed) {
     return { error: "Too many signup attempts. Please try again later." }
   }
 
@@ -173,7 +173,7 @@ export async function signup(formData: FormData) {
     reason: "Signup email rate limit"
   })
 
-  if (emailRateLimitResult && !emailRateLimitResult.allowed) {
+  if (!emailRateLimitResult?.allowed) {
     return { error: "Too many signup attempts. Please try again later." }
   }
 
@@ -246,7 +246,7 @@ export async function forgotPassword(formData: FormData) {
     reason: "Forgot password rate limit"
   })
 
-  if (rateLimitResult && !rateLimitResult.allowed) {
+  if (!rateLimitResult?.allowed) {
     return { error: "Too many requests. Please try again later." }
   }
 
@@ -259,7 +259,7 @@ export async function forgotPassword(formData: FormData) {
     reason: "Forgot password email rate limit"
   })
 
-  if (emailRateLimitResult && !emailRateLimitResult.allowed) {
+  if (!emailRateLimitResult?.allowed) {
     return { error: "Too many requests. Please try again later." }
   }
 
@@ -336,7 +336,7 @@ export async function loginWithMagicLink(formData: FormData) {
     reason: "Magic link rate limit"
   })
 
-  if (rateLimitResult && !rateLimitResult.allowed) {
+  if (!rateLimitResult?.allowed) {
     return { error: "Too many requests. Please try again later." }
   }
 
@@ -348,7 +348,7 @@ export async function loginWithMagicLink(formData: FormData) {
     reason: "Magic link email rate limit"
   })
 
-  if (emailRateLimitResult && !emailRateLimitResult.allowed) {
+  if (!emailRateLimitResult?.allowed) {
     return { error: "Too many requests. Please try again later." }
   }
 
