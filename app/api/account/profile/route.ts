@@ -105,7 +105,7 @@ export async function PATCH(request: NextRequest) {
       cooldownMs: 30_000,
       reason: "Rate limit profile updates"
     })
-    if (rl && !rl.allowed) {
+    if (!rl?.allowed) {
       return apiError(429, "Too many requests", { correlationId })
     }
 
