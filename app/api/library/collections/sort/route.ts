@@ -70,22 +70,23 @@ export async function PUT(request: NextRequest) {
       return apiSuccess({ updated: 0 }, { correlationId })
     }
 
-    const updates = validated.map(({ id, sort_order }) =>
-      supabase
+    // Sequential updates: stop on the first failure so no further rows are
+    // mutated after an error, minimising partial state. True atomicity would
+    // require a DB-level transaction RPC.
+    for (const { id, sort_order } of validated) {
+      const { error } = await supabase
         .from("collections")
         .update({ sort_order })
         .eq("id", id)
         .eq("user_id", user.id)
-    )
 
-    const results = await Promise.all(updates)
-    const failed = results.filter((r) => r.error)
-    if (failed.length > 0) {
-      log.error("Failed to update collection sort orders", {
-        count: failed.length,
-        errors: failed.map((r) => r.error?.message)
-      })
-      return apiError(500, "Failed to update sort orders", { correlationId })
+      if (error) {
+        log.error("Failed to update collection sort order", {
+          id,
+          error: error.message
+        })
+        return apiError(500, "Failed to update sort orders", { correlationId })
+      }
     }
 
     return apiSuccess({ updated: validated.length }, { correlationId })

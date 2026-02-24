@@ -40,30 +40,15 @@ export async function DELETE(request: NextRequest) {
       })
     }
 
-    // Delete all volumes for the user first (cascades to price_history, price_alerts, collection_volumes)
-    const { error: volumesError } = await supabase
-      .from("volumes")
-      .delete()
-      .eq("user_id", user.id)
+    // Atomic reset: deletes volumes then series inside a single Postgres transaction
+    // via the reset_user_library() RPC, so no partial state is possible if
+    // either delete fails.
+    const { error: resetError } = await supabase.rpc("reset_user_library")
 
-    if (volumesError) {
-      log.error("Failed to delete user volumes", {
+    if (resetError) {
+      log.error("Failed to reset user library", {
         userId: user.id,
-        error: volumesError.message
-      })
-      return apiError(500, "Failed to reset collection", { correlationId })
-    }
-
-    // Delete all series for the user
-    const { error: seriesError } = await supabase
-      .from("series")
-      .delete()
-      .eq("user_id", user.id)
-
-    if (seriesError) {
-      log.error("Failed to delete user series", {
-        userId: user.id,
-        error: seriesError.message
+        error: resetError.message
       })
       return apiError(500, "Failed to reset collection", { correlationId })
     }
