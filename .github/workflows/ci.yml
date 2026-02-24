@@ -153,6 +153,9 @@ jobs:
       - name: Run unit tests with coverage (sequential to avoid flaky concurrent module mocks)
         run: bun test --coverage --max-concurrency=1
 
+      - name: Dead-code / unused-export scan
+        run: bunx knip
+
   # e2e-chromium:
   #   name: E2E Chromium
   #   runs-on: ubuntu-latest

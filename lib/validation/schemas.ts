@@ -274,13 +274,6 @@ export const CollectionVolumesSchema = z.object({
   volumeIds: z.array(z.uuid()).min(1).max(100)
 })
 
-export const SortCollectionsSchema = z.array(
-  z.object({
-    id: z.uuid({ message: "Invalid collection ID" }),
-    sort_order: z.number().int()
-  })
-)
-
 export const BatchScrapeSchema = z.object({
   volumeIds: z.array(z.uuid()).min(1).max(10),
   mode: z.enum(["price", "image", "both"]),

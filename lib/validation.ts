@@ -65,9 +65,6 @@ export const VOLUME_FORMATS: readonly VolumeFormat[] = [
   "audiobook"
 ] as const
 
-/** Regex matching a valid hex color string (3–8 hex digits with leading `#`). @source */
-export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{3,8}$/
-
 /**
  * Type guard for valid `TitleType` values.
  * @param value - The value to check.
@@ -96,17 +93,6 @@ export const isValidOwnershipStatus = (
 export const isValidReadingStatus = (value: unknown): value is ReadingStatus =>
   typeof value === "string" &&
   (READING_STATUSES as readonly string[]).includes(value)
-
-/**
- * Type guard for valid `BookOrientation` values.
- * @param value - The value to check.
- * @source
- */
-export const isValidBookOrientation = (
-  value: unknown
-): value is BookOrientation =>
-  typeof value === "string" &&
-  (BOOK_ORIENTATIONS as readonly string[]).includes(value)
 
 /**
  * Type guard for valid `SeriesStatus` values.

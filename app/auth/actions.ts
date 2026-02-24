@@ -291,25 +291,6 @@ export async function logout() {
 }
 
 /**
- * Retrieves the currently authenticated Supabase user.
- * @returns The authenticated user object, or `null` if unauthenticated.
- * @source
- */
-export async function getUser() {
-  const supabase = await createUserClient()
-  const {
-    data: { user },
-    error
-  } = await supabase.auth.getUser()
-
-  if (error || !user) {
-    return null
-  }
-
-  return user
-}
-
-/**
  * Sends a magic-link (OTP) email for passwordless sign-in.
  * Rate-limited per IP and per email to prevent abuse.
  * Always returns a generic success message to prevent email enumeration.

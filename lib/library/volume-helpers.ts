@@ -1,6 +1,3 @@
-import { toast } from "sonner"
-
-import { getErrorMessage } from "@/lib/library/series-insights"
 import type { Volume } from "@/lib/types/database"
 
 /**
@@ -14,44 +11,6 @@ export function findPrimaryVolume(volumes: Volume[]): Volume | null {
     if (!best || volume.volume_number < best.volume_number) return volume
     return best
   }, null)
-}
-
-/**
- * Applies a rating to a volume with validation and user feedback.
- * @source
- */
-export async function applyRating(
-  volume: Volume,
-  rating: number | null,
-  editVolume: (
-    seriesId: string | null,
-    volumeId: string,
-    data: Partial<Volume>
-  ) => Promise<void>
-) {
-  if (!volume.series_id) return
-
-  if (rating == null) {
-    try {
-      await editVolume(volume.series_id, volume.id, { rating: null })
-      toast.success("Rating cleared")
-    } catch (err) {
-      toast.error(`Failed to update: ${getErrorMessage(err)}`)
-    }
-    return
-  }
-
-  if (!Number.isFinite(rating) || rating < 0 || rating > 10) {
-    toast.error("Rating must be between 0 and 10")
-    return
-  }
-
-  try {
-    await editVolume(volume.series_id, volume.id, { rating })
-    toast.success(`Rated ${rating}/10`)
-  } catch (err) {
-    toast.error(`Failed to update: ${getErrorMessage(err)}`)
-  }
 }
 
 /**
