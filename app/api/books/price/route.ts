@@ -3,17 +3,7 @@ import { createHash } from "node:crypto"
 import { NextRequest } from "next/server"
 
 import { apiError, apiSuccess } from "@/lib/api-response"
-import {
-  createAmazonSearchContext,
-  fetchAmazonHtml,
-  parseAmazonResult
-} from "@/lib/books/price/amazon-price"
 import { ApiError } from "@/lib/books/price/api-error"
-import {
-  createBookWalkerSearchContext,
-  fetchBookWalkerHtml,
-  parseBookWalkerResult
-} from "@/lib/books/price/bookwalker-price"
 import {
   ConcurrencyLimiter,
   ConcurrencyLimitError
@@ -235,6 +225,11 @@ async function handleBookWalkerRequest(
   pipelineStart: number,
   includePrice: boolean
 ) {
+  const {
+    createBookWalkerSearchContext,
+    fetchBookWalkerHtml,
+    parseBookWalkerResult
+  } = await import("@/lib/books/price/bookwalker-price")
   const searchParams = request.nextUrl.searchParams
   const bwContext = createBookWalkerSearchContext(searchParams)
 
@@ -342,6 +337,8 @@ async function handleAmazonRequest(
   includePrice: boolean,
   includeImage: boolean
 ) {
+  const { createAmazonSearchContext, fetchAmazonHtml, parseAmazonResult } =
+    await import("@/lib/books/price/amazon-price")
   const cooldown = checkGlobalCooldown()
   if (cooldown) return cooldown
 
