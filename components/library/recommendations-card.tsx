@@ -74,11 +74,14 @@ export function RecommendationsCard({
 
     try {
       if (prevWishlisted && prevId) {
-        await fetch(`/api/library/volumes/${prevId}`, {
+        const res = await fetch(`/api/library/volumes/${prevId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ownership_status: null })
         })
+        if (!res.ok) {
+          throw new Error("Failed to remove from wishlist")
+        }
         setWishlistVolumeId(null)
       } else {
         const res = await fetch("/api/library/volumes", {
