@@ -14,10 +14,17 @@ export default async function LibraryPage() {
   if (!user) redirect("/login")
 
   const [seriesResult, volumesResult] = await Promise.all([
-    supabase.from("series").select("*").eq("user_id", user.id),
+    supabase
+      .from("series")
+      .select(
+        "id, user_id, title, original_title, author, artist, publisher, cover_image_url, type, total_volumes, status, tags, is_public, created_at, updated_at"
+      )
+      .eq("user_id", user.id),
     supabase
       .from("volumes")
-      .select("*")
+      .select(
+        "id, series_id, user_id, volume_number, title, cover_image_url, edition, format, ownership_status, reading_status, rating, release_reminder, created_at, updated_at"
+      )
       .eq("user_id", user.id)
       .order("volume_number", { ascending: true })
   ])

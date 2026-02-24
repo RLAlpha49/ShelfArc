@@ -15,10 +15,17 @@ export default async function RecommendationsPage() {
   if (!user) redirect("/login")
 
   const [seriesResult, volumesResult] = await Promise.all([
-    supabase.from("series").select("*").eq("user_id", user.id),
+    supabase
+      .from("series")
+      .select(
+        "id, user_id, title, type, total_volumes, status, tags, cover_image_url, created_at, updated_at"
+      )
+      .eq("user_id", user.id),
     supabase
       .from("volumes")
-      .select("*")
+      .select(
+        "id, series_id, user_id, volume_number, ownership_status, reading_status, cover_image_url, purchase_price, created_at, updated_at"
+      )
       .eq("user_id", user.id)
       .order("volume_number", { ascending: true })
   ])
