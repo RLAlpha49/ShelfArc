@@ -18,6 +18,54 @@ export type DistributedRateLimitInput = {
 export type DistributedRateLimitResult = {
   allowed: boolean
   retryAfterMs: number
+  /**
+   * True when the distributed limiter was unavailable and the in-memory
+   * fallback was used. The request was allowed but throttling is best-effort.
+   */
+  failedOpen?: boolean
+}
+
+type InMemoryEntry = { count: number; resetAt: number }
+
+/**
+ * Best-effort in-memory rate limiter used as a fallback when the distributed
+ * limiter is unavailable. Uses 50% of the configured limit to be conservative.
+ */
+const inMemoryFallback = new Map<string, InMemoryEntry>()
+
+function consumeInMemoryFallback(
+  key: string,
+  maxHits: number,
+  windowMs: number
+): DistributedRateLimitResult {
+  const now = Date.now()
+
+  // Periodically evict expired entries to prevent unbounded growth.
+  if (inMemoryFallback.size > 1000) {
+    for (const [k, v] of inMemoryFallback) {
+      if (now >= v.resetAt) inMemoryFallback.delete(k)
+    }
+  }
+
+  // Use 50% of the distributed limit as a conservative fallback cap.
+  const fallbackMax = Math.max(1, Math.floor(maxHits * 0.5))
+
+  const entry = inMemoryFallback.get(key)
+  if (!entry || now >= entry.resetAt) {
+    inMemoryFallback.set(key, { count: 1, resetAt: now + windowMs })
+    return { allowed: true, retryAfterMs: 0, failedOpen: true }
+  }
+
+  entry.count++
+  if (entry.count > fallbackMax) {
+    return {
+      allowed: false,
+      retryAfterMs: entry.resetAt - now,
+      failedOpen: false
+    }
+  }
+
+  return { allowed: true, retryAfterMs: 0, failedOpen: true }
 }
 
 let warnedMissingRpc = false
@@ -64,8 +112,14 @@ function getAdminClient() {
 /**
  * Attempts to consume from a distributed rate limiter.
  *
- * Returns `null` when Supabase admin creds are not configured or the RPC is unavailable,
- * allowing callers to fall back to the in-memory limiter.
+ * When Supabase admin creds are not configured or the RPC fails, falls back
+ * to an in-memory sliding-window limiter (at 50% of the configured limit)
+ * rather than returning `null` and silently allowing requests through.
+ *
+ * Returns `null` only for invalid inputs (programming errors).
+ *
+ * The `failedOpen` flag on the result is `true` when the in-memory fallback
+ * was used, so callers can distinguish infra failure from a normal allow.
  *
  * Requires the SQL function `public.rate_limit_consume` to exist.
  * @source
@@ -73,18 +127,23 @@ function getAdminClient() {
 export async function consumeDistributedRateLimit(
   input: DistributedRateLimitInput
 ): Promise<DistributedRateLimitResult | null> {
-  if (!isAdminConfigured()) return null
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY
-  if (!supabaseUrl || !serviceRoleKey) return null
-
   const maxHits = Math.floor(input.maxHits)
   const windowMs = Math.floor(input.windowMs)
   const cooldownMs = Math.floor(input.cooldownMs)
 
+  // Invalid inputs are a programming error; return null so callers can catch them.
   if (!input.key.trim() || maxHits <= 0 || windowMs <= 0 || cooldownMs < 0) {
     return null
+  }
+
+  if (!isAdminConfigured()) {
+    return consumeInMemoryFallback(input.key, maxHits, windowMs)
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
+    return consumeInMemoryFallback(input.key, maxHits, windowMs)
   }
 
   try {
@@ -102,11 +161,14 @@ export async function consumeDistributedRateLimit(
     if (error) {
       if (!warnedMissingRpc) {
         warnedMissingRpc = true
-        console.warn("Distributed rate limit RPC unavailable; falling back", {
-          message: error.message ?? String(error)
-        })
+        console.warn(
+          "Distributed rate limit RPC unavailable; using in-memory fallback",
+          {
+            message: error.message ?? String(error)
+          }
+        )
       }
-      return null
+      return consumeInMemoryFallback(input.key, maxHits, windowMs)
     }
 
     const row = Array.isArray(data) ? data[0] : data
@@ -119,6 +181,6 @@ export async function consumeDistributedRateLimit(
 
     return { allowed, retryAfterMs }
   } catch {
-    return null
+    return consumeInMemoryFallback(input.key, maxHits, windowMs)
   }
 }

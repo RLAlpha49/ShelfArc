@@ -76,7 +76,18 @@ export async function protectedRoute(
       cooldownMs,
       reason: "api-protected"
     })
-    if (rate && !rate.allowed) {
+    if (!rate) {
+      logger
+        .withCorrelationId(correlationId)
+        .warn("Rate limiter returned null (invalid config); blocking request", {
+          prefix: options.rateLimit.prefix
+        })
+      return {
+        ok: false,
+        error: apiError(429, "Rate limit exceeded", { correlationId })
+      }
+    }
+    if (!rate.allowed) {
       return {
         ok: false,
         error: apiError(429, "Rate limit exceeded", {
