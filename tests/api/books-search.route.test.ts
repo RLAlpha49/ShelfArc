@@ -12,8 +12,14 @@ const createUserClient = mock(async () => ({
   auth: { getUser: getUserMock }
 }))
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const consumeDistributedRateLimit = mock(async (): Promise<any> => null)
+const consumeDistributedRateLimit = mock(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async (): Promise<any> => ({
+    allowed: true,
+    remainingHits: 10,
+    retryAfterMs: 0
+  })
+)
 
 mock.module("@/lib/supabase/server", () => ({ createUserClient }))
 mock.module("@/lib/rate-limit-distributed", () => ({

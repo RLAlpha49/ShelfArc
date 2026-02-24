@@ -47,7 +47,11 @@ const rateLimitMocks = {
 }
 
 const distributedRateLimitMocks = {
-  consumeDistributedRateLimit: mock(async () => null)
+  consumeDistributedRateLimit: mock(async () => ({
+    allowed: true,
+    remainingHits: 10,
+    retryAfterMs: 0
+  }))
 }
 
 mock.module("@/lib/supabase/server", () => ({ createUserClient }))
@@ -67,7 +71,11 @@ beforeEach(() => {
   rateLimitMocks.recordFailure.mockClear()
 
   distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
-  distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
+  distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue({
+    allowed: true,
+    remainingHits: 10,
+    retryAfterMs: 0
+  })
 
   rateLimitMocks.isRateLimited.mockReturnValue(false)
   limitMock.mockResolvedValue({ data: [], error: null })

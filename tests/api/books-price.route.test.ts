@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
 
 import { ApiError } from "../../lib/books/price/api-error"
+import { ConcurrencyLimitError } from "../../lib/concurrency/limiter"
 import { makeNextRequest, readJson } from "./test-utils"
 
 // Prevent "server-only" guard from throwing in the test environment
@@ -88,10 +89,47 @@ const registerDistributedRateLimitMocks = (
   override?: Partial<{ consumeDistributedRateLimit: ReturnType<typeof mock> }>
 ) => {
   const local = {
-    consumeDistributedRateLimit: mock(async () => null),
+    consumeDistributedRateLimit: mock(async () => ({
+      allowed: true,
+      remainingHits: 10,
+      retryAfterMs: 0
+    })),
     ...override
   }
   mock.module("@/lib/rate-limit-distributed", () => local)
+  return local
+}
+
+type BookWalkerMocks = {
+  createBookWalkerSearchContext: ReturnType<typeof mock>
+  fetchBookWalkerHtml: ReturnType<typeof mock>
+  parseBookWalkerResult: ReturnType<typeof mock>
+}
+
+// Default BookWalker search context
+const makeDefaultBWContext = () => ({
+  title: "My Book",
+  expectedTitle: "My Book",
+  searchUrl: "https://bookwalker.jp/search/?word=My+Book"
+})
+
+// Re-registers BookWalker mocks for tests that exercise the bookwalker path.
+const registerBookWalkerMocks = (overrides?: Partial<BookWalkerMocks>) => {
+  const local: BookWalkerMocks = {
+    createBookWalkerSearchContext: mock(() => makeDefaultBWContext()),
+    fetchBookWalkerHtml: mock(async () => "<html></html>"),
+    parseBookWalkerResult: mock(() => ({
+      resultTitle: "My Book",
+      matchScore: 1,
+      priceText: "¥880",
+      priceValue: 880,
+      currency: "JPY",
+      priceError: null,
+      productUrl: null
+    })),
+    ...overrides
+  }
+  mock.module("@/lib/books/price/bookwalker-price", () => local)
   return local
 }
 
@@ -180,6 +218,118 @@ describe("GET /api/books/price", () => {
     expect(body.error).toBe("Too many requests")
   })
 
+  // ------------------------------------------------------------------
+  // Timeout, concurrency errors, caching, and BookWalker error branches
+  // ------------------------------------------------------------------
+
+  it("returns 504 when the price pipeline times out", async () => {
+    registerRateLimitMocks()
+    registerDistributedRateLimitMocks()
+    registerAmazonPriceMocks({
+      fetchAmazonHtml: mock(async () => {
+        throw new Error("Price pipeline timed out")
+      })
+    })
+
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest("http://localhost/api/books/price?title=My%20Book")
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(504)
+    expect(body.error).toContain("timed out")
+  })
+
+  it("returns 503 when the concurrency limiter queue is full", async () => {
+    registerRateLimitMocks()
+    registerDistributedRateLimitMocks()
+    registerAmazonPriceMocks({
+      fetchAmazonHtml: mock(async () => {
+        throw new ConcurrencyLimitError("Server is busy, please retry", 1200)
+      })
+    })
+
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest("http://localhost/api/books/price?title=My%20Book")
+    )
+
+    const body = await readJson<{ error: string; retryAfterMs: number }>(
+      response
+    )
+    expect(response.status).toBe(503)
+    expect(body.error).toContain("busy")
+    expect(body.retryAfterMs).toBe(1200)
+  })
+
+  it("returns cached Amazon price without calling the scraper", async () => {
+    registerRateLimitMocks()
+    registerDistributedRateLimitMocks()
+    const amazonMocks = registerAmazonPriceMocks()
+
+    const cachedRow = {
+      price: "9.99",
+      currency: "USD",
+      product_url: "https://www.amazon.com/dp/BXYZ",
+      scraped_at: new Date().toISOString()
+    }
+
+    // Build a query chain whose terminal .limit() returns the cached row.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const makeCacheChain = (data: unknown[]): any => ({
+      select: () => makeCacheChain(data),
+      eq: () => makeCacheChain(data),
+      gt: () => makeCacheChain(data),
+      order: () => makeCacheChain(data),
+      limit: async () => ({ data })
+    })
+
+    createUserClient.mockResolvedValueOnce({
+      auth: { getUser: getUserMock },
+      from: (tbl: string) =>
+        tbl === "price_history" ? makeCacheChain([cachedRow]) : makeQueryChain()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest(
+        "http://localhost/api/books/price?title=My%20Book&volumeId=vol-123"
+      )
+    )
+
+    const body = await readJson<{
+      data: { result: { priceValue: number; currency: string } }
+    }>(response)
+    expect(response.status).toBe(200)
+    expect(body.data.result.priceValue).toBe(9.99)
+    expect(body.data.result.currency).toBe("USD")
+    // The live scraper must not have been invoked.
+    expect(amazonMocks.fetchAmazonHtml).not.toHaveBeenCalled()
+  })
+
+  it("returns 500 when BookWalker scraping throws an error", async () => {
+    registerRateLimitMocks()
+    registerDistributedRateLimitMocks()
+    registerBookWalkerMocks({
+      fetchBookWalkerHtml: mock(async () => {
+        throw new Error("Network error")
+      })
+    })
+
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest(
+        "http://localhost/api/books/price?source=bookwalker&title=My%20Book"
+      )
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(500)
+    expect(body.error).toContain("failed")
+  })
+
   it("returns parsed Amazon result payload", async () => {
     registerRateLimitMocks()
     registerDistributedRateLimitMocks()
@@ -248,5 +398,35 @@ describe("GET /api/books/price", () => {
     expect(body.data.result.imageUrl).toBe(
       "https://m.media-amazon.com/images/I/abc.jpg"
     )
+  })
+
+  // NOTE: This test trips the module-level circuit breaker and must run last
+  // within this describe block since the tripped state persists in the module.
+  it("returns 429 when global Amazon cooldown is active (circuit breaker)", async () => {
+    // Trip the circuit: 3 requests that each return ApiError(429) from the
+    // scraper trigger cbRecordFailure 3 times, which sets cooldownUntil.
+    registerDistributedRateLimitMocks()
+    registerAmazonPriceMocks({
+      fetchAmazonHtml: mock(async () => {
+        throw new ApiError(429, "anti-bot detected")
+      })
+    })
+
+    const { GET } = await loadRoute()
+    // Three triggering calls — after maxFailures=3 the circuit is tripped.
+    for (let i = 0; i < 3; i++) {
+      await GET(
+        makeNextRequest("http://localhost/api/books/price?title=My%20Book")
+      )
+    }
+
+    // The fourth request should hit checkGlobalCooldown() and return early.
+    const response = await GET(
+      makeNextRequest("http://localhost/api/books/price?title=My%20Book")
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(429)
+    expect(body.error).toContain("temporarily disabled")
   })
 })

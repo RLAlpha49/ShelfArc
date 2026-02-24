@@ -59,8 +59,14 @@ const createUserClient = mock(async () => ({
 }))
 
 const distributedRateLimitMocks = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  consumeDistributedRateLimit: mock(async (): Promise<any> => null)
+  consumeDistributedRateLimit: mock(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (): Promise<any> => ({
+      allowed: true,
+      remainingHits: 10,
+      retryAfterMs: 0
+    })
+  )
 }
 
 const enforceSameOriginMock = mock(() => undefined)
@@ -84,7 +90,11 @@ beforeEach(() => {
   rpcMock.mockClear()
   rpcMock.mockResolvedValue({ data: null, error: null })
   distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
-  distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
+  distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue({
+    allowed: true,
+    remainingHits: 10,
+    retryAfterMs: 0
+  })
   enforceSameOriginMock.mockClear()
   enforceSameOriginMock.mockReturnValue(undefined)
   singleMock.mockClear()

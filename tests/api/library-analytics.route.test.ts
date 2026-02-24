@@ -30,8 +30,14 @@ const createUserClient = mock(async () => ({
 }))
 
 const distributedRateLimitMocks = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  consumeDistributedRateLimit: mock(async (): Promise<any> => null)
+  consumeDistributedRateLimit: mock(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (): Promise<any> => ({
+      allowed: true,
+      remainingHits: 10,
+      retryAfterMs: 0
+    })
+  )
 }
 
 const enforceSameOriginMock = mock(() => undefined)
@@ -52,7 +58,11 @@ beforeEach(() => {
   eqMock.mockClear()
   eqMock.mockResolvedValue({ data: [], error: null })
   distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
-  distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue(null)
+  distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue({
+    allowed: true,
+    remainingHits: 10,
+    retryAfterMs: 0
+  })
   enforceSameOriginMock.mockClear()
   enforceSameOriginMock.mockReturnValue(undefined)
 })
