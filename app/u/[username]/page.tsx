@@ -164,10 +164,13 @@ export default async function PublicProfilePage({ params }: Props) {
       : 0
   const displayName = profile.username ?? username
   const shareUrl = getPublicProfileUrl(displayName)
-  const memberSince = new Date(profile.created_at).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric"
-  })
+  const memberSince = new Date(profile.created_at).toLocaleDateString(
+    undefined,
+    {
+      month: "long",
+      year: "numeric"
+    }
+  )
 
   return (
     <div className="via-background to-background dark:via-background dark:to-background min-h-screen bg-linear-to-b from-amber-50/30 dark:from-amber-950/10">
