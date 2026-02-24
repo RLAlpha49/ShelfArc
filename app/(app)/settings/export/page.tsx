@@ -56,6 +56,176 @@ function csvEscape(value: unknown): string {
   return `"${String(value ?? "").replaceAll('"', '""')}"`
 }
 
+/**
+ * Fetches optional supplemental data, builds the JSON export object, and triggers a download.
+ * @param payload - The resolved series/volumes payload to include.
+ * @param includePriceAlerts - Whether to fetch and include price alert data.
+ * @param includeActivity - Whether to fetch and include activity history.
+ * @param today - ISO date string used in the filename.
+ */
+async function exportAsJson(
+  payload: ExportPayload,
+  includePriceAlerts: boolean,
+  includeActivity: boolean,
+  today: string
+): Promise<void> {
+  const seriesData = payload.series.map((s) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { volumes, ...rest } = s
+    return rest
+  })
+
+  const exportObj: Record<string, unknown> = {
+    series: seriesData,
+    volumes: payload.volumes
+  }
+
+  if (includePriceAlerts) {
+    const alertsRes = await fetch("/api/books/price/alerts")
+    if (!alertsRes.ok) throw new Error("Failed to fetch price alerts")
+    const alertsJson = (await alertsRes.json()) as { data: unknown }
+    exportObj.priceAlerts = alertsJson.data
+  }
+
+  if (includeActivity) {
+    const activityRes = await fetch("/api/activity?limit=1000")
+    if (!activityRes.ok) throw new Error("Failed to fetch activity")
+    const activityJson = (await activityRes.json()) as { data: unknown }
+    exportObj.activity = activityJson.data
+  }
+
+  downloadTextFile(
+    JSON.stringify(exportObj, null, 2),
+    `shelfarc-export-${today}.json`,
+    "application/json"
+  )
+}
+
+/**
+ * Builds CSV rows for both volumes and series from the export payload, then triggers downloads.
+ * @param payload - The resolved series/volumes payload.
+ * @param today - ISO date string used in filenames.
+ */
+function exportAsCsv(payload: ExportPayload, today: string): void {
+  const seriesById = new Map<string, SeriesWithVolumes>()
+  for (const s of payload.series) seriesById.set(s.id, s)
+
+  const volumeRows: string[] = [
+    [
+      "Series Title",
+      "Series Type",
+      "Author",
+      "Publisher",
+      "Volume Number",
+      "Volume Title",
+      "Volume Description",
+      "ISBN",
+      "Edition",
+      "Format",
+      "Ownership Status",
+      "Reading Status",
+      "Page Count",
+      "Rating",
+      "Publish Date",
+      "Purchase Date",
+      "Purchase Price",
+      "Notes"
+    ]
+      .map(csvEscape)
+      .join(",")
+  ]
+
+  const seriesRows: string[] = [
+    [
+      "id",
+      "title",
+      "original_title",
+      "description",
+      "notes",
+      "author",
+      "artist",
+      "publisher",
+      "cover_image_url",
+      "amazon_url",
+      "type",
+      "total_volumes",
+      "status",
+      "tags",
+      "is_public",
+      "created_at",
+      "updated_at"
+    ]
+      .map(csvEscape)
+      .join(",")
+  ]
+
+  for (const s of payload.series) {
+    const sr = s as Record<string, unknown>
+    seriesRows.push(
+      [
+        sr.id ?? "",
+        s.title,
+        s.original_title || "",
+        s.description || "",
+        s.notes || "",
+        s.author || "",
+        s.artist || "",
+        s.publisher || "",
+        s.cover_image_url || "",
+        sr.amazon_url ?? "",
+        s.type,
+        s.total_volumes?.toString() || "",
+        s.status || "",
+        (s.tags ?? []).join("; "),
+        sr.is_public == null ? "" : String(sr.is_public),
+        s.created_at || "",
+        s.updated_at || ""
+      ]
+        .map(csvEscape)
+        .join(",")
+    )
+  }
+
+  for (const v of payload.volumes) {
+    const parent = v.series_id ? seriesById.get(v.series_id) : undefined
+    volumeRows.push(
+      [
+        parent?.title ?? "",
+        parent?.type ?? "",
+        parent?.author ?? "",
+        parent?.publisher ?? "",
+        v.volume_number,
+        v.title || "",
+        v.description || "",
+        v.isbn || "",
+        v.edition || "",
+        v.format || "",
+        v.ownership_status,
+        v.reading_status,
+        v.page_count || "",
+        v.rating || "",
+        v.publish_date || "",
+        v.purchase_date || "",
+        v.purchase_price || "",
+        v.notes || ""
+      ]
+        .map(csvEscape)
+        .join(",")
+    )
+  }
+
+  downloadTextFile(
+    volumeRows.join("\n"),
+    `shelfarc-volumes-${today}.csv`,
+    "text/csv"
+  )
+  downloadTextFile(
+    seriesRows.join("\n"),
+    `shelfarc-series-${today}.csv`,
+    "text/csv"
+  )
+}
+
 /** Export page allowing users to download their library as JSON or CSV. @source */
 export default function ExportPage() {
   const { series, isLoading, fetchSeries } = useLibrary()
@@ -175,170 +345,16 @@ export default function ExportPage() {
       toast.error("Select at least one item to export")
       return
     }
-
     setIsExporting(true)
     try {
-      // Ensure data is loaded (normally pre-fetched on mount)
       if (series.length === 0) await fetchSeries()
-
       const payload = resolveExportPayload()
       const today = new Date().toISOString().split("T")[0]
-
       if (format === "json") {
-        const seriesData = payload.series.map((s) => {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { volumes, ...rest } = s
-          return rest
-        })
-        const volumesData = payload.volumes
-
-        const exportObj: Record<string, unknown> = {
-          series: seriesData,
-          volumes: volumesData
-        }
-
-        if (includePriceAlerts) {
-          const alertsRes = await fetch("/api/books/price/alerts")
-          if (!alertsRes.ok) throw new Error("Failed to fetch price alerts")
-          const alertsJson = (await alertsRes.json()) as { data: unknown }
-          exportObj.priceAlerts = alertsJson.data
-        }
-
-        if (includeActivity) {
-          const activityRes = await fetch("/api/activity?limit=1000")
-          if (!activityRes.ok) throw new Error("Failed to fetch activity")
-          const activityJson = (await activityRes.json()) as { data: unknown }
-          exportObj.activity = activityJson.data
-        }
-
-        downloadTextFile(
-          JSON.stringify(exportObj, null, 2),
-          `shelfarc-export-${today}.json`,
-          "application/json"
-        )
+        await exportAsJson(payload, includePriceAlerts, includeActivity, today)
       } else {
-        const seriesById = new Map<string, SeriesWithVolumes>()
-        for (const s of payload.series) seriesById.set(s.id, s)
-
-        const volumeRows: string[] = []
-        const seriesRows: string[] = []
-
-        volumeRows.push(
-          [
-            "Series Title",
-            "Series Type",
-            "Author",
-            "Publisher",
-            "Volume Number",
-            "Volume Title",
-            "Volume Description",
-            "ISBN",
-            "Edition",
-            "Format",
-            "Ownership Status",
-            "Reading Status",
-            "Page Count",
-            "Rating",
-            "Publish Date",
-            "Purchase Date",
-            "Purchase Price",
-            "Notes"
-          ]
-            .map((h) => csvEscape(h))
-            .join(",")
-        )
-
-        seriesRows.push(
-          [
-            "id",
-            "title",
-            "original_title",
-            "description",
-            "notes",
-            "author",
-            "artist",
-            "publisher",
-            "cover_image_url",
-            "amazon_url",
-            "type",
-            "total_volumes",
-            "status",
-            "tags",
-            "is_public",
-            "created_at",
-            "updated_at"
-          ]
-            .map((h) => csvEscape(h))
-            .join(",")
-        )
-
-        for (const s of payload.series) {
-          const sr = s as Record<string, unknown>
-          seriesRows.push(
-            [
-              sr.id ?? "",
-              s.title,
-              s.original_title || "",
-              s.description || "",
-              s.notes || "",
-              s.author || "",
-              s.artist || "",
-              s.publisher || "",
-              s.cover_image_url || "",
-              sr.amazon_url ?? "",
-              s.type,
-              s.total_volumes?.toString() || "",
-              s.status || "",
-              (s.tags ?? []).join("; "),
-              sr.is_public == null ? "" : String(sr.is_public),
-              s.created_at || "",
-              s.updated_at || ""
-            ]
-              .map(csvEscape)
-              .join(",")
-          )
-        }
-
-        for (const v of payload.volumes) {
-          const parent = v.series_id ? seriesById.get(v.series_id) : undefined
-          volumeRows.push(
-            [
-              parent?.title ?? "",
-              parent?.type ?? "",
-              parent?.author ?? "",
-              parent?.publisher ?? "",
-              v.volume_number,
-              v.title || "",
-              v.description || "",
-              v.isbn || "",
-              v.edition || "",
-              v.format || "",
-              v.ownership_status,
-              v.reading_status,
-              v.page_count || "",
-              v.rating || "",
-              v.publish_date || "",
-              v.purchase_date || "",
-              v.purchase_price || "",
-              v.notes || ""
-            ]
-              .map(csvEscape)
-              .join(",")
-          )
-        }
-
-        downloadTextFile(
-          volumeRows.join("\n"),
-          `shelfarc-volumes-${today}.csv`,
-          "text/csv"
-        )
-        downloadTextFile(
-          seriesRows.join("\n"),
-          `shelfarc-series-${today}.csv`,
-          "text/csv"
-        )
+        exportAsCsv(payload, today)
       }
-
       toast.success(
         `Exported ${payload.series.length} series and ${payload.volumes.length} volume${payload.volumes.length === 1 ? "" : "s"}`
       )
