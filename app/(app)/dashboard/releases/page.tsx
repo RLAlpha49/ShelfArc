@@ -51,33 +51,42 @@ function ReleaseRow({ item }: { readonly item: ReleaseItem }) {
   }
 
   return (
-    <Link
-      href={`/library/volume/${item.volumeId}`}
-      className="bg-card group hover:bg-accent/60 flex items-center gap-3 p-3 transition-colors"
-    >
-      {item.coverUrl ? (
-        <img
-          src={item.coverUrl}
-          alt={item.volumeTitle}
-          className="h-12 w-8 shrink-0 rounded object-cover"
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <div className="bg-muted flex h-12 w-8 shrink-0 items-center justify-center rounded">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="text-muted-foreground/40 h-4 w-4"
-          >
-            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-          </svg>
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
+    <div className="bg-card group hover:bg-accent/60 relative flex items-center gap-3 p-3 transition-colors">
+      {/* Stretched link covers the full card row — the button below sits above it via z-10 */}
+      <Link
+        href={`/library/volume/${item.volumeId}`}
+        className="absolute inset-0"
+        aria-label={
+          item.volumeNumber == null
+            ? `View ${item.seriesTitle}`
+            : `View ${item.seriesTitle}, Vol. ${item.volumeNumber}`
+        }
+      />
+      <div className="relative z-10 flex shrink-0">
+        {item.coverUrl ? (
+          <img
+            src={item.coverUrl}
+            alt={item.volumeTitle}
+            className="h-12 w-8 rounded object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="bg-muted flex h-12 w-8 items-center justify-center rounded">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="text-muted-foreground/40 h-4 w-4"
+            >
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+          </div>
+        )}
+      </div>
+      <div className="pointer-events-none relative z-10 min-w-0 flex-1">
         <div className="group-hover:text-primary flex items-center gap-2 truncate text-sm font-semibold transition-colors">
           {item.seriesTitle}
           {item.volumeNumber != null && (
@@ -94,7 +103,7 @@ function ReleaseRow({ item }: { readonly item: ReleaseItem }) {
           </span>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="relative z-10 flex shrink-0 items-center gap-1.5">
         {item.isOwned && (
           <Badge
             variant="secondary"
@@ -113,11 +122,12 @@ function ReleaseRow({ item }: { readonly item: ReleaseItem }) {
             type="button"
             onClick={handleNotifyToggle}
             disabled={notifyPending}
-            title={
+            aria-label={
               localReminder
                 ? "Disable release reminder"
                 : "Enable release reminder"
             }
+            aria-pressed={localReminder}
             className={`hover:text-primary ml-1 flex h-6 w-6 items-center justify-center rounded transition-colors ${
               localReminder ? "text-primary" : "text-muted-foreground/40"
             }`}
@@ -142,11 +152,11 @@ function ReleaseRow({ item }: { readonly item: ReleaseItem }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
-        className="text-muted-foreground/40 group-hover:text-primary ml-1 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
+        className="text-muted-foreground/40 group-hover:text-primary relative z-10 ml-1 h-4 w-4 shrink-0 transition-all group-hover:translate-x-0.5"
       >
         <polyline points="9,18 15,12 9,6" />
       </svg>
-    </Link>
+    </div>
   )
 }
 
