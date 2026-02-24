@@ -200,11 +200,15 @@ export function useLibraryUrlSync() {
   const initializedRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const lastUrlRef = useRef("")
+  const lastAppliedParamsRef = useRef("")
 
-  // Read URL → store on mount
+  // Read URL → store on every URL change
   useEffect(() => {
-    if (initializedRef.current) return
+    const paramStr = searchParams.toString()
+    if (initializedRef.current && paramStr === lastAppliedParamsRef.current)
+      return
     initializedRef.current = true
+    lastAppliedParamsRef.current = paramStr
     applyUrlToStore(searchParams)
   }, [searchParams])
 
