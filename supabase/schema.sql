@@ -57,7 +57,8 @@
 -- DROP FUNCTION IF EXISTS public.sync_profile_email();
 -- DROP FUNCTION IF EXISTS update_updated_at_column();
 -- DROP FUNCTION IF EXISTS public.backup_list_tables();
--- DROP FUNCTION IF EXISTS public.delete_series_atomic(UUID, UUID);
+-- DROP FUNCTION IF EXISTS public.delete_series_atomic(UUID);
+-- DROP FUNCTION IF EXISTS public.reset_user_library();
 -- DROP FUNCTION IF EXISTS public.rate_limit_consume(text, integer, integer, integer);
 -- DROP FUNCTION IF EXISTS public.rate_limit_cleanup(integer);
 -- DROP FUNCTION IF EXISTS public.activity_events_cleanup(integer);
@@ -1073,6 +1074,66 @@ BEGIN
   END IF;
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- Public-safe read views (least-privilege projections for public sharing)
+-- ---------------------------------------------------------------------------
+
+-- Only expose non-sensitive profile columns for public readers
+CREATE OR REPLACE VIEW public.public_profiles AS
+  SELECT
+    id,
+    username,
+    display_name,
+    bio,
+    avatar_url,
+    is_public,
+    created_at
+  FROM public.profiles
+  WHERE is_public = TRUE;
+
+GRANT SELECT ON public.public_profiles TO anon, authenticated;
+
+-- Only expose non-sensitive series columns for public readers
+CREATE OR REPLACE VIEW public.public_series AS
+  SELECT
+    id,
+    user_id,
+    title,
+    author,
+    publisher,
+    genre,
+    tags,
+    cover_image_url,
+    total_volumes,
+    status,
+    is_public,
+    created_at,
+    updated_at
+  FROM public.series
+  WHERE is_public = TRUE;
+
+GRANT SELECT ON public.public_series TO anon, authenticated;
+
+-- Only expose non-sensitive volume columns for public readers
+CREATE OR REPLACE VIEW public.public_volumes AS
+  SELECT
+    v.id,
+    v.series_id,
+    v.user_id,
+    v.volume_number,
+    v.title,
+    v.cover_image_url,
+    v.ownership_status,
+    v.release_date,
+    v.isbn,
+    v.created_at,
+    v.updated_at
+  FROM public.volumes v
+  JOIN public.series s ON s.id = v.series_id
+  WHERE s.is_public = TRUE;
+
+GRANT SELECT ON public.public_volumes TO anon, authenticated;
+
 -- -----------------------------------------------------------------------------
 -- Functions
 -- -----------------------------------------------------------------------------
@@ -1121,28 +1182,74 @@ $$;
 REVOKE ALL ON FUNCTION public.backup_list_tables() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.backup_list_tables() TO service_role;
 
--- Atomic delete helper to clean up series + volumes in one transaction with proper permission checks
-CREATE OR REPLACE FUNCTION public.delete_series_atomic(p_series_id UUID, p_user_id UUID)
+-- Atomic delete helper to clean up series + volumes in one transaction.
+-- Authorization is derived from auth.uid() — caller-supplied user ID is not trusted.
+CREATE OR REPLACE FUNCTION public.delete_series_atomic(p_series_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_user_id UUID;
 BEGIN
+  v_user_id := (select auth.uid());
+
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'unauthenticated';
+  END IF;
+
   IF NOT EXISTS (
-    SELECT 1 FROM public.series WHERE id = p_series_id AND user_id = p_user_id
+    SELECT 1 FROM public.series WHERE id = p_series_id AND user_id = v_user_id
   ) THEN
     RAISE EXCEPTION 'series_not_found';
   END IF;
 
-  DELETE FROM public.volumes WHERE series_id = p_series_id AND user_id = p_user_id;
+  DELETE FROM public.volumes WHERE series_id = p_series_id AND user_id = v_user_id;
 
-  DELETE FROM public.series WHERE id = p_series_id AND user_id = p_user_id;
+  DELETE FROM public.series WHERE id = p_series_id AND user_id = v_user_id;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.delete_series_atomic(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.delete_series_atomic(UUID, UUID)
+REVOKE ALL ON FUNCTION public.delete_series_atomic(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_series_atomic(UUID)
+  TO authenticated;
+
+-- Atomic helper to reset (delete all volumes then series) for the current user
+-- in one transaction, preventing partial state if either step fails.
+-- Authorization is derived from auth.uid() — no user ID parameter is accepted.
+CREATE OR REPLACE FUNCTION public.reset_user_library()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_volumes_deleted INT;
+  v_series_deleted INT;
+BEGIN
+  v_user_id := (SELECT auth.uid());
+
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'unauthenticated';
+  END IF;
+
+  DELETE FROM public.volumes WHERE user_id = v_user_id;
+  GET DIAGNOSTICS v_volumes_deleted = ROW_COUNT;
+
+  DELETE FROM public.series WHERE user_id = v_user_id;
+  GET DIAGNOSTICS v_series_deleted = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'volumes_deleted', v_volumes_deleted,
+    'series_deleted', v_series_deleted
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reset_user_library() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reset_user_library()
   TO authenticated;
 
 -- Function to automatically create profile on signup
