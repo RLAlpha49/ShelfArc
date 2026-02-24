@@ -41,6 +41,7 @@ import { useSettingsStore } from "@/lib/store/settings-store"
 import type {
   OwnershipStatus,
   ReadingStatus,
+  SeriesWithVolumes,
   Volume,
   VolumeInsert
 } from "@/lib/types/database"
@@ -289,6 +290,380 @@ const VolumeStatsStrip = ({
 )
 
 /**
+ * Finds a volume by ID, searching assigned series first then unassigned volumes.
+ * @param volumeId - The volume ID to search for.
+ * @param seriesList - All series with their volumes.
+ * @param unassignedVolumes - Volumes not assigned to any series.
+ * @returns The matching volume+series pair, or null if not found.
+ */
+function findVolumeEntry(
+  volumeId: string,
+  seriesList: SeriesWithVolumes[],
+  unassignedVolumes: Volume[]
+): { volume: Volume; series: SeriesWithVolumes | null } | null {
+  for (const seriesItem of seriesList) {
+    const volume = seriesItem.volumes.find((item) => item.id === volumeId)
+    if (volume) return { volume, series: seriesItem }
+  }
+  const unassigned = unassignedVolumes.find((item) => item.id === volumeId)
+  if (unassigned) return { volume: unassigned, series: null }
+  return null
+}
+
+/**
+ * Creates a currency-aware price formatter, falling back to the default currency on failure.
+ * @param currency - ISO 4217 currency code, or null/undefined.
+ * @returns A configured Intl.NumberFormat for price display.
+ */
+function buildPriceFormatter(
+  currency: string | null | undefined
+): Intl.NumberFormat {
+  const effectiveCurrency = currency ?? DEFAULT_CURRENCY_CODE
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: effectiveCurrency
+    })
+  } catch {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: DEFAULT_CURRENCY_CODE
+    })
+  }
+}
+
+/**
+ * Calculates current, total, and percent progress for a volume.
+ * @param volume - The volume whose progress to compute, or null.
+ * @returns Object with `current`, `total`, and `percent` fields.
+ */
+function computeReadingProgress(volume: Volume | null): {
+  current: number
+  total: number
+  percent: number
+} {
+  if (!volume) return { current: 0, total: 0, percent: 0 }
+  const current = volume.current_page ?? 0
+  const total = volume.page_count ?? 0
+  if (total === 0) return { current, total, percent: 0 }
+  return { current, total, percent: Math.round((current / total) * 100) }
+}
+
+/**
+ * Parses and validates a reading progress input string.
+ * @param input - Raw string from the progress input field.
+ * @param pageCount - Total page count of the volume.
+ * @returns `{ value }` on success, or `{ error }` with a user-facing message.
+ */
+function validateProgressInput(
+  input: string,
+  pageCount: number | null | undefined
+): { value: number } | { error: string } {
+  const parsed = Number.parseInt(input, 10)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return { error: "Enter a valid page number" }
+  }
+  if (pageCount != null && parsed > pageCount) {
+    return {
+      error: `Page number cannot exceed total pages (${pageCount})`
+    }
+  }
+  return { value: parsed }
+}
+
+/**
+ * Returns true when saving a page number should prompt the user to mark the volume as completed.
+ * @param parsed - The page number that was just saved.
+ * @param pageCount - Total pages in the volume.
+ * @param readingStatus - Current reading status of the volume.
+ */
+function shouldPromptCompletion(
+  parsed: number,
+  pageCount: number | null | undefined,
+  readingStatus: ReadingStatus
+): boolean {
+  return (
+    pageCount != null && parsed >= pageCount && readingStatus !== "completed"
+  )
+}
+
+/**
+ * Prev/next volume navigation bar shown when the volume belongs to a multi-volume series.
+ */
+function VolumeNavigationBar({
+  currentSeries,
+  siblingCount,
+  prevVolume,
+  nextVolume
+}: {
+  readonly currentSeries: SeriesWithVolumes | null
+  readonly siblingCount: number
+  readonly prevVolume: Volume | null
+  readonly nextVolume: Volume | null
+}) {
+  const router = useRouter()
+  if (!currentSeries || siblingCount <= 1) return null
+  return (
+    <nav
+      aria-label="Volume navigation"
+      className="mb-4 flex items-center gap-2"
+    >
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!prevVolume}
+        onClick={() =>
+          prevVolume && router.push(`/library/volume/${prevVolume.id}`)
+        }
+        aria-label={
+          prevVolume
+            ? `Go to Volume ${prevVolume.volume_number}`
+            : "Already at first volume"
+        }
+        className="rounded-xl"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="mr-1.5 h-4 w-4"
+          aria-hidden="true"
+        >
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+        {prevVolume ? `Vol. ${prevVolume.volume_number}` : "First Volume"}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!nextVolume}
+        onClick={() =>
+          nextVolume && router.push(`/library/volume/${nextVolume.id}`)
+        }
+        aria-label={
+          nextVolume
+            ? `Go to Volume ${nextVolume.volume_number}`
+            : "Already at last volume"
+        }
+        className="rounded-xl"
+      >
+        {nextVolume ? `Vol. ${nextVolume.volume_number}` : "Last Volume"}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="ml-1.5 h-4 w-4"
+          aria-hidden="true"
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </Button>
+    </nav>
+  )
+}
+
+/**
+ * Builds the metadata detail items for the volume details panel.
+ */
+function buildDetailItems(
+  currentVolume: Volume,
+  currentSeries: SeriesWithVolumes | null,
+  startedLabel: string,
+  finishedLabel: string,
+  addedLabel: string,
+  updatedLabel: string
+) {
+  return [
+    {
+      label: "Series",
+      value: currentSeries ? (
+        <Link
+          href={`/library/series/${currentSeries.id}`}
+          className="text-foreground hover:text-primary"
+        >
+          {currentSeries.title}
+        </Link>
+      ) : (
+        "Unassigned"
+      ),
+      show: true
+    },
+    {
+      label: "Pages",
+      value: currentVolume.page_count?.toLocaleString() ?? "\u2014",
+      show: true
+    },
+    {
+      label: "Started",
+      value: startedLabel || "\u2014",
+      show: Boolean(startedLabel)
+    },
+    {
+      label: "Finished",
+      value: finishedLabel || "\u2014",
+      show: Boolean(finishedLabel)
+    },
+    {
+      label: "Amazon",
+      value: currentVolume.amazon_url ? (
+        <a
+          href={currentVolume.amazon_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground hover:text-primary"
+        >
+          View &#x2197;
+        </a>
+      ) : null,
+      show: Boolean(currentVolume.amazon_url)
+    },
+    { label: "Added", value: addedLabel || "\u2014", show: true },
+    { label: "Updated", value: updatedLabel || "\u2014", show: true }
+  ]
+}
+
+/**
+ * Inline date picker + button row for start/finish reading dates.
+ */
+function ReadingDatesSection({
+  currentVolume,
+  isEditingStartDate,
+  isEditingEndDate,
+  setIsEditingStartDate,
+  setIsEditingEndDate,
+  startDateInput,
+  endDateInput,
+  setStartDateInput,
+  setEndDateInput,
+  startedLabel,
+  finishedLabel,
+  isSavingDate,
+  onSaveStartDate,
+  onSaveEndDate
+}: {
+  readonly currentVolume: Volume
+  readonly isEditingStartDate: boolean
+  readonly isEditingEndDate: boolean
+  readonly setIsEditingStartDate: (v: boolean) => void
+  readonly setIsEditingEndDate: (v: boolean) => void
+  readonly startDateInput: string
+  readonly endDateInput: string
+  readonly setStartDateInput: (v: string) => void
+  readonly setEndDateInput: (v: string) => void
+  readonly startedLabel: string
+  readonly finishedLabel: string
+  readonly isSavingDate: "start" | "end" | null
+  readonly onSaveStartDate: () => void
+  readonly onSaveEndDate: () => void
+}) {
+  return (
+    <div className="border-border/40 mt-4 border-t pt-4">
+      <span className="text-muted-foreground mb-2 block text-xs tracking-widest uppercase">
+        Reading Dates
+      </span>
+      <div className="flex flex-wrap gap-3">
+        {isEditingStartDate ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={startDateInput}
+              onChange={(e) => setStartDateInput(e.target.value)}
+              className="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
+              aria-label="Start date"
+            />
+            <Button
+              size="sm"
+              className="rounded-lg"
+              onClick={() => void onSaveStartDate()}
+              disabled={isSavingDate === "start"}
+            >
+              {isSavingDate === "start" ? "Saving\u2026" : "Save"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-lg"
+              onClick={() => setIsEditingStartDate(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl"
+            onClick={() => {
+              setStartDateInput(
+                currentVolume.started_at
+                  ? currentVolume.started_at.slice(0, 10)
+                  : ""
+              )
+              setIsEditingStartDate(true)
+            }}
+          >
+            {"\uD83D\uDCC5"}{" "}
+            {startedLabel ? `Started: ${startedLabel}` : "Set start date"}
+          </Button>
+        )}
+        {isEditingEndDate ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={endDateInput}
+              onChange={(e) => setEndDateInput(e.target.value)}
+              className="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
+              aria-label="Finish date"
+            />
+            <Button
+              size="sm"
+              className="rounded-lg"
+              onClick={() => void onSaveEndDate()}
+              disabled={isSavingDate === "end"}
+            >
+              {isSavingDate === "end" ? "Saving\u2026" : "Save"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-lg"
+              onClick={() => setIsEditingEndDate(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl"
+            onClick={() => {
+              setEndDateInput(
+                currentVolume.finished_at
+                  ? currentVolume.finished_at.slice(0, 10)
+                  : ""
+              )
+              setIsEditingEndDate(true)
+            }}
+          >
+            {"\uD83D\uDCC5"}{" "}
+            {finishedLabel ? `Finished: ${finishedLabel}` : "Set finish date"}
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
  * Volume detail page displaying cover, metadata, description, and editing controls.
  * @source
  */
@@ -314,17 +689,14 @@ export default function VolumeDetailPage() {
   const [ctaLoading, setCtaLoading] = useState<"read" | "wishlist" | null>(null)
   const [progressInput, setProgressInput] = useState<string>("")
   const [isSavingProgress, setIsSavingProgress] = useState(false)
-  // UX-11: optimistic star rating
   const [optimisticRating, setOptimisticRating] = useState<
     number | null | undefined
   >(undefined)
-  // UX-12: inline date editing
   const [isEditingStartDate, setIsEditingStartDate] = useState(false)
   const [isEditingEndDate, setIsEditingEndDate] = useState(false)
   const [startDateInput, setStartDateInput] = useState("")
   const [endDateInput, setEndDateInput] = useState("")
   const [isSavingDate, setIsSavingDate] = useState<"start" | "end" | null>(null)
-  // UX-14: completion prompt
   const [showCompletionPrompt, setShowCompletionPrompt] = useState(false)
   const priceDisplayCurrency = useLibraryStore(
     (state) => state.priceDisplayCurrency
@@ -337,15 +709,10 @@ export default function VolumeDetailPage() {
     }
   }, [series.length, unassignedVolumes.length, fetchSeries])
 
-  const volumeEntry = useMemo(() => {
-    for (const seriesItem of series) {
-      const volume = seriesItem.volumes.find((item) => item.id === volumeId)
-      if (volume) return { volume, series: seriesItem }
-    }
-    const unassigned = unassignedVolumes.find((item) => item.id === volumeId)
-    if (unassigned) return { volume: unassigned, series: null }
-    return null
-  }, [series, unassignedVolumes, volumeId])
+  const volumeEntry = useMemo(
+    () => findVolumeEntry(volumeId, series, unassignedVolumes),
+    [volumeId, series, unassignedVolumes]
+  )
 
   const currentVolume = volumeEntry?.volume ?? null
   const currentSeries = volumeEntry?.series ?? null
@@ -464,28 +831,26 @@ export default function VolumeDetailPage() {
 
   const handleSaveProgress = useCallback(async () => {
     if (!currentVolume) return
-    const parsed = Number.parseInt(progressInput, 10)
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      toast.error("Enter a valid page number")
-      return
-    }
-    if (currentVolume.page_count != null && parsed > currentVolume.page_count) {
-      toast.error(
-        `Page number cannot exceed total pages (${currentVolume.page_count})`
-      )
+    const result = validateProgressInput(
+      progressInput,
+      currentVolume.page_count
+    )
+    if ("error" in result) {
+      toast.error(result.error)
       return
     }
     setIsSavingProgress(true)
     try {
       await editVolume(currentVolume.series_id ?? null, currentVolume.id, {
-        current_page: parsed
+        current_page: result.value
       })
       toast.success("Progress updated")
-      // UX-14: prompt completion when last page is reached
       if (
-        currentVolume.page_count != null &&
-        parsed >= currentVolume.page_count &&
-        currentVolume.reading_status !== "completed"
+        shouldPromptCompletion(
+          result.value,
+          currentVolume.page_count,
+          currentVolume.reading_status
+        )
       ) {
         setShowCompletionPrompt(true)
       }
@@ -496,7 +861,6 @@ export default function VolumeDetailPage() {
     }
   }, [currentVolume, progressInput, editVolume])
 
-  // UX-11: optimistic star rating
   const handleSetRating = useCallback(
     async (rating: number) => {
       if (!currentVolume) return
@@ -515,7 +879,6 @@ export default function VolumeDetailPage() {
     [currentVolume, editVolume]
   )
 
-  // UX-12: save start/end reading dates
   const handleSaveStartDate = useCallback(async () => {
     if (!currentVolume || !startDateInput) return
     setIsSavingDate("start")
@@ -548,7 +911,6 @@ export default function VolumeDetailPage() {
     }
   }, [currentVolume, endDateInput, editVolume])
 
-  // UX-14: confirm marking volume as completed
   const handleConfirmCompletion = useCallback(async () => {
     if (!currentVolume) return
     try {
@@ -563,34 +925,20 @@ export default function VolumeDetailPage() {
     }
   }, [currentVolume, editVolume])
 
-  const priceFormatter = useMemo(() => {
-    const currency = priceDisplayCurrency ?? DEFAULT_CURRENCY_CODE
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency
-      })
-    } catch {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: DEFAULT_CURRENCY_CODE
-      })
-    }
-  }, [priceDisplayCurrency])
+  const priceFormatter = useMemo(
+    () => buildPriceFormatter(priceDisplayCurrency),
+    [priceDisplayCurrency]
+  )
 
   const descriptionHtml = useMemo(
     () => sanitizeHtml(currentVolume?.description ?? "").trim(),
     [currentVolume?.description]
   )
 
-  const readingProgress = useMemo(() => {
-    if (!currentVolume) return { current: 0, total: 0, percent: 0 }
-    const current = currentVolume.current_page ?? 0
-    const total = currentVolume.page_count ?? 0
-    if (total === 0) return { current, total, percent: 0 }
-    const percent = Math.round((current / total) * 100)
-    return { current, total, percent }
-  }, [currentVolume])
+  const readingProgress = useMemo(
+    () => computeReadingProgress(currentVolume),
+    [currentVolume]
+  )
 
   if (isLoading && !currentVolume) {
     return (
@@ -644,53 +992,14 @@ export default function VolumeDetailPage() {
   const addedLabel = formatDate(currentVolume.created_at, dateFormat)
   const updatedLabel = formatDate(currentVolume.updated_at, dateFormat)
 
-  const detailItems = [
-    {
-      label: "Series",
-      value: currentSeries ? (
-        <Link
-          href={`/library/series/${currentSeries.id}`}
-          className="text-foreground hover:text-primary"
-        >
-          {currentSeries.title}
-        </Link>
-      ) : (
-        "Unassigned"
-      ),
-      show: true
-    },
-    {
-      label: "Pages",
-      value: currentVolume.page_count?.toLocaleString() ?? "—",
-      show: true
-    },
-    {
-      label: "Started",
-      value: startedLabel || "—",
-      show: Boolean(startedLabel)
-    },
-    {
-      label: "Finished",
-      value: finishedLabel || "—",
-      show: Boolean(finishedLabel)
-    },
-    {
-      label: "Amazon",
-      value: currentVolume.amazon_url ? (
-        <a
-          href={currentVolume.amazon_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-foreground hover:text-primary"
-        >
-          View ↗
-        </a>
-      ) : null,
-      show: Boolean(currentVolume.amazon_url)
-    },
-    { label: "Added", value: addedLabel || "—", show: true },
-    { label: "Updated", value: updatedLabel || "—", show: true }
-  ]
+  const detailItems = buildDetailItems(
+    currentVolume,
+    currentSeries,
+    startedLabel,
+    finishedLabel,
+    addedLabel,
+    updatedLabel
+  )
 
   return (
     <div className="relative px-6 py-8 lg:px-10">
@@ -712,71 +1021,12 @@ export default function VolumeDetailPage() {
         ]}
       />
 
-      {currentSeries && siblingVolumes.length > 1 && (
-        <nav
-          aria-label="Volume navigation"
-          className="mb-4 flex items-center gap-2"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!prevVolume}
-            onClick={() =>
-              prevVolume && router.push(`/library/volume/${prevVolume.id}`)
-            }
-            aria-label={
-              prevVolume
-                ? `Go to Volume ${prevVolume.volume_number}`
-                : "Already at first volume"
-            }
-            className="rounded-xl"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-1.5 h-4 w-4"
-              aria-hidden="true"
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-            {prevVolume ? `Vol. ${prevVolume.volume_number}` : "First Volume"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!nextVolume}
-            onClick={() =>
-              nextVolume && router.push(`/library/volume/${nextVolume.id}`)
-            }
-            aria-label={
-              nextVolume
-                ? `Go to Volume ${nextVolume.volume_number}`
-                : "Already at last volume"
-            }
-            className="rounded-xl"
-          >
-            {nextVolume ? `Vol. ${nextVolume.volume_number}` : "Last Volume"}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="ml-1.5 h-4 w-4"
-              aria-hidden="true"
-            >
-              <path d="m9 18 6-6-6-6" />
-            </svg>
-          </Button>
-        </nav>
-      )}
+      <VolumeNavigationBar
+        currentSeries={currentSeries}
+        siblingCount={siblingVolumes.length}
+        prevVolume={prevVolume}
+        nextVolume={nextVolume}
+      />
 
       {/* Series-style header + content */}
       <div className="relative mb-10">
@@ -946,105 +1196,22 @@ export default function VolumeDetailPage() {
                 </Button>
               </div>
               {/* Reading Dates (UX-12) */}
-              <div className="border-border/40 mt-4 border-t pt-4">
-                <span className="text-muted-foreground mb-2 block text-xs tracking-widest uppercase">
-                  Reading Dates
-                </span>
-                <div className="flex flex-wrap gap-3">
-                  {isEditingStartDate ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="date"
-                        value={startDateInput}
-                        onChange={(e) => setStartDateInput(e.target.value)}
-                        className="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
-                        aria-label="Start date"
-                      />
-                      <Button
-                        size="sm"
-                        className="rounded-lg"
-                        onClick={() => void handleSaveStartDate()}
-                        disabled={isSavingDate === "start"}
-                      >
-                        {isSavingDate === "start" ? "Saving\u2026" : "Save"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="rounded-lg"
-                        onClick={() => setIsEditingStartDate(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl"
-                      onClick={() => {
-                        setStartDateInput(
-                          currentVolume.started_at
-                            ? currentVolume.started_at.slice(0, 10)
-                            : ""
-                        )
-                        setIsEditingStartDate(true)
-                      }}
-                    >
-                      {"\uD83D\uDCC5"}{" "}
-                      {startedLabel
-                        ? `Started: ${startedLabel}`
-                        : "Set start date"}
-                    </Button>
-                  )}
-                  {isEditingEndDate ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="date"
-                        value={endDateInput}
-                        onChange={(e) => setEndDateInput(e.target.value)}
-                        className="border-input bg-background rounded-lg border px-3 py-1.5 text-sm"
-                        aria-label="Finish date"
-                      />
-                      <Button
-                        size="sm"
-                        className="rounded-lg"
-                        onClick={() => void handleSaveEndDate()}
-                        disabled={isSavingDate === "end"}
-                      >
-                        {isSavingDate === "end" ? "Saving\u2026" : "Save"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="rounded-lg"
-                        onClick={() => setIsEditingEndDate(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl"
-                      onClick={() => {
-                        setEndDateInput(
-                          currentVolume.finished_at
-                            ? currentVolume.finished_at.slice(0, 10)
-                            : ""
-                        )
-                        setIsEditingEndDate(true)
-                      }}
-                    >
-                      {"\uD83D\uDCC5"}{" "}
-                      {finishedLabel
-                        ? `Finished: ${finishedLabel}`
-                        : "Set finish date"}
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <ReadingDatesSection
+                currentVolume={currentVolume}
+                isEditingStartDate={isEditingStartDate}
+                isEditingEndDate={isEditingEndDate}
+                setIsEditingStartDate={setIsEditingStartDate}
+                setIsEditingEndDate={setIsEditingEndDate}
+                startDateInput={startDateInput}
+                endDateInput={endDateInput}
+                setStartDateInput={setStartDateInput}
+                setEndDateInput={setEndDateInput}
+                startedLabel={startedLabel}
+                finishedLabel={finishedLabel}
+                isSavingDate={isSavingDate}
+                onSaveStartDate={handleSaveStartDate}
+                onSaveEndDate={handleSaveEndDate}
+              />
             </div>
 
             {/* Details panel */}
