@@ -708,8 +708,12 @@ export interface Database {
     }
     Functions: {
       delete_series_atomic: {
-        Args: { p_series_id: string; p_user_id: string }
+        Args: { p_series_id: string }
         Returns: undefined
+      }
+      reset_user_library: {
+        Args: Record<string, never>
+        Returns: Json
       }
     }
     Enums: {
