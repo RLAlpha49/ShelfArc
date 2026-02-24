@@ -104,8 +104,8 @@ export function BarcodeScanner() {
     }
 
     if (scanningRef.current) {
-      requestAnimationFrame(() => {
-        void scanFrameRef.current?.()
+      requestAnimationFrame(async () => {
+        await scanFrameRef.current?.()
       })
     }
   }, [addIsbn, batchMode, stopCamera])
