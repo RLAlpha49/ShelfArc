@@ -40,7 +40,10 @@ export async function GET(request: NextRequest) {
 
     const { data, error, count } = await supabase
       .from("series")
-      .select("*", { count: "exact" })
+      .select(
+        "id, user_id, title, original_title, author, artist, publisher, cover_image_url, type, total_volumes, owned_volume_count, status, tags, is_public, created_at, updated_at",
+        { count: "exact" }
+      )
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
       .range(offset, offset + limit - 1)

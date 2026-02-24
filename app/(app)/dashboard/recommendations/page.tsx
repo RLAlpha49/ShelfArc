@@ -17,14 +17,12 @@ export default async function RecommendationsPage() {
   const [seriesResult, volumesResult] = await Promise.all([
     supabase
       .from("series")
-      .select(
-        "id, user_id, title, type, total_volumes, status, tags, cover_image_url, created_at, updated_at"
-      )
+      .select("id, title, type, total_volumes")
       .eq("user_id", user.id),
     supabase
       .from("volumes")
       .select(
-        "id, series_id, user_id, volume_number, ownership_status, reading_status, cover_image_url, purchase_price, created_at, updated_at"
+        "id, series_id, volume_number, ownership_status, reading_status, cover_image_url, purchase_price"
       )
       .eq("user_id", user.id)
       .order("volume_number", { ascending: true })

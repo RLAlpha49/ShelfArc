@@ -17,7 +17,7 @@ export default async function LibraryPage() {
     supabase
       .from("series")
       .select(
-        "id, user_id, title, original_title, author, artist, publisher, cover_image_url, type, total_volumes, status, tags, is_public, created_at, updated_at"
+        "id, title, original_title, author, artist, publisher, cover_image_url, type, total_volumes, status, tags, is_public, created_at, updated_at"
       )
       .eq("user_id", user.id),
     supabase
