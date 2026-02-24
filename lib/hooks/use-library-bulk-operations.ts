@@ -309,6 +309,45 @@ export function useLibraryBulkOperations({
     setBulkDeleteDialogOpen
   ])
 
+  const handleBulkEditApply = useCallback(
+    async (changes: Record<string, unknown>) => {
+      if (collectionView === "series") {
+        const targets = Array.from(selectedSeriesIds)
+        const results = await batchedAllSettled(
+          targets.map((id) => () => editSeries(id, changes))
+        )
+        const { successCount, failureCount } = countResults(results)
+        if (successCount > 0) toast.success(`Updated ${successCount} series`)
+        if (failureCount > 0) toast.error(`${failureCount} updates failed`)
+      } else {
+        const targets = Array.from(selectedVolumeIds)
+          .map((id) => volumeLookup.get(id))
+          .filter((v): v is Volume => Boolean(v))
+        const results = await batchedAllSettled(
+          targets.map(
+            (v) => () => editVolume(v.series_id ?? null, v.id, changes)
+          )
+        )
+        const { successCount, failureCount } = countResults(results)
+        if (successCount > 0)
+          toast.success(
+            `Updated ${successCount} volume${successCount === 1 ? "" : "s"}`
+          )
+        if (failureCount > 0) toast.error(`${failureCount} updates failed`)
+      }
+      clearSelection()
+    },
+    [
+      collectionView,
+      selectedSeriesIds,
+      selectedVolumeIds,
+      volumeLookup,
+      editSeries,
+      editVolume,
+      clearSelection
+    ]
+  )
+
   return {
     applySeriesType,
     applySeriesVolumesOwnership,
@@ -318,6 +357,7 @@ export function useLibraryBulkOperations({
     deleteSelectedSeries,
     deleteSelectedVolumes,
     performBulkDelete,
-    handleBulkDelete
+    handleBulkDelete,
+    handleBulkEditApply
   }
 }

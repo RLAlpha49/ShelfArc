@@ -1,14 +1,7 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState
-} from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react"
 import { toast } from "sonner"
 
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -28,6 +21,7 @@ import { LibraryActionsProvider } from "@/lib/context/library-actions-context"
 import { useLibrary } from "@/lib/hooks/use-library"
 import { useLibraryBulkOperations } from "@/lib/hooks/use-library-bulk-operations"
 import { useLibraryDialogs } from "@/lib/hooks/use-library-dialogs"
+import { useLibrarySelection } from "@/lib/hooks/use-library-selection"
 import { useLibraryUrlSync } from "@/lib/hooks/use-library-url-sync"
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh"
 import { useVolumeActions } from "@/lib/hooks/use-volume-actions"
@@ -41,23 +35,6 @@ import type {
   SeriesWithVolumes,
   Volume
 } from "@/lib/types/database"
-
-/** Extend a selection set by range between two IDs in an ordered list. Pure helper. */
-function addRangeToSet(
-  ids: string[],
-  anchorId: string,
-  currentId: string,
-  prev: Set<string>
-): Set<string> {
-  const anchorIdx = ids.indexOf(anchorId)
-  const currentIdx = ids.indexOf(currentId)
-  if (anchorIdx === -1 || currentIdx === -1) return prev
-  const next = new Set(prev)
-  const lo = Math.min(anchorIdx, currentIdx)
-  const hi = Math.max(anchorIdx, currentIdx)
-  for (let i = lo; i <= hi; i++) next.add(ids[i])
-  return next
-}
 
 /** Build scrape targets from current selection. Pure helper, extracted to reduce component complexity. */
 function buildScrapeTargets(
@@ -180,26 +157,6 @@ export default function LibraryClient({
 
   const libraryHeadingRef = useRef<HTMLHeadingElement>(null)
 
-  // Keyboard multi-select: track modifier keys via document listeners so we
-  // don't need to thread MouseEvents through the card component tree.
-  const isShiftHeldRef = useRef(false)
-  const isCtrlHeldRef = useRef(false)
-  const lastSelectedSeriesIdRef = useRef<string | null>(null)
-  const lastSelectedVolumeIdRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    const onKeyChange = (e: KeyboardEvent) => {
-      isShiftHeldRef.current = e.shiftKey
-      isCtrlHeldRef.current = e.ctrlKey || e.metaKey
-    }
-    document.addEventListener("keydown", onKeyChange)
-    document.addEventListener("keyup", onKeyChange)
-    return () => {
-      document.removeEventListener("keydown", onKeyChange)
-      document.removeEventListener("keyup", onKeyChange)
-    }
-  }, [])
-
   const {
     searchDialogOpen,
     setSearchDialogOpen,
@@ -236,12 +193,6 @@ export default function LibraryClient({
     addToCollectionDialogOpen,
     setAddToCollectionDialogOpen
   } = useLibraryDialogs()
-  const [selectedSeriesIds, setSelectedSeriesIds] = useState<Set<string>>(
-    () => new Set()
-  )
-  const [selectedVolumeIds, setSelectedVolumeIds] = useState<Set<string>>(
-    () => new Set()
-  )
 
   const initialDataRef = useRef(initialData)
   const initialized = useRef(false)
@@ -270,13 +221,6 @@ export default function LibraryClient({
   const { pullDistance, isRefreshing, isPulling } = usePullToRefresh({
     onRefresh: handlePullRefresh
   })
-
-  const clearSelection = useCallback(() => {
-    setSelectedSeriesIds(new Set())
-    setSelectedVolumeIds(new Set())
-    lastSelectedSeriesIdRef.current = null
-    lastSelectedVolumeIdRef.current = null
-  }, [])
 
   const existingEntries = useMemo(() => {
     const assigned = series.flatMap((seriesItem) =>
@@ -316,27 +260,46 @@ export default function LibraryClient({
     return map
   }, [series, unassignedVolumes])
 
-  const selectedIds =
-    collectionView === "series" ? selectedSeriesIds : selectedVolumeIds
-  const selectedCount = selectedIds.size
-  const totalSelectableCount =
-    collectionView === "series"
-      ? filteredSeries.length
-      : filteredVolumes.length + filteredUnassignedVolumes.length
-  const isAllSelected =
-    totalSelectableCount > 0 && selectedCount === totalSelectableCount
+  const handleSeriesNavigate = useCallback(
+    (seriesItem: SeriesWithVolumes) => {
+      setSelectedSeries(seriesItem)
+      router.push(`/library/series/${seriesItem.id}`)
+    },
+    [setSelectedSeries, router]
+  )
 
-  const selectedUnassignedVolumeIds = useMemo(() => {
-    if (collectionView !== "volumes") return []
-    if (selectedVolumeIds.size === 0) return []
+  const handleVolumeNavigate = useCallback(
+    (volumeId: string) => {
+      router.push(`/library/volume/${volumeId}`)
+    },
+    [router]
+  )
 
-    return Array.from(selectedVolumeIds).filter((id) => {
-      const volume = volumeLookup.get(id)
-      return volume != null && !volume.series_id
-    })
-  }, [collectionView, selectedVolumeIds, volumeLookup])
-
-  const selectedUnassignedCount = selectedUnassignedVolumeIds.length
+  const {
+    selectedSeriesIds,
+    selectedVolumeIds,
+    selectedCount,
+    totalSelectableCount,
+    isAllSelected,
+    selectedUnassignedVolumeIds,
+    selectedUnassignedCount,
+    selectedVolumeIdsArray,
+    clearSelection,
+    handleClearSelection,
+    toggleSeriesSelection,
+    toggleVolumeSelection,
+    handleSelectAll,
+    handleSeriesItemClick,
+    handleVolumeItemClick
+  } = useLibrarySelection({
+    collectionView,
+    filteredSeries,
+    filteredVolumes,
+    filteredUnassignedVolumes,
+    volumeLookup,
+    onSeriesNavigate: handleSeriesNavigate,
+    onVolumeNavigate: handleVolumeNavigate
+  })
 
   const getNextVolumeNumber = useCallback(
     (seriesId: string | null) => {
@@ -352,52 +315,6 @@ export default function LibraryClient({
     [series]
   )
 
-  const toggleSeriesSelection = useCallback((seriesId: string) => {
-    setSelectedSeriesIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(seriesId)) {
-        next.delete(seriesId)
-      } else {
-        next.add(seriesId)
-      }
-      return next
-    })
-  }, [])
-
-  const toggleVolumeSelection = useCallback((volumeId: string) => {
-    setSelectedVolumeIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(volumeId)) {
-        next.delete(volumeId)
-      } else {
-        next.add(volumeId)
-      }
-      return next
-    })
-  }, [])
-
-  const handleSelectAll = useCallback(() => {
-    if (collectionView === "series") {
-      setSelectedSeriesIds(new Set(filteredSeries.map((item) => item.id)))
-      return
-    }
-
-    const nextIds = new Set(filteredVolumes.map((item) => item.volume.id))
-    for (const volume of filteredUnassignedVolumes) {
-      nextIds.add(volume.id)
-    }
-    setSelectedVolumeIds(nextIds)
-  }, [
-    collectionView,
-    filteredSeries,
-    filteredVolumes,
-    filteredUnassignedVolumes
-  ])
-
-  const handleClearSelection = useCallback(() => {
-    clearSelection()
-  }, [clearSelection])
-
   const {
     applySeriesType,
     applySeriesVolumesOwnership,
@@ -405,7 +322,8 @@ export default function LibraryClient({
     applyVolumeOwnershipStatus,
     applyVolumeReadingStatus,
     performBulkDelete,
-    handleBulkDelete
+    handleBulkDelete,
+    handleBulkEditApply
   } = useLibraryBulkOperations({
     selectedSeriesIds,
     selectedVolumeIds,
@@ -616,21 +534,15 @@ export default function LibraryClient({
 
   const handleEditSelected = useCallback(() => {
     if (selectedCount !== 1) return
-
     if (collectionView === "series") {
       const selectedId = Array.from(selectedSeriesIds)[0]
       const selectedSeries = series.find((item) => item.id === selectedId)
-      if (selectedSeries) {
-        openEditDialog(selectedSeries)
-      }
+      if (selectedSeries) openEditDialog(selectedSeries)
       return
     }
-
     const selectedId = Array.from(selectedVolumeIds)[0]
     const selectedVolume = volumeLookup.get(selectedId)
-    if (selectedVolume) {
-      openEditVolumeDialog(selectedVolume)
-    }
+    if (selectedVolume) openEditVolumeDialog(selectedVolume)
   }, [
     selectedCount,
     collectionView,
@@ -646,61 +558,6 @@ export default function LibraryClient({
     if (selectedCount < 2) return
     setBulkEditDialogOpen(true)
   }, [selectedCount, setBulkEditDialogOpen])
-
-  const handleBulkEditApply = useCallback(
-    async (changes: Record<string, unknown>) => {
-      if (collectionView === "series") {
-        const targets = Array.from(selectedSeriesIds)
-        const results = await batchedAllSettled(
-          targets.map((id) => () => editSeries(id, changes))
-        )
-        const successCount = results.filter(
-          (r) => r.status === "fulfilled"
-        ).length
-        const failureCount = results.length - successCount
-        toastBatchOp(
-          successCount,
-          failureCount,
-          `Updated ${successCount} series`,
-          `${failureCount} updates failed`
-        )
-      } else {
-        const targets = Array.from(selectedVolumeIds)
-          .map((id) => volumeLookup.get(id))
-          .filter((v): v is Volume => Boolean(v))
-        const results = await batchedAllSettled(
-          targets.map(
-            (v) => () => editVolume(v.series_id ?? null, v.id, changes)
-          )
-        )
-        const successCount = results.filter(
-          (r) => r.status === "fulfilled"
-        ).length
-        const failureCount = results.length - successCount
-        toastBatchOp(
-          successCount,
-          failureCount,
-          `Updated ${successCount} volume${successCount === 1 ? "" : "s"}`,
-          `${failureCount} updates failed`
-        )
-      }
-      clearSelection()
-    },
-    [
-      collectionView,
-      selectedSeriesIds,
-      selectedVolumeIds,
-      volumeLookup,
-      editSeries,
-      editVolume,
-      clearSelection
-    ]
-  )
-
-  const selectedVolumeIdsArray = useMemo(
-    () => Array.from(selectedVolumeIds),
-    [selectedVolumeIds]
-  )
 
   const openDeleteVolumeDialog = useCallback(
     async (volume: Volume) => {
@@ -721,77 +578,6 @@ export default function LibraryClient({
       removeVolume,
       setDeletingVolume,
       setDeleteVolumeDialogOpen
-    ]
-  )
-
-  const handleSeriesClick = useCallback(
-    (series: SeriesWithVolumes) => {
-      setSelectedSeries(series)
-      router.push(`/library/series/${series.id}`)
-    },
-    [setSelectedSeries, router]
-  )
-
-  const handleVolumeClick = useCallback(
-    (volumeId: string) => {
-      router.push(`/library/volume/${volumeId}`)
-    },
-    [router]
-  )
-
-  const handleSeriesItemClick = useCallback(
-    (seriesItem: SeriesWithVolumes) => {
-      const anchor = lastSelectedSeriesIdRef.current
-      if (isShiftHeldRef.current && anchor) {
-        const ids = filteredSeries.map((s) => s.id)
-        setSelectedSeriesIds((prev) =>
-          addRangeToSet(ids, anchor, seriesItem.id, prev)
-        )
-        return
-      }
-      if (isCtrlHeldRef.current || selectedSeriesIds.size > 0) {
-        toggleSeriesSelection(seriesItem.id)
-        lastSelectedSeriesIdRef.current = seriesItem.id
-        return
-      }
-      lastSelectedSeriesIdRef.current = seriesItem.id
-      handleSeriesClick(seriesItem)
-    },
-    [
-      selectedSeriesIds.size,
-      toggleSeriesSelection,
-      handleSeriesClick,
-      filteredSeries
-    ]
-  )
-
-  const handleVolumeItemClick = useCallback(
-    (volumeId: string) => {
-      const anchor = lastSelectedVolumeIdRef.current
-      if (isShiftHeldRef.current && anchor) {
-        const ids = [
-          ...filteredVolumes.map((item) => item.volume.id),
-          ...filteredUnassignedVolumes.map((v) => v.id)
-        ]
-        setSelectedVolumeIds((prev) =>
-          addRangeToSet(ids, anchor, volumeId, prev)
-        )
-        return
-      }
-      if (isCtrlHeldRef.current || selectedVolumeIds.size > 0) {
-        toggleVolumeSelection(volumeId)
-        lastSelectedVolumeIdRef.current = volumeId
-        return
-      }
-      lastSelectedVolumeIdRef.current = volumeId
-      handleVolumeClick(volumeId)
-    },
-    [
-      selectedVolumeIds.size,
-      toggleVolumeSelection,
-      handleVolumeClick,
-      filteredVolumes,
-      filteredUnassignedVolumes
     ]
   )
 
