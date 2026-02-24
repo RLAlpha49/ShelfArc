@@ -1,1 +1,0 @@
-Investigate the entire codebase and create serena memories to be used as codebase context. Also create a proper unique readme. Use subagents for better context management and/or to handle specific parts individually. Be as thorough and in-depth as possible and don't miss anything.
