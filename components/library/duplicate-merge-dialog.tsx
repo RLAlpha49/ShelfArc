@@ -300,6 +300,83 @@ function formatFieldValue(key: string, value: unknown): string {
   return String(value)
 }
 
+interface FieldValueCellProps {
+  readonly groupId: string
+  readonly fieldKey: string
+  readonly volumeId: string
+  readonly volumeNumber: number
+  readonly fieldLabel: string
+  readonly isSelected: boolean
+  readonly isDiffering: boolean
+  readonly display: string
+  readonly onSelect: (
+    groupId: string,
+    fieldKey: string,
+    volumeId: string
+  ) => void
+}
+
+/**
+ * Renders a single cell in the field-diff comparison table.
+ * Displays a selectable button when the field differs, or a read-only div otherwise.
+ * @source
+ */
+function FieldValueCell({
+  groupId,
+  fieldKey,
+  volumeId,
+  volumeNumber,
+  fieldLabel,
+  isSelected,
+  isDiffering,
+  display,
+  onSelect
+}: FieldValueCellProps) {
+  if (!isDiffering) {
+    return (
+      <div className="text-muted-foreground flex flex-1 items-center px-3 py-1.5 text-[11px]">
+        <span className="truncate">{display}</span>
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(groupId, fieldKey, volumeId)}
+      className={`flex flex-1 items-center gap-1.5 px-3 py-1.5 text-left text-[11px] transition-colors ${
+        isSelected
+          ? "bg-copper/8 text-foreground"
+          : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+      }`}
+      aria-pressed={isSelected}
+      aria-label={`Use ${fieldLabel} value from volume ${volumeNumber}`}
+    >
+      <span
+        className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${
+          isSelected ? "border-copper bg-copper" : "border-muted-foreground/40"
+        }`}
+        aria-hidden="true"
+      >
+        {isSelected && (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-1.5 w-1.5 text-white"
+          >
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        )}
+      </span>
+      <span className="truncate">{display}</span>
+    </button>
+  )
+}
+
 /** Dialog that finds duplicate volumes and helps resolve them by merging/deleting. @source */
 export function DuplicateMergeDialog({
   open,
@@ -377,6 +454,36 @@ export function DuplicateMergeDialog({
       }
     },
     [autoMerge, editVolume, fieldOverrides, keepByGroupId, removeVolume]
+  )
+
+  /**
+   * Selects a volume as the one to keep for the given duplicate group,
+   * and clears any field-level overrides for that group.
+   */
+  const handleSelectVolume = useCallback(
+    (groupId: string, volumeId: string) => {
+      setKeepByGroupId((prev) => ({ ...prev, [groupId]: volumeId }))
+      setFieldOverrides((prev) => {
+        const next = { ...prev }
+        delete next[groupId]
+        return next
+      })
+    },
+    []
+  )
+
+  /**
+   * Sets a per-field value override for the given duplicate group,
+   * specifying which volume's value to use for that field in the merge.
+   */
+  const handleSelectFieldOverride = useCallback(
+    (groupId: string, fieldKey: string, volumeId: string) => {
+      setFieldOverrides((prev) => ({
+        ...prev,
+        [groupId]: { ...prev[groupId], [fieldKey]: volumeId }
+      }))
+    },
+    []
   )
 
   const hasAnyData = series.length > 0 || unassignedVolumes.length > 0
@@ -577,17 +684,9 @@ export function DuplicateMergeDialog({
                           <button
                             key={volume.id}
                             type="button"
-                            onClick={() => {
-                              setKeepByGroupId((prev) => ({
-                                ...prev,
-                                [group.id]: volume.id
-                              }))
-                              setFieldOverrides((prev) => {
-                                const next = { ...prev }
-                                delete next[group.id]
-                                return next
-                              })
-                            }}
+                            onClick={() =>
+                              handleSelectVolume(group.id, volume.id)
+                            }
                             className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left transition-colors ${
                               isKept ? "bg-copper/5" : "hover:bg-muted/30"
                             }`}
@@ -789,63 +888,19 @@ export function DuplicateMergeDialog({
                                       value
                                     )
 
-                                    return isDiffering ? (
-                                      <button
+                                    return (
+                                      <FieldValueCell
                                         key={ref.volume.id}
-                                        type="button"
-                                        onClick={() =>
-                                          setFieldOverrides((prev) => ({
-                                            ...prev,
-                                            [group.id]: {
-                                              ...prev[group.id],
-                                              [field.key]: ref.volume.id
-                                            }
-                                          }))
-                                        }
-                                        className={`flex flex-1 items-center gap-1.5 px-3 py-1.5 text-left text-[11px] transition-colors ${
-                                          isSelected
-                                            ? "bg-copper/8 text-foreground"
-                                            : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                                        }`}
-                                        aria-pressed={isSelected}
-                                        aria-label={`Use ${field.label} value from volume ${ref.volume.volume_number}`}
-                                      >
-                                        <span
-                                          className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${
-                                            isSelected
-                                              ? "border-copper bg-copper"
-                                              : "border-muted-foreground/40"
-                                          }`}
-                                          aria-hidden="true"
-                                        >
-                                          {isSelected && (
-                                            <svg
-                                              xmlns="http://www.w3.org/2000/svg"
-                                              viewBox="0 0 24 24"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              strokeWidth="3"
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              className="h-1.5 w-1.5 text-white"
-                                            >
-                                              <path d="M20 6 9 17l-5-5" />
-                                            </svg>
-                                          )}
-                                        </span>
-                                        <span className="truncate">
-                                          {display}
-                                        </span>
-                                      </button>
-                                    ) : (
-                                      <div
-                                        key={ref.volume.id}
-                                        className="text-muted-foreground flex flex-1 items-center px-3 py-1.5 text-[11px]"
-                                      >
-                                        <span className="truncate">
-                                          {display}
-                                        </span>
-                                      </div>
+                                        groupId={group.id}
+                                        fieldKey={field.key}
+                                        volumeId={ref.volume.id}
+                                        volumeNumber={ref.volume.volume_number}
+                                        fieldLabel={field.label}
+                                        isSelected={isSelected}
+                                        isDiffering={isDiffering}
+                                        display={display}
+                                        onSelect={handleSelectFieldOverride}
+                                      />
                                     )
                                   })}
                                 </div>
