@@ -291,8 +291,12 @@ export function validateProfileFields(
     const trimmed = fields.avatarUrl.trim()
     const isPlainUserPath =
       trimmed.startsWith(userId + "/") && !trimmed.includes("://")
+    // Enforce ownership: extracted storage path must start with the caller's userId prefix
+    const extractedPath = extractStoragePath(trimmed)
     const isStoragePrefixed =
-      extractStoragePath(trimmed) !== null && !trimmed.includes("://")
+      extractedPath !== null &&
+      extractedPath.startsWith(userId + "/") &&
+      !trimmed.includes("://")
     const isStoragePath = isPlainUserPath || isStoragePrefixed
 
     if (!isStoragePath && !isValidHttpsUrl(trimmed)) {

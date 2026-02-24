@@ -36,9 +36,18 @@ function extractProfileFields(
     const trimmed = data.avatarUrl.trim()
     if (!trimmed) {
       avatarUrl = null
+    } else if (trimmed.startsWith(`/api/storage/file?`)) {
+      // Enforce ownership: path query param must be scoped to this user
+      try {
+        const url = new URL(trimmed, "http://localhost")
+        const pathParam = url.searchParams.get("path")
+        if (pathParam?.startsWith(`${userId}/`)) {
+          avatarUrl = trimmed
+        }
+      } catch {
+        // Invalid URL format — reject
+      }
     } else if (
-      // Allow relative storage API paths scoped to this user
-      trimmed.startsWith(`/api/storage/file?`) ||
       // Allow storage: prefixed paths scoped to this user
       trimmed.startsWith(`storage:${userId}/`) ||
       // Allow full https URLs only from the configured Supabase storage bucket

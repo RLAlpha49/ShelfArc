@@ -140,15 +140,17 @@ export default async function PublicProfilePage({ params }: Props) {
   let resolvedAvatar: string | undefined
   if (profile.avatar_url) {
     const storagePath = extractStoragePath(profile.avatar_url)
-    if (storagePath) {
+    if (storagePath?.startsWith(profile.id + "/")) {
+      // Only generate signed URLs for storage paths owned by this profile
       const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "media"
       const { data: signedData } = await admin.storage
         .from(bucket)
         .createSignedUrl(storagePath, 86_400) // 24-hour signed URL
       resolvedAvatar = signedData?.signedUrl ?? undefined
-    } else {
+    } else if (!storagePath) {
       resolvedAvatar = resolveImageUrl(profile.avatar_url)
     }
+    // If storagePath doesn't belong to this profile, skip it (reject cross-user path)
   }
   const displayName = profile.username ?? username
   const shareUrl = getPublicProfileUrl(displayName)
