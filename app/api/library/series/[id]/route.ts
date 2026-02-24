@@ -188,8 +188,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
       // Atomically delete all volumes in the series, then the series itself,
       // in a single DB transaction via the delete_series_atomic RPC.
       const { error: rpcError } = await supabase.rpc("delete_series_atomic", {
-        p_series_id: id,
-        p_user_id: user.id
+        p_series_id: id
       })
 
       if (rpcError) {
