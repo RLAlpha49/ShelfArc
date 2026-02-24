@@ -64,6 +64,7 @@
 -- DROP FUNCTION IF EXISTS public.activity_events_cleanup(integer);
 -- DROP FUNCTION IF EXISTS public.notifications_cleanup(integer);
 -- DROP FUNCTION IF EXISTS public.check_volume_user_consistency();
+-- DROP FUNCTION IF EXISTS public.cleanup_deleted_series(INTEGER);
 -- DROP FUNCTION IF EXISTS public.cleanup_old_import_events();
 -- DROP FUNCTION IF EXISTS public.restore_user_library(UUID, JSONB, JSONB);
 -- DROP FUNCTION IF EXISTS public.update_series_owned_volume_count();
@@ -261,7 +262,8 @@ CREATE TABLE IF NOT EXISTS series (
   tags TEXT[] DEFAULT '{}',
   is_public BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 
 -- Series indexes
@@ -272,6 +274,7 @@ CREATE INDEX IF NOT EXISTS idx_series_title_trgm ON series USING gin (title gin_
 CREATE INDEX IF NOT EXISTS idx_series_user_title ON series(user_id, title);
 CREATE INDEX IF NOT EXISTS idx_series_user_type ON series(user_id, type);
 CREATE INDEX IF NOT EXISTS idx_series_user_updated ON series(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_series_deleted_at ON series (deleted_at) WHERE deleted_at IS NOT NULL;
 
 CREATE OR REPLACE VIEW public.user_tags WITH (security_invoker = true) AS
   SELECT DISTINCT unnest(tags) AS tag, user_id
@@ -475,7 +478,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
 
 -- Collections (persisted user/system shelves)
 CREATE TABLE IF NOT EXISTS collections (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#4682b4',
@@ -485,23 +488,10 @@ CREATE TABLE IF NOT EXISTS collections (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'collections_id_uuid_format'
-      AND conrelid = to_regclass('public.collections')
-  ) THEN
-    ALTER TABLE public.collections
-      ADD CONSTRAINT collections_id_uuid_format
-      CHECK (id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
-  END IF;
-END $$;
-
 CREATE INDEX IF NOT EXISTS idx_collections_user_id ON collections(user_id);
 
 CREATE TABLE IF NOT EXISTS collection_volumes (
-  collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
   volume_id UUID NOT NULL REFERENCES volumes(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   added_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -1636,6 +1626,31 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+-- Purge soft-deleted series (and cascaded volumes) older than retention_days (default 30)
+CREATE OR REPLACE FUNCTION public.cleanup_deleted_series(
+  retention_days INTEGER DEFAULT 30
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  deleted_count INTEGER;
+BEGIN
+  DELETE FROM public.series
+  WHERE deleted_at IS NOT NULL
+    AND deleted_at < NOW() - (retention_days || ' days')::INTERVAL;
+
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+
+  RETURN deleted_count;
+END;
+$$;
+
+-- Restricted to scheduled/admin use only
+REVOKE ALL ON FUNCTION public.cleanup_deleted_series(INTEGER) FROM PUBLIC;
 
 -- Keep only the last 90 price history entries per volume to prevent unbounded growth
 CREATE OR REPLACE FUNCTION public.cleanup_price_history()
