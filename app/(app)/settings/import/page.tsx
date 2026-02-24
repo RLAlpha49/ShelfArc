@@ -1,13 +1,41 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import Link from "next/link"
 
-import { AniListImport } from "@/components/settings/anilist-import"
-import { BarcodeScanner } from "@/components/settings/barcode-scanner"
-import { CsvImport } from "@/components/settings/csv-import"
-import { GoodreadsImport } from "@/components/settings/goodreads-import"
-import { JsonImport } from "@/components/settings/json-import"
-import { MalImport } from "@/components/settings/mal-import"
+const tabSkeleton = <div className="bg-muted h-48 animate-pulse rounded-lg" />
+
+const CsvImport = dynamic(
+  () => import("@/components/settings/csv-import").then((m) => m.CsvImport),
+  { ssr: false, loading: () => tabSkeleton }
+)
+const JsonImport = dynamic(
+  () => import("@/components/settings/json-import").then((m) => m.JsonImport),
+  { ssr: false, loading: () => tabSkeleton }
+)
+const MalImport = dynamic(
+  () => import("@/components/settings/mal-import").then((m) => m.MalImport),
+  { ssr: false, loading: () => tabSkeleton }
+)
+const AniListImport = dynamic(
+  () =>
+    import("@/components/settings/anilist-import").then((m) => m.AniListImport),
+  { ssr: false, loading: () => tabSkeleton }
+)
+const GoodreadsImport = dynamic(
+  () =>
+    import("@/components/settings/goodreads-import").then(
+      (m) => m.GoodreadsImport
+    ),
+  { ssr: false, loading: () => tabSkeleton }
+)
+const BarcodeScanner = dynamic(
+  () =>
+    import("@/components/settings/barcode-scanner").then(
+      (m) => m.BarcodeScanner
+    ),
+  { ssr: false, loading: () => tabSkeleton }
+)
 import {
   Card,
   CardContent,

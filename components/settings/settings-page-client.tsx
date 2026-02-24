@@ -1,17 +1,44 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
 import { AccessibilitySection } from "@/components/settings/accessibility-section"
 import { AppearanceSection } from "@/components/settings/appearance-section"
-import { DangerZoneSection } from "@/components/settings/danger-zone-section"
-import { DataSection } from "@/components/settings/data-section"
 import { NotificationsSection } from "@/components/settings/notifications-section"
 import { PreferencesSection } from "@/components/settings/preferences-section"
-import { PricingSection } from "@/components/settings/pricing-section"
 import { ProfileSection } from "@/components/settings/profile-section"
-import { SecuritySection } from "@/components/settings/security-section"
+
+const sectionSkeleton = (
+  <div className="bg-muted mb-10 h-64 animate-pulse rounded-xl" />
+)
+
+const PricingSection = dynamic(
+  () =>
+    import("@/components/settings/pricing-section").then(
+      (m) => m.PricingSection
+    ),
+  { ssr: false, loading: () => sectionSkeleton }
+)
+const SecuritySection = dynamic(
+  () =>
+    import("@/components/settings/security-section").then(
+      (m) => m.SecuritySection
+    ),
+  { ssr: false, loading: () => sectionSkeleton }
+)
+const DataSection = dynamic(
+  () => import("@/components/settings/data-section").then((m) => m.DataSection),
+  { ssr: false, loading: () => sectionSkeleton }
+)
+const DangerZoneSection = dynamic(
+  () =>
+    import("@/components/settings/danger-zone-section").then(
+      (m) => m.DangerZoneSection
+    ),
+  { ssr: false, loading: () => sectionSkeleton }
+)
 import { useSettingsStore } from "@/lib/store/settings-store"
 import type { Profile } from "@/lib/types/database"
 import { cn } from "@/lib/utils"
