@@ -19,7 +19,15 @@ export function enforceSameOrigin(request: Request): Response | undefined {
   }
 
   const origin = headers.get("origin")?.trim() ?? ""
-  if (!origin) return undefined
+  if (!origin) {
+    // Require Origin for state-mutating methods (POST, PUT, PATCH, DELETE).
+    // GET, HEAD, OPTIONS are safe methods and may omit Origin legitimately.
+    const safeMethods = ["GET", "HEAD", "OPTIONS"]
+    if (!safeMethods.includes(request.method?.toUpperCase() ?? "GET")) {
+      return apiError(403, "Forbidden")
+    }
+    return undefined
+  }
 
   const host = headers.get("x-forwarded-host") ?? headers.get("host")
   if (!host) return undefined

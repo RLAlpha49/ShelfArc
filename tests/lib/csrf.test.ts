@@ -10,7 +10,13 @@ mock.module("@/lib/csrf", () => ({
     const fetchSite = headers.get("sec-fetch-site")
     if (fetchSite === "cross-site") return apiError(403, "Forbidden")
     const origin = headers.get("origin")?.trim() ?? ""
-    if (!origin) return undefined
+    if (!origin) {
+      const safeMethods = ["GET", "HEAD", "OPTIONS"]
+      if (!safeMethods.includes(request.method?.toUpperCase() ?? "GET")) {
+        return apiError(403, "Forbidden")
+      }
+      return undefined
+    }
     const host = headers.get("x-forwarded-host") ?? headers.get("host")
     if (!host) return undefined
     try {
@@ -26,8 +32,8 @@ mock.module("@/lib/csrf", () => ({
 import { enforceSameOrigin } from "@/lib/csrf"
 
 describe("enforceSameOrigin", () => {
-  const makeRequest = (headers: Record<string, string>) =>
-    new Request("http://localhost:3000/api/test", { headers })
+  const makeRequest = (headers: Record<string, string>, method = "GET") =>
+    new Request("http://localhost:3000/api/test", { headers, method })
 
   it("allows same-site requests", () => {
     const result = enforceSameOrigin(
@@ -44,7 +50,7 @@ describe("enforceSameOrigin", () => {
     expect(result!.status).toBe(403)
   })
 
-  it("allows requests without sec-fetch-site header", () => {
+  it("allows GET requests without sec-fetch-site header", () => {
     const result = enforceSameOrigin(makeRequest({}))
     expect(result).toBeUndefined()
   })
@@ -91,8 +97,37 @@ describe("enforceSameOrigin", () => {
     expect(result!.status).toBe(403)
   })
 
-  it("allows requests with no origin header", () => {
+  it("allows GET requests with no origin header", () => {
     const result = enforceSameOrigin(makeRequest({ host: "localhost:3000" }))
+    expect(result).toBeUndefined()
+  })
+
+  it("rejects mutating requests (POST) with no origin header", () => {
+    const result = enforceSameOrigin(
+      makeRequest({ host: "localhost:3000" }, "POST")
+    )
+    expect(result).toBeDefined()
+    expect(result!.status).toBe(403)
+  })
+
+  it("rejects mutating requests (PATCH) with no origin header", () => {
+    const result = enforceSameOrigin(
+      makeRequest({ host: "localhost:3000" }, "PATCH")
+    )
+    expect(result).toBeDefined()
+    expect(result!.status).toBe(403)
+  })
+
+  it("rejects mutating requests (DELETE) with no origin header", () => {
+    const result = enforceSameOrigin(
+      makeRequest({ host: "localhost:3000" }, "DELETE")
+    )
+    expect(result).toBeDefined()
+    expect(result!.status).toBe(403)
+  })
+
+  it("allows HEAD requests with no origin header", () => {
+    const result = enforceSameOrigin(makeRequest({}, "HEAD"))
     expect(result).toBeUndefined()
   })
 
