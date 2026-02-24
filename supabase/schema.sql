@@ -69,7 +69,7 @@
 -- DROP FUNCTION IF EXISTS public.restore_user_library(UUID, JSONB, JSONB);
 -- DROP FUNCTION IF EXISTS public.update_series_owned_volume_count();
 -- DROP FUNCTION IF EXISTS public.cleanup_price_history();
--- DROP FUNCTION IF EXISTS public.update_automations_updated_at();
+-- DROP FUNCTION IF EXISTS public.update_automations_updated_at() CASCADE;
 --
 -- DROP TABLE IF EXISTS public.user_follows CASCADE;
 -- DROP TABLE IF EXISTS public.automations CASCADE;
@@ -215,13 +215,15 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_lower ON profiles (LOWER(username));
 
 DO $$
+DECLARE
+  v_rel CONSTANT REGCLASS := to_regclass('public.profiles');
 BEGIN
-  IF to_regclass('public.profiles') IS NOT NULL
+  IF v_rel IS NOT NULL
      AND NOT EXISTS (
        SELECT 1
        FROM pg_constraint
        WHERE conname = 'chk_username_format'
-         AND conrelid = to_regclass('public.profiles')
+         AND conrelid = v_rel
      ) THEN
     ALTER TABLE public.profiles
       ADD CONSTRAINT chk_username_format
@@ -322,12 +324,13 @@ CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder
   ON volumes(user_id, publish_date)
   WHERE publish_date IS NOT NULL AND release_reminder = TRUE;
 
-CREATE INDEX IF NOT EXISTS idx_volumes_wishlist_release_reminder
-  ON public.volumes (publish_date, user_id)
-  WHERE ownership_status = 'wishlist' AND release_reminder = TRUE AND publish_date IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder_queue
-  ON public.volumes (publish_date, series_id)
-  WHERE ownership_status = 'wishlist' AND release_reminder = TRUE;
+DO $$
+DECLARE
+  v_wishlist CONSTANT TEXT := 'wishlist';
+BEGIN
+  EXECUTE format('CREATE INDEX IF NOT EXISTS idx_volumes_wishlist_release_reminder ON public.volumes (publish_date, user_id) WHERE ownership_status = %L AND release_reminder = TRUE AND publish_date IS NOT NULL', v_wishlist);
+  EXECUTE format('CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder_queue ON public.volumes (publish_date, series_id) WHERE ownership_status = %L AND release_reminder = TRUE', v_wishlist);
+END $$;
 CREATE INDEX IF NOT EXISTS idx_volumes_series_id ON volumes(series_id);
 CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_isbn ON volumes(user_id, isbn);
@@ -346,11 +349,13 @@ CREATE INDEX IF NOT EXISTS idx_volumes_series_reading
   ON volumes(series_id, reading_status);
 
 DO $$
+DECLARE
+  v_rel CONSTANT REGCLASS := to_regclass('public.volumes');
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'current_page_within_bounds'
-      AND conrelid = to_regclass('public.volumes')
+      AND conrelid = v_rel
   ) THEN
     ALTER TABLE public.volumes
       ADD CONSTRAINT current_page_within_bounds
@@ -560,6 +565,26 @@ CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_
 -- Row Level Security (enable + policies grouped per-table)
 -- -----------------------------------------------------------------------------
 
+-- Internal helper: returns TRUE when the named RLS policy already exists in the
+-- public schema.  Centralises the repeated schemaname = 'public' literal so
+-- every caller can simply pass (tablename, policyname).
+CREATE OR REPLACE FUNCTION public._sa_policy_exists(p_tablename TEXT, p_policyname TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename   = p_tablename
+      AND policyname  = p_policyname
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public._sa_policy_exists(TEXT, TEXT) FROM PUBLIC;
+
 -- RLS Template — apply this pattern to every new user-scoped table:
 --   ALTER TABLE new_table ENABLE ROW LEVEL SECURITY;
 --   CREATE POLICY "Users manage own rows" ON new_table
@@ -569,171 +594,95 @@ CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'profiles';
 BEGIN
   -- Consolidate two SELECT policies into one to avoid multiple permissive policy overhead
   EXECUTE 'DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles';
   EXECUTE 'DROP POLICY IF EXISTS "Anyone can view public profiles" ON public.profiles';
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'profiles'
-      AND policyname = 'Users can view profiles'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view profiles') THEN
     EXECUTE 'CREATE POLICY "Users can view profiles" ON public.profiles FOR SELECT USING ((select auth.uid()) = id OR is_public = TRUE)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'profiles'
-      AND policyname = 'Users can update their own profile'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can update their own profile') THEN
     EXECUTE 'CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING ((select auth.uid()) = id) WITH CHECK ((select auth.uid()) = id)';
   END IF;
 END $$;
 
 ALTER TABLE series ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'series';
 BEGIN
   -- Consolidate two SELECT policies into one to avoid multiple permissive policy overhead
   EXECUTE 'DROP POLICY IF EXISTS "Users can view their own series" ON public.series';
   EXECUTE 'DROP POLICY IF EXISTS "Anyone can view public series" ON public.series';
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'series'
-      AND policyname = 'Users can view series'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view series') THEN
     EXECUTE 'CREATE POLICY "Users can view series" ON public.series FOR SELECT USING ((select auth.uid()) = user_id OR is_public = TRUE)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'series'
-      AND policyname = 'Users can insert their own series'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own series') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own series" ON public.series FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'series'
-      AND policyname = 'Users can update their own series'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can update their own series') THEN
     EXECUTE 'CREATE POLICY "Users can update their own series" ON public.series FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'series'
-      AND policyname = 'Users can delete their own series'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can delete their own series') THEN
     EXECUTE 'CREATE POLICY "Users can delete their own series" ON public.series FOR DELETE USING ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE volumes ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'volumes';
 BEGIN
   -- Consolidate two SELECT policies into one to avoid multiple permissive policy overhead
   EXECUTE 'DROP POLICY IF EXISTS "Users can view their own volumes" ON public.volumes';
   EXECUTE 'DROP POLICY IF EXISTS "Anyone can view volumes of public series" ON public.volumes';
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'volumes'
-      AND policyname = 'Users can view volumes'
-  ) THEN
-    EXECUTE 'CREATE POLICY "Users can view volumes" ON public.volumes FOR SELECT USING (
+  IF NOT public._sa_policy_exists(v_t, 'Users can view volumes') THEN
+    EXECUTE $pol$CREATE POLICY "Users can view volumes" ON public.volumes FOR SELECT USING (
       (select auth.uid()) = user_id OR
       EXISTS (SELECT 1 FROM public.series s WHERE s.id = series_id AND s.is_public = TRUE)
-    )';
+    )$pol$;
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'volumes'
-      AND policyname = 'Users can insert their own volumes'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own volumes') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own volumes" ON public.volumes FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'volumes'
-      AND policyname = 'Users can update their own volumes'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can update their own volumes') THEN
     EXECUTE 'CREATE POLICY "Users can update their own volumes" ON public.volumes FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'volumes'
-      AND policyname = 'Users can delete their own volumes'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can delete their own volumes') THEN
     EXECUTE 'CREATE POLICY "Users can delete their own volumes" ON public.volumes FOR DELETE USING ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'tags';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'tags'
-      AND policyname = 'Users can view their own tags'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own tags') THEN
     EXECUTE 'CREATE POLICY "Users can view their own tags" ON public.tags FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'tags'
-      AND policyname = 'Users can insert their own tags'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own tags') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own tags" ON public.tags FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'tags'
-      AND policyname = 'Users can update their own tags'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can update their own tags') THEN
     EXECUTE 'CREATE POLICY "Users can update their own tags" ON public.tags FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'tags'
-      AND policyname = 'Users can delete their own tags'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can delete their own tags') THEN
     EXECUTE 'CREATE POLICY "Users can delete their own tags" ON public.tags FOR DELETE USING ((select auth.uid()) = user_id)';
   END IF;
 END $$;
@@ -742,262 +691,150 @@ ALTER TABLE rate_limit_buckets ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE price_history ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'price_history';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_history'
-      AND policyname = 'Users can view their own price history'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own price history') THEN
     EXECUTE 'CREATE POLICY "Users can view their own price history" ON public.price_history FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_history'
-      AND policyname = 'Users can insert their own price history'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own price history') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own price history" ON public.price_history FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'price_alerts';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_alerts'
-      AND policyname = 'Users can view their own price alerts'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own price alerts') THEN
     EXECUTE 'CREATE POLICY "Users can view their own price alerts" ON public.price_alerts FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_alerts'
-      AND policyname = 'Users can insert their own price alerts'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own price alerts') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own price alerts" ON public.price_alerts FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_alerts'
-      AND policyname = 'Users can update their own price alerts'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can update their own price alerts') THEN
     EXECUTE 'CREATE POLICY "Users can update their own price alerts" ON public.price_alerts FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'price_alerts'
-      AND policyname = 'Users can delete their own price alerts'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can delete their own price alerts') THEN
     EXECUTE 'CREATE POLICY "Users can delete their own price alerts" ON public.price_alerts FOR DELETE USING ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE activity_events ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'activity_events';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'activity_events'
-      AND policyname = 'Users can view their own activity events'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own activity events') THEN
     EXECUTE 'CREATE POLICY "Users can view their own activity events" ON public.activity_events FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'activity_events'
-      AND policyname = 'Users can insert their own activity events'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own activity events') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own activity events" ON public.activity_events FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'notifications';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Users can view their own notifications'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own notifications') THEN
     EXECUTE 'CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Users can insert their own notifications'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own notifications') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own notifications" ON public.notifications FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Users can update their own notifications'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can update their own notifications') THEN
     EXECUTE 'CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'notifications' AND policyname = 'Users can delete their own notifications'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can delete their own notifications') THEN
     EXECUTE 'CREATE POLICY "Users can delete their own notifications" ON public.notifications FOR DELETE USING ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'collections';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'collections'
-      AND policyname = 'Users can view their own collections'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own collections') THEN
     EXECUTE 'CREATE POLICY "Users can view their own collections" ON public.collections FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'collections'
-      AND policyname = 'Users can insert their own collections'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own collections') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own collections" ON public.collections FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'collections'
-      AND policyname = 'Users can update their own collections'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can update their own collections') THEN
     EXECUTE 'CREATE POLICY "Users can update their own collections" ON public.collections FOR UPDATE USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'collections'
-      AND policyname = 'Users can delete their own collections'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can delete their own collections') THEN
     EXECUTE 'CREATE POLICY "Users can delete their own collections" ON public.collections FOR DELETE USING ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE collection_volumes ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'collection_volumes';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'collection_volumes'
-      AND policyname = 'Users can view their own collection_volumes'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own collection_volumes') THEN
     EXECUTE 'CREATE POLICY "Users can view their own collection_volumes" ON public.collection_volumes FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'collection_volumes'
-      AND policyname = 'Users can insert their own collection_volumes'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own collection_volumes') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own collection_volumes" ON public.collection_volumes FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'collection_volumes'
-      AND policyname = 'Users can delete their own collection_volumes'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can delete their own collection_volumes') THEN
     EXECUTE 'CREATE POLICY "Users can delete their own collection_volumes" ON public.collection_volumes FOR DELETE USING ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE import_events ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'import_events';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'import_events'
-      AND policyname = 'Users can view their own import events'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own import events') THEN
     EXECUTE 'CREATE POLICY "Users can view their own import events" ON public.import_events FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'import_events'
-      AND policyname = 'Users can insert their own import events'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own import events') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own import events" ON public.import_events FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'user_achievements';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'user_achievements'
-      AND policyname = 'Users can view their own achievements'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view their own achievements') THEN
     EXECUTE 'CREATE POLICY "Users can view their own achievements" ON public.user_achievements FOR SELECT USING ((select auth.uid()) = user_id)';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'user_achievements'
-      AND policyname = 'Users can insert their own achievements'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can insert their own achievements') THEN
     EXECUTE 'CREATE POLICY "Users can insert their own achievements" ON public.user_achievements FOR INSERT WITH CHECK ((select auth.uid()) = user_id)';
   END IF;
 END $$;
 
 ALTER TABLE automations ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'automations';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'automations'
-      AND policyname = 'users manage own automations'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'users manage own automations') THEN
     EXECUTE $policy$
       CREATE POLICY "users manage own automations" ON automations
         FOR ALL
@@ -1012,13 +849,10 @@ END $$;
 -- Writes (insert/delete) are restricted to the authenticated user acting as the follower.
 ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
 DO $$
+DECLARE
+  v_t CONSTANT TEXT := 'user_follows';
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'user_follows'
-      AND policyname = 'Users can view follows involving them'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can view follows involving them') THEN
     EXECUTE $policy$
       CREATE POLICY "Users can view follows involving them" ON user_follows
         FOR SELECT
@@ -1029,12 +863,7 @@ BEGIN
     $policy$;
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'user_follows'
-      AND policyname = 'Users can follow others'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can follow others') THEN
     EXECUTE $policy$
       CREATE POLICY "Users can follow others" ON user_follows
         FOR INSERT
@@ -1042,12 +871,7 @@ BEGIN
     $policy$;
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'user_follows'
-      AND policyname = 'Users can unfollow others'
-  ) THEN
+  IF NOT public._sa_policy_exists(v_t, 'Users can unfollow others') THEN
     EXECUTE $policy$
       CREATE POLICY "Users can unfollow others" ON user_follows
         FOR DELETE
@@ -1212,7 +1036,6 @@ DECLARE
   base_username TEXT;
   final_username TEXT;
   attempt      INT := 0;
-  success      BOOLEAN := FALSE;
 BEGIN
   raw_username := COALESCE(
     NEW.raw_user_meta_data->>'username',
@@ -1234,12 +1057,16 @@ BEGIN
   -- First candidate: use full base (up to 20 chars)
   final_username := left(base_username, 20);
 
-  WHILE NOT success LOOP
-    BEGIN
-      INSERT INTO public.profiles (id, email, username)
-      VALUES (NEW.id, NEW.email, final_username);
-      success := TRUE;
-    EXCEPTION WHEN unique_violation THEN
+  -- Bounded retry: INSERT ... ON CONFLICT avoids exception-based flow control and
+  -- is more efficient than catching unique_violation per attempt.
+  -- FOUND is TRUE after a successful insert (no conflict); that terminates the loop.
+  -- Maximum 21 iterations: 11 random-suffix tries, then 10 UUID-fragment tries.
+  WHILE attempt <= 20 AND NOT FOUND LOOP
+    INSERT INTO public.profiles (id, email, username)
+    VALUES (NEW.id, NEW.email, final_username)
+    ON CONFLICT (LOWER(username)) DO NOTHING;
+
+    IF NOT FOUND THEN
       attempt := attempt + 1;
       IF attempt > 10 THEN
         -- Final fallback: UUID-fragment suffix is effectively collision-free
@@ -1250,7 +1077,7 @@ BEGIN
         final_username := left(base_username, 16) || '_' ||
                           lpad((floor(random() * 999) + 1)::int::text, 3, '0');
       END IF;
-    END;
+    END IF;
   END LOOP;
 
   RETURN NEW;
@@ -1536,6 +1363,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_series_id UUID;
+  v_owned CONSTANT public.ownership_status := 'owned';
 BEGIN
   IF TG_OP = 'DELETE' THEN
     v_series_id := OLD.series_id;
@@ -1547,7 +1375,7 @@ BEGIN
       SET owned_volume_count = (
         SELECT COUNT(*) FROM public.volumes
         WHERE series_id = OLD.series_id
-          AND ownership_status = 'owned'
+          AND ownership_status = v_owned
       )
       WHERE id = OLD.series_id;
     END IF;
@@ -1559,7 +1387,7 @@ BEGIN
     SET owned_volume_count = (
       SELECT COUNT(*) FROM public.volumes
       WHERE series_id = v_series_id
-        AND ownership_status = 'owned'
+        AND ownership_status = v_owned
     )
     WHERE id = v_series_id;
   END IF;
@@ -1629,29 +1457,28 @@ $$ LANGUAGE plpgsql;
 -- -----------------------------------------------------------------------------
 
 DO $$
+DECLARE
+  v_auth CONSTANT REGCLASS := to_regclass('auth.users');
 BEGIN
-  IF to_regclass('auth.users') IS NOT NULL
+  IF v_auth IS NOT NULL
      AND NOT EXISTS (
        SELECT 1
        FROM pg_trigger
        WHERE tgname = 'on_auth_user_created'
-         AND tgrelid = to_regclass('auth.users')
+         AND tgrelid = v_auth
          AND NOT tgisinternal
      ) THEN
     CREATE TRIGGER on_auth_user_created
       AFTER INSERT ON auth.users
       FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
   END IF;
-END $$;
 
-DO $$
-BEGIN
-  IF to_regclass('auth.users') IS NOT NULL
+  IF v_auth IS NOT NULL
      AND NOT EXISTS (
        SELECT 1
        FROM pg_trigger
        WHERE tgname = 'on_auth_user_email_change'
-         AND tgrelid = to_regclass('auth.users')
+         AND tgrelid = v_auth
          AND NOT tgisinternal
      ) THEN
     CREATE TRIGGER on_auth_user_email_change
@@ -1677,13 +1504,15 @@ BEGIN
 END $$;
 
 DO $$
+DECLARE
+  v_rel CONSTANT REGCLASS := to_regclass('public.profiles');
 BEGIN
-  IF to_regclass('public.profiles') IS NOT NULL
+  IF v_rel IS NOT NULL
      AND NOT EXISTS (
        SELECT 1
        FROM pg_trigger
        WHERE tgname = 'update_profiles_updated_at'
-         AND tgrelid = to_regclass('public.profiles')
+         AND tgrelid = v_rel
          AND NOT tgisinternal
      ) THEN
     CREATE TRIGGER update_profiles_updated_at
@@ -1708,35 +1537,50 @@ BEGIN
   END IF;
 END $$;
 
+-- Consolidate all volumes-related trigger checks into one block to avoid repeating
+-- the to_regclass('public.volumes') literal on every check.
 DO $$
+DECLARE
+  v_vol CONSTANT REGCLASS := to_regclass('public.volumes');
 BEGIN
-  IF to_regclass('public.volumes') IS NOT NULL
+  IF v_vol IS NOT NULL
      AND NOT EXISTS (
        SELECT 1
        FROM pg_trigger
        WHERE tgname = 'update_volumes_updated_at'
-         AND tgrelid = to_regclass('public.volumes')
+         AND tgrelid = v_vol
          AND NOT tgisinternal
      ) THEN
     CREATE TRIGGER update_volumes_updated_at
       BEFORE UPDATE ON public.volumes
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   END IF;
-END $$;
 
--- Reject volumes whose user_id does not match their parent series' user_id
-DO $$
-BEGIN
-  IF to_regclass('public.volumes') IS NOT NULL
+  -- Reject volumes whose user_id does not match their parent series' user_id
+  IF v_vol IS NOT NULL
      AND NOT EXISTS (
        SELECT 1 FROM pg_trigger
        WHERE tgname = 'trg_volume_user_consistency'
-         AND tgrelid = to_regclass('public.volumes')
+         AND tgrelid = v_vol
          AND NOT tgisinternal
      ) THEN
     CREATE TRIGGER trg_volume_user_consistency
       BEFORE INSERT OR UPDATE ON public.volumes
       FOR EACH ROW EXECUTE FUNCTION public.check_volume_user_consistency();
+  END IF;
+
+  -- Maintain series.owned_volume_count counter on volume changes
+  IF v_vol IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+       WHERE tgname = 'trg_series_owned_volume_count'
+         AND tgrelid = v_vol
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER trg_series_owned_volume_count
+      AFTER INSERT OR DELETE OR UPDATE OF series_id, ownership_status
+      ON public.volumes
+      FOR EACH ROW EXECUTE FUNCTION public.update_series_owned_volume_count();
   END IF;
 END $$;
 
@@ -1753,23 +1597,6 @@ BEGIN
     CREATE TRIGGER update_collections_updated_at
       BEFORE UPDATE ON public.collections
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-  END IF;
-END $$;
-
--- Maintain series.owned_volume_count counter on volume changes
-DO $$
-BEGIN
-  IF to_regclass('public.volumes') IS NOT NULL
-     AND NOT EXISTS (
-       SELECT 1 FROM pg_trigger
-       WHERE tgname = 'trg_series_owned_volume_count'
-         AND tgrelid = to_regclass('public.volumes')
-         AND NOT tgisinternal
-     ) THEN
-    CREATE TRIGGER trg_series_owned_volume_count
-      AFTER INSERT OR DELETE OR UPDATE OF series_id, ownership_status
-      ON public.volumes
-      FOR EACH ROW EXECUTE FUNCTION public.update_series_owned_volume_count();
   END IF;
 END $$;
 
