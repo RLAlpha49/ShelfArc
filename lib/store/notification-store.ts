@@ -10,6 +10,7 @@ let _supabaseClient: ReturnType<typeof createClient> | null = null
 let _realtimeChannel: ReturnType<
   ReturnType<typeof createClient>["channel"]
 > | null = null
+let _realtimeUserId: string | null = null
 
 interface NotificationStore {
   _hydrated: boolean
@@ -22,7 +23,7 @@ interface NotificationStore {
   markAllRead: () => void
   clearAll: () => void
   unreadCount: () => number
-  subscribeToRealtime: (userId: string) => void
+  subscribeToRealtime: (userId: string) => () => void
   unsubscribeFromRealtime: () => void
   loadFromServer: () => Promise<void>
   syncToServer: (
@@ -91,10 +92,24 @@ export const useNotificationStore = create<NotificationStore>()(
       unreadCount: () => get().notifications.filter((n) => !n.read).length,
 
       subscribeToRealtime: (userId) => {
-        if (_realtimeChannel) return
+        const channelName = `notifications:${userId}`
+
+        // Force resubscribe when the user changes
+        if (_realtimeChannel) {
+          if (_realtimeUserId === userId) {
+            return () => get().unsubscribeFromRealtime()
+          }
+          if (_supabaseClient) {
+            _supabaseClient.removeChannel(_realtimeChannel)
+          }
+          _realtimeChannel = null
+          _realtimeUserId = null
+        }
+
         _supabaseClient = createClient()
+        _realtimeUserId = userId
         _realtimeChannel = _supabaseClient
-          .channel("notifications")
+          .channel(channelName)
           .on(
             "postgres_changes",
             {
@@ -105,8 +120,11 @@ export const useNotificationStore = create<NotificationStore>()(
             },
             (payload) => {
               const raw = payload.new as Record<string, unknown>
+              const id = raw.id as string
+              // Dedupe guard — ignore if already present
+              if (get().notifications.some((n) => n.id === id)) return
               const notification: Notification = {
-                id: raw.id as string,
+                id,
                 type: raw.type as Notification["type"],
                 title: raw.title as string,
                 message: raw.message as string,
@@ -122,7 +140,53 @@ export const useNotificationStore = create<NotificationStore>()(
               }))
             }
           )
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${userId}`
+            },
+            (payload) => {
+              const raw = payload.new as Record<string, unknown>
+              const id = raw.id as string
+              set((state) => ({
+                notifications: state.notifications.map((n) =>
+                  n.id === id
+                    ? {
+                        ...n,
+                        read: raw.read as boolean,
+                        title: raw.title as string,
+                        message: raw.message as string,
+                        metadata:
+                          (raw.metadata as Record<string, unknown>) ??
+                          n.metadata
+                      }
+                    : n
+                )
+              }))
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "DELETE",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${userId}`
+            },
+            (payload) => {
+              const raw = payload.old as Record<string, unknown>
+              const id = raw.id as string
+              set((state) => ({
+                notifications: state.notifications.filter((n) => n.id !== id)
+              }))
+            }
+          )
           .subscribe()
+
+        return () => get().unsubscribeFromRealtime()
       },
 
       unsubscribeFromRealtime: () => {
