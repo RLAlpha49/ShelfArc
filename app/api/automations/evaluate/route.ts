@@ -109,6 +109,7 @@ type UserPriceSettings = {
   automatedPriceChecks?: boolean
   /** Price source preference; defaults to "amazon" when absent. @source */
   priceSource?: string
+  emailNotifications?: boolean
 }
 
 /** Resolved price data from either cache or a live Amazon scrape. @source */
@@ -509,102 +510,20 @@ async function insertPriceHistory(
 }
 
 /**
- * Inserts a price_alert notification and disables the alert for a single triggered alert.
- * @param adminSupabase - Admin Supabase client.
- * @param alert - The alert that was triggered.
- * @param vol - Embedded volume data from the alert join.
- * @param priceData - Current price that triggered the alert.
- * @source
- */
-async function triggerPriceAlert(
-  adminSupabase: ReturnType<typeof createAdminClient>,
-  alert: AlertWithVolume,
-  vol: AlertVolume,
-  priceData: PriceData
-): Promise<void> {
-  const seriesTitle = vol.series?.title ?? vol.title ?? "Unknown"
-  const volLabel = `Volume ${vol.volume_number}`
-  const message =
-    `${seriesTitle} ${volLabel} dropped to ${priceData.currency} ${priceData.price.toFixed(2)}` +
-    ` — below your target of ${alert.currency} ${alert.target_price.toFixed(2)}.`
-
-  await adminSupabase.from("notifications").insert({
-    user_id: alert.user_id,
-    type: "price_alert",
-    title: "Price Alert Triggered",
-    message,
-    metadata: {
-      alertId: alert.id,
-      volumeId: alert.volume_id,
-      seriesTitle,
-      currentPrice: priceData.price,
-      targetPrice: alert.target_price,
-      currency: priceData.currency
-    }
-  })
-
-  await adminSupabase
-    .from("price_alerts")
-    .update({ triggered_at: new Date().toISOString(), enabled: false })
-    .eq("id", alert.id)
-
-  // Fire-and-forget email notification if user has emailNotifications enabled
-  const { data: profile } = await adminSupabase
-    .from("profiles")
-    .select("settings")
-    .eq("id", alert.user_id)
-    .single()
-
-  if (
-    (profile?.settings as Record<string, unknown> | null)
-      ?.emailNotifications === true
-  ) {
-    adminSupabase.functions
-      .invoke("send-notification-email", {
-        body: {
-          userId: alert.user_id,
-          seriesTitle,
-          volumeTitle: vol.title ?? null,
-          volumeNumber: vol.volume_number,
-          currentPrice: priceData.price,
-          targetPrice: alert.target_price,
-          currency: priceData.currency
-        }
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.error(
-            JSON.stringify({
-              level: "warn",
-              message: "send-notification-email failed for price alert",
-              userId: alert.user_id,
-              alertId: alert.id,
-              error: error.message
-            })
-          )
-        }
-      })
-      .catch((err: unknown) => {
-        console.error(
-          JSON.stringify({
-            level: "error",
-            message: "send-notification-email threw for price alert",
-            userId: alert.user_id,
-            alertId: alert.id,
-            error: String(err)
-          })
-        )
-      })
-  }
-}
-
-/**
- * Checks each alert in a group against the current price, triggering notifications
- * for any alert whose target has been met.
+ * Batch-checks all alerts in a group against the current price and triggers
+ * notifications for those whose target has been met.
+ *
+ * Optimisations over the previous per-alert approach:
+ * - Notification rows are collected and inserted in a single array insert.
+ * - Alert disables are applied with a single `.in()` update.
+ * - User profile settings are read from the preloaded `userSettings` map,
+ *   avoiding a per-alert `profiles` round-trip for the email preference check.
+ *
  * @param adminSupabase - Admin Supabase client.
  * @param group - Alerts belonging to this volume group.
  * @param vol - Embedded volume data.
  * @param priceData - Current resolved price.
+ * @param userSettings - Preloaded map of userId → price/notification settings.
  * @returns Number of alerts triggered.
  * @source
  */
@@ -612,16 +531,92 @@ async function checkAlertTriggers(
   adminSupabase: ReturnType<typeof createAdminClient>,
   group: AlertWithVolume[],
   vol: AlertVolume,
-  priceData: PriceData
+  priceData: PriceData,
+  userSettings: Map<string, UserPriceSettings>
 ): Promise<number> {
-  let triggered = 0
-  for (const alert of group) {
-    if (priceData.price <= alert.target_price) {
-      await triggerPriceAlert(adminSupabase, alert, vol, priceData)
-      triggered++
+  const triggered = group.filter((a) => priceData.price <= a.target_price)
+  if (triggered.length === 0) return 0
+
+  const seriesTitle = vol.series?.title ?? vol.title ?? "Unknown"
+  const volLabel = `Volume ${vol.volume_number}`
+  const triggeredAt = new Date().toISOString()
+
+  // Batch-insert all notifications in a single round-trip.
+  await adminSupabase.from("notifications").insert(
+    triggered.map((alert) => {
+      const message =
+        `${seriesTitle} ${volLabel} dropped to ${priceData.currency} ${priceData.price.toFixed(2)}` +
+        ` — below your target of ${alert.currency} ${alert.target_price.toFixed(2)}.`
+      return {
+        user_id: alert.user_id,
+        type: "price_alert" as const,
+        title: "Price Alert Triggered",
+        message,
+        metadata: {
+          alertId: alert.id,
+          volumeId: alert.volume_id,
+          seriesTitle,
+          currentPrice: priceData.price,
+          targetPrice: alert.target_price,
+          currency: priceData.currency
+        }
+      }
+    })
+  )
+
+  // Batch-disable all triggered alerts in a single round-trip.
+  await adminSupabase
+    .from("price_alerts")
+    .update({ triggered_at: triggeredAt, enabled: false })
+    .in(
+      "id",
+      triggered.map((a) => a.id)
+    )
+
+  // Fire-and-forget emails using preloaded settings — no extra DB fetch per alert.
+  for (const alert of triggered) {
+    const settings = userSettings.get(alert.user_id) ?? {}
+    if (settings.emailNotifications === true) {
+      adminSupabase.functions
+        .invoke("send-notification-email", {
+          body: {
+            userId: alert.user_id,
+            seriesTitle,
+            volumeTitle: vol.title ?? null,
+            volumeNumber: vol.volume_number,
+            currentPrice: priceData.price,
+            targetPrice: alert.target_price,
+            currency: priceData.currency
+          }
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error(
+              JSON.stringify({
+                level: "warn",
+                message: "send-notification-email failed for price alert",
+                userId: alert.user_id,
+                alertId: alert.id,
+                error: error.message
+              })
+            )
+          }
+        })
+        .catch((err: unknown) => {
+          console.error(
+            JSON.stringify({
+              level: "error",
+              message: "send-notification-email threw for price alert",
+              userId: alert.user_id,
+              alertId: alert.id,
+              error: String(err)
+            })
+          )
+        })
     }
   }
-  return triggered
+
+  return triggered.length
 }
 
 /**
@@ -735,7 +730,8 @@ async function evaluateAlertGroups(
       adminSupabase,
       targetGroup,
       vol,
-      outcome.priceData
+      outcome.priceData,
+      userSettings
     )
   }
 
