@@ -318,6 +318,9 @@ CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder
 CREATE INDEX IF NOT EXISTS idx_volumes_wishlist_release_reminder
   ON public.volumes (publish_date, user_id)
   WHERE ownership_status = 'wishlist' AND release_reminder = TRUE AND publish_date IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_volumes_release_reminder_queue
+  ON public.volumes (publish_date, series_id)
+  WHERE ownership_status = 'wishlist' AND release_reminder = TRUE;
 CREATE INDEX IF NOT EXISTS idx_volumes_series_id ON volumes(series_id);
 CREATE INDEX IF NOT EXISTS idx_volumes_series_number ON volumes(series_id, volume_number);
 CREATE INDEX IF NOT EXISTS idx_volumes_user_isbn ON volumes(user_id, isbn);
@@ -428,6 +431,9 @@ CREATE INDEX IF NOT EXISTS idx_price_alerts_volume_id ON price_alerts(volume_id)
 
 CREATE INDEX IF NOT EXISTS idx_price_alerts_active_queue
   ON public.price_alerts (snoozed_until, created_at)
+  WHERE enabled = TRUE;
+CREATE INDEX IF NOT EXISTS idx_price_alerts_enabled
+  ON public.price_alerts (created_at, user_id, volume_id)
   WHERE enabled = TRUE;
 
 -- Activity events table (append-only timeline)
