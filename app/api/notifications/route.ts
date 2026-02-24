@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       cooldownMs: 30_000,
       reason: "Rate limit notification reads"
     })
-    if (rl && !rl.allowed) {
+    if (!rl?.allowed) {
       return apiError(429, "Too many requests", { correlationId })
     }
 
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       cooldownMs: 30_000,
       reason: "Rate limit notification writes"
     })
-    if (rl && !rl.allowed) {
+    if (!rl?.allowed) {
       return apiError(429, "Too many requests", { correlationId })
     }
 

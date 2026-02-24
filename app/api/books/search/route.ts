@@ -407,10 +407,10 @@ export async function GET(request: NextRequest) {
     cooldownMs: 30000,
     reason: "Rate limit book search"
   })
-  if (rl && !rl.allowed) {
+  if (!rl?.allowed) {
     return apiError(429, "Too many requests", {
       correlationId,
-      extra: { retryAfterMs: rl.retryAfterMs }
+      extra: { retryAfterMs: rl?.retryAfterMs }
     })
   }
 

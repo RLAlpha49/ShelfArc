@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       cooldownMs: 30_000,
       reason: "Rate limit settings reads"
     })
-    if (rl && !rl.allowed) {
+    if (!rl?.allowed) {
       return apiError(429, "Too many requests", { correlationId })
     }
 
@@ -78,7 +78,7 @@ export async function PATCH(request: NextRequest) {
       cooldownMs: 30_000,
       reason: "Rate limit settings writes"
     })
-    if (rl && !rl.allowed) {
+    if (!rl?.allowed) {
       return apiError(429, "Too many requests", { correlationId })
     }
 
