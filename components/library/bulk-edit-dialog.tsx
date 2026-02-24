@@ -60,6 +60,41 @@ function getSeriesChanges(
   return Object.keys(changes).length > 0 ? changes : null
 }
 
+/**
+ * Parses and validates a numeric rating string.
+ * @param raw - The raw input string.
+ * @returns The numeric rating if valid (0–10), otherwise `undefined`.
+ */
+function parseNumericRating(raw: string): number | undefined {
+  if (!raw.trim()) return undefined
+  const val = Number(raw)
+  return Number.isFinite(val) && val >= 0 && val <= 10 ? val : undefined
+}
+
+/**
+ * Splits a comma-separated tag string into a trimmed, non-empty array of tags.
+ * @param raw - The raw comma-separated input.
+ * @returns Array of trimmed tag strings.
+ */
+function parseTagList(raw: string): string[] {
+  if (!raw.trim()) return []
+  return raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+}
+
+/**
+ * Parses and validates a purchase price string.
+ * @param raw - The raw input string.
+ * @returns The numeric price if valid (≥0), otherwise `undefined`.
+ */
+function parsePurchasePrice(raw: string): number | undefined {
+  if (!raw.trim()) return undefined
+  const val = Number.parseFloat(raw)
+  return Number.isFinite(val) && val >= 0 ? val : undefined
+}
+
 function getVolumeChanges(
   fields: BulkVolumeFields
 ): Record<string, unknown> | null {
@@ -72,28 +107,14 @@ function getVolumeChanges(
     changes.edition = fields.edition === "none" ? null : fields.edition
   if (fields.format !== UNCHANGED)
     changes.format = fields.format === "none" ? null : fields.format
-  if (fields.rating.trim()) {
-    const val = Number(fields.rating)
-    if (Number.isFinite(val) && val >= 0 && val <= 10) changes.rating = val
-  }
-  if (fields.tagsToAdd.trim()) {
-    const tags = fields.tagsToAdd
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean)
-    if (tags.length > 0) changes.tags_to_add = tags
-  }
-  if (fields.tagsToRemove.trim()) {
-    const tags = fields.tagsToRemove
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean)
-    if (tags.length > 0) changes.tags_to_remove = tags
-  }
-  if (fields.purchasePrice.trim()) {
-    const val = Number.parseFloat(fields.purchasePrice)
-    if (Number.isFinite(val) && val >= 0) changes.purchase_price = val
-  }
+  const rating = parseNumericRating(fields.rating)
+  if (rating !== undefined) changes.rating = rating
+  const tagsToAdd = parseTagList(fields.tagsToAdd)
+  if (tagsToAdd.length > 0) changes.tags_to_add = tagsToAdd
+  const tagsToRemove = parseTagList(fields.tagsToRemove)
+  if (tagsToRemove.length > 0) changes.tags_to_remove = tagsToRemove
+  const purchasePrice = parsePurchasePrice(fields.purchasePrice)
+  if (purchasePrice !== undefined) changes.purchase_price = purchasePrice
   return Object.keys(changes).length > 0 ? changes : null
 }
 
