@@ -277,6 +277,36 @@ function applyExcludeTagsFilter(
 }
 
 /**
+ * Applies cursor-based pagination to a series data query.
+ * Returns the query unchanged when no valid cursor is provided.
+ * @param query - The Supabase series data query.
+ * @param cursor - Optional encoded cursor string.
+ * @param sortColumn - Column used for ordering.
+ * @param ascending - Sort direction.
+ * @returns The query, optionally with the cursor filter applied.
+ */
+function applySeriesCursorFilter(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  cursor: string | null | undefined,
+  sortColumn: string,
+  ascending: boolean
+) {
+  if (!cursor) return query
+  const decoded = decodeCursor(cursor)
+  if (!decoded) return query
+  const [cursorSortVal, cursorId] = decoded
+  return applyCursorFilter(
+    query,
+    sortColumn,
+    ascending,
+    undefined,
+    cursorSortVal,
+    cursorId
+  )
+}
+
+/**
  * Handles the series view: fetches paginated series with embedded volumes.
  * Uses PostgREST embedded join for single round-trip and DB-level volume status filtering.
  * @source
@@ -354,20 +384,7 @@ async function handleSeriesView(
   dataQuery = dataQuery.order(sortColumn, { ascending })
   dataQuery = dataQuery.order("id", { ascending }) // Tie-breaker
 
-  if (cursor) {
-    const decoded = decodeCursor(cursor)
-    if (decoded) {
-      const [cursorSortVal, cursorId] = decoded
-      dataQuery = applyCursorFilter(
-        dataQuery,
-        sortColumn,
-        ascending,
-        undefined,
-        cursorSortVal,
-        cursorId
-      )
-    }
-  }
+  dataQuery = applySeriesCursorFilter(dataQuery, cursor, sortColumn, ascending)
 
   let total = 0
   if (includeCount) {
