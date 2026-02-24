@@ -48,12 +48,14 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
+      - name: Archive Next build
+        run: tar -czf next-build.tar.gz .next
+
       - name: Upload Next build
         uses: actions/upload-artifact@v6
         with:
           name: next-build
-          path: .next
-          include-hidden-files: true
+          path: next-build.tar.gz
 
   lighthouse:
     name: Lighthouse CI
@@ -115,7 +117,11 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: next-build
-          path: .next
+          path: .
+
+      - name: Extract Next build
+        if: ${{ steps.check-lhci-secrets.outputs.has_secrets == 'true' }}
+        run: tar -xzf next-build.tar.gz
 
       - name: Run Lighthouse CI
         if: ${{ steps.check-lhci-secrets.outputs.has_secrets == 'true' }}
