@@ -374,7 +374,6 @@ export const PriceHistorySchema = z.object({
     .default("USD"),
   source: z.enum(["amazon", "manual", "imported"]).optional().default("amazon"),
   productUrl: z
-    .string()
     .url()
     .regex(
       /^https?:\/\/(?:www\.)?amazon\.[a-z.]{2,6}\//i,
