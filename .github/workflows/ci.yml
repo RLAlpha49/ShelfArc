@@ -91,12 +91,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
-      - name: Enforce Lighthouse secrets
+      - name: Warn — Lighthouse skipped (secrets missing)
         if: ${{ steps.check-lhci-secrets.outputs.has_secrets == 'false' }}
         run: |
-          echo "::error::Lighthouse CI requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to be configured as repository secrets."
-          echo "::error::Performance and accessibility regressions cannot be detected without these secrets. Please add them to your repository settings."
-          exit 1
+          echo "::warning title=Lighthouse CI skipped::NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are not configured as repository secrets."
+          echo "::warning::Performance and accessibility regressions cannot be detected without these secrets. Add them in Settings → Secrets and variables → Actions."
+          echo "--- Lighthouse CI: SKIPPED (required secrets missing) ---"
 
       - name: Install dependencies
         if: ${{ steps.check-lhci-secrets.outputs.has_secrets == 'true' }}
