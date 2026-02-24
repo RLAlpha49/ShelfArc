@@ -64,24 +64,19 @@ export default async function PublicSeriesPage({ params }: Props) {
   const { username, seriesId } = await params
   const admin = createAdminClient({ reason: "Public series page lookup" })
 
-  // Verify profile is public
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id, username, is_public")
-    .ilike("username", username)
-    .single()
+  // Fetch profile and series data concurrently — getPublicSeriesData is cached
+  // via React cache() so generateMetadata's call is reused here at no extra cost.
+  const [{ data: profile }, { data: series }] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("id, username, is_public")
+      .ilike("username", username)
+      .single(),
+    getPublicSeriesData(seriesId)
+  ])
 
-  if (!profile?.is_public) {
-    notFound()
-  }
-
-  // Fetch the series via cached loader — re-uses the generateMetadata fetch
-  const { data: series } = await getPublicSeriesData(seriesId)
-
-  // Verify series belongs to this profile
-  if (series?.user_id !== profile.id) {
-    notFound()
-  }
+  if (!profile?.is_public) notFound()
+  if (series?.user_id !== profile.id) notFound()
 
   // Fetch volumes — only safe columns, excluding wishlist items
   const { data: volumes } = await admin

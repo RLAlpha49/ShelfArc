@@ -71,32 +71,67 @@ export default async function PublicProfilePage({ params }: Props) {
   // Fetch follow status and counts for authenticated visitors
   const isOwnProfile = user?.id === profile.id
 
-  const { count: followerCount } = await admin
-    .from("user_follows")
-    .select("follower_id", { count: "exact", head: true })
-    .eq("following_id", profile.id)
-
-  let isFollowing = false
-  if (user && !isOwnProfile) {
-    const { data: followRow } = await admin
+  // Parallelize all independent queries after obtaining the profile
+  const [
+    { count: followerCount },
+    followData,
+    { data: seriesData },
+    { data: earnedAchievements },
+    resolvedAvatar
+  ] = await Promise.all([
+    admin
       .from("user_follows")
-      .select("follower_id")
-      .eq("follower_id", user.id)
-      .eq("following_id", profile.id)
-      .maybeSingle()
-    isFollowing = followRow !== null
-  }
+      .select("follower_id", { count: "exact", head: true })
+      .eq("following_id", profile.id),
 
-  // Fetch public series for this user
-  const { data: seriesData } = await admin
-    .from("series")
-    .select(
-      "id, title, original_title, author, artist, publisher, cover_image_url, type, total_volumes, status, tags, created_at"
-    )
-    .eq("user_id", profile.id)
-    .eq("is_public", true)
-    .order("title", { ascending: true })
+    user && !isOwnProfile
+      ? admin
+          .from("user_follows")
+          .select("follower_id")
+          .eq("follower_id", user.id)
+          .eq("following_id", profile.id)
+          .maybeSingle()
+          .then((r) => r.data)
+      : Promise.resolve(null),
 
+    admin
+      .from("series")
+      .select(
+        "id, title, original_title, author, artist, publisher, cover_image_url, type, total_volumes, status, tags, created_at"
+      )
+      .eq("user_id", profile.id)
+      .eq("is_public", true)
+      .order("title", { ascending: true }),
+
+    admin
+      .from("user_achievements")
+      .select("achievement_id, earned_at")
+      .eq("user_id", profile.id)
+      .order("earned_at", { ascending: true }),
+
+    // Short-lived signed URL so unauthenticated visitors can see the avatar
+    // without going through the authenticated storage proxy.
+    (async (): Promise<string | undefined> => {
+      if (!profile.avatar_url) return undefined
+      const storagePath = extractStoragePath(profile.avatar_url)
+      if (storagePath?.startsWith(profile.id + "/")) {
+        // Only generate signed URLs for storage paths owned by this profile
+        const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "media"
+        const { data: signedData } = await admin.storage
+          .from(bucket)
+          .createSignedUrl(storagePath, 86_400) // 24-hour signed URL
+        return signedData?.signedUrl ?? undefined
+      } else if (!storagePath) {
+        return resolveImageUrl(profile.avatar_url)
+      }
+      // If storagePath doesn't belong to this profile, skip it (reject cross-user path)
+      return undefined
+    })()
+  ])
+
+  const isFollowing = followData !== null
+
+  // Volume stats — sequential since we need seriesIds from the series query above
   const seriesList: PublicSeries[] = []
   let totalCompletedVolumes = 0
 
@@ -127,31 +162,6 @@ export default async function PublicProfilePage({ params }: Props) {
     totalVolumes > 0
       ? Math.round((totalCompletedVolumes / totalVolumes) * 100)
       : 0
-
-  // Fetch earned achievements (displayed only when public_stats is enabled)
-  const { data: earnedAchievements } = await admin
-    .from("user_achievements")
-    .select("achievement_id, earned_at")
-    .eq("user_id", profile.id)
-    .order("earned_at", { ascending: true })
-
-  // For public profiles, use a short-lived signed URL so unauthenticated visitors
-  // can see the avatar without accessing the authenticated storage proxy.
-  let resolvedAvatar: string | undefined
-  if (profile.avatar_url) {
-    const storagePath = extractStoragePath(profile.avatar_url)
-    if (storagePath?.startsWith(profile.id + "/")) {
-      // Only generate signed URLs for storage paths owned by this profile
-      const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "media"
-      const { data: signedData } = await admin.storage
-        .from(bucket)
-        .createSignedUrl(storagePath, 86_400) // 24-hour signed URL
-      resolvedAvatar = signedData?.signedUrl ?? undefined
-    } else if (!storagePath) {
-      resolvedAvatar = resolveImageUrl(profile.avatar_url)
-    }
-    // If storagePath doesn't belong to this profile, skip it (reject cross-user path)
-  }
   const displayName = profile.username ?? username
   const shareUrl = getPublicProfileUrl(displayName)
   const memberSince = new Date(profile.created_at).toLocaleDateString("en-US", {
