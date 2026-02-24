@@ -482,56 +482,6 @@ function resolveVolumeSortColumn(sortField: string): {
 }
 
 /**
- * Fetches a series lookup map for the given volume data.
- * @source
- */
-async function fetchSeriesMap(
-  supabase: SupabaseClient<Database>,
-  seriesIds: string[]
-): Promise<
-  Record<
-    string,
-    {
-      id: string
-      title: string
-      author: string | null
-      type: string
-      tags: string[]
-    }
-  >
-> {
-  const map: Record<
-    string,
-    {
-      id: string
-      title: string
-      author: string | null
-      type: string
-      tags: string[]
-    }
-  > = {}
-  if (seriesIds.length === 0) return map
-
-  const { data, error } = await supabase
-    .from("series")
-    .select("id, title, author, type, tags")
-    .in("id", seriesIds)
-
-  if (error) throw new Error(`Series lookup failed: ${error.message}`)
-
-  for (const s of data ?? []) {
-    map[s.id] = {
-      id: s.id,
-      title: s.title,
-      author: s.author,
-      type: s.type,
-      tags: s.tags
-    }
-  }
-  return map
-}
-
-/**
  * Handles the volumes view: fetches paginated volumes with series context.
  * @source
  */
@@ -552,7 +502,12 @@ async function handleVolumesView(
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
 
-  let dataQuery = supabase.from("volumes").select("*").eq("user_id", userId)
+  let dataQuery = supabase
+    .from("volumes")
+    .select(
+      "id, series_id, user_id, volume_number, title, description, isbn, cover_image_url, edition, format, page_count, publish_date, purchase_date, purchase_price, purchase_currency, ownership_status, reading_status, current_page, amazon_url, rating, notes, started_at, finished_at, release_reminder, created_at, updated_at, series(id, title, author, type, tags)"
+    )
+    .eq("user_id", userId)
 
   if (seriesIdFilter) {
     countQuery = countQuery.in("series_id", seriesIdFilter)
@@ -616,13 +571,18 @@ async function handleVolumesView(
 
   const hasMore = (volumeData?.length ?? 0) > limit
   const volumes = (volumeData?.slice(0, limit) ?? []) as Array<
-    Record<string, unknown> & { id: string; series_id: string | null }
+    Record<string, unknown> & {
+      id: string
+      series_id: string | null
+      series?: {
+        id: string
+        title: string
+        author: string | null
+        type: string
+        tags: string[]
+      } | null
+    }
   >
-  const seriesIds = [
-    ...new Set(volumes.map((v) => v.series_id).filter(Boolean))
-  ] as string[]
-
-  const seriesMap = await fetchSeriesMap(supabase, seriesIds)
 
   let nextCursor: string | null = null
   if (hasMore && volumes.length > 0) {
@@ -647,12 +607,13 @@ async function handleVolumesView(
   }
 
   return {
-    data: volumes.map((v) => ({
-      volume: v as Record<string, unknown>,
-      series: v.series_id
-        ? (seriesMap[v.series_id] ?? defaultSeries)
-        : defaultSeries
-    })),
+    data: volumes.map((v) => {
+      const { series: seriesEmbed, ...volFields } = v
+      return {
+        volume: volFields as Record<string, unknown>,
+        series: seriesEmbed ?? defaultSeries
+      }
+    }),
     pagination
   }
 }
