@@ -448,7 +448,7 @@ export function FilterPresetsControl() {
                                 <span className="font-medium">
                                   {preset.name}
                                 </span>
-                                .
+                                {""}.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
