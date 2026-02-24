@@ -139,13 +139,13 @@ export async function GET(request: NextRequest) {
   const sizeRaw = request.nextUrl.searchParams.get("size")?.trim() ?? "L"
 
   if (!isbnRaw || !isValidIsbn(isbnRaw)) {
-    return apiError(400, "Invalid ISBN")
+    return apiError(400, "Invalid ISBN", { correlationId })
   }
 
   const normalized = normalizeIsbn(isbnRaw)
 
   if (!/^[0-9X]{10,13}$/.test(normalized)) {
-    return apiError(400, "Invalid ISBN")
+    return apiError(400, "Invalid ISBN", { correlationId })
   }
 
   const size = VALID_SIZES.has(sizeRaw.toUpperCase())
@@ -158,23 +158,28 @@ export async function GET(request: NextRequest) {
     log.error("Rejected invalid upstream cover URL", {
       url: upstream.toString()
     })
-    return apiError(400, "Invalid cover request")
+    return apiError(400, "Invalid cover request", { correlationId })
   }
 
   const result = await fetchCover(upstream.toString(), log)
 
+  const corrHeaders = { [CORRELATION_HEADER]: correlationId }
+
   if (!("headers" in result)) {
-    return new Response(null, { status: result.status })
+    return new Response(null, { status: result.status, headers: corrHeaders })
   }
 
   const response = result
-  if (response.status === 404) return new Response(null, { status: 404 })
-  if (!response.ok || !response.body) return new Response(null, { status: 502 })
-  if (exceedsMaxSize(response)) return new Response(null, { status: 413 })
+  if (response.status === 404)
+    return new Response(null, { status: 404, headers: corrHeaders })
+  if (!response.ok || !response.body)
+    return new Response(null, { status: 502, headers: corrHeaders })
+  if (exceedsMaxSize(response))
+    return new Response(null, { status: 413, headers: corrHeaders })
 
   // Stream-read the body with a hard byte cap — guards against missing Content-Length
   const body = await readBodyWithCap(response.body)
-  if (!body) return new Response(null, { status: 413 })
+  if (!body) return new Response(null, { status: 413, headers: corrHeaders })
 
   const responseHeaders = new Headers()
   responseHeaders.set("Content-Type", resolveContentType(response))

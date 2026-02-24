@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 import { apiError, apiSuccess, parseJsonBody } from "@/lib/api-response"
-import { getCorrelationId } from "@/lib/correlation"
+import { CORRELATION_HEADER, getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
 import { consumeDistributedRateLimit } from "@/lib/rate-limit-distributed"
@@ -126,7 +126,10 @@ export async function DELETE(
     }
 
     void data
-    return new NextResponse(null, { status: 204 })
+    return new NextResponse(null, {
+      status: 204,
+      headers: { [CORRELATION_HEADER]: correlationId }
+    })
   } catch (error) {
     log.error("Notification delete failed", {
       error: error instanceof Error ? error.message : String(error)
