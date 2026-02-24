@@ -9,8 +9,10 @@ import { useLibraryFetch } from "./use-library-fetch"
 
 /**
  * Ensures the library data is loaded, dispatching a fetch only when the store
- * is empty **and** no fetch is already in-flight. Avoids the race condition
- * where components mount during an ongoing load and trigger duplicate requests.
+ * has **never** completed a fetch **and** no fetch is already in-flight. This
+ * avoids re-triggering for users with a genuinely empty library — once the
+ * first fetch completes (even with zero results), `hasFetchedOnce` is true
+ * and the effect stops re-running.
  *
  * @returns `{ series, isLoading, fetchSeries }` — `fetchSeries` is exposed for
  *   components that need to trigger a manual refresh.
@@ -18,13 +20,14 @@ import { useLibraryFetch } from "./use-library-fetch"
  */
 export function useEnsureLibraryLoaded() {
   const series = useLibraryStore(useShallow(selectAllSeries))
+  const hasFetchedOnce = useLibraryStore((s) => s.hasFetchedOnce)
   const { fetchSeries, isLoading } = useLibraryFetch()
 
   useEffect(() => {
-    if (series.length === 0 && !isLoading) {
+    if (!hasFetchedOnce && !isLoading) {
       fetchSeries()
     }
-  }, [series.length, isLoading, fetchSeries])
+  }, [hasFetchedOnce, isLoading, fetchSeries])
 
   return { series, isLoading, fetchSeries }
 }
