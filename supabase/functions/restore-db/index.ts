@@ -73,52 +73,32 @@ function getEnv(key: string, fallback?: string) {
 }
 
 /**
- * Validates the request using either a shared secret header or a JWT Bearer token.
+ * Validates the request by requiring the BACKUP_SECRET header.
+ * JWT Bearer tokens are not accepted — this endpoint is admin-only.
  * @param request - Incoming HTTP request.
- * @param supabase - Supabase client for JWT verification.
  * @returns An object with `ok: true` on success, or `ok: false` with a `reason` string.
  * @source
  */
-const requireAuthorization = async (
-  request: Request,
-  supabase: SupabaseClient
-) => {
+const requireAuthorization = (request: Request) => {
   const requiredSecret = getEnv("BACKUP_SECRET")
-  if (requiredSecret) {
-    const providedSecret = request.headers.get("x-backup-secret") ?? ""
-    if (providedSecret !== requiredSecret) {
-      return {
-        ok: false,
-        reason: "Missing or invalid x-backup-secret header."
-      }
-    }
-    return { ok: true }
-  }
-
-  const authHeader = request.headers.get("authorization") ?? ""
-  const tokenMatch = /^Bearer\s+(.+)$/i.exec(authHeader)
-  if (!tokenMatch) {
+  if (!requiredSecret) {
+    console.error(
+      "[restore-db] BACKUP_SECRET is not configured; denying all requests."
+    )
     return {
       ok: false,
-      reason:
-        "Missing Authorization header. Provide a JWT or set BACKUP_SECRET for header-based auth."
+      reason: "Restore endpoint is not configured."
     }
   }
 
-  const token = tokenMatch[1]?.trim()
-  if (!token) {
+  const providedSecret = request.headers.get("x-backup-secret") ?? ""
+  if (providedSecret !== requiredSecret) {
+    console.warn(
+      "[restore-db] Unauthorized restore attempt — invalid x-backup-secret header."
+    )
     return {
       ok: false,
-      reason:
-        "Missing JWT in Authorization header. Provide a Bearer token or set BACKUP_SECRET."
-    }
-  }
-
-  const { data, error } = await supabase.auth.getUser(token)
-  if (error || !data?.user) {
-    return {
-      ok: false,
-      reason: error?.message ?? "Invalid or expired JWT."
+      reason: "Missing or invalid x-backup-secret header."
     }
   }
 
@@ -316,7 +296,89 @@ const restoreTable = async (
 }
 
 /**
- * Executes the full restore: atomically restores series+volumes via RPC,
+ * Groups an array of rows by their `user_id` field.
+ * Rows without a string `user_id` are silently skipped.
+ * @param rows - Array of rows to group.
+ * @returns Map from user_id to the rows belonging to that user.
+ * @source
+ */
+const groupRowsByUser = (rows: unknown[]): Map<string, unknown[]> => {
+  const map = new Map<string, unknown[]>()
+  for (const row of rows) {
+    const userId = (row as Record<string, unknown>)?.user_id
+    if (typeof userId === "string" && userId) {
+      if (!map.has(userId)) map.set(userId, [])
+      map.get(userId)!.push(row)
+    }
+  }
+  return map
+}
+
+/** Result of restoring libraries for all users in a backup. @source */
+type MultiUserLibraryResult = {
+  seriesCount: number
+  volumesCount: number
+  usersAttempted: number
+  usersWithErrors: number
+  errors: string[]
+}
+
+/**
+ * Restores series and volumes for every unique user_id found in the backup rows,
+ * calling `restoreLibraryAtomic` once per user.
+ * One user's failure does not abort restores for other users.
+ * @source
+ */
+const restoreLibraryForAllUsers = async (
+  supabase: SupabaseClient,
+  seriesRows: unknown[],
+  volumeRows: unknown[]
+): Promise<MultiUserLibraryResult> => {
+  const seriesByUser = groupRowsByUser(seriesRows)
+  const volumesByUser = groupRowsByUser(volumeRows)
+  const allUserIds = new Set([...seriesByUser.keys(), ...volumesByUser.keys()])
+
+  if (allUserIds.size === 0) {
+    return {
+      seriesCount: 0,
+      volumesCount: 0,
+      usersAttempted: 0,
+      usersWithErrors: 0,
+      errors: [
+        "Could not determine user_id from backup series/volumes rows; skipping atomic restore."
+      ]
+    }
+  }
+
+  let seriesCount = 0
+  let volumesCount = 0
+  let usersAttempted = 0
+  let usersWithErrors = 0
+  const errors: string[] = []
+
+  for (const userId of allUserIds) {
+    usersAttempted++
+    const result = await restoreLibraryAtomic(
+      supabase,
+      userId,
+      seriesByUser.get(userId) ?? [],
+      volumesByUser.get(userId) ?? []
+    )
+    seriesCount += result.seriesCount
+    volumesCount += result.volumesCount
+    if (result.error) {
+      usersWithErrors++
+      errors.push(
+        `Atomic restore of series/volumes for user ${userId} failed: ${result.error}`
+      )
+    }
+  }
+
+  return { seriesCount, volumesCount, usersAttempted, usersWithErrors, errors }
+}
+
+/**
+ * Executes the full restore: atomically restores series+volumes per user via RPC,
  * then sequentially restores all remaining tables.
  * @source
  */
@@ -324,38 +386,33 @@ const performRestore = async (
   supabase: SupabaseClient,
   payload: BackupPayload,
   sortedTables: string[]
-): Promise<{ restoredCounts: Record<string, number>; errors: string[] }> => {
+): Promise<{
+  restoredCounts: Record<string, number>
+  errors: string[]
+  usersAttempted: number
+  usersWithErrors: number
+}> => {
   const restoredCounts: Record<string, number> = {}
   const errors: string[] = []
+  let usersAttempted = 0
+  let usersWithErrors = 0
 
-  // [DB-18] Restore series + volumes atomically via restore_user_library RPC.
+  // [DB-18] Restore series + volumes atomically via restore_user_library RPC,
+  // grouped by user_id to support multi-user backups.
   const seriesRows = payload.tables["series"]
   const volumeRows = payload.tables["volumes"]
 
   if (Array.isArray(seriesRows) && Array.isArray(volumeRows)) {
-    const userId = (seriesRows[0] as Record<string, unknown>)?.user_id as
-      | string
-      | undefined
-
-    if (userId) {
-      const atomicResult = await restoreLibraryAtomic(
-        supabase,
-        userId,
-        seriesRows,
-        volumeRows
-      )
-      restoredCounts["series"] = atomicResult.seriesCount
-      restoredCounts["volumes"] = atomicResult.volumesCount
-      if (atomicResult.error) {
-        errors.push(
-          `Atomic restore of series/volumes failed: ${atomicResult.error}`
-        )
-      }
-    } else {
-      errors.push(
-        "Could not determine user_id from backup series rows; skipping atomic restore."
-      )
-    }
+    const libResult = await restoreLibraryForAllUsers(
+      supabase,
+      seriesRows,
+      volumeRows
+    )
+    restoredCounts["series"] = libResult.seriesCount
+    restoredCounts["volumes"] = libResult.volumesCount
+    usersAttempted = libResult.usersAttempted
+    usersWithErrors = libResult.usersWithErrors
+    errors.push(...libResult.errors)
   }
 
   for (const table of sortedTables) {
@@ -372,7 +429,7 @@ const performRestore = async (
     if (result.error) errors.push(result.error)
   }
 
-  return { restoredCounts, errors }
+  return { restoredCounts, errors, usersAttempted, usersWithErrors }
 }
 
 /**
@@ -409,7 +466,7 @@ serve(async (request: Request) => {
     }
   })
 
-  const authCheck = await requireAuthorization(request, supabase)
+  const authCheck = requireAuthorization(request)
   if (!authCheck.ok) {
     return jsonResponse(401, { error: authCheck.reason })
   }
@@ -446,11 +503,8 @@ serve(async (request: Request) => {
   const tableNames = Object.keys(payload.tables)
   const sortedTables = sortTablesForRestore(tableNames)
 
-  const { restoredCounts, errors } = await performRestore(
-    supabase,
-    payload,
-    sortedTables
-  )
+  const { restoredCounts, errors, usersAttempted, usersWithErrors } =
+    await performRestore(supabase, payload, sortedTables)
 
   const hasErrors = errors.length > 0
 
@@ -458,6 +512,8 @@ serve(async (request: Request) => {
     ok: !hasErrors,
     restoredTables: sortedTables,
     rowCounts: restoredCounts,
+    usersRestored: usersAttempted - usersWithErrors,
+    usersWithErrors,
     backupCreatedAt: payload.metadata.createdAt,
     ...(hasErrors ? { errors } : {})
   })
