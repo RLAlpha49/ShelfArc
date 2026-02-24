@@ -181,7 +181,10 @@ function SignupContent() {
       </div>
 
       {/* Right: Signup form */}
-      <div className="animate-slide-in-right relative z-10 flex flex-1 items-center justify-center px-6 py-12">
+      <main
+        id="main-content"
+        className="animate-slide-in-right relative z-10 flex flex-1 items-center justify-center px-6 py-12"
+      >
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="animate-fade-in mb-10 lg:hidden">
@@ -393,7 +396,7 @@ function SignupContent() {
             </Link>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
