@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -174,7 +175,7 @@ export function SeriesGrid({ seriesList, displayName }: Props) {
           {visibleSeries.map((series) => {
             const coverUrl = resolveImageUrl(series.cover_image_url)
             return (
-              <a
+              <Link
                 key={series.id}
                 href={`/u/${encodeURIComponent(displayName)}/${series.id}`}
                 className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-shadow hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
@@ -219,7 +220,7 @@ export function SeriesGrid({ seriesList, displayName }: Props) {
                     </span>
                   </div>
                 </div>
-              </a>
+              </Link>
             )
           })}
         </div>
