@@ -6,6 +6,13 @@ import { toast } from "sonner"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -64,6 +71,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
   )
   const [usernameChecking, setUsernameChecking] = useState(false)
   const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const usernameAbortRef = useRef<AbortController | null>(null)
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? "")
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("")
   const [avatarPreviewError, setAvatarPreviewError] = useState(false)
@@ -88,6 +96,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
       setPublicStats(profile.public_stats ?? false)
     }
   }, [profile, baseProfile])
+
+  useEffect(() => {
+    return () => {
+      usernameAbortRef.current?.abort()
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -136,7 +150,10 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
     if (usernameCheckTimer.current) {
       clearTimeout(usernameCheckTimer.current)
+      usernameCheckTimer.current = null
     }
+    usernameAbortRef.current?.abort()
+    usernameAbortRef.current = null
 
     if (
       !USERNAME_PATTERN.test(value) ||
@@ -147,19 +164,25 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
     }
 
     setUsernameChecking(true)
+    const controller = new AbortController()
+    usernameAbortRef.current = controller
     usernameCheckTimer.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/username/check?username=${encodeURIComponent(value)}`
+          `/api/username/check?username=${encodeURIComponent(value)}`,
+          { signal: controller.signal }
         )
         if (res.ok) {
           const json = (await res.json()) as { data: { available: boolean } }
           setUsernameAvailable(json.data.available)
         }
-      } catch {
-        // Silently ignore network errors for availability check
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return
+        // Silently ignore other network errors for availability check
       } finally {
-        setUsernameChecking(false)
+        if (!controller.signal.aborted) {
+          setUsernameChecking(false)
+        }
       }
     }, 300)
   }
@@ -632,20 +655,26 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
       </div>
 
       {/* Avatar crop modal */}
-      {cropFile && safeCropUrl && (
-        <dialog
-          open
-          className="bg-background/80 fixed inset-0 z-50 m-0 flex h-full w-full max-w-none items-center justify-center border-none p-0 backdrop-blur-sm"
-          aria-label="Crop avatar"
-        >
-          <div className="bg-background ring-border/60 w-full max-w-sm rounded-2xl border p-6 shadow-xl ring-1">
-            <h2 className="mb-1 text-center text-lg font-semibold">
+      <Dialog
+        open={cropFile !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCropFile(null)
+            setCropObjectUrl(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg font-semibold">
               Crop Avatar
-            </h2>
-            <p className="text-muted-foreground mb-4 text-center text-xs">
+            </DialogTitle>
+            <DialogDescription className="text-center">
               Your image will be center-cropped to a 1:1 square and resized to
               512×512.
-            </p>
+            </DialogDescription>
+          </DialogHeader>
+          {safeCropUrl && (
             <div className="flex justify-center">
               <img
                 src={safeCropUrl}
@@ -654,28 +683,28 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
                 className="ring-primary rounded-full ring-4"
               />
             </div>
-            <div className="mt-5 flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1 rounded-xl"
-                onClick={() => {
-                  setCropFile(null)
-                  setCropObjectUrl(null)
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 rounded-xl"
-                onClick={() => void handleCropAndUpload()}
-                disabled={isUploadingAvatar}
-              >
-                {isUploadingAvatar ? "Uploading\u2026" : "Crop & Upload"}
-              </Button>
-            </div>
+          )}
+          <div className="mt-1 flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 rounded-xl"
+              onClick={() => {
+                setCropFile(null)
+                setCropObjectUrl(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 rounded-xl"
+              onClick={() => void handleCropAndUpload()}
+              disabled={isUploadingAvatar}
+            >
+              {isUploadingAvatar ? "Uploading\u2026" : "Crop & Upload"}
+            </Button>
           </div>
-        </dialog>
-      )}
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }

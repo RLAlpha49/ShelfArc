@@ -75,19 +75,26 @@ function SignupContent() {
   // Debounced username availability check
   useEffect(() => {
     if (usernameValue.length < 3) return
+    const controller = new AbortController()
+    const { signal } = controller
     const timer = setTimeout(async () => {
       setUsernameStatus("checking")
       try {
         const res = await fetch(
-          `/api/username/check?username=${encodeURIComponent(usernameValue)}`
+          `/api/username/check?username=${encodeURIComponent(usernameValue)}`,
+          { signal }
         )
         const json = (await res.json()) as { data: { available: boolean } }
         setUsernameStatus(json.data.available ? "available" : "taken")
-      } catch {
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return
         setUsernameStatus("idle")
       }
     }, 400)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [usernameValue])
 
   const passwordStrength = computePasswordStrength(passwordValue)
