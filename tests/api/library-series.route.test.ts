@@ -27,6 +27,7 @@ const qb: Record<string, any> = {}
 qb.select = mock(() => qb)
 qb.eq = mock(() => qb)
 qb.order = mock(() => qb)
+qb.range = mock(async () => ({ data: [], error: null, count: 0 }))
 qb.insert = mock(() => ({ select: mock(() => ({ single: singleMock })) }))
 
 const fromMock = mock(() => qb)
@@ -63,6 +64,8 @@ beforeEach(() => {
   qb.select.mockClear()
   qb.eq.mockClear()
   qb.order.mockClear()
+  qb.range.mockClear()
+  qb.range.mockResolvedValue({ data: [], error: null, count: 0 })
   qb.insert.mockClear()
   distributedRateLimitMocks.consumeDistributedRateLimit.mockClear()
   distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValue({
@@ -215,5 +218,115 @@ describe("POST /api/library/series", () => {
     )
 
     expect(enforceSameOriginMock).toHaveBeenCalled()
+  })
+})
+
+describe("GET /api/library/series", () => {
+  it("returns 401 when not authenticated", async () => {
+    getUserMock.mockResolvedValueOnce({ data: { user: null } })
+
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/series", {
+        method: "GET"
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(401)
+    expect(body.error).toBe("Not authenticated")
+  })
+
+  it("returns 429 when rate limited", async () => {
+    distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
+      { allowed: false }
+    )
+
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/series", {
+        method: "GET"
+      })
+    )
+
+    expect(response.status).toBe(429)
+  })
+
+  it("returns 200 with empty data for a user with no series", async () => {
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/series", {
+        method: "GET"
+      })
+    )
+
+    const body = await readJson<{
+      data: unknown[]
+      pagination: { limit: number; offset: number; total: number }
+    }>(response)
+    expect(response.status).toBe(200)
+    expect(Array.isArray(body.data)).toBe(true)
+    expect(body.pagination.limit).toBe(50)
+    expect(body.pagination.offset).toBe(0)
+    expect(body.pagination.total).toBe(0)
+  })
+
+  it("returns series data from the database", async () => {
+    const seriesList = [
+      { id: "s1", title: "Series A", type: "manga", user_id: "user-1" },
+      { id: "s2", title: "Series B", type: "light_novel", user_id: "user-1" }
+    ]
+    qb.range.mockResolvedValueOnce({ data: seriesList, error: null, count: 2 })
+
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/series", {
+        method: "GET"
+      })
+    )
+
+    const body = await readJson<{
+      data: typeof seriesList
+      pagination: { total: number }
+    }>(response)
+    expect(response.status).toBe(200)
+    expect(body.data).toHaveLength(2)
+    expect(body.pagination.total).toBe(2)
+  })
+
+  it("respects limit and offset query params", async () => {
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest(
+        "http://localhost/api/library/series?limit=10&offset=20",
+        { method: "GET" }
+      )
+    )
+
+    const body = await readJson<{
+      pagination: { limit: number; offset: number }
+    }>(response)
+    expect(response.status).toBe(200)
+    expect(body.pagination.limit).toBe(10)
+    expect(body.pagination.offset).toBe(20)
+  })
+
+  it("returns 500 when the database query fails", async () => {
+    qb.range.mockResolvedValueOnce({
+      data: null,
+      error: { message: "db error" },
+      count: null
+    })
+
+    const { GET } = await loadRoute()
+    const response = await GET(
+      makeNextRequest("http://localhost/api/library/series", {
+        method: "GET"
+      })
+    )
+
+    const body = await readJson<{ error: string }>(response)
+    expect(response.status).toBe(500)
+    expect(body.error).toBe("Failed to fetch series")
   })
 })

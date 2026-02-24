@@ -176,6 +176,152 @@ describe("settings-store", () => {
     })
   })
 
+  /* ---- Accessibility setters ---- */
+
+  describe("accessibility setters", () => {
+    it("setHighContrastMode", () => {
+      useSettingsStore.getState().setHighContrastMode(true)
+      expect(useSettingsStore.getState().highContrastMode).toBe(true)
+
+      useSettingsStore.getState().setHighContrastMode(false)
+      expect(useSettingsStore.getState().highContrastMode).toBe(false)
+    })
+
+    it("setFontSizeScale", () => {
+      useSettingsStore.getState().setFontSizeScale("large")
+      expect(useSettingsStore.getState().fontSizeScale).toBe("large")
+
+      useSettingsStore.getState().setFontSizeScale("x-large")
+      expect(useSettingsStore.getState().fontSizeScale).toBe("x-large")
+
+      useSettingsStore.getState().setFontSizeScale("default")
+      expect(useSettingsStore.getState().fontSizeScale).toBe("default")
+    })
+
+    it("setFocusIndicators", () => {
+      useSettingsStore.getState().setFocusIndicators("enhanced")
+      expect(useSettingsStore.getState().focusIndicators).toBe("enhanced")
+
+      useSettingsStore.getState().setFocusIndicators("default")
+      expect(useSettingsStore.getState().focusIndicators).toBe("default")
+    })
+  })
+
+  /* ---- Automation setter ---- */
+
+  describe("automation setter", () => {
+    it("setAutomatedPriceChecks", () => {
+      useSettingsStore.getState().setAutomatedPriceChecks(false)
+      expect(useSettingsStore.getState().automatedPriceChecks).toBe(false)
+
+      useSettingsStore.getState().setAutomatedPriceChecks(true)
+      expect(useSettingsStore.getState().automatedPriceChecks).toBe(true)
+    })
+  })
+
+  /* ---- Notification setters ---- */
+
+  describe("notification setters", () => {
+    it("setReleaseReminders", () => {
+      useSettingsStore.getState().setReleaseReminders(false)
+      expect(useSettingsStore.getState().releaseReminders).toBe(false)
+    })
+
+    it("setReleaseReminderDays", () => {
+      useSettingsStore.getState().setReleaseReminderDays(14)
+      expect(useSettingsStore.getState().releaseReminderDays).toBe(14)
+
+      useSettingsStore.getState().setReleaseReminderDays(30)
+      expect(useSettingsStore.getState().releaseReminderDays).toBe(30)
+    })
+
+    it("setNotifyOnImportComplete", () => {
+      useSettingsStore.getState().setNotifyOnImportComplete(false)
+      expect(useSettingsStore.getState().notifyOnImportComplete).toBe(false)
+    })
+
+    it("setNotifyOnScrapeComplete", () => {
+      useSettingsStore.getState().setNotifyOnScrapeComplete(false)
+      expect(useSettingsStore.getState().notifyOnScrapeComplete).toBe(false)
+    })
+
+    it("setNotifyOnPriceAlert", () => {
+      useSettingsStore.getState().setNotifyOnPriceAlert(false)
+      expect(useSettingsStore.getState().notifyOnPriceAlert).toBe(false)
+    })
+
+    it("setEmailNotifications", () => {
+      useSettingsStore.getState().setEmailNotifications(true)
+      expect(useSettingsStore.getState().emailNotifications).toBe(true)
+    })
+  })
+
+  /* ---- Library sort setters ---- */
+
+  describe("library sort setters", () => {
+    it("setDefaultSortBy", () => {
+      useSettingsStore.getState().setDefaultSortBy("author")
+      expect(useSettingsStore.getState().defaultSortBy).toBe("author")
+
+      useSettingsStore.getState().setDefaultSortBy("rating")
+      expect(useSettingsStore.getState().defaultSortBy).toBe("rating")
+
+      useSettingsStore.getState().setDefaultSortBy("created_at")
+      expect(useSettingsStore.getState().defaultSortBy).toBe("created_at")
+    })
+
+    it("setDefaultSortDir", () => {
+      useSettingsStore.getState().setDefaultSortDir("desc")
+      expect(useSettingsStore.getState().defaultSortDir).toBe("desc")
+
+      useSettingsStore.getState().setDefaultSortDir("asc")
+      expect(useSettingsStore.getState().defaultSortDir).toBe("asc")
+    })
+  })
+
+  /* ---- Dashboard layout setters ---- */
+
+  describe("dashboard layout setters", () => {
+    it("setDashboardLayout replaces the layout", () => {
+      const newLayout = {
+        order: ["stats"] as const,
+        hidden: ["activity"] as const
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      useSettingsStore.getState().setDashboardLayout(newLayout as any)
+      expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (useSettingsStore.getState().dashboardLayout as any).order
+      ).toEqual(["stats"])
+    })
+
+    it("resetDashboardLayout restores default layout", () => {
+      const newLayout = { order: ["stats"] as const, hidden: [] as const }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      useSettingsStore.getState().setDashboardLayout(newLayout as any)
+      useSettingsStore.getState().resetDashboardLayout()
+      const { dashboardLayout } = useSettingsStore.getState()
+      // Default layout has all widgets
+      expect(dashboardLayout.order.length).toBeGreaterThan(5)
+      expect(dashboardLayout.hidden).toHaveLength(0)
+    })
+  })
+
+  /* ---- Reading goal setter ---- */
+
+  describe("reading goal setter", () => {
+    it("setReadingGoal sets a numeric goal", () => {
+      useSettingsStore.getState().setReadingGoal(52)
+      expect(useSettingsStore.getState().readingGoal).toBe(52)
+    })
+
+    it("setReadingGoal accepts undefined to clear the goal", () => {
+      useSettingsStore.getState().setReadingGoal(12)
+      useSettingsStore.getState().setReadingGoal(undefined)
+      expect(useSettingsStore.getState().readingGoal).toBeUndefined()
+    })
+  })
+
   /* ---- Onboarding setter ---- */
 
   describe("onboarding setter", () => {
@@ -248,6 +394,105 @@ describe("settings-store", () => {
       expect(useSettingsStore.getState()._hydrated).toBe(false)
       useSettingsStore.setState({ _hydrated: true })
       expect(useSettingsStore.getState()._hydrated).toBe(true)
+    })
+  })
+
+  /* ---- loadFromServer ---- */
+
+  describe("loadFromServer", () => {
+    it("applies server settings when server data is newer than local", async () => {
+      // Simulate a local state with a known lastSyncedAt
+      useSettingsStore.setState({ lastSyncedAt: 1000 })
+
+      const serverSettings = {
+        showReadingProgress: false,
+        cardSize: "large",
+        lastSyncedAt: 2000 // newer than local 1000
+      }
+
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = (async () =>
+        ({
+          ok: true,
+          json: async () => ({ data: { settings: serverSettings } })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as Response) as any
+
+      await useSettingsStore.getState().loadFromServer()
+
+      const s = useSettingsStore.getState()
+      expect(s.showReadingProgress).toBe(false)
+      expect(s.cardSize).toBe("large")
+      expect(s.lastSyncedAt).toBe(2000)
+
+      globalThis.fetch = originalFetch
+    })
+
+    it("skips applying server settings when server data is older than local", async () => {
+      useSettingsStore.setState({ lastSyncedAt: 5000, cardSize: "compact" })
+
+      const serverSettings = {
+        cardSize: "large",
+        lastSyncedAt: 1000 // older than local 5000
+      }
+
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = (async () =>
+        ({
+          ok: true,
+          json: async () => ({ data: { settings: serverSettings } })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as Response) as any
+
+      await useSettingsStore.getState().loadFromServer()
+
+      // Should not have overwritten the local value
+      expect(useSettingsStore.getState().cardSize).toBe("compact")
+
+      globalThis.fetch = originalFetch
+    })
+
+    it("does nothing when fetch returns a non-ok response", async () => {
+      useSettingsStore.setState({ cardSize: "default" })
+
+      const originalFetch = globalThis.fetch
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      globalThis.fetch = (async () => ({ ok: false }) as Response) as any
+
+      await useSettingsStore.getState().loadFromServer()
+
+      expect(useSettingsStore.getState().cardSize).toBe("default")
+      globalThis.fetch = originalFetch
+    })
+
+    it("does not throw when fetch rejects", async () => {
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = (async () => {
+        throw new Error("Network failure")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      }) as any
+
+      // Must not propagate
+      await useSettingsStore.getState().loadFromServer()
+
+      globalThis.fetch = originalFetch
+    })
+
+    it("does nothing when server data is missing from response", async () => {
+      useSettingsStore.setState({ cardSize: "compact" })
+
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = (async () =>
+        ({
+          ok: true,
+          json: async () => ({ data: null })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as Response) as any
+
+      await useSettingsStore.getState().loadFromServer()
+
+      expect(useSettingsStore.getState().cardSize).toBe("compact")
+      globalThis.fetch = originalFetch
     })
   })
 })
