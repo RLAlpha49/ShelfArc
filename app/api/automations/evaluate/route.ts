@@ -16,6 +16,9 @@ import { createUserClient } from "@/lib/supabase/server"
 /** Forces dynamic (uncached) rendering for this route. @source */
 export const dynamic = "force-dynamic"
 
+// Requires Node.js APIs (crypto timingSafeEqual, Supabase admin client).
+export const runtime = "nodejs"
+
 // Vercel Hobby plan caps serverless function duration at 10s.
 export const maxDuration = 10
 

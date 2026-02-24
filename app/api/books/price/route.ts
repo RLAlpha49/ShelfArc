@@ -16,6 +16,9 @@ import { createUserClient } from "@/lib/supabase/server"
 /** Forces dynamic (uncached) rendering for this route. @source */
 export const dynamic = "force-dynamic"
 
+// Requires Node.js APIs (crypto hash, cheerio/undici, Supabase client).
+export const runtime = "nodejs"
+
 export const maxDuration = 10
 
 // NOTE: detailed scoring debug is controlled in the lib module.
