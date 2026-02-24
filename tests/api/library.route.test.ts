@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test"
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock
+} from "bun:test"
 
 import { makeNextRequest, readJson } from "./test-utils"
 
@@ -71,6 +79,13 @@ beforeEach(() => {
     remainingHits: 10,
     retryAfterMs: 0
   })
+})
+
+afterAll(() => {
+  // Restore any function spies created during this suite and clean up
+  // module-level mock.module() replacements so they don't leak into
+  // subsequent test files when Bun runs with --max-concurrency=1.
+  mock.restore()
 })
 
 afterEach(() => {

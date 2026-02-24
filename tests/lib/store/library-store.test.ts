@@ -32,6 +32,7 @@ function makeSeries(overrides: Partial<Series> = {}): Series {
     status: null,
     tags: [],
     is_public: false,
+    owned_volume_count: 0,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides

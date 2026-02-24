@@ -830,6 +830,7 @@ export default function LibraryClient({
         cover_image_url: volume.cover_image_url,
         type: "other",
         total_volumes: 1,
+        owned_volume_count: 0,
         status: null,
         tags: [],
         is_public: false,

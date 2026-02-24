@@ -126,7 +126,7 @@ describe("GET /api/username/check", () => {
 
   it("returns 429 when rate limited", async () => {
     distributedRateLimitMocks.consumeDistributedRateLimit.mockResolvedValueOnce(
-      { allowed: false, retryAfterMs: 0 } as unknown as null
+      { allowed: false, retryAfterMs: 0, remainingHits: 0 }
     )
 
     const { GET } = await loadRoute()
