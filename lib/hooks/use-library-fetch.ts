@@ -16,6 +16,19 @@ const API_PAGE_LIMIT = 100
 /** Data is considered fresh for this duration (ms). @source */
 const STALE_AFTER_MS = 30_000
 
+/**
+ * Returns true when a recent fetch has already completed so the caller can
+ * skip re-fetching. An empty library counts as "fetched" once `hasFetchedOnce`
+ * is set, preventing the infinite re-fetch loop for users with no content.
+ * @source
+ */
+function isLibraryFresh(state: ReturnType<typeof useLibraryStore.getState>) {
+  if (state.lastFetchedAt == null) return false
+  const age = Date.now() - state.lastFetchedAt
+  if (age >= STALE_AFTER_MS) return false
+  return state.hasFetchedOnce || state.seriesIds.length > 0
+}
+
 export function useLibraryFetch() {
   const fetchRunIdRef = useRef(0)
   const {
@@ -23,6 +36,7 @@ export function useLibraryFetch() {
     setUnassignedVolumes,
     setIsLoading,
     setLastFetchedAt,
+    setHasFetchedOnce,
     isLoading,
     sortField,
     sortOrder
@@ -36,16 +50,13 @@ export function useLibraryFetch() {
   // Fetch all series with volumes (stale-while-revalidate)
   const fetchSeries = useCallback(async () => {
     const state = useLibraryStore.getState()
-    const hasCachedData = state.seriesIds.length > 0
-    const isFresh =
-      state.lastFetchedAt != null &&
-      Date.now() - state.lastFetchedAt < STALE_AFTER_MS
 
-    // If we have fresh cached data, skip the fetch entirely
-    if (hasCachedData && isFresh) return
+    // If a recent fetch already completed (even for an empty library), skip.
+    if (isLibraryFresh(state)) return
 
     // If we have stale cached data, keep it visible (no loading skeleton)
-    // but still fetch in the background
+    // but still fetch in the background.
+    const hasCachedData = state.seriesIds.length > 0
     const showLoadingSkeleton = !hasCachedData
 
     const fetchRunId = ++fetchRunIdRef.current
@@ -149,6 +160,7 @@ export function useLibraryFetch() {
 
       if (isLatestRun()) {
         setLastFetchedAt(Date.now())
+        setHasFetchedOnce(true)
       }
     } catch (error) {
       console.error("Error fetching series:", error)
@@ -168,6 +180,7 @@ export function useLibraryFetch() {
     setUnassignedVolumes,
     setIsLoading,
     setLastFetchedAt,
+    setHasFetchedOnce,
     sortField,
     sortOrder
   ])
