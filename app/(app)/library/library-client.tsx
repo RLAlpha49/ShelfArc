@@ -429,12 +429,8 @@ export default function LibraryClient({
     }
   }
 
-  const handleEditSeries = async (
-    data: Parameters<typeof createSeries>[0],
-    options?: { volumeIds?: string[] }
-  ) => {
+  const handleEditSeries = async (data: Parameters<typeof createSeries>[0]) => {
     if (!editingSeries) return
-    void options
     try {
       await editSeries(editingSeries.id, data)
       toast.success("Series updated successfully")

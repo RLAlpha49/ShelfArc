@@ -249,12 +249,8 @@ export default function SeriesDetailPage() {
   )
 
   const handleEditSeries = useCallback(
-    async (
-      data: Omit<SeriesInsert, "user_id">,
-      options?: { volumeIds?: string[] }
-    ) => {
+    async (data: Omit<SeriesInsert, "user_id">) => {
       if (!currentSeries) return
-      void options
       try {
         await editSeries(currentSeries.id, data)
         toast.success("Series updated successfully")
