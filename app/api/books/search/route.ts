@@ -312,7 +312,7 @@ const handleGoogleBooks = async (
 ) => {
   const googleApiKeys = getGoogleBooksApiKeys()
   if (googleApiKeys.length === 0) {
-    return apiError(400, "Google Books API key is not configured", {
+    return apiError(503, "Google Books API key is not configured", {
       extra: { results: [], sourceUsed: "google_books" }
     })
   }

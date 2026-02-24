@@ -117,7 +117,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
   const googleApiKeys = getGoogleBooksApiKeys()
   if (googleApiKeys.length === 0) {
-    return apiError(400, "Google Books API key is not configured")
+    return apiError(503, "Google Books API key is not configured")
   }
 
   try {
@@ -146,6 +146,6 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     log.error("Google Books volume fetch failed", {
       error: error instanceof Error ? error.message : String(error)
     })
-    return apiError(502, "Google Books volume fetch failed")
+    return apiError(502, "Google Books volume fetch failed", { correlationId })
   }
 }

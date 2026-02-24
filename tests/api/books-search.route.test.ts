@@ -69,7 +69,7 @@ describe("GET /api/books/search", () => {
     )
 
     const body = await readJson<{ error: string }>(response)
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(503)
     expect(body.error).toBe("Google Books API key is not configured")
   })
 
