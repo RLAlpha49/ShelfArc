@@ -5,17 +5,7 @@ import { timingSafeEqual } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 
 import { apiError, apiSuccess } from "@/lib/api-response"
-import {
-  createAmazonSearchContext,
-  fetchAmazonHtml,
-  parseAmazonResult
-} from "@/lib/books/price/amazon-price"
 import { ApiError } from "@/lib/books/price/api-error"
-import {
-  createBookWalkerSearchContext,
-  fetchBookWalkerHtml,
-  parseBookWalkerResult
-} from "@/lib/books/price/bookwalker-price"
 import { getCorrelationId } from "@/lib/correlation"
 import { enforceSameOrigin } from "@/lib/csrf"
 import { logger } from "@/lib/logger"
@@ -179,6 +169,27 @@ async function authenticate(
       secretBuf.length === providedBuf.length &&
       timingSafeEqual(secretBuf, providedBuf)
     ) {
+      // Rate-limit secret-authenticated calls so a leaked secret cannot be
+      // used to trigger expensive evaluations at high frequency.
+      const rl = await consumeDistributedRateLimit({
+        key: "evaluate:secret",
+        maxHits: 60,
+        windowMs: 60_000,
+        cooldownMs: 60_000,
+        reason: "Rate limit secret-authenticated evaluation"
+      })
+      if (rl && !rl.allowed) {
+        return {
+          ok: false,
+          response: apiError(
+            429,
+            "Too many evaluation requests. Please wait.",
+            {
+              correlationId
+            }
+          )
+        }
+      }
       return { ok: true, targetUserId: null }
     }
   }
@@ -373,6 +384,11 @@ async function scrapeVolumeBookWalker(
   log: ReturnType<typeof logger.withCorrelationId>
 ): Promise<PriceData | null> {
   try {
+    const {
+      createBookWalkerSearchContext,
+      fetchBookWalkerHtml,
+      parseBookWalkerResult
+    } = await import("@/lib/books/price/bookwalker-price")
     const params = new URLSearchParams()
     const seriesTitle = vol.series?.title ?? vol.title ?? "Unknown"
     params.set("title", seriesTitle)
@@ -426,6 +442,8 @@ async function scrapeVolume(
   log: ReturnType<typeof logger.withCorrelationId>
 ): Promise<PriceData | null> {
   try {
+    const { createAmazonSearchContext, fetchAmazonHtml, parseAmazonResult } =
+      await import("@/lib/books/price/amazon-price")
     const params = buildAmazonParams(vol, settings)
     const context = createAmazonSearchContext(params)
     const html = await fetchAmazonHtml(context.searchUrl)
