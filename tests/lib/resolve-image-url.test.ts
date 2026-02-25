@@ -15,7 +15,7 @@ describe("extractStoragePath", () => {
   })
 
   it("returns null for undefined input", () => {
-    expect(extractStoragePath(undefined)).toBeNull()
+    expect(extractStoragePath()).toBeNull()
   })
 
   it("returns null for an empty string", () => {
@@ -72,7 +72,7 @@ describe("resolveImageUrl", () => {
   })
 
   it("returns undefined for undefined", () => {
-    expect(resolveImageUrl(undefined)).toBeUndefined()
+    expect(resolveImageUrl()).toBeUndefined()
   })
 
   it("returns undefined for an empty string", () => {
@@ -140,7 +140,7 @@ describe("buildOpenLibraryCoverUrl", () => {
   })
 
   it("returns null for undefined input", () => {
-    expect(buildOpenLibraryCoverUrl(undefined)).toBeNull()
+    expect(buildOpenLibraryCoverUrl()).toBeNull()
   })
 
   it("returns null for an invalid ISBN", () => {
